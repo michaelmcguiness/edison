@@ -61,8 +61,11 @@ services.
   controls without the owner signing in or approving the specific action.
 - The working tree contains the production private-alpha implementation. It has
   not been migrated, seeded, deployed, or exercised against a hosted database.
-- Local pgTAP/migration execution is still required. This machine did not have
-  a usable Docker/Postgres runtime during the implementation pass.
+- Candidate `52aa993` passed the clean GitHub CI application job on Node 22
+  and all 106 pgTAP assertions after applying every migration to disposable
+  Supabase/PostgreSQL 17. This machine still has no usable Docker/Postgres
+  runtime. Schema lint, hosted readiness, real-provider concurrency checks,
+  and the backup/restore rehearsal remain release gates.
 
 ## Production topology
 

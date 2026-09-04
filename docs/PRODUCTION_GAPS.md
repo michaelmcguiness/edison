@@ -184,10 +184,11 @@ Required API configuration includes:
 2. **Broad-access edge/write-rate controls remain operational work.** Database
    quotas protect model spend, but production WAF rules and a modest
    editorial-write limit are still required before broad public access.
-3. **Clean-database and hosted verification are outstanding.** Migrations and
-   pgTAP have not run against a clean local Supabase stack in this workspace;
-   production credentials, monitoring, backup/restore, and incident procedures
-   have not been configured or tested.
+3. **Hosted verification and recovery testing are outstanding.** Candidate
+   `52aa993` passed clean migration application and 106/106 pgTAP assertions in
+   disposable Supabase/PostgreSQL 17 on GitHub CI. Schema lint, hosted
+   readiness, provider concurrency, production credentials, monitoring,
+   backup/restore, and incident procedures have not been verified.
 4. **Production operations and reader-trust materials remain external setup.**
    The private alpha still needs the approved provider projects/plans, exact
    origins and allowlists, custom SMTP, firewall rules, budgets/alerts, error
@@ -207,6 +208,7 @@ production-readiness sequence in order as part of that reset:
 5. `20260904190546_explicit_usage_pricing_status.sql`
 6. `20260904192144_preference_bounds.sql`
 7. `20260904195000_public_article_share_boundary.sql`
+8. `20260904202000_edison_api_auth_membership.sql`
 
 Then run every pgTAP test, schema lint, both typechecks, all application tests,
 and both production builds from a clean checkout. Verify current/archived public

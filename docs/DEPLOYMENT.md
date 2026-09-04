@@ -12,10 +12,15 @@ below only for those named preparation actions.
 
 ### Preparation completed
 
-- Release candidate `6d0ebe9` is pushed on
+- The initial release candidate `6d0ebe9` and permission fix `52aa993` are pushed on
   `codex/production-release-candidate` in
   [draft PR #1](https://github.com/michaelmcguiness/edison/pull/1).
   `main` and the apex demo were not promoted or changed.
+- [CI run 33916066769](https://github.com/michaelmcguiness/edison/actions/runs/33916066769)
+  passed for `52aa993`: lint, both typechecks, 163 application tests, both
+  production builds on Node 22, and all 106 pgTAP assertions after clean
+  disposable Supabase/PostgreSQL 17 migration application. Hosted readiness,
+  schema lint, real-provider behavior, and backup/restore are still unverified.
 - Two empty Vercel projects were created in the existing Hobby team:
   [`edison-app`](https://vercel.com/mike-michaelmcguis-projects/edison-app)
   (`prj_TLrYocZ2r6okKwPr59ht2XQo8bmp`) and
@@ -201,6 +206,11 @@ Enter every credential directly in the relevant dashboard or local
 `.env.local`; do not paste credentials into chat, commits, tickets, or docs.
 
 ### Supabase setup
+
+The candidate is verified against PostgreSQL 17, matching
+`supabase/config.toml`. Confirm the production project's major version before
+planning migrations; the Auth-helper membership migration uses PostgreSQL
+16+ membership options and must not be applied to an older database.
 
 1. Link the CLI to the production project.
 2. Run database tests against local Supabase first.

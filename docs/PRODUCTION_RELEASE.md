@@ -33,14 +33,26 @@ Current audit limits:
   shells and their build settings; Supabase, SMTP, OpenAI, DNS, and billing
   configuration remain untouched.
 - No secret was requested, displayed, stored, or tested.
-- The production database does not exist here, and the full migrations/RLS
-  suite has not yet been run against a clean local Supabase instance.
+- The production database does not exist here. Candidate `52aa993` passed
+  all 106 pgTAP assertions and clean migration application in disposable
+  Supabase/PostgreSQL 17 on
+  [GitHub CI](https://github.com/michaelmcguiness/edison/actions/runs/33916066769).
+  Schema lint and the hosted dry-run/backup/restore gates remain outstanding.
 - The nonce-based CSP and responsive sample UI passed a local production-build
   browser smoke test; connected Supabase login and API flows still need testing
   in the isolated live projects.
 - The API readiness check has been extended for the new
   editorial-direction/public-starter schema and roles, but that check still
   needs execution against a clean migrated database.
+- Current Supabase Auth restricts direct grants from the project `postgres`
+  role. The final migration grants `edison_api` an inheritable membership in
+  built-in `authenticated` with `ADMIN FALSE` and `SET FALSE`. The role's
+  default `NOINHERIT` remains intact; this explicit edge supplies Auth helper
+  access, not new role-switch/delegation rights. Tests deny raw Auth-user
+  access, privileged role membership, and reverse inheritance by browser
+  roles. This relies on
+  [PostgreSQL 17 role-membership semantics](https://www.postgresql.org/docs/17/role-membership.html);
+  verify the hosted project's major version before migration.
 - AI article Q&A and legacy feed commands now use database-atomic rolling
   quotas, durable request fingerprints and exact provider-input snapshots,
   bounded worker leases, and stable provider idempotency keys. Observed invalid
