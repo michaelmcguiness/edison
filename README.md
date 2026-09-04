@@ -8,10 +8,16 @@ live release; keeping the demo small does not require rewriting that architectur
 
 ## Current demo
 
-The demo is live at [edison-lake-phi.vercel.app](https://edison-lake-phi.vercel.app/).
+The demo is live at [edisonreader.com](https://edisonreader.com/).
+The [Vercel alias](https://edison-lake-phi.vercel.app/) is retained.
 The initial deployment of commit `4855596` was verified on September 4, 2026.
-The stable production URL is publicly accessible; unique deployment URLs
-retain Vercel Authentication. No custom domain or live services are connected.
+The owner subsequently purchased the domain on Vercel and authorized connecting
+it to this same demo. Both hostnames passed TLS verification. The apex domain
+returns the sample UI over HTTPS, and `www.edisonreader.com` redirects to it
+with 308 while preserving paths and query parameters. HTTP upgrades to HTTPS.
+The production URLs are publicly accessible;
+unique deployment URLs retain Vercel Authentication. No live backend services
+or paid hosting upgrade are active.
 
 Deploy only the root Next.js web project with the server-only environment value
 `EDISON_DEMO_MODE=true`. Set it in both Vercel **Production** and **Preview**.
@@ -154,7 +160,7 @@ For the current demo, create **one** Vercel project from the repository:
 - Environment: `EDISON_DEMO_MODE=true` and `ENABLE_EXPERIMENTAL_COREPACK=1`
   in Production and Preview; no live keys
 - The owner-approved root demo is deployed at
-  [edison-lake-phi.vercel.app](https://edison-lake-phi.vercel.app/)
+  [edisonreader.com](https://edisonreader.com/), with its Vercel alias retained
 
 Corepack is required to honor `packageManager: pnpm@10.28.0`. Without it, an
 overridden install command can select an older pnpm version. See
@@ -176,8 +182,10 @@ the disconnected root demo. The initial deployment is Ready: the hosted clean
 install used pnpm 10.28.0, Next 16.3.4 built with Webpack, and the runtime and
 saved project setting are Node.js 22.x. Anonymous route checks and desktop/mobile
 UI checks passed. Preview environment settings are configured, but a separate
-Preview deployment has not been tested. This approval does not authorize the
-live backend, paid services, or attaching `edisonreader.com`.
+Preview deployment has not been tested. A subsequent docs-only push (`87973fd`)
+also deployed successfully, confirming automatic production deployment from
+GitHub `main`; the application code is unchanged. The owner-approved custom
+domain attachment does not authorize the live backend or a paid hosting upgrade.
 
 For the **later live release**, create two Vercel projects from that repository:
 

@@ -52,6 +52,17 @@ This project is independent. It is not affiliated with Perch.
   deploying the disconnected root demo. The initial deployment of commit
   `4855596` is Ready and was verified on September 4, 2026 at
   [edison-lake-phi.vercel.app](https://edison-lake-phi.vercel.app/).
+- The primary demo URL is now [edisonreader.com](https://edisonreader.com/).
+  The owner purchased the domain on Vercel and explicitly authorized connecting
+  it to this Production project. Vercel reports Valid Configuration for the
+  apex, and its HTTPS page returns 200 with the sample banner. The Vercel alias
+  is retained. Both apex and `www` passed TLS verification; `www` redirects to
+  the apex with 308 while preserving paths and query parameters, and HTTP
+  upgrades to HTTPS. Custom-domain checks also confirm `/login` redirects home
+  with 307 while share, API, and cron paths return 404.
+- Docs-only commit `87973fd` deployed successfully through the GitHub `main`
+  integration, confirming automatic production deployment. The application
+  code remains unchanged from the initial verified release.
 - All 12 unauthenticated production smoke checks passed: home and three assets
   return 200; login, admin, callback, and confirmation redirect home with 307;
   signout POST redirects home with 303; share, API, and cron paths return 404.
@@ -61,15 +72,15 @@ This project is independent. It is not affiliated with Perch.
 - Standard Vercel Authentication remains enabled: the stable production URL is
   publicly accessible, while the unique deployment URL redirects to Vercel
   sign-in. Production and Preview variables are configured; a separate Preview
-  deployment has not been tested. No live backend, paid infrastructure, or
-  custom domain was activated, and this step does not authorize those changes
-  or a broader public launch.
+  deployment has not been tested. No live backend or paid hosting upgrade was
+  activated; attaching the owner-approved demo domain does not authorize
+  live-service activation or a broader product launch.
 - The owner created `michaelmcguiness/edison` on GitHub and approved publishing
   the reviewed code there, including public visibility. The canonical source
   URL is `https://github.com/michaelmcguiness/edison`. Check Git status and
   remote refs for the current commit/push state. Source publication and the
-  approved root demo deployment do not activate the live backend or a custom
-  domain; those remain separate release steps.
+  approved root demo deployment and domain attachment do not activate the live
+  backend; that remains a separate release step.
 - `OPENAI_API_KEY` is not configured or needed for the demo. Never commit it or
   paste it into chat; add it directly to the API Vercel project only when the
   later live stack is approved.
@@ -110,8 +121,9 @@ exemption. Reassess the plan before commercial use or a product launch. See
 
 There is no paid staging stack now or initially during private alpha. For the
 later live phase, use local Supabase, tests, credential-free Vercel previews,
-and one backed-up production Supabase project. Do not attach
-`edisonreader.com` until the owner explicitly approves.
+and one backed-up production Supabase project. The owner-approved
+`edisonreader.com` domain serves the disconnected demo only; do not activate
+the live stack or add live API subdomains without separate approval.
 
 ## Locked product decisions
 
@@ -273,10 +285,11 @@ use `drizzle-kit push` against production.
 - Build successfully and run automated tests before the demo deployment.
   Inspect/test Supabase migrations before a later live database deployment;
   Docker and database tests are not prerequisites for the sample-data web demo.
-- Do not deploy, attach `edisonreader.com`, or make the app public without the
-  owner's explicit approval. The current approval covers only the disconnected
-  root demo on its temporary Vercel URL; domain attachment, live services, and
-  a broader launch remain separate. A Vercel URL is not inherently
+- Do not deploy, attach additional domains, or broaden public availability
+  without the owner's explicit approval. The current approval covers the
+  disconnected root demo on `edisonreader.com`, its `www` redirect, and its
+  Vercel alias; live services, paid hosting upgrades, and a broader product
+  launch remain separate. A Vercel URL is not inherently
   access-controlled; check the chosen protection settings before sharing it.
 
 ## First prompt to give Codex
@@ -293,5 +306,6 @@ use `drizzle-kit push` against production.
 > database. Do as much as possible autonomously, but never request secrets in
 > source control or chat and never push, deploy, attach domains, or make the
 > app public without the owner's explicit approval. The recorded current
-> approval covers GitHub source publication and this root-only Vercel demo
-> deployment, not domain attachment or live-service activation.
+> approval covers GitHub source publication, this root-only Vercel demo
+> deployment, and attaching `edisonreader.com` with its `www` redirect. It does
+> not authorize live-service activation or a paid hosting upgrade.

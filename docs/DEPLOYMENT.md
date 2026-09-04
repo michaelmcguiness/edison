@@ -25,10 +25,12 @@ launch. See [Vercel Hobby policy](https://vercel.com/docs/plans/hobby).
 2. The repository is connected to the existing Vercel Hobby account's
    [`edison` project](https://vercel.com/mike-michaelmcguis-projects/edison).
 3. The owner has approved this disconnected root demo deployment to a
-   temporary Vercel URL. The initial deployment is Ready at
-   [edison-lake-phi.vercel.app](https://edison-lake-phi.vercel.app/).
-   Domain attachment, live services, paid infrastructure, and a broader public
-   launch still require separate approval.
+   Vercel production URL, then purchased `edisonreader.com` on Vercel and
+   explicitly approved connecting it. The primary demo URL is now
+   [edisonreader.com](https://edisonreader.com/); the
+   [Vercel alias](https://edison-lake-phi.vercel.app/) is retained.
+   Live services, paid hosting upgrades, additional domains, and a broader
+   product launch still require separate approval.
 
 No upgrade, Supabase project, OpenAI billing, SMTP provider, admin email, or
 live-service secret is needed for this demo. Do not request or paste secrets
@@ -51,8 +53,26 @@ into chat. The recorded deployment approval is limited to this root web demo.
   accepts anonymous visitors; the unique deployment URL redirects to Vercel
   sign-in. Do not describe the stable production demo as private.
 - Production and Preview variables are configured as below, but a separate
-  Preview deployment has not been tested. No custom domain, live services,
-  paid infrastructure, or plan changes were activated.
+  Preview deployment has not been tested. No live services or paid hosting
+  upgrades were activated by that initial deployment.
+
+### Custom domain and Git integration — September 4, 2026
+
+- The owner purchased `edisonreader.com` through Vercel and authorized attaching
+  it to the existing Edison Production project. Vercel reports Valid
+  Configuration for the apex, and [its HTTPS page](https://edisonreader.com/)
+  loads the sample UI. The existing Vercel alias remains available.
+- Both apex and `www` passed independent TLS verification
+  (`ssl_verify_result=0`). HTTPS on the apex returns 200 with the sample banner.
+  `www.edisonreader.com` returns a 308 Permanent Redirect to the apex while
+  preserving paths and query parameters; HTTP upgrades to HTTPS. Domain checks
+  also confirm `/login` redirects home with 307 while share, API, and cron paths
+  return 404.
+- Docs-only commit `87973fd` automatically deployed successfully from GitHub
+  `main`, confirming the Git deployment integration. The application code is
+  unchanged from the initial verified release.
+- Domain attachment does not activate Supabase, OpenAI, the API, crons, or a
+  paid hosting upgrade. The product remains the disconnected Hobby demo.
 
 ### Demo Vercel project settings
 
@@ -87,18 +107,20 @@ intact for later: their five-minute and hourly schedules are not supported by
 1. Review the working tree, run lint, TypeScript checks, tests, and the web
    production build. Preserve unrelated owner changes.
 2. Publish the reviewed commit to the approved GitHub repository and confirm
-   approval for the separate temporary Vercel deployment. Both have been
-   completed for this root demo; they do not authorize domain/live-stack work.
+   approval for the Vercel deployment. Both have been completed for this root
+   demo, as has separate approval for its apex domain and `www` redirect;
+   live-stack work remains unapproved.
 3. Deploy only the root web project with the settings above.
-4. Verify the temporary URL shows the sample-data notice and opens without a
+4. Verify the production URL shows the sample-data notice and opens without a
    Supabase login/setup requirement; check feed, article, library, and profile
    layouts on desktop and mobile.
 5. Confirm session-only controls reset on reload and AI/share actions clearly
    explain that they need a connected backend. Verify no API or AI requests
    are made by the demo.
 6. Check deployment protection before sharing. A generated Vercel URL alone is
-   not privacy protection. Do not attach a custom domain or publicly launch
-   without separate explicit approval.
+   not privacy protection. The approved production demo is public on
+   `edisonreader.com` and its Vercel alias; do not attach additional domains or
+   broaden the product launch without separate explicit approval.
 
 Local Supabase/Docker and database tests are not blockers for this sample-data
 web deployment. They remain requirements before activating the later live
