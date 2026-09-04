@@ -48,6 +48,10 @@ export const metadata: Metadata = {
   },
 };
 
+// Strict nonce-based CSP requires request-time rendering so Next can attach the
+// per-request nonce to its framework scripts and generated style elements.
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: Readonly<{

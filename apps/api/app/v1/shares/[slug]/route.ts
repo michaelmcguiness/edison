@@ -1,10 +1,12 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   publicArticleShareSchema,
   sharedArticleSnapshotSchema,
   shareSlugSchema,
+  uuidSchema,
 } from "@edison/contracts";
-import { alphaMemberships, articleShares, getDb } from "@edison/db";
+import { withPublicDb } from "@edison/db";
+import { z } from "zod";
 import {
   json,
   publicApiHandler,
@@ -15,34 +17,36 @@ export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ slug: string }> };
 
+const publicShareRowSchema = z.object({
+  id: uuidSchema,
+  slug: shareSlugSchema,
+  snapshot: z.unknown(),
+  createdAt: z.preprocess(
+    (value) => (typeof value === "string" ? new Date(value) : value),
+    z.date(),
+  ),
+});
+
 export async function GET(request: Request, context: RouteContext) {
   return publicApiHandler(request, async () => {
     const { slug: rawSlug } = await context.params;
     const slug = shareSlugSchema.parse(rawSlug);
 
-    const [share] = await getDb()
-      .select({
-        id: articleShares.id,
-        slug: articleShares.slug,
-        snapshot: articleShares.snapshot,
-        createdAt: articleShares.createdAt,
-      })
-      .from(articleShares)
-      .innerJoin(
-        alphaMemberships,
-        and(
-          eq(alphaMemberships.userId, articleShares.userId),
-          eq(alphaMemberships.status, "active"),
-        ),
-      )
-      .where(
-        and(eq(articleShares.slug, slug), isNull(articleShares.revokedAt)),
-      )
-      .limit(1);
+    const [rawShare] = await withPublicDb((transaction) =>
+      transaction.execute(sql`
+        select
+          id,
+          slug,
+          snapshot,
+          created_at as "createdAt"
+        from edison_public_api.read_article_share(${slug})
+      `),
+    );
 
-    if (!share) {
+    if (!rawShare) {
       throw new HttpError(404, "share_not_found", "That article share was not found.");
     }
+    const share = publicShareRowSchema.parse(rawShare);
 
     return json(
       publicArticleShareSchema.parse({

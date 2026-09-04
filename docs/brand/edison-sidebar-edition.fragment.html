@@ -1,0 +1,533 @@
+<div id="edison-sidebar-edition" lang="en" aria-label="Edison sidebar design">
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Libre+Caslon+Display&family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Libre+Franklin:wght@400;500;600&family=Newsreader:opsz,wght@6..72,700&display=swap");
+    #edison-sidebar-edition { --pp-paper:#fcfbf8; --pp-surface:#fff; --pp-ink:#0b0b0b; --pp-soft:#30302e; --pp-caption:#6d6b67; --pp-rule:#d9d7d2; --pp-red:#d12f32; font-family:"Libre Franklin",Arial,sans-serif; color:var(--pp-ink); color-scheme:light; width:100%; }
+    #edison-sidebar-edition * { box-sizing:border-box; }
+    #edison-sidebar-edition [hidden] { display:none!important; }
+    #edison-sidebar-edition button,#edison-sidebar-edition input,#edison-sidebar-edition textarea,#edison-sidebar-edition select { font:inherit; }
+    #edison-sidebar-edition button { cursor:pointer; }
+    #edison-sidebar-edition .pp-reference { display:flex; flex-wrap:wrap; align-items:center; gap:8px 20px; color:var(--pp-caption); background:var(--pp-surface); padding:12px 20px; border-bottom:1px solid var(--pp-rule); font-size:11px; }
+    #edison-sidebar-edition .pp-reference label { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+    #edison-sidebar-edition .pp-reference select { max-width:100%; color:var(--pp-ink); background:var(--pp-surface); border:1px solid var(--pp-caption); border-radius:2px; min-height:44px; padding:8px; font-size:12px; }
+    #edison-sidebar-edition .pp-reference button { color:var(--pp-ink); background:transparent; border:0; text-decoration:underline; text-underline-offset:4px; min-height:44px; padding:6px 0; font-size:12px; }
+    #edison-sidebar-edition .pp-paper { background:var(--pp-paper); color-scheme:light; padding:0 clamp(24px,4vw,50px); }
+    #edison-sidebar-edition .pp-shell { max-width:1280px; margin:0 auto; }
+    #edison-sidebar-edition .pp-masthead { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:16px; min-height:96px; }
+    #edison-sidebar-edition .pp-desk { font-size:11px; letter-spacing:.11em; text-transform:uppercase; font-weight:600; }
+    #edison-sidebar-edition .pp-brand { display:inline-flex; align-items:center; gap:7px; background:transparent; border:0; color:var(--pp-ink); padding:0; min-height:44px; }
+    #edison-sidebar-edition .pp-brand img { width:31px; height:31px; }
+    #edison-sidebar-edition .pp-wordmark { font-family:"Newsreader",Georgia,serif; font-weight:700; font-size:30.4px; letter-spacing:-.03em; line-height:.82; }
+    #edison-sidebar-edition .pp-profile { justify-self:end; border:0; background:transparent; color:var(--pp-ink); width:44px; height:44px; display:grid; place-items:center; border-radius:50%; }
+    #edison-sidebar-edition .pp-avatar { display:grid; place-items:center; height:34px; width:34px; border:1px solid var(--pp-caption); border-radius:50%; font-size:12px; }
+    #edison-sidebar-edition .pp-avatar svg { width:17px; height:17px; }
+    #edison-sidebar-edition .pp-promise { margin:-7px 0 26px; text-align:center; font-family:"Libre Caslon Text",Georgia,serif; color:var(--pp-soft); font-size:13px; line-height:1.5; }
+    #edison-sidebar-edition .pp-folio { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px 20px; padding:18px 0; border-top:1px solid var(--pp-rule); border-bottom:1px solid var(--pp-ink); font-size:11px; }
+    #edison-sidebar-edition .pp-folio-label { letter-spacing:.08em; text-transform:uppercase; font-weight:600; }
+    #edison-sidebar-edition .pp-personal { font-family:"Libre Caslon Text",Georgia,serif; font-size:13px; font-style:italic; }
+    #edison-sidebar-edition .pp-date { color:var(--pp-caption); font-variant-numeric:tabular-nums; }
+    #edison-sidebar-edition .pp-steering { padding:23px 0 27px; border-bottom:1px solid var(--pp-rule); }
+    #edison-sidebar-edition .pp-steering-top { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:8px; }
+    #edison-sidebar-edition .pp-steering label { font-size:13px; font-weight:500; }
+    #edison-sidebar-edition .pp-text-action { min-height:44px; display:inline-flex; align-items:center; gap:7px; border:0; background:transparent; color:var(--pp-ink); padding:7px 0; font-size:12px; text-align:left; }
+    #edison-sidebar-edition .pp-text-action svg { width:16px; height:16px; stroke-width:1.6; }
+    #edison-sidebar-edition .pp-direction-link { font-size:11px; color:var(--pp-caption); }
+    #edison-sidebar-edition .pp-input-row { display:flex; flex-direction:column; gap:8px; width:100%; border:1px solid var(--pp-rule); background:var(--pp-surface); border-radius:22px; padding:16px 14px 12px 18px; }
+    #edison-sidebar-edition .pp-input-row textarea { display:block; width:100%; min-width:0; min-height:52px; padding:2px 2px 0; border:0; color:var(--pp-ink); background:transparent; font-size:16px; line-height:1.5; resize:none; }
+    #edison-sidebar-edition .pp-input-row textarea::placeholder { color:var(--pp-caption); opacity:1; }
+    #edison-sidebar-edition .pp-composer-footer { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    #edison-sidebar-edition .pp-apply { display:grid; place-items:center; flex-shrink:0; width:44px; min-width:44px; height:44px; padding:0; border:0; border-radius:50%; color:var(--pp-surface); background:var(--pp-ink); }
+    #edison-sidebar-edition .pp-apply:disabled { background:var(--pp-rule); color:var(--pp-caption); cursor:default; }
+    #edison-sidebar-edition .pp-apply svg { height:20px; width:20px; stroke-width:1.75; }
+    #edison-sidebar-edition .pp-composer-below { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:0 18px; margin:8px 4px 0; }
+    #edison-sidebar-edition .pp-composer-below .pp-help { margin:0; }
+    #edison-sidebar-edition .pp-options { display:flex; align-items:center; }
+    #edison-sidebar-edition .pp-options .pp-text-action { min-height:32px; font-size:11px; color:var(--pp-caption); }
+    #edison-sidebar-edition .pp-scope { display:flex; flex-wrap:wrap; align-items:center; gap:3px; min-width:0; }
+    #edison-sidebar-edition .pp-scope label { font-size:11px; color:var(--pp-caption); font-weight:400; }
+    #edison-sidebar-edition .pp-scope select { max-width:100%; min-height:44px; font-size:11px; background:transparent; color:var(--pp-soft); border:0; border-radius:8px; padding:8px 3px; }
+    #edison-sidebar-edition .pp-help { font-size:11px; color:var(--pp-caption); line-height:1.5; }
+    #edison-sidebar-edition .pp-receipt { margin:17px 0 0; padding:15px 0 0; border-top:1px solid var(--pp-rule); }
+    #edison-sidebar-edition .pp-receipt p { margin:0; color:var(--pp-soft); font-size:12px; line-height:1.65; max-width:640px; }
+    #edison-sidebar-edition .pp-receipt-actions { display:flex; flex-wrap:wrap; gap:20px; }
+    #edison-sidebar-edition .pp-receipt-actions button { text-decoration:underline; text-underline-offset:4px; }
+    #edison-sidebar-edition .pp-error { margin:12px 0 0; color:var(--pp-ink); font-size:12px; line-height:1.5; }
+    #edison-sidebar-edition .pp-feed { padding:33px 0 0; }
+    #edison-sidebar-edition .pp-lead { display:grid; grid-template-columns:1.52fr 1fr; align-items:start; gap:38px; padding-bottom:34px; }
+    #edison-sidebar-edition .pp-kicker { margin:0 0 13px; font-size:11px; line-height:1.3; text-transform:uppercase; letter-spacing:.11em; font-weight:600; color:var(--pp-red); }
+    #edison-sidebar-edition .pp-headline { font-family:"Libre Caslon Display",Georgia,serif; font-size:clamp(48px,6.2vw,76px); line-height:.98; letter-spacing:-.018em; font-weight:400; margin:0; }
+    #edison-sidebar-edition .pp-title-link { font:inherit; line-height:inherit; letter-spacing:inherit; display:block; color:var(--pp-ink); background:transparent; border:0; text-align:left; padding:0; }
+    #edison-sidebar-edition .pp-dek { margin:21px 0 0; font-family:"Libre Caslon Text",Georgia,serif; font-size:19px; line-height:1.45; color:var(--pp-soft); }
+    #edison-sidebar-edition .pp-meta { margin:16px 0 0; font-size:11px; line-height:1.5; color:var(--pp-caption); }
+    #edison-sidebar-edition .pp-lead-note { border-left:1px solid var(--pp-rule); padding:4px 0 0 28px; margin-top:28px; }
+    #edison-sidebar-edition .pp-lead-note .pp-note-label { margin:0 0 18px; font-family:"Libre Caslon Text",Georgia,serif; font-size:13px; font-style:italic; color:var(--pp-caption); }
+    #edison-sidebar-edition .pp-opening { font-family:"Libre Caslon Text",Georgia,serif; font-size:17px; color:var(--pp-soft); line-height:1.65; margin:0 0 13px; }
+    #edison-sidebar-edition .pp-reason { font-size:11px; color:var(--pp-caption); line-height:1.5; }
+    #edison-sidebar-edition .pp-reason summary { min-height:44px; padding:12px 0; cursor:pointer; }
+    #edison-sidebar-edition .pp-reason p { margin:0 0 10px; }
+    #edison-sidebar-edition .pp-story-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px 26px; border-top:1px solid var(--pp-rule); padding:25px 0; }
+    #edison-sidebar-edition .pp-row-title { font-family:"Libre Caslon Text",Georgia,serif; font-size:26px; line-height:1.1; letter-spacing:-.012em; font-weight:700; margin:0; max-width:780px; }
+    #edison-sidebar-edition .pp-row-dek { font-family:"Libre Caslon Text",Georgia,serif; font-size:16px; line-height:1.5; color:var(--pp-soft); margin:12px 0 0; max-width:760px; }
+    #edison-sidebar-edition .pp-save { display:grid; place-items:center; border:0; background:transparent; color:var(--pp-ink); width:44px; height:44px; }
+    #edison-sidebar-edition .pp-save svg { height:19px; width:19px; stroke-width:1.6; }
+    #edison-sidebar-edition .pp-save[aria-pressed="true"] { text-decoration:underline; font-size:11px; }
+    #edison-sidebar-edition .pp-end { border-top:1px solid var(--pp-rule); text-align:center; padding:34px 24px 22px; }
+    #edison-sidebar-edition .pp-end h2 { font-family:"Libre Caslon Text",Georgia,serif; font-size:19px; line-height:1.4; font-weight:400; margin:0 0 9px; }
+    #edison-sidebar-edition .pp-end p { font-size:12px; line-height:1.5; color:var(--pp-caption); margin:0; }
+    #edison-sidebar-edition .pp-bottom { display:flex; justify-content:space-between; align-items:center; gap:24px; padding:22px 0 30px; }
+    #edison-sidebar-edition .pp-bottom small { font-size:11px; color:var(--pp-caption); line-height:1.5; }
+    #edison-sidebar-edition .pp-create { flex-shrink:0; min-width:52px; height:52px; display:grid; place-items:center; border:0; border-radius:50%; background:var(--pp-ink); color:var(--pp-paper); }
+    #edison-sidebar-edition .pp-create svg { height:22px; width:22px; stroke-width:1.5; }
+    #edison-sidebar-edition .pp-reader { max-width:40rem; margin:auto; padding:24px 0 32px; }
+    #edison-sidebar-edition .pp-reader .pp-kicker { margin-top:23px; }
+    #edison-sidebar-edition .pp-reader h1 { font-family:"Libre Caslon Display",Georgia,serif; font-size:54px; line-height:.98; letter-spacing:-.018em; font-weight:400; margin:16px 0 26px; }
+    #edison-sidebar-edition .pp-reader-copy { font-family:"Libre Caslon Text",Georgia,serif; font-size:19px; line-height:1.66; color:var(--pp-soft); }
+    #edison-sidebar-edition .pp-reader-copy p { margin:0 0 1em; }
+    #edison-sidebar-edition .pp-reader-sources { border-top:1px solid var(--pp-rule); padding:15px 0; font-size:12px; line-height:1.6; }
+    #edison-sidebar-edition .pp-reader-sources a { color:var(--pp-ink); text-underline-offset:4px; }
+    #edison-sidebar-edition .pp-reader-actions { display:flex; flex-wrap:wrap; gap:24px; border-top:1px solid var(--pp-rule); }
+    #edison-sidebar-edition dialog { color:var(--pp-ink); background:var(--pp-surface); border:1px solid var(--pp-rule); border-radius:2px; padding:27px; width:calc(100% - 40px); max-width:560px; }
+    #edison-sidebar-edition dialog::backdrop { background:rgba(11,11,11,.24); }
+    #edison-sidebar-edition #pp-direction-dialog { max-width:420px; }
+    #edison-sidebar-edition .pp-dialog-heading { display:flex; align-items:center; justify-content:space-between; gap:20px; }
+    #edison-sidebar-edition .pp-dialog-heading h2 { font-family:"Libre Caslon Text",Georgia,serif; font-weight:400; font-size:24px; line-height:1.15; margin:0; }
+    #edison-sidebar-edition .pp-close { display:grid; place-items:center; width:44px; height:44px; background:transparent; border:0; color:var(--pp-ink); flex-shrink:0; }
+    #edison-sidebar-edition .pp-close svg { width:19px; height:19px; }
+    #edison-sidebar-edition .pp-dialog-description { font-size:12px; color:var(--pp-caption); line-height:1.6; margin:12px 0 20px; }
+    #edison-sidebar-edition .pp-dialog-label { display:block; font-size:12px; font-weight:500; margin:16px 0 8px; }
+    #edison-sidebar-edition .pp-dialog-text { width:100%; min-height:100px; resize:vertical; border:1px solid var(--pp-caption); border-radius:2px; background:var(--pp-surface); color:var(--pp-ink); padding:12px; font-size:16px; line-height:1.5; }
+    #edison-sidebar-edition .pp-primary { min-height:44px; border:0; border-radius:2px; background:var(--pp-ink); color:var(--pp-paper); padding:13px 18px; font-size:14px; font-weight:600; }
+    #edison-sidebar-edition .pp-dialog-actions { display:flex; flex-wrap:wrap; gap:12px 24px; align-items:center; margin-top:19px; }
+    #edison-sidebar-edition .pp-dialog-status { font-size:12px; line-height:1.6; color:var(--pp-caption); margin:16px 0 0; }
+    #edison-sidebar-edition .pp-brief-list { padding:0; list-style:none; font-size:13px; line-height:1.5; margin:15px 0; }
+    #edison-sidebar-edition .pp-brief-list li { padding:12px 0; border-bottom:1px solid var(--pp-rule); }
+    #edison-sidebar-edition .pp-brief-list small { display:block; font-size:11px; color:var(--pp-caption); margin-top:5px; }
+    @media(max-width:639px) {
+      #edison-sidebar-edition .pp-paper { padding:0 24px; }
+      #edison-sidebar-edition .pp-masthead { min-height:76px; }
+      #edison-sidebar-edition .pp-brand { gap:6px; }
+      #edison-sidebar-edition .pp-brand img { width:27px; height:27px; }
+      #edison-sidebar-edition .pp-wordmark { font-size:27.2px; }
+      #edison-sidebar-edition .pp-promise { font-size:12px; max-width:265px; margin:0 auto 23px; }
+      #edison-sidebar-edition .pp-folio { gap:9px; }
+      #edison-sidebar-edition .pp-personal { order:3; flex-basis:100%; font-size:12px; }
+      #edison-sidebar-edition .pp-steering { padding-top:14px; padding-bottom:21px; }
+      #edison-sidebar-edition .pp-input-row { padding:14px 12px 10px 15px; border-radius:20px; }
+      #edison-sidebar-edition .pp-input-row textarea { font-size:16px; }
+      #edison-sidebar-edition .pp-feed { padding-top:27px; }
+      #edison-sidebar-edition .pp-lead { grid-template-columns:1fr; gap:20px; padding-bottom:27px; }
+      #edison-sidebar-edition .pp-headline { font-size:46px; line-height:.99; }
+      #edison-sidebar-edition .pp-dek { font-size:18px; }
+      #edison-sidebar-edition .pp-lead-note { border:0; padding:0; margin:0; }
+      #edison-sidebar-edition .pp-lead-note .pp-note-label { display:none; }
+      #edison-sidebar-edition .pp-opening { font-size:16px; }
+      #edison-sidebar-edition .pp-row-title { font-size:26px; }
+      #edison-sidebar-edition .pp-story-row { gap:12px; }
+      #edison-sidebar-edition .pp-row-dek { font-size:16px; }
+      #edison-sidebar-edition .pp-reader h1 { font-size:44px; }
+      #edison-sidebar-edition .pp-reader-copy { font-size:18px; line-height:1.62; }
+      #edison-sidebar-edition .pp-reference { padding:10px 16px; }
+      #edison-sidebar-edition dialog { padding:20px; }
+    }
+    #edison-sidebar-edition .sb-preview { container-name:edison-sidebar; container-type:inline-size; width:100%; margin:auto; }
+    #edison-sidebar-edition[data-preview="mobile"] .sb-preview { max-width:390px; }
+    #edison-sidebar-edition .sb-app { display:grid; grid-template-columns:184px minmax(0,1fr); background:var(--pp-paper); }
+    #edison-sidebar-edition .sb-rail { padding:45px 18px 28px; border-right:1px solid var(--pp-rule); }
+    #edison-sidebar-edition .sb-label { margin:0 0 24px 17px; font-size:11px; color:var(--pp-caption); }
+    #edison-sidebar-edition .sb-nav { display:flex; flex-direction:column; gap:8px; }
+    #edison-sidebar-edition .sb-nav button { position:relative; display:flex; align-items:center; gap:13px; min-height:48px; border:0; background:transparent; color:var(--pp-caption); padding:12px 16px; font-size:13px; font-weight:400; text-align:left; }
+    #edison-sidebar-edition .sb-nav button svg { width:18px; height:18px; stroke-width:1.5; flex-shrink:0; }
+    #edison-sidebar-edition .sb-nav button[aria-current="page"] { color:var(--pp-ink); font-weight:600; }
+    #edison-sidebar-edition .sb-nav button[aria-current="page"]::before { content:""; position:absolute; width:2px; height:18px; background:var(--pp-red); left:0; top:15px; }
+    #edison-sidebar-edition[data-nav-style="type"] .sb-nav svg { display:none; }
+    #edison-sidebar-edition .pp-paper { min-width:0; padding-left:32px; padding-right:32px; }
+    #edison-sidebar-edition .pp-lead { gap:28px; grid-template-columns:1.6fr 1fr; }
+    #edison-sidebar-edition .pp-headline { font-size:clamp(46px,5.4vw,72px); }
+    #edison-sidebar-edition .pp-lead-note { padding-left:22px; }
+    #edison-sidebar-edition .sb-format { padding-top:32px; padding-bottom:18px; }
+    #edison-sidebar-edition .sb-heading { margin:0 0 10px; font-family:"Libre Caslon Display",Georgia,serif; font-size:46px; line-height:1; font-weight:400; letter-spacing:-.018em; }
+    #edison-sidebar-edition .sb-subtitle { color:var(--pp-caption); font-size:12px; line-height:1.5; margin:0 0 28px; }
+    #edison-sidebar-edition .sb-book-feature { display:grid; grid-template-columns:152px minmax(0,1fr); align-items:center; gap:30px; padding:2px 0 30px; }
+    #edison-sidebar-edition .sb-cover { width:100%; min-width:0; min-height:230px; aspect-ratio:2/3; padding:17px 16px; border:0; border-left:4px double rgba(11,11,11,.18); background:#ded9ca; color:var(--pp-ink); display:flex; flex-direction:column; justify-content:space-between; gap:18px; text-align:left; cursor:pointer; }
+    #edison-sidebar-edition .sb-cover small { font-family:"Libre Franklin",Arial,sans-serif; text-transform:uppercase; letter-spacing:.08em; font-size:11px; }
+    #edison-sidebar-edition .sb-cover strong { font-family:"Libre Caslon Display",Georgia,serif; font-size:27px; line-height:1.02; font-weight:400; letter-spacing:-.02em; hyphens:auto; overflow-wrap:break-word; }
+    #edison-sidebar-edition .sb-cover em { font-family:"Libre Caslon Text",Georgia,serif; font-weight:400; font-size:11px; }
+    #edison-sidebar-edition .sb-cover-clay { background:#d7c3b5; }
+    #edison-sidebar-edition .sb-cover-grey { background:#dce0df; }
+    #edison-sidebar-edition .sb-cover-dark { background:#373a36; color:#fcfbf8; }
+    #edison-sidebar-edition .sb-feature-title { font-family:"Libre Caslon Text",Georgia,serif; font-size:27px; line-height:1.12; letter-spacing:-.012em; margin:0 0 15px; font-weight:700; overflow-wrap:break-word; }
+    #edison-sidebar-edition .sb-feature-description { font-family:"Libre Caslon Text",Georgia,serif; font-size:17px; line-height:1.55; color:var(--pp-soft); margin:0 0 18px; max-width:490px; }
+    #edison-sidebar-edition .sb-book-progress { height:2px; background:var(--pp-rule); width:100%; max-width:260px; margin:20px 0 10px; }
+    #edison-sidebar-edition .sb-book-progress span { display:block; width:38%; height:100%; background:var(--pp-ink); }
+    #edison-sidebar-edition .sb-section-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; border-top:1px solid var(--pp-rule); padding:23px 0; }
+    #edison-sidebar-edition .sb-section-heading h2 { font-family:"Libre Caslon Text",Georgia,serif; font-size:18px; font-weight:400; margin:0; }
+    #edison-sidebar-edition .sb-section-heading span { font-size:11px; color:var(--pp-caption); }
+    #edison-sidebar-edition .sb-books-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px; }
+    #edison-sidebar-edition .sb-books-grid .sb-cover { max-width:188px; }
+    #edison-sidebar-edition .sb-book-caption { font-size:11px; color:var(--pp-caption); margin:13px 0 0; }
+    #edison-sidebar-edition .sb-show-art { display:flex; flex-direction:column; justify-content:space-between; padding:18px; aspect-ratio:1; width:152px; background:#d3c4b2; color:var(--pp-ink); }
+    #edison-sidebar-edition .sb-show-art span { font-family:"Libre Caslon Display",Georgia,serif; font-size:47px; line-height:.95; letter-spacing:-.035em; }
+    #edison-sidebar-edition .sb-show-art small { font-size:11px; letter-spacing:.08em; }
+    #edison-sidebar-edition .sb-show-art.sb-cover-grey { background:#dce0df; }
+    #edison-sidebar-edition .sb-show-art.sb-cover-clay { background:#d7c3b5; }
+    #edison-sidebar-edition .sb-play-row { display:flex; align-items:center; gap:14px; }
+    #edison-sidebar-edition .sb-play { display:grid; place-items:center; min-width:44px; height:44px; border:0; border-radius:50%; color:var(--pp-paper); background:var(--pp-ink); }
+    #edison-sidebar-edition .sb-play svg { width:17px; height:17px; stroke-width:1.5; }
+    #edison-sidebar-edition .sb-episode { display:grid; grid-template-columns:68px minmax(0,1fr) 44px; align-items:center; gap:22px; padding:24px 0; border-top:1px solid var(--pp-rule); }
+    #edison-sidebar-edition .sb-episode .sb-show-art { width:68px; padding:8px; }
+    #edison-sidebar-edition .sb-episode .sb-show-art span { font-size:23px; line-height:1; }
+    #edison-sidebar-edition .sb-episode .sb-show-art.sb-cover-clay span { font-size:17px; }
+    #edison-sidebar-edition .sb-episode .sb-show-art small { display:none; }
+    #edison-sidebar-edition .sb-episode h3 { font-family:"Libre Caslon Text",Georgia,serif; font-size:21px; line-height:1.15; margin:7px 0 10px; font-weight:700; }
+    #edison-sidebar-edition .sb-episode p { font-family:"Libre Caslon Text",Georgia,serif; font-size:15px; line-height:1.5; color:var(--pp-soft); margin:0 0 11px; }
+    #edison-sidebar-edition .sb-episode .sb-play { color:var(--pp-ink); background:transparent; }
+    #edison-sidebar-edition .sb-audio-note { font-size:12px; line-height:1.6; margin:15px 0; color:var(--pp-caption); }
+    @container edison-sidebar (max-width: 959px) {
+      #edison-sidebar-edition .sb-app { grid-template-columns:minmax(0,1fr); }
+      #edison-sidebar-edition .sb-rail { order:2; border-right:0; border-top:1px solid var(--pp-rule); padding:8px 16px max(10px,env(safe-area-inset-bottom)); }
+      #edison-sidebar-edition .sb-label { display:none; }
+      #edison-sidebar-edition .sb-nav { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+      #edison-sidebar-edition .sb-nav button { flex-direction:column; justify-content:center; gap:6px; min-height:58px; padding:9px 5px; font-size:11px; }
+      #edison-sidebar-edition .sb-nav button[aria-current="page"]::before { height:2px; width:18px; top:0; left:calc(50% - 9px); }
+    }
+    @container edison-sidebar (max-width: 639px) {
+      #edison-sidebar-edition .pp-paper { padding:0 24px; }
+      #edison-sidebar-edition .pp-masthead { min-height:76px; }
+      #edison-sidebar-edition .pp-brand img { width:27px; height:27px; }
+      #edison-sidebar-edition .pp-brand { gap:6px; }
+      #edison-sidebar-edition .pp-wordmark { font-size:27.2px; }
+      #edison-sidebar-edition .pp-promise { font-size:12px; max-width:265px; margin:0 auto 23px; }
+      #edison-sidebar-edition .pp-folio { gap:9px; }
+      #edison-sidebar-edition .pp-personal { order:3; flex-basis:100%; font-size:12px; }
+      #edison-sidebar-edition .pp-steering { padding:14px 0 21px; }
+      #edison-sidebar-edition .pp-input-row { padding:14px 12px 10px 15px; border-radius:20px; }
+      #edison-sidebar-edition .pp-options .pp-text-action { min-height:44px; }
+      #edison-sidebar-edition .pp-lead { grid-template-columns:1fr; gap:20px; padding-bottom:27px; }
+      #edison-sidebar-edition .pp-headline { font-size:46px; line-height:.99; }
+      #edison-sidebar-edition .pp-dek { font-size:18px; }
+      #edison-sidebar-edition .pp-lead-note { border:0; padding:0; margin:0; }
+      #edison-sidebar-edition .pp-lead-note .pp-note-label { display:none; }
+      #edison-sidebar-edition .pp-opening { font-size:16px; }
+      #edison-sidebar-edition .pp-reader h1 { font-size:44px; }
+      #edison-sidebar-edition .pp-reader-copy { font-size:18px; line-height:1.62; }
+      #edison-sidebar-edition .sb-heading { font-size:40px; }
+      #edison-sidebar-edition .sb-book-feature { grid-template-columns:100px minmax(0,1fr); gap:20px; }
+      #edison-sidebar-edition .sb-cover { padding:13px 10px; min-height:210px; gap:13px; }
+      #edison-sidebar-edition .sb-cover strong { font-size:20px; }
+      #edison-sidebar-edition .sb-book-feature .sb-cover { min-height:190px; }
+      #edison-sidebar-edition .sb-book-feature .sb-cover strong { font-size:18px; }
+      #edison-sidebar-edition .sb-cover small { font-size:11px; letter-spacing:0; }
+      #edison-sidebar-edition .sb-cover em { font-size:11px; }
+      #edison-sidebar-edition .sb-feature-title { font-size:23px; }
+      #edison-sidebar-edition .sb-feature-description { font-size:15px; }
+      #edison-sidebar-edition .sb-books-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px 20px; }
+      #edison-sidebar-edition .sb-show-art { width:100px; padding:12px; }
+      #edison-sidebar-edition .sb-show-art span { font-size:35px; }
+      #edison-sidebar-edition .sb-episode { grid-template-columns:54px minmax(0,1fr) 44px; gap:12px; }
+      #edison-sidebar-edition .sb-episode .sb-show-art { width:54px; padding:6px; }
+      #edison-sidebar-edition .sb-episode .sb-show-art span { font-size:18px; }
+      #edison-sidebar-edition .sb-episode .sb-show-art.sb-cover-clay span { font-size:14px; }
+      #edison-sidebar-edition .sb-episode h3 { font-size:19px; }
+      #edison-sidebar-edition .sb-episode p { display:none; }
+    }
+  </style>
+  <div class="pp-reference" aria-label="Design reference scenarios, not product controls" hidden>
+    <label for="pp-scenario">Preview state <select id="pp-scenario"><option value="returning">Returning reader</option><option value="guest">First visit</option><option value="applying">Saving direction</option><option value="ready">Direction applied · writing ready</option><option value="queued">New writing queued</option><option value="failed">Direction save failed</option><option value="generation-failed">Direction saved · writing failed</option></select></label>
+    <button type="button" id="pp-try">Try an editorial note</button>
+    <span>News · desktop & mobile · local sample content</span>
+  </div>
+  <div class="sb-preview"><div class="sb-app">
+    <aside class="sb-rail"><p class="sb-label">Your publication</p><nav class="sb-nav" aria-label="Publication formats"><button type="button" data-section="news" aria-current="page"><i data-lucide="newspaper" aria-hidden="true"></i><span>News</span></button><button type="button" data-section="books"><i data-lucide="book-open" aria-hidden="true"></i><span>Books</span></button><button type="button" data-section="podcasts"><i data-lucide="headphones" aria-hidden="true"></i><span>Podcasts</span></button></nav></aside>
+  <section class="pp-paper">
+    <div class="pp-shell">
+      <header class="pp-masthead">
+        <span class="pp-desk" id="sb-desk">News</span>
+        <button class="pp-brand" id="pp-home" type="button" aria-label="Edison home"><img id="pp-mark" alt="" width="31" height="31" src="data:image/svg+xml,%3Csvg%20width='192'%20height='192'%20viewBox='0%200%2024%2024'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3E%3Cpath%20d='M12%201.45C16.53%201.45%2020.2%205.12%2020.2%209.65C20.2%2014.9%2017.25%2017.85%2012%2017.85C6.75%2017.85%203.8%2014.9%203.8%209.65C3.8%205.12%207.47%201.45%2012%201.45Z'%20stroke='%230B0B0B'%20stroke-width='1.75'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3Cpath%20d='M7.85%2020.55H16.15M9.35%2022.85H14.65'%20stroke='%230B0B0B'%20stroke-width='1.75'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E"><span class="pp-wordmark" aria-hidden="true">edison</span></button>
+        <button class="pp-profile" id="pp-profile" type="button" aria-label="Profile and editorial direction"><span class="pp-avatar" id="pp-avatar">M</span></button>
+      </header>
+      <p class="pp-promise">A publication written entirely for you, every day.</p>
+      <main id="pp-home-view">
+        <div class="pp-folio"><span class="pp-folio-label" id="sb-folio-label">Today’s edition</span><span class="pp-personal" id="pp-personal">Edited for Michael</span><time class="pp-date" datetime="2026-09-04">Friday, September 4</time><span class="pp-date" id="pp-count">4 stories</span></div>
+        <section class="pp-steering" id="sb-steering" aria-label="Shape your News edition">
+          <div class="pp-steering-top"><label for="pp-prompt">Ask Edison</label><button type="button" id="pp-direction-link" class="pp-text-action pp-direction-link">Editorial direction</button></div>
+          <form id="pp-steer-form">
+            <div class="pp-input-row">
+              <textarea id="pp-prompt" rows="2" autocomplete="off" placeholder="More economic history, less startup news…" aria-describedby="pp-help" aria-label="Ask Edison to shape your News edition"></textarea>
+              <div class="pp-composer-footer"><div class="pp-scope"><label for="pp-scope" id="sb-scope-label">News ·</label><select id="pp-scope" aria-label="How long should this editorial direction apply?"><option value="future">From now on</option><option value="today">This edition only</option></select></div><button class="pp-apply" id="pp-apply" type="submit" aria-label="Send News direction to Edison" disabled><i data-lucide="arrow-up" aria-hidden="true"></i></button></div>
+            </div>
+            <div class="pp-composer-below"><p class="pp-help" id="pp-help">Your AI editor. Tell it what you’d like more or less of.</p><div class="pp-options" id="pp-options" hidden><button type="button" class="pp-text-action" id="sb-example">Try an example</button></div></div>
+          </form>
+          <p class="pp-error" id="pp-validation" role="alert" hidden></p>
+          <div class="pp-receipt" id="pp-receipt" hidden><p id="pp-receipt-text" role="status"></p><div class="pp-receipt-actions"><button type="button" class="pp-text-action" id="pp-undo">Undo</button><button type="button" class="pp-text-action" id="pp-today">This edition only</button><button type="button" class="pp-text-action" id="pp-review">Review direction</button><button type="button" class="pp-text-action" id="pp-retry" hidden>Retry</button></div></div>
+        </section>
+        <div class="pp-feed" id="pp-feed"></div>
+        <section class="sb-format" id="sb-books" hidden>
+          <h1 class="sb-heading">Books</h1><p class="sb-subtitle">For a little more time with an idea.</p>
+          <article class="sb-book-feature"><button type="button" class="sb-cover" data-book="The Quiet Infrastructure" aria-label="Preview The Quiet Infrastructure"><small>Edison Editions</small><strong>The Quiet<br>Infrastructure</strong><em>The world behind the world</em></button><div><p class="pp-kicker">Continue reading</p><h2 class="sb-feature-title">The Quiet Infrastructure</h2><p class="sb-feature-description">How standards, maintenance, and invisible systems make modern life possible.</p><div class="sb-book-progress" role="progressbar" aria-label="Sample book progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="38"><span></span></div><p class="pp-meta">Chapter 4 of 11 · sample progress</p><button type="button" class="pp-text-action" data-book="The Quiet Infrastructure">Open book →</button></div></article>
+          <div class="sb-section-heading"><h2>Added to your library today</h2><span>3 books</span></div>
+          <div class="sb-books-grid"><article><button type="button" class="sb-cover sb-cover-clay" data-book="How Cities Remember" aria-label="Preview How Cities Remember"><small>Edison Editions</small><strong>How Cities<br>Remember</strong><em>Places, traces, memory</em></button><p class="sb-book-caption">1 hr 42 min · design sample</p></article><article><button type="button" class="sb-cover sb-cover-grey" data-book="The Architecture of Attention" aria-label="Preview The Architecture of Attention"><small>Edison Editions</small><strong>The Architecture<br>of Attention</strong><em>A closer kind of looking</em></button><p class="sb-book-caption">48 min · design sample</p></article><article><button type="button" class="sb-cover sb-cover-dark" data-book="Smaller, Stranger Models" aria-label="Preview Smaller, Stranger Models"><small>Edison Editions</small><strong>Smaller,<br>Stranger<br>Models</strong><em>On knowing one thing well</em></button><p class="sb-book-caption">56 min · design sample</p></article></div>
+        </section>
+        <section class="sb-format" id="sb-podcasts" hidden>
+          <h1 class="sb-heading">Podcasts</h1><p class="sb-subtitle">Good company for a curious mind.</p>
+          <article class="sb-book-feature"><div class="sb-show-art" role="img" aria-label="Field Notes podcast artwork"><small>EDISON AUDIO</small><span>Field<br>Notes</span></div><div><p class="pp-kicker">Up next · Field Notes</p><h2 class="sb-feature-title">The hidden archive beneath our feet</h2><p class="sb-feature-description">A conversation about the new science of soil memory.</p><div class="sb-play-row"><button type="button" class="sb-play" data-audio="The hidden archive beneath our feet" aria-label="Preview The hidden archive beneath our feet"><i data-lucide="play" aria-hidden="true"></i></button><span class="pp-meta">24 min · Today · sample</span></div></div></article>
+          <div class="sb-section-heading"><h2>New episodes</h2><span>2 episodes</span></div>
+          <article class="sb-episode"><div class="sb-show-art sb-cover-grey" role="img" aria-label="The Long View podcast artwork"><span>The<br>Long<br>View</span></div><div><span class="pp-meta">The Long View · Today</span><h3>Why cities remember</h3><p>The old decisions still visible in streets, stoops, and transit maps.</p><span class="pp-meta">31 min · Unplayed · sample</span></div><button type="button" class="sb-play" data-audio="Why cities remember" aria-label="Preview Why cities remember"><i data-lucide="play" aria-hidden="true"></i></button></article>
+          <article class="sb-episode"><div class="sb-show-art sb-cover-clay" role="img" aria-label="Margin Notes podcast artwork"><span>Margin<br>Notes</span></div><div><span class="pp-meta">Margin Notes · Today</span><h3>Against infinite scale</h3><p>Smaller models and the value of knowing one particular world.</p><span class="pp-meta">18 min · Unplayed · sample</span></div><button type="button" class="sb-play" data-audio="Against infinite scale" aria-label="Preview Against infinite scale"><i data-lucide="play" aria-hidden="true"></i></button></article>
+          <p class="sb-audio-note" id="sb-audio-note" role="status" hidden></p>
+        </section>
+        <div class="pp-end"><h2 id="sb-end-title">That’s your edition.</h2><p id="pp-end-note">A fresh one tomorrow, shaped by what interests you.</p></div>
+      </main>
+      <article class="pp-reader" id="pp-reader" aria-labelledby="pp-reader-title" hidden><button class="pp-text-action" id="pp-back" type="button">← Back to your edition</button><p class="pp-kicker" id="pp-reader-kicker"></p><h1 id="pp-reader-title"></h1><div class="pp-reader-copy" id="pp-reader-copy"></div><div class="pp-reader-sources" id="pp-reader-sources"></div><div class="pp-reader-actions"><button class="pp-text-action" id="pp-reader-save" type="button">Save this read</button><button class="pp-text-action" id="pp-explore" type="button">Explore this further →</button></div><p class="pp-help" id="pp-reader-notice" role="status"></p></article>
+      <footer class="pp-bottom"><small>Design preview · no live generation or account changes.</small><button class="pp-create" id="pp-create" type="button" aria-label="Create one article"><i data-lucide="plus" aria-hidden="true"></i></button></footer>
+    </div>
+  </section>
+  </div></div>
+  <dialog id="pp-direction-dialog" aria-labelledby="pp-direction-title">
+    <div class="pp-dialog-heading"><h2 id="pp-direction-title">Editorial direction</h2><button type="button" class="pp-close" data-close="pp-direction-dialog" aria-label="Close editorial direction"><i data-lucide="x" aria-hidden="true"></i></button></div>
+    <p class="pp-dialog-description" id="sb-brief-description">What shapes your News edition. Your instructions take precedence over inferred interests.</p>
+    <p class="pp-dialog-label">Your instructions</p><ul class="pp-brief-list" id="pp-brief-list"></ul>
+    <p class="pp-dialog-label">Learned interests</p><p class="pp-dialog-description" id="pp-learned">Built environment · example inference</p><button type="button" class="pp-text-action" id="pp-clear-learned">Remove this inferred interest</button>
+    <div class="pp-dialog-actions"><button type="button" class="pp-text-action" id="pp-edit-brief">Add or edit direction →</button><button type="button" class="pp-text-action" id="pp-clear-brief">Clear News instructions</button></div>
+    <p class="pp-dialog-status" id="pp-brief-status" role="status">Changes in this reference stay in this page only.</p>
+  </dialog>
+  <dialog id="pp-create-dialog" aria-labelledby="pp-create-title">
+    <div class="pp-dialog-heading"><h2 id="pp-create-title">What would you like to read?</h2><button type="button" class="pp-close" id="sb-create-close" data-close="pp-create-dialog" aria-label="Close new article"><i data-lucide="x" aria-hidden="true"></i></button></div>
+    <p class="pp-dialog-description" id="sb-create-description">One article, on any topic. This won’t change your ongoing editorial direction.</p>
+    <form id="pp-create-form"><label class="pp-dialog-label" for="pp-create-prompt">Your subject or question</label><textarea class="pp-dialog-text" id="pp-create-prompt" placeholder="How did the first public libraries change cities?"></textarea><div class="pp-dialog-actions"><button class="pp-primary" id="sb-create-submit" type="submit">Create article</button><span class="pp-help" id="sb-create-scope">News · one article</span></div></form>
+    <p class="pp-dialog-status" id="pp-create-status" role="status" hidden></p>
+  </dialog>
+  <dialog id="sb-book-dialog" aria-labelledby="sb-book-title"><div class="pp-dialog-heading"><h2 id="sb-book-title">Book preview</h2><button type="button" class="pp-close" data-close="sb-book-dialog" aria-label="Close book preview"><i data-lucide="x" aria-hidden="true"></i></button></div><p class="pp-dialog-description">A book from your Edison library. This is a cover and navigation study; the full text is not included in this preview.</p></dialog>
+  <script>
+    (() => {
+      const root = document.getElementById("edison-sidebar-edition");
+      const el = id => root.querySelector("#" + id);
+      const sections = {
+        news:{label:"News",noun:"article",example:"More economic history, less startup news. Go deeper.",brief:"Environment and technology. Keep a mix of familiar subjects and new ideas.",learned:"Built environment",folio:"Today’s edition",count:"4 stories",createTitle:"What would you like to read?",placeholder:"How did the first public libraries change cities?",end:"That’s your edition.",ending:"A fresh one tomorrow, shaped by what interests you."},
+        books:{label:"Books",noun:"book",example:"More history and architecture. Short books I can finish in an evening.",brief:"History, architecture, and the ideas behind everyday life.",learned:"Cities and systems",folio:"Your library",count:"4 books",createTitle:"A book about anything.",placeholder:"A short history of cities, told through their public libraries.",end:"A library that grows with you.",ending:"New books chosen for you, every day."},
+        podcasts:{label:"Podcasts",noun:"podcast",example:"More science and history. Keep episodes under 30 minutes.",brief:"Science and history, in thoughtful conversations.",learned:"Science in everyday life",folio:"Your listening",count:"3 episodes",createTitle:"What would you like to listen to?",placeholder:"A conversation about how public libraries changed cities.",end:"Something good for your next walk.",ending:"Fresh episodes chosen for you, every day."}
+      };
+      let activeSection = "news";
+      let example = sections.news.example;
+      const sectionStates = new Map();
+      const standard = ["heat","gps","startup","trees"];
+      const directed = ["canals","heat","gps","trees"];
+      const saved = new Set();
+      const readIds = new Set();
+      const data = {
+        heat:{desk:"The everyday world",title:"Why the city stays warm after the sun goes down",dek:"The afternoon doesn’t disappear at sunset. It’s still there, in the streets beneath your feet.",topic:"Environment",body:["Sunset switches off the source of heat, not the heat itself. Roads and buildings absorb energy through the day and release it as the air cools.","A city also replaces much of the landscape that would otherwise help it cool. Vegetation provides shade and releases water into the air. Concentrate heat-absorbing structures and remove greenery, and the result can be a warmer urban area: a heat island."],source:"EPA · Learn about heat island effects",url:"https://www.epa.gov/heatislands/learn-about-heat-island-effects"},
+        gps:{desk:"Science & technology",title:"Your phone’s blue dot needs Einstein",dek:"The clocks above our heads tick differently. Getting you to the right street means accounting for it.",topic:"Physics",body:["The clocks on GPS satellites do not naturally keep the same time as clocks on Earth. Their speed makes them tick more slowly, while the weaker gravity at their altitude makes them tick faster. The second effect wins.","NIST puts the combined difference at about 38 microseconds per day. GPS uses precisely timed signals from satellites to determine position, so engineers must account for the relativistic difference."],source:"NIST · Putting Einstein to the test",url:"https://www.nist.gov/atomic-clocks/a-powerful-tool-for-science/putting-einstein-test"},
+        startup:{desk:"Business & technology",title:"Beyond the next product launch",dek:"A closer look at the gap between building something new and making it part of everyday life.",topic:"Startups",body:["What should count as progress: a promising demonstration, a new product, or something that people use without having to think about it?","This is an editorial-copy sample for the design. A production article would need reported examples, verified claims, and source notes before publication."],source:"Editorial sample · not a researched article"},
+        trees:{desk:"The natural world",title:"A forest doesn’t just receive the weather",dek:"The small exchanges at the surface of a leaf help connect the land to the sky.",topic:"Living systems",body:["Plants release water vapor through transpiration, cooling themselves and their surroundings. Across a forest, those exchanges can add moisture to the air.","That moisture can contribute to cloud formation and rainfall. Climate shapes where plants can grow, while plants help change surface temperature and atmospheric humidity. The relationship depends on the landscape and atmospheric conditions."],source:"NASA Earth Observatory · Seeing leaves in a new light",url:"https://science.nasa.gov/earth/earth-observatory/seeing-leaves-in-a-new-light/"},
+        canals:{desk:"Economic history",title:"The infrastructure boom before the internet",dek:"Canals, railways, and the questions an earlier era of building raises about today’s AI investment.",topic:"Economic history",body:["Before asking whether a new technology will change the world, it is worth asking what else has to be built around it.","The proposed piece would examine the financing, complementary infrastructure, and uncertain demand behind an earlier infrastructure boom, then distinguish those conditions from today’s AI investment.","This is an editorial-copy sample, not a researched historical argument. In production, the deeper article would be written from verified sources before entering the edition."],source:"Editorial sample · new writing preview, not live generation"}
+      };
+      let state;
+      let currentRead = "heat";
+      let before = null;
+      let composing = false;
+      function newState(person="returning") {
+        const config=sections[activeSection];
+        return {person,order:[...standard],brief:person==="guest"?"":config.brief,learned:person==="guest"?"":config.learned,today:"",stage:"idle",scope:"future"};
+      }
+      function reset(person="returning") {
+        state=newState(person);
+        before=null;
+        el("pp-prompt").value="";
+        el("pp-scope").value="future";
+        el("pp-options").hidden=true;
+        el("pp-validation").hidden=true;
+        el("pp-home-view").hidden=false;
+        el("pp-reader").hidden=true;
+        el("pp-brief-status").textContent="Changes in this reference stay in this page only.";
+        render();
+      }
+      function switchSection(next) {
+        if(!sections[next]||next===activeSection)return;
+        sectionStates.set(activeSection,{state:structuredClone(state),before:before&&structuredClone(before),draft:el("pp-prompt").value,scope:el("pp-scope").value,options:!el("pp-options").hidden,creation:el("pp-create-prompt").value});
+        const person=state.person;
+        activeSection=next;example=sections[next].example;
+        const existing=sectionStates.get(next);
+        state=existing?structuredClone(existing.state):newState(person);
+        before=existing?.before?structuredClone(existing.before):null;
+        el("pp-prompt").value=existing?.draft||"";
+        el("pp-scope").value=existing?.scope||"future";
+        el("pp-options").hidden=!existing?.options;
+        el("pp-create-prompt").value=existing?.creation||"";
+        el("pp-validation").hidden=true;
+        el("pp-brief-status").textContent="Changes in this reference stay in this page only.";
+        el("pp-home-view").hidden=false;el("pp-reader").hidden=true;
+        composing=false;
+        render();
+      }
+      function renderSection() {
+        const config=sections[activeSection];
+        root.querySelectorAll("[data-section]").forEach(button=>{
+          if(button.dataset.section===activeSection)button.setAttribute("aria-current","page");
+          else button.removeAttribute("aria-current");
+        });
+        el("pp-feed").hidden=activeSection!=="news";
+        el("sb-books").hidden=activeSection!=="books";
+        el("sb-podcasts").hidden=activeSection!=="podcasts";
+        el("sb-desk").textContent=config.label;
+        el("sb-folio-label").textContent=config.folio;
+        el("sb-scope-label").textContent=config.label+" ·";
+        el("sb-steering").setAttribute("aria-label","Shape your "+config.label+" edition");
+        el("pp-prompt").setAttribute("aria-label","Ask Edison to shape your "+config.label+" edition");
+        el("pp-prompt").placeholder={news:"More economic history, less startup news…",books:"Short books on history and architecture…",podcasts:"More science. Episodes under 30 minutes…"}[activeSection];
+        el("pp-apply").setAttribute("aria-label","Send "+config.label+" direction to Edison");
+        el("pp-help").textContent="Your AI editor. Tell it what you’d like more or less of.";
+        el("pp-count").textContent=activeSection==="news"?state.order.length+" stories":config.count;
+        el("sb-end-title").textContent=config.end;
+        el("pp-end-note").textContent=state.person==="guest"?"Start anywhere. Your next edition can grow from what interests you.":config.ending;
+        el("pp-create").setAttribute("aria-label","Create one "+config.noun);
+        el("pp-create-title").textContent=config.createTitle;
+        el("sb-create-close").setAttribute("aria-label","Close new "+config.noun);
+        el("sb-create-description").textContent="One "+config.noun+", on any topic. This won’t change your ongoing editorial direction.";
+        el("sb-create-submit").textContent="Create "+config.noun;
+        el("sb-create-scope").textContent=config.label+" · one "+config.noun;
+        el("pp-create-prompt").placeholder=config.placeholder;
+        el("sb-brief-description").textContent="What shapes your "+config.label+" edition. Your instructions take precedence over inferred interests.";
+        el("pp-clear-brief").textContent="Clear "+config.label+" instructions";
+      }
+      function escapeText(value) {return String(value).replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[char]));}
+      function reason(key) {
+        if(state.person==="guest"&&!state.brief&&!state.today) return "Part of a varied starter edition. Edison has not inferred personal interests yet.";
+        if(key==="canals") return "You asked for more economic history and deeper explanations.";
+        if(state.person==="returning"&&key==="heat") return "In this returning-reader example, you follow environment and technology.";
+        return "Kept in the mix to leave room for discovery.";
+      }
+      function saveButton(key) {return `<button type="button" class="pp-save" data-save="${key}" aria-label="${saved.has(key)?"Unsave":"Save"} ${escapeText(data[key].title)}" aria-pressed="${saved.has(key)}">${saved.has(key)?"Saved":'<i data-lucide="bookmark" aria-hidden="true"></i>'}</button>`;}
+      function renderFeed() {
+        const [lead,...rest]=state.order;
+        const first=data[lead];
+        el("pp-feed").innerHTML=`<article class="pp-lead"><div><p class="pp-kicker">${first.desk}</p><h1 class="pp-headline"><button type="button" class="pp-title-link" data-read="${lead}">${first.title}</button></h1><p class="pp-dek">${first.dek}</p><p class="pp-meta">${first.topic} · ${lead==="canals"?"Deeper reading · sample":"Prepared read"}${readIds.has(lead)?" · Opened":""}</p></div><div class="pp-lead-note"><p class="pp-note-label">In this edition</p><p class="pp-opening">${first.body[0]}</p><button type="button" class="pp-text-action" data-read="${lead}">Keep reading →</button><details class="pp-reason"><summary>Why this story</summary><p>${reason(lead)}</p></details></div></article>`+rest.map(key=>{const item=data[key];return `<article class="pp-story-row"><div><p class="pp-kicker">${item.desk}</p><h2 class="pp-row-title"><button type="button" class="pp-title-link" data-read="${key}">${item.title}</button></h2><p class="pp-row-dek">${item.dek}</p><p class="pp-meta">${item.topic} · ${key==="startup"?"Editorial sample":"Prepared read"}${readIds.has(key)?" · Opened":""}</p></div>${saveButton(key)}</article>`;}).join("");
+        if(globalThis.lucide) lucide.createIcons({attrs:{width:18,height:18}});
+      }
+      function renderReceipt() {
+        const status=state.stage;
+        el("pp-receipt").hidden=status==="idle";
+        el("pp-undo").hidden=!before||["failed","applying"].includes(status);
+        el("pp-today").hidden=!["ready","queued","generation-failed"].includes(status)||state.scope==="today"||!before;
+        el("pp-retry").hidden=!["failed","generation-failed"].includes(status);
+        el("pp-retry").textContent=status==="generation-failed"?"Retry writing":"Retry saving";
+        updateSend();
+        const scope=state.scope==="today"?"This edition only.":"For "+sections[activeSection].label+", from now on.";
+        const changed=before?state.order.filter((key,index)=>before.order[index]!==key).length:0;
+        const readyChange=changed?changed+" unread positions updated in this preview.":"No ready stories changed; your kept reads remain in place.";
+        const lines={applying:"Saving your News direction. Your current edition is still available.",ready:"More economic history, fewer startup stories, deeper explanations. "+scope+" "+readyChange,queued:"Direction saved. "+scope+" A new economic-history piece is queued; your current edition is still available.",failed:"We couldn’t save your direction. Your editorial brief and edition haven’t changed.","generation-failed":"Your direction is saved. "+scope+" The new economic-history piece couldn’t be written. Your current edition is still available.",cleared:(state.brief||state.today?"Selected News instruction removed.":"News instructions cleared.")+" Existing reads remain available.",undone:"Change undone. Your previous direction is restored. Any newly opened or saved reads remain available."};
+        el("pp-receipt-text").textContent=lines[status]||"";
+        if(activeSection!=="news"){
+          const unchanged="Your sample "+(activeSection==="books"?"library":"episode queue")+" is unchanged; no new content has been generated.";
+          const formatLines={ready:"Direction updated in this preview. "+scope+" "+unchanged,cleared:"Selected "+sections[activeSection].label+" instructions cleared in this preview. "+unchanged,undone:"Change undone. Your previous "+sections[activeSection].label+" direction is restored."};
+          el("pp-receipt-text").textContent=formatLines[status]||lines[status]||"";
+        }
+      }
+      function renderBrief() {
+        const items=[];
+        if(state.brief)items.push(`<li>${escapeText(state.brief)}<small>${sections[activeSection].label} · from now on</small><button type="button" class="pp-text-action" data-edit-rule="future">Edit</button> · <button type="button" class="pp-text-action" data-remove-rule="future">Remove instruction</button></li>`);
+        if(state.today)items.push(`<li>${escapeText(state.today)}<small>${sections[activeSection].label} · September 4 edition only</small><button type="button" class="pp-text-action" data-edit-rule="today">Edit</button> · <button type="button" class="pp-text-action" data-remove-rule="today">Remove instruction</button></li>`);
+        el("pp-brief-list").innerHTML=items.join("")||"<li>No editorial instructions yet.<small>Your first edition starts with a varied selection.</small></li>";
+        el("pp-learned").textContent=state.learned?state.learned+" · example inference":"No inferred interests in this preview.";
+        el("pp-clear-learned").hidden=!state.learned;
+        el("pp-clear-brief").hidden=!state.brief&&!state.today;
+      }
+      function render() {
+        el("pp-personal").textContent=state.person==="guest"?(state.brief||state.today?"Shaped by your direction":"A place to begin"):"Edited for Michael";
+        el("pp-avatar").textContent=state.person==="guest"?"•":"M";
+        el("pp-end-note").textContent=state.person==="guest"?"Start anywhere. Your next edition can grow from what interests you.":"A fresh one tomorrow, shaped by what interests you.";
+        el("pp-count").textContent=state.order.length+" stories";
+        renderFeed();renderReceipt();renderBrief();renderSection();fitPrompt();
+      }
+      function updateSend(){el("pp-apply").disabled=composing||state.stage==="applying"||!el("pp-prompt").value.trim();}
+      function fitPrompt(){const field=el("pp-prompt");field.style.height="auto";field.style.height=Math.max(52,field.scrollHeight||52)+"px";updateSend();}
+      function updateOrder() {
+        const protectedIds=state.order.filter(key=>readIds.has(key)||saved.has(key));
+        const next=directed.filter(key=>!protectedIds.includes(key));
+        state.order=state.order.map(key=>protectedIds.includes(key)?key:next.shift()).filter(Boolean);
+      }
+      function applyDirection(stage="ready") {
+        before=structuredClone(state);
+        state.scope=el("pp-scope").value;
+        state.stage=stage;
+        if(!["failed","applying"].includes(stage)) {
+          if(state.scope==="today") state.today=example; else state.brief=example;
+          if(stage==="ready"&&activeSection==="news") updateOrder();
+        }
+        el("pp-options").hidden=true;
+        el("pp-validation").hidden=true;
+        render();
+      }
+      function home(restoreFocus=false) {el("pp-home-view").hidden=false;el("pp-reader").hidden=true;render();if(restoreFocus){const trigger=root.querySelector(`[data-read="${currentRead}"]`);if(trigger)trigger.focus();}}
+      function openRead(key) {
+        currentRead=key;readIds.add(key);
+        const article=data[key];
+        el("pp-reader-kicker").textContent=article.desk;
+        el("pp-reader-title").textContent=article.title;
+        el("pp-reader-copy").innerHTML=article.body.map(p=>`<p>${p}</p>`).join("");
+        el("pp-reader-sources").innerHTML=article.url?`<a href="${article.url}" target="_blank" rel="noopener noreferrer">${article.source}</a>`:escapeText(article.source);
+        el("pp-reader-save").textContent=saved.has(key)?"Remove saved read":"Save this read";
+        el("pp-reader-notice").textContent="Prepared design sample. No live research or personalization service is connected.";
+        el("pp-home-view").hidden=true;el("pp-reader").hidden=false;
+        el("pp-back").focus();
+      }
+      function openCreate(value) {if(value!==undefined)el("pp-create-prompt").value=value;el("pp-create-status").hidden=true;el("pp-create-dialog").showModal();}
+      root.addEventListener("click",event=>{
+        const section=event.target.closest("[data-section]");if(section){switchSection(section.dataset.section);return;}
+        const book=event.target.closest("[data-book]");if(book){el("sb-book-title").textContent=book.dataset.book;el("sb-book-dialog").showModal();return;}
+        const audio=event.target.closest("[data-audio]");if(audio){el("sb-audio-note").textContent="“"+audio.dataset.audio+"” is a design sample. No recording is attached to this preview.";el("sb-audio-note").hidden=false;return;}
+        const read=event.target.closest("[data-read]");if(read){openRead(read.dataset.read);return;}
+        const save=event.target.closest("[data-save]");if(save){const key=save.dataset.save;if(saved.has(key))saved.delete(key);else saved.add(key);save.setAttribute("aria-pressed",String(saved.has(key)));save.setAttribute("aria-label",(saved.has(key)?"Unsave ":"Save ")+data[key].title);save.innerHTML=saved.has(key)?"Saved":'<i data-lucide="bookmark" aria-hidden="true"></i>';if(globalThis.lucide)lucide.createIcons({attrs:{width:18,height:18}});return;}
+        const edit=event.target.closest("[data-edit-rule]");if(edit){el("pp-direction-dialog").close();home();el("pp-prompt").value=edit.dataset.editRule==="today"?state.today:state.brief;el("pp-scope").value=edit.dataset.editRule;el("pp-options").hidden=false;el("pp-prompt").focus();return;}
+        const remove=event.target.closest("[data-remove-rule]");if(remove){before=structuredClone(state);if(remove.dataset.removeRule==="today")state.today="";else state.brief="";state.stage="cleared";render();el("pp-brief-status").textContent="The selected "+sections[activeSection].label+" instruction was removed in this preview. Other guidance and saved reads are unchanged.";el("pp-edit-brief").focus();return;}
+        const close=event.target.closest("[data-close]");if(close)el(close.dataset.close).close();
+      });
+      el("pp-home").addEventListener("click",()=>home());el("pp-back").addEventListener("click",()=>home(true));
+      el("pp-prompt").addEventListener("compositionstart",()=>{composing=true;updateSend();});el("pp-prompt").addEventListener("compositionend",()=>{composing=false;updateSend();});
+      el("pp-prompt").addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.shiftKey&&!event.isComposing&&!composing){event.preventDefault();el("pp-steer-form").requestSubmit();}});
+      el("pp-prompt").addEventListener("focus",()=>{el("pp-options").hidden=false;fitPrompt();});
+      el("pp-prompt").addEventListener("input",()=>{el("pp-options").hidden=false;el("pp-validation").hidden=true;fitPrompt();});
+      el("pp-steer-form").addEventListener("submit",event=>{
+        event.preventDefault();if(composing||state.stage==="applying")return;const value=el("pp-prompt").value.trim();
+        if(/^(write|create|generate) (me )?(an? |one )?(article|story|piece|book|podcast)/i.test(value)){openCreate(value);return;}
+        if(value.toLowerCase()!==example.toLowerCase()){el("pp-validation").textContent=value?"This reference supports the example editorial note only. Choose ‘Try an example’; your text has not been sent or saved.":"Add a direction, or keep reading your edition.";el("pp-validation").hidden=false;el("pp-options").hidden=false;return;}
+        applyDirection("ready");
+      });
+      function tryExample(){home();el("pp-prompt").value=example;el("pp-options").hidden=false;fitPrompt();el("pp-prompt").focus();}
+      el("pp-try").addEventListener("click",tryExample);
+      el("sb-example").addEventListener("click",tryExample);
+      el("pp-scenario").addEventListener("change",()=>{
+        switchSection("news");
+        saved.clear();readIds.clear();const value=el("pp-scenario").value;
+        reset(value==="guest"?"guest":"returning");
+        if(["applying","ready","queued","failed","generation-failed"].includes(value)){el("pp-prompt").value=example;applyDirection(value);}
+      });
+      el("pp-undo").addEventListener("click",()=>{
+        if(!before)return;
+        const protectedNow=state.order.filter(key=>readIds.has(key)||saved.has(key));
+        const oldOrder=[...before.order];
+        const learnedNow=state.learned;
+        state=structuredClone(before);state.learned=learnedNow;
+        protectedNow.forEach(key=>{if(!oldOrder.includes(key))oldOrder.push(key);});
+        state.order=oldOrder;state.stage="undone";before=null;render();el("pp-review").focus();
+      });
+      el("pp-today").addEventListener("click",()=>{if(!before||!["ready","queued","generation-failed"].includes(state.stage))return;state.brief=before.brief;state.today=example;state.scope="today";el("pp-scope").value="today";render();el("pp-review").focus();});
+      el("pp-retry").addEventListener("click",()=>{if(state.stage==="generation-failed"){state.stage="ready";if(activeSection==="news")updateOrder();render();}else applyDirection("ready");el("pp-review").focus();});
+      function openBrief(){renderBrief();el("pp-direction-dialog").showModal();}
+      el("pp-profile").addEventListener("click",openBrief);el("pp-direction-link").addEventListener("click",openBrief);el("pp-review").addEventListener("click",openBrief);
+      el("pp-edit-brief").addEventListener("click",()=>{el("pp-direction-dialog").close();home();el("pp-prompt").value=state.today||state.brief;el("pp-scope").value=state.today?"today":"future";el("pp-options").hidden=false;el("pp-prompt").focus();});
+      el("pp-clear-brief").addEventListener("click",()=>{before=structuredClone(state);state.brief="";state.today="";state.stage="cleared";el("pp-brief-status").textContent="Direction cleared in this preview. Existing stories are unchanged; Undo is available on the edition.";render();el("pp-edit-brief").focus();});
+      el("pp-clear-learned").addEventListener("click",()=>{state.learned="";renderBrief();el("pp-brief-status").textContent="Inferred interest removed in this preview. Your instructions and saved reads are unchanged.";el("pp-edit-brief").focus();});
+      el("pp-create").addEventListener("click",()=>openCreate());
+      el("pp-explore").addEventListener("click",()=>openCreate("Explore further: "+data[currentRead].title));
+      el("pp-create-form").addEventListener("submit",event=>{event.preventDefault();el("pp-create-status").textContent=el("pp-create-prompt").value.trim()?"This is the one-off creation state. No generation service is connected; nothing has been submitted and your editorial direction is unchanged.":"Add a subject or question first.";el("pp-create-status").hidden=false;});
+      el("pp-reader-save").addEventListener("click",()=>{if(saved.has(currentRead))saved.delete(currentRead);else saved.add(currentRead);el("pp-reader-save").textContent=saved.has(currentRead)?"Remove saved read":"Save this read";el("pp-reader-notice").textContent=saved.has(currentRead)?"Saved in this preview. No account required; this reference resets on reload.":"Removed from the preview’s saved reads.";});
+      reset();
+      const design={viewport:"desktop",navigation:"icons"};
+      function renderDesign(){root.dataset.preview=design.viewport;root.dataset.navStyle=design.navigation;}
+      renderDesign();
+      if(globalThis.Tweak){
+        const tweak=new Tweak({container:root,onChange:renderDesign});
+        tweak.addSelect(design,"viewport",{label:"Viewport",options:[{label:"Desktop",value:"desktop"},{label:"Mobile",value:"mobile"}]});
+        tweak.addSelect(design,"navigation",{label:"Navigation",options:[{label:"Icons and labels",value:"icons"},{label:"Text only",value:"type"}]});
+      }
+    })();
+  </script>
+</div>

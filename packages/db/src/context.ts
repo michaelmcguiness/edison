@@ -39,3 +39,17 @@ export async function withUserDb<T>(
     return operation(transaction);
   });
 }
+
+export async function withPublicDb<T>(
+  operation: (transaction: UserTransaction) => Promise<T>,
+) {
+  const database = getDb();
+
+  return database.transaction(async (transaction) => {
+    // Public reads run as a deliberately narrow non-login role. Keeping this
+    // separate from the connection owner makes a route bug fail closed instead
+    // of exposing reader-owned rows.
+    await transaction.execute(sql`set local role edison_public`);
+    return operation(transaction);
+  });
+}

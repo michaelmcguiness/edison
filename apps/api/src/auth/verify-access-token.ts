@@ -14,6 +14,7 @@ export type EdisonClaims = JWTPayload & {
 
 let cachedIssuer: string | undefined;
 let cachedJwks: ReturnType<typeof createRemoteJWKSet> | undefined;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function authConfiguration() {
   const rawUrl = process.env.SUPABASE_URL;
@@ -53,16 +54,29 @@ function developmentClaims(): EdisonClaims | null {
   };
 }
 
-function enforceOptionalEmailAllowlist(claims: EdisonClaims) {
-  const configured = process.env.EDISON_ALLOWED_EMAILS;
-  if (!configured) return;
+export function enforceAlphaEmailAllowlist(
+  claims: Pick<EdisonClaims, "email">,
+  environment: Readonly<Record<string, string | undefined>> = process.env,
+) {
+  const configured = environment.EDISON_ALLOWED_EMAILS?.trim() ?? "";
+  if (!configured && environment.NODE_ENV !== "production") return;
 
-  const allowed = new Set(
-    configured
-      .split(",")
-      .map((email) => email.trim().toLowerCase())
-      .filter(Boolean),
-  );
+  const entries = configured
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+  if (
+    !entries.length ||
+    entries.some((email) => !EMAIL_PATTERN.test(email)) ||
+    new Set(entries).size !== entries.length
+  ) {
+    throw new HttpError(
+      503,
+      "alpha_allowlist_not_configured",
+      "Private-alpha access is unavailable because its allowlist is invalid.",
+    );
+  }
+  const allowed = new Set(entries);
 
   if (!claims.email || !allowed.has(claims.email.toLowerCase())) {
     throw new HttpError(
@@ -100,7 +114,7 @@ export async function verifyAccessToken(
     }
 
     const claims = payload as EdisonClaims;
-    enforceOptionalEmailAllowlist(claims);
+    enforceAlphaEmailAllowlist(claims);
     return claims;
   } catch (error) {
     if (error instanceof HttpError) throw error;

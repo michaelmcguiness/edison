@@ -11,6 +11,7 @@ import {
   feedCommandRequestSchema,
   feedCommandResponseSchema,
   preferenceChangeSchema,
+  removeInferredPreferenceRequestSchema,
   sharedArticleSnapshotSchema,
   timeZoneSchema,
   updateExplicitInterestRequestSchema,
@@ -67,6 +68,20 @@ test("public share snapshots reject personalization fields", () => {
     sharedArticleSnapshotSchema.safeParse({
       ...snapshot,
       whyWritten: "Because the reader privately asked about this.",
+    }).success,
+    false,
+  );
+});
+
+test("public snapshots reject uncited prose at every publishing boundary", () => {
+  assert.equal(
+    sharedArticleSnapshotSchema.safeParse({
+      ...snapshot,
+      body: [{
+        type: "paragraph",
+        text: "An unsupported claim.",
+        citations: [],
+      }],
     }).success,
     false,
   );
@@ -221,6 +236,28 @@ test("direct interest controls validate explicit-only public states", () => {
     false,
   );
   assert.equal(updatePreferencesRequestSchema.safeParse({}).success, false);
+  assert.equal(
+    updatePreferencesRequestSchema.safeParse({ timezone: "America/New_York" })
+      .success,
+    true,
+  );
+  assert.equal(
+    updatePreferencesRequestSchema.safeParse({ timezone: "Not/A_Zone" }).success,
+    false,
+  );
+  assert.equal(
+    removeInferredPreferenceRequestSchema.safeParse({
+      preference: "Synthetic biology",
+    }).success,
+    true,
+  );
+  assert.equal(
+    removeInferredPreferenceRequestSchema.safeParse({
+      preference: "Synthetic biology",
+      unsupported: true,
+    }).success,
+    false,
+  );
   assert.equal(
     explicitInterestSchema.safeParse({
       id,

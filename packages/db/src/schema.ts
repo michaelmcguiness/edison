@@ -4,6 +4,7 @@ import {
   boolean,
   check,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -17,6 +18,7 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { authUsers } from "drizzle-orm/supabase";
 
@@ -78,6 +80,22 @@ export const commandStatus = pgEnum("command_status", [
   "failed",
 ]);
 
+export const publicationSection = pgEnum("publication_section", [
+  "news",
+  "books",
+  "podcasts",
+]);
+
+export const editorialDirectionScope = pgEnum("editorial_direction_scope", [
+  "persistent",
+  "edition",
+]);
+
+export const editorialDirectionOperation = pgEnum(
+  "editorial_direction_operation",
+  ["create", "update", "delete", "undo"],
+);
+
 export const profiles = pgTable(
   "profiles",
   {
@@ -95,6 +113,243 @@ export const profiles = pgTable(
   (table) => [
     uniqueIndex("profiles_email_unique").on(table.email),
     check("profiles_streak_nonnegative", sql`${table.currentStreak} >= 0`),
+  ],
+);
+
+export const editorialDirectionStates = pgTable(
+  "editorial_direction_states",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    section: publicationSection("section").notNull(),
+    revision: integer("revision").notNull().default(0),
+    currentEditionId: uuid("current_edition_id").notNull().defaultRandom(),
+    currentEditionDate: date("current_edition_date", { mode: "string" }),
+    ...timestamps,
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.section] }),
+    uniqueIndex("editorial_direction_states_edition_unique").on(
+      table.currentEditionId,
+    ),
+    check(
+      "editorial_direction_states_revision_nonnegative",
+      sql`${table.revision} >= 0`,
+    ),
+  ],
+);
+
+export const editorialInstructions = pgTable(
+  "editorial_instructions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    section: publicationSection("section").notNull(),
+    scope: editorialDirectionScope("scope").notNull(),
+    editionId: uuid("edition_id"),
+    text: text("text").notNull(),
+    revision: integer("revision").notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.userId, table.section],
+      foreignColumns: [
+        editorialDirectionStates.userId,
+        editorialDirectionStates.section,
+      ],
+      name: "editorial_instructions_state_fk",
+    }).onDelete("cascade"),
+    index("editorial_instructions_user_section_idx").on(
+      table.userId,
+      table.section,
+      table.createdAt,
+    ),
+    check(
+      "editorial_instructions_scope_edition_consistent",
+      sql`(
+        (${table.scope} = 'persistent' and ${table.editionId} is null)
+        or
+        (${table.scope} = 'edition' and ${table.editionId} is not null)
+      )`,
+    ),
+    check(
+      "editorial_instructions_text_length",
+      sql`char_length(btrim(${table.text})) between 3 and 1000`,
+    ),
+    check("editorial_instructions_revision_positive", sql`${table.revision} > 0`),
+  ],
+);
+
+export const editorialDirectionMutations = pgTable(
+  "editorial_direction_mutations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    section: publicationSection("section").notNull(),
+    operation: editorialDirectionOperation("operation").notNull(),
+    instructionId: uuid("instruction_id")
+      .notNull()
+      .references(() => editorialInstructions.id, { onDelete: "cascade" }),
+    baseRevision: integer("base_revision").notNull(),
+    resultingRevision: integer("resulting_revision").notNull(),
+    beforeSnapshot: jsonb("before_snapshot").$type<Record<string, unknown>>(),
+    afterSnapshot: jsonb("after_snapshot")
+      .$type<Record<string, unknown>>()
+      .notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    requestFingerprint: text("request_fingerprint").notNull(),
+    undoOfMutationId: uuid("undo_of_mutation_id").references(
+      (): AnyPgColumn => editorialDirectionMutations.id,
+      { onDelete: "cascade" },
+    ),
+    revertedByMutationId: uuid("reverted_by_mutation_id").references(
+      (): AnyPgColumn => editorialDirectionMutations.id,
+      { onDelete: "cascade" },
+    ),
+    ...timestamps,
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.userId, table.section],
+      foreignColumns: [
+        editorialDirectionStates.userId,
+        editorialDirectionStates.section,
+      ],
+      name: "editorial_direction_mutations_state_fk",
+    }).onDelete("cascade"),
+    uniqueIndex("editorial_direction_mutations_user_idempotency_unique").on(
+      table.userId,
+      table.idempotencyKey,
+    ),
+    uniqueIndex("editorial_direction_mutations_undo_once_unique")
+      .on(table.undoOfMutationId)
+      .where(sql`${table.undoOfMutationId} is not null`),
+    index("editorial_direction_mutations_user_section_revision_idx").on(
+      table.userId,
+      table.section,
+      table.resultingRevision,
+    ),
+    check(
+      "editorial_direction_mutations_revision_step",
+      sql`${table.baseRevision} >= 0 and ${table.resultingRevision} = ${table.baseRevision} + 1`,
+    ),
+    check(
+      "editorial_direction_mutations_fingerprint_length",
+      sql`char_length(${table.requestFingerprint}) = 64`,
+    ),
+    check(
+      "editorial_direction_mutations_idempotency_key_valid",
+      sql`char_length(${table.idempotencyKey}) between 8 and 128 and ${table.idempotencyKey} ~ '^[A-Za-z0-9._:-]+$'`,
+    ),
+    check(
+      "editorial_direction_mutations_snapshot_consistent",
+      sql`
+        jsonb_typeof(${table.afterSnapshot}) = 'object'
+        and (
+          (${table.operation} = 'create' and ${table.beforeSnapshot} is null)
+          or
+          (${table.operation} <> 'create' and jsonb_typeof(${table.beforeSnapshot}) = 'object')
+        )
+      `,
+    ),
+    check(
+      "editorial_direction_mutations_undo_consistent",
+      sql`(${table.operation} = 'undo') = (${table.undoOfMutationId} is not null)`,
+    ),
+  ],
+);
+
+export const publicStarterEditions = pgTable(
+  "public_starter_editions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    section: publicationSection("section").notNull(),
+    editionDate: date("edition_date", { mode: "string" }).notNull(),
+    label: text("label").notNull().default("A place to begin"),
+    status: text("status").notNull().default("draft"),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    idempotencyKey: text("idempotency_key").notNull(),
+    requestFingerprint: text("request_fingerprint").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("public_starter_editions_section_date_unique").on(
+      table.section,
+      table.editionDate,
+    ),
+    uniqueIndex("public_starter_editions_idempotency_unique").on(
+      table.idempotencyKey,
+    ),
+    index("public_starter_editions_current_idx").on(
+      table.section,
+      table.status,
+      table.publishedAt,
+    ),
+    check(
+      "public_starter_editions_status_valid",
+      sql`${table.status} in ('draft', 'published', 'archived')`,
+    ),
+    check(
+      "public_starter_editions_publication_consistent",
+      sql`(
+        (${table.status} = 'draft' and ${table.publishedAt} is null)
+        or
+        (${table.status} in ('published', 'archived') and ${table.publishedAt} is not null)
+      )`,
+    ),
+    check(
+      "public_starter_editions_label_length",
+      sql`char_length(btrim(${table.label})) between 1 and 120`,
+    ),
+    check(
+      "public_starter_editions_fingerprint_length",
+      sql`char_length(${table.requestFingerprint}) = 64`,
+    ),
+    check(
+      "public_starter_editions_idempotency_key_valid",
+      sql`char_length(${table.idempotencyKey}) between 8 and 128 and ${table.idempotencyKey} ~ '^[A-Za-z0-9._:-]+$'`,
+    ),
+  ],
+);
+
+export const publicStarterEditionArticles = pgTable(
+  "public_starter_edition_articles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    editionId: uuid("edition_id")
+      .notNull()
+      .references(() => publicStarterEditions.id, { onDelete: "cascade" }),
+    position: smallint("position").notNull(),
+    reason: text("reason").notNull(),
+    snapshot: jsonb("snapshot").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("public_starter_edition_articles_position_unique").on(
+      table.editionId,
+      table.position,
+    ),
+    check(
+      "public_starter_edition_articles_position_positive",
+      sql`${table.position} > 0`,
+    ),
+    check(
+      "public_starter_edition_articles_reason_length",
+      sql`char_length(btrim(${table.reason})) between 1 and 500`,
+    ),
+    check(
+      "public_starter_edition_articles_snapshot_object",
+      sql`jsonb_typeof(${table.snapshot}) = 'object'`,
+    ),
   ],
 );
 
@@ -144,7 +399,13 @@ export const feedPreferences = pgTable(
       .notNull()
       .default([]),
     knowledgeState: jsonb("knowledge_state")
-      .$type<Array<{ topic: string; level: string; note: string | null }>>()
+      .$type<
+        Array<{
+          topic: string;
+          level: "new" | "beginner" | "intermediate" | "advanced";
+          note: string | null;
+        }>
+      >()
       .notNull()
       .default([]),
     ...timestamps,
@@ -154,6 +415,10 @@ export const feedPreferences = pgTable(
     check(
       "feed_preferences_novelty_range",
       sql`${table.novelty} between 0 and 100`,
+    ),
+    check(
+      "feed_preferences_knowledge_state_bounded",
+      sql`private.knowledge_state_is_bounded(${table.knowledgeState})`,
     ),
   ],
 );
@@ -285,6 +550,7 @@ export const feedItems = pgTable(
       .notNull()
       .references(() => articles.id, { onDelete: "cascade" }),
     category: contentCategory("category").notNull(),
+    editionId: uuid("edition_id"),
     editionDate: date("edition_date", { mode: "string" }).notNull(),
     rank: numeric("rank", { precision: 20, scale: 6 }).notNull(),
     reason: text("reason").notNull(),
@@ -293,6 +559,12 @@ export const feedItems = pgTable(
   },
   (table) => [
     uniqueIndex("feed_items_user_article_unique").on(table.userId, table.articleId),
+    index("feed_items_user_edition_category_rank_idx").on(
+      table.userId,
+      table.editionId,
+      table.category,
+      table.rank,
+    ),
     index("feed_items_user_category_rank_idx").on(
       table.userId,
       table.category,
@@ -468,6 +740,103 @@ export const articleShares = pgTable(
 
 export const privateSchema = pgSchema("private");
 
+/**
+ * A durable, per-reader reservation for every AI request path that is not
+ * already represented by a generation job. The row is created before work is
+ * dispatched, then claimed with a bounded lease immediately before calling the
+ * provider. This makes the rolling quota and in-flight idempotency decisions
+ * database-atomic without holding a transaction open across the provider call.
+ */
+export const aiRequestReservations = privateSchema.table(
+  "ai_request_reservations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    operation: text("operation").notNull(),
+    resourceId: uuid("resource_id").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    requestFingerprint: text("request_fingerprint").notNull(),
+    requestSnapshot: jsonb("request_snapshot")
+      .$type<Record<string, unknown>>()
+      .notNull(),
+    status: text("status").notNull().default("reserved"),
+    attemptCount: smallint("attempt_count").notNull().default(0),
+    leaseOwner: text("lease_owner"),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    providerResponseId: text("provider_response_id"),
+    lastError: text("last_error"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("ai_request_reservations_user_operation_key_unique").on(
+      table.userId,
+      table.operation,
+      table.idempotencyKey,
+    ),
+    index("ai_request_reservations_user_operation_created_idx").on(
+      table.userId,
+      table.operation,
+      table.createdAt,
+    ),
+    index("ai_request_reservations_claim_idx").on(
+      table.status,
+      table.nextAttemptAt,
+      table.leaseExpiresAt,
+    ),
+    check(
+      "ai_request_reservations_operation_valid",
+      sql`${table.operation} in ('article_qa', 'preference_command')`,
+    ),
+    check(
+      "ai_request_reservations_status_valid",
+      sql`${table.status} in ('reserved', 'in_progress', 'succeeded', 'failed')`,
+    ),
+    check(
+      "ai_request_reservations_idempotency_key_valid",
+      sql`char_length(${table.idempotencyKey}) between 8 and 128 and ${table.idempotencyKey} ~ '^[A-Za-z0-9._:-]+$'`,
+    ),
+    check(
+      "ai_request_reservations_fingerprint_length",
+      sql`char_length(${table.requestFingerprint}) = 64`,
+    ),
+    check(
+      "ai_request_reservations_snapshot_valid",
+      sql`jsonb_typeof(${table.requestSnapshot}) = 'object' and pg_column_size(${table.requestSnapshot}) <= 1048576`,
+    ),
+    check(
+      "ai_request_reservations_attempt_range",
+      sql`${table.attemptCount} between 0 and 3`,
+    ),
+    check(
+      "ai_request_reservations_lease_consistent",
+      sql`(
+        (${table.status} = 'in_progress' and ${table.leaseOwner} is not null and ${table.leaseExpiresAt} is not null)
+        or
+        (${table.status} <> 'in_progress' and ${table.leaseOwner} is null and ${table.leaseExpiresAt} is null)
+      )`,
+    ),
+    check(
+      "ai_request_reservations_finish_consistent",
+      sql`(
+        (${table.status} in ('reserved', 'in_progress') and ${table.finishedAt} is null)
+        or
+        (${table.status} in ('succeeded', 'failed') and ${table.finishedAt} is not null)
+      )`,
+    ),
+    check(
+      "ai_request_reservations_success_has_provider_response",
+      sql`${table.status} <> 'succeeded' or ${table.providerResponseId} is not null`,
+    ),
+  ],
+);
+
 export const generationJobs = privateSchema.table(
   "generation_jobs",
   {
@@ -520,26 +889,48 @@ export const usageLedger = privateSchema.table(
     generationJobId: uuid("generation_job_id").references(() => generationJobs.id, {
       onDelete: "set null",
     }),
+    aiRequestReservationId: uuid("ai_request_reservation_id").references(
+      () => aiRequestReservations.id,
+      { onDelete: "set null" },
+    ),
     operation: text("operation").notNull(),
     provider: text("provider").notNull().default("openai"),
+    providerResponseId: text("provider_response_id"),
     model: text("model").notNull(),
     inputTokens: integer("input_tokens").notNull().default(0),
     cachedInputTokens: integer("cached_input_tokens").notNull().default(0),
     outputTokens: integer("output_tokens").notNull().default(0),
     webSearchCalls: smallint("web_search_calls").notNull().default(0),
-    costMicrousd: bigint("cost_microusd", { mode: "number" }).notNull().default(0),
+    pricingStatus: text("pricing_status").notNull().default("priced"),
+    costMicrousd: bigint("cost_microusd", { mode: "number" }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
   },
   (table) => [
     index("usage_ledger_user_created_idx").on(table.userId, table.createdAt),
+    index("usage_ledger_ai_request_idx").on(table.aiRequestReservationId),
+    uniqueIndex("usage_ledger_provider_response_unique")
+      .on(table.provider, table.providerResponseId)
+      .where(sql`${table.providerResponseId} is not null`),
+    check(
+      "usage_ledger_ai_request_has_provider_response",
+      sql`${table.aiRequestReservationId} is null or ${table.providerResponseId} is not null`,
+    ),
+    check(
+      "usage_ledger_pricing_consistent",
+      sql`(
+        (${table.pricingStatus} = 'priced' and ${table.costMicrousd} is not null)
+        or
+        (${table.pricingStatus} = 'unpriced' and ${table.costMicrousd} is null)
+      )`,
+    ),
     check("usage_ledger_tokens_nonnegative", sql`
       ${table.inputTokens} >= 0 and
       ${table.cachedInputTokens} >= 0 and
       ${table.outputTokens} >= 0 and
       ${table.webSearchCalls} >= 0 and
-      ${table.costMicrousd} >= 0
+      (${table.costMicrousd} is null or ${table.costMicrousd} >= 0)
     `),
   ],
 );

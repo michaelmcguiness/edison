@@ -1,311 +1,249 @@
-# Edison Reader — Codex Handoff
+# Edison Reader — Codex handoff
 
 ## Mission
 
-Build a real, responsive web MVP for **Edison Reader** at `edisonreader.com`.
+Build Edison Reader into a real, production-grade personal publication for the
+web now and iOS/Android later.
 
 > A publication written entirely for you, every day.
 
-Edison should learn what each reader finds valuable and produce a daily reading experience combining continuous learning, personalized news, biographies, history, and intellectual exploration. The MVP is pure AI-generated editorial content, grounded in current sources where appropriate.
+Edison learns what a reader finds worthwhile and publishes a finite daily News
+edition. Books and Podcasts are permanent top-level sections, but their content
+services must remain honestly unavailable until they are actually built.
 
-This project is independent. It is not affiliated with Perch.
+This project is independent and is not affiliated with Perch.
 
-## Current status
+## Latest owner decision
 
-- Latest owner decision: keep Edison a personal, non-commercial sample-data
-  demo on Vercel Hobby. Do not activate paid services or the live stack now.
-- The hosted demo uses only the root web project, with server-only
-  `EDISON_DEMO_MODE=true` in both Vercel Production and Preview. It needs no
-  Supabase, OpenAI, SMTP, API deployment, or cron configuration.
-- Set build-only `ENABLE_EXPERIMENTAL_COREPACK=1` in Production and Preview
-  as well, so Vercel honors the pinned pnpm 10.28.0 rather than selecting an
-  older version for the custom install command.
-- Demo interactions are in-memory UI exploration and reset on reload; no real
-  authentication, AI generation, persisted personalization, or public article
-  share links are available. Do not present sample data as a connected product.
-- The editorial web experience is implemented in canonical Next.js and has a
-  working sample-data mode plus honest production setup states.
-- The live client is wired to a versioned REST API for onboarding, feeds,
-  articles, saves, events/streaks, feedback, commands, Q&A, library, settings,
-  sanitized public shares, generation jobs, and admin diagnostics.
-- Supabase migrations define Postgres tables, triggers, grants, RLS policies,
-  invite-only Auth behavior, private job/cost tables, storage policies, and pgTAP
-  assertions.
-- AI article research/writing and preference interpretation use validated
-  structured outputs. Durable Vercel Workflows own generation, with idempotency,
-  retry leases, reconciliation of interrupted generation and feed-command
-  dispatches, and usage accounting.
-- Profile controls now directly manage article length, ordered category
-  visibility, and explicit active/muted interests.
-- The demo web production build, TypeScript, ESLint, and all 30 automated
-  tests pass. Local production-server checks confirm the sample home page,
-  disconnected live routes, and fail-closed setup state when demo is disabled.
-  Those local checks used the installed Node 24 runtime. The first hosted
-  deployment also passed its clean pnpm 10.28.0 install and Next 16.3.4 Webpack
-  production build; Vercel confirms the runtime and saved project setting are
-  Node.js 22.x. The Workflow-enabled API production build passed in the prior
-  live-stack work. Database tests remain
-  pending until Docker or a disposable hosted Supabase test project is available;
-  they are not required to deploy this disconnected sample-data demo.
-- The owner has authorized importing the repository into the Vercel Hobby
-  project [`edison`](https://vercel.com/mike-michaelmcguis-projects/edison) and
-  deploying the disconnected root demo. The initial deployment of commit
-  `4855596` is Ready and was verified on September 4, 2026 at
-  [edison-lake-phi.vercel.app](https://edison-lake-phi.vercel.app/).
-- The primary demo URL is now [edisonreader.com](https://edisonreader.com/).
-  The owner purchased the domain on Vercel and explicitly authorized connecting
-  it to this Production project. Vercel reports Valid Configuration for the
-  apex, and its HTTPS page returns 200 with the sample banner. The Vercel alias
-  is retained. Both apex and `www` passed TLS verification; `www` redirects to
-  the apex with 308 while preserving paths and query parameters, and HTTP
-  upgrades to HTTPS. Custom-domain checks also confirm `/login` redirects home
-  with 307 while share, API, and cron paths return 404.
-- Docs-only commit `87973fd` deployed successfully through the GitHub `main`
-  integration, confirming automatic production deployment. The application
-  code remains unchanged from the initial verified release.
-- All 12 unauthenticated production smoke checks passed: home and three assets
-  return 200; login, admin, callback, and confirmation redirect home with 307;
-  signout POST redirects home with 303; share, API, and cron paths return 404.
-  Desktop (1440px) and mobile (390px) UI checks found no horizontal overflow or
-  browser errors. Onboarding, reading, summary-to-full-story navigation,
-  saves/library, profile, and resetting session changes on reload were verified.
-- Standard Vercel Authentication remains enabled: the stable production URL is
-  publicly accessible, while the unique deployment URL redirects to Vercel
-  sign-in. Production and Preview variables are configured; a separate Preview
-  deployment has not been tested. No live backend or paid hosting upgrade was
-  activated; attaching the owner-approved demo domain does not authorize
-  live-service activation or a broader product launch.
-- The owner created `michaelmcguiness/edison` on GitHub and approved publishing
-  the reviewed code there, including public visibility. The canonical source
-  URL is `https://github.com/michaelmcguiness/edison`. Check Git status and
-  remote refs for the current commit/push state. Source publication and the
-  approved root demo deployment and domain attachment do not activate the live
-  backend; that remains a separate release step.
-- `OPENAI_API_KEY` is not configured or needed for the demo. Never commit it or
-  paste it into chat; add it directly to the API Vercel project only when the
-  later live stack is approved.
+The owner has asked to build the actual production version and wants as much as
+possible completed autonomously. The approved technical direction is Vercel
+Pro + Supabase Pro + an Edison-specific OpenAI API project when the private
+alpha is released. A reasonable all-in budget is a few hundred dollars per
+month. There is no paid staging stack initially; use local Supabase,
+credential-free previews, and one backed-up production project.
 
-## Architecture decision (supersedes the original starter instructions)
+That authorizes code and documentation work. It does **not** by itself authorize
+buying plans, creating or mutating hosted services, entering/requesting secrets,
+applying migrations, deploying the production stack, attaching new domains,
+changing the apex deployment, publishing commits, or inviting readers. Stop at
+those boundaries unless the owner explicitly approves the exact action.
 
-The API-first Vercel/Supabase product architecture remains the later live
-target, so Edison can support future iOS and Android clients without rewriting
-its backend. The owner has deferred paid services and live deployment in favor
-of the Hobby demo described above. The former OpenAI
-Sites/Vinext/D1 requirements are retired. The registered Sites identity is
-archived under `docs/legacy`, but `.openai/hosting.json` is intentionally absent
-so it cannot select the wrong runtime.
+Never ask the owner to paste a secret in chat. Provider credentials belong in
+the relevant provider dashboard or a short-lived uncommitted local environment.
 
-- Now: repository-root Next.js sample-data web client on Vercel Hobby
-- Later: `apps/api` independent Next.js REST API on Vercel Pro
-- Later: Supabase Postgres, Auth, Storage, with Pro backups for the live alpha
-- Later: Vercel Workflow durable background generation
-- Later: OpenAI Responses API server-side research, writing, and command parsing
+On September 4, 2026, the owner explicitly authorized committing and pushing the
+production release candidate and creating separate temporary Vercel web/API
+projects plus a Supabase production project. This authorization stops before
+paid upgrades, secret entry, live migrations, invitations, or domain changes.
+Publish the candidate on `codex/production-release-candidate` and review it in a
+draft pull request; `main` still automatically deploys the existing apex demo.
+Project creation does not authorize merging the release or activating live
+services.
 
-The demo must set `EDISON_DEMO_MODE=true` explicitly for a production build.
-Without that flag, an unconfigured production app shows its setup screen and a
-configured live app retains its authentication requirement. Use Node.js 22.x,
-the pinned pnpm 10.28.0, and `pnpm build:web` from the root. Do not deploy
-`apps/api`, copy its `vercel.json` to the root, or remove its backend/workflows
-to make the web demo deployable. The root demo has no scheduled jobs.
+## Hosted state versus working-tree state
 
-On Vercel, set `ENABLE_EXPERIMENTAL_COREPACK=1` in Production and Preview to
-honor the package-manager pin with `pnpm install --frozen-lockfile`. Without
-Corepack, a custom pnpm install command can select an older supported version.
-See [Vercel package managers](https://vercel.com/docs/package-managers) and
-[Corepack configuration](https://vercel.com/docs/builds/configure-a-build#corepack).
+- [edisonreader.com](https://edisonreader.com/) and its `www` redirect still
+  serve the credential-free sample demo from the existing Vercel Hobby project.
+- The demo is explicit `EDISON_DEMO_MODE=true`; it has no production Supabase,
+  API, OpenAI, SMTP, or cron credentials. It must stay isolated while the alpha
+  is proven.
+- The public GitHub source is
+  [michaelmcguiness/edison](https://github.com/michaelmcguiness/edison). Do not
+  assume uncommitted production work has been pushed or deployed; inspect Git.
+- The working tree contains the production private-alpha implementation. It has
+  not been migrated, seeded, deployed, or exercised against a hosted database.
+- Local pgTAP/migration execution is still required. This machine did not have
+  a usable Docker/Postgres runtime during the implementation pass.
 
-Hobby is restricted to personal, non-commercial use; “demo” alone is not an
-exemption. Reassess the plan before commercial use or a product launch. See
-[Vercel Hobby](https://vercel.com/docs/plans/hobby) and
-[cron limits](https://vercel.com/docs/cron-jobs/usage-and-pricing).
+## Production topology
 
-There is no paid staging stack now or initially during private alpha. For the
-later live phase, use local Supabase, tests, credential-free Vercel previews,
-and one backed-up production Supabase project. The owner-approved
-`edisonreader.com` domain serves the disconnected demo only; do not activate
-the live stack or add live API subdomains without separate approval.
+Edison is an API-first modular monolith and a real client/server application:
 
-## Locked product decisions
+| Surface | Target | Responsibility |
+| --- | --- | --- |
+| Existing demo/landing | `edisonreader.com` | Credential-free sample UI |
+| Live web (`edison-app`) | `app.edisonreader.com` | Next.js UI + Supabase Auth session |
+| Live API (`edison-api`) | `api.edisonreader.com/v1` | Authz, Postgres, OpenAI, Workflow, cron |
+| Data/Auth | Supabase Pro | Canonical Postgres, Auth, reserved Storage |
 
-### Navigation
+Web and future native clients authenticate through Supabase, then call the same
+versioned Edison API with a bearer token. They do not connect to Edison core
+tables or OpenAI directly. The API verifies tokens and the fail-closed alpha
+allowlist, executes reader queries under the non-login `edison_api` role, and
+relies on enabled RLS policies that are enforced for that non-owner role. The
+migrations do not use `FORCE ROW LEVEL SECURITY`; browser/mobile Supabase roles
+also have no core table grants.
 
-- One excellent infinite-scroll home feed; do not split Home and Explore.
-- No bottom navigation bar.
-- Header contains the Edison wordmark and three compact controls on the right:
-  1. Library bookmark
-  2. Reading-streak flame with count
-  3. User avatar/settings
-- Do not add a redundant feed title, date, refresh label, or “written for your interests” copy.
+Use one region: API/Workflow in US East and a nearby Supabase project. Keep the
+existing apex demo project separate because all aliases on one Vercel project
+share one production build and environment.
 
-### Categories
+## Locked product and design decisions
 
-Use these exact top tabs:
+The current canonical sources, newest last, are:
 
-1. For you
-2. Tech & Science
-3. Business
-4. Arts & Culture
-5. Sports
-6. Entertainment
+1. `docs/brand/WHITE_EDITION_HANDOFF.md`
+2. `docs/brand/PERSONAL_PUBLICATION_HANDOFF.md`
+3. `docs/brand/SIDEBAR_CHAT_HANDOFF.md`
 
-Tabs scroll horizontally on small screens. A fixed manage button makes categories easy to show, hide, and reorder.
+The latter specifications supersede the old category-tab/infinite-feed design.
 
-### Feed
+- Desktop: a 184px left rail with exactly News, Books, Podcasts; centered Edison
+  masthead; library/streak/profile tools at upper right.
+- Below 960px available shell width: fixed bottom navigation with those same
+  three destinations.
+- A contextual `+` exists only on the three section homes and commissions one
+  new piece; it never edits ongoing direction.
+- “Ask Edison” sits inline immediately after the folio as a chat-style control.
+  Exact placeholders:
+  - News: “More economic history, less startup news…”
+  - Books: “Short books on history and architecture…”
+  - Podcasts: “More science. Episodes under 30 minutes…”
+- News is one finite daily edition with a clear end, not an infinite feed.
+- Useful public reading appears before authentication. There is no blocking
+  onboarding/account gate before the reader can see a real public edition.
+- Books is a cover-led library and Podcasts is a listening queue only when real
+  services/data exist. No fake covers, books, audio, duration, progress, or play
+  actions.
+- Direction is durable, section-scoped, reviewable, editable, removable, and
+  undoable. Edition-only direction binds to a stable server edition identity.
+- Guest direction/drafts remain device-local and are explicitly reconciled on
+  sign-in without overwriting account state or creating duplicate jobs.
+- The White Edition identity remains quiet black-and-white editorial design
+  with restrained Edison Red, hairline rules, flat surfaces, square imagery,
+  and no gradients/glass/ornamental shadows/rounded-card language.
 
-- Editorial rather than TikTok-like: calm, beautiful, dense enough to browse, optimized for choosing something worth reading.
-- A prominent lead story followed by a clean stream of secondary stories.
-- Useful metadata only: reading time, source count, research recency, the learning thread it extends, or the specific reason it was selected.
-- Infinite scroll, but prioritize quality over volume.
-- Long-pressing or pressing-and-holding a story opens a bottom sheet containing an X-style three-bullet summary. A normal tap opens the article.
+## Implemented production behavior
 
-### Floating prompt
+### Web
 
-- A persistent floating composer sits near the bottom of the feed.
-- It accepts natural-language requests such as:
-  - “More history and less startup news.”
-  - “Teach me synthetic biology from first principles.”
-  - “Make today’s feed more surprising.”
-- The command must be stored, translated into structured preference changes, and visibly affect future ranking/generation.
-- In an article, the same composer becomes article-aware. Suggested prompts include **Go deeper**, **Counterpoint**, and **Historical context**.
+- Prototype, signed-out guest, signed-in public-starter, and authenticated
+  private-live modes are separate.
+- Unauthenticated readers load only the sanitized current public starter News
+  edition. Signed-in readers can also read that starter without the UI
+  misrepresenting it as their private edition. Stable public deep links can
+  reopen archived immutable starter articles.
+- Authenticated readers load the bounded current News edition envelope and
+  runtime-validate it. Feed and direction edition identities are cross-checked;
+  a mismatch disables edition-scoped writes and safely shows the public starter.
+- News date/count/label come from the displayed edition rather than client time.
+- Public and guest cards do not promise a library save they cannot perform.
+- Article reading, saves, feedback, completion/streak, sharing, Q&A, library,
+  profile, explicit interests, inferred-interest removal, and category controls
+  use the live API where connected.
+- Guest directions and drafts receive an explicit additive sign-in import.
+  Exact duplicates are skipped, account drafts are never overwritten, the
+  logical request IDs are stable, and imports never dispatch generation.
+- Books and Podcasts render honest disconnected production states.
+- A nonce-based CSP and security headers protect the web surface.
 
-### Article reader
+### API and data
 
-- Beautiful long-form typography and generous reading width.
-- Show a specific “Why Edison wrote this” explanation.
-- Clearly label the article as written by Edison for the reader.
-- Display sources and claim-level citations. Source links must be real and clickable.
-- Allow save, share, feedback, and article Q&A.
-- Mark an article complete near the end of the reading experience and update the daily streak.
-- Ask: “Was this worth your time?” with a lightweight yes/no response.
+- Versioned REST API under `apps/api`; CORS uses exact origins.
+- Supabase bearer verification, active membership, required private-alpha email
+  allowlist, active-member admin allowlist, `edison_api`/`edison_public` roles,
+  grants, and RLS. Legacy public shares use one narrow security-definer lookup;
+  the public role cannot read the share or membership tables.
+- Revision-safe editorial-direction state/instructions/mutation history with
+  create, full edit, soft remove, Undo, CAS conflicts, and idempotency.
+- Immutable sanitized public starter editions, atomic admin publication, current
+  listing, and stable archived article reads.
+- Daily News edition identity/date rotation, deterministic scheduled ranks,
+  exact-edition feed filtering, and finite `nextCursor: null` response.
+- Active persistent plus current-edition News direction is captured for article
+  generation. The workflow rechecks direction revision/edition/date before
+  publish so stale output is accounted for but never inserted into the new
+  edition.
+- Slow article generation and feed-command parsing use Vercel Workflow with
+  authoritative database rows and reconciliation.
+- Article generation, Q&A, and feed commands use bounded per-reader quotas,
+  leases/attempts, invariant provider-request snapshots, provider idempotency,
+  timeouts, and usage accounting for every observed response, including invalid
+  structured output.
+- Usage accounting distinguishes priced responses from unexpected unpriced
+  provider model identities. An unpriced response retains its tokens and
+  provider ID with `cost_microusd = NULL`, stops the logical operation, and
+  makes the aggregate estimate unknown; it is never recorded as free.
+- API health/readiness and `scripts/check-production-env.mjs` fail closed on
+  missing production configuration and schema capabilities.
 
-### Library and profile
+## Deliberate product gaps
 
-- Library stores saved stories and ongoing learning threads.
-- The user/settings page emphasizes:
-  - Current streak and weekly reading activity
-  - Topics and learning threads
-  - What the feed has learned
-  - Direct controls for interests, depth, novelty, article length, and category visibility
-- The compact streak remains visible in the home header.
+- Books and Podcasts do not yet have production catalog/recommendation,
+  generation, object-storage, reader, playback, or progress services.
+- No genuine public starter content is checked in or seeded. An operator must
+  publish sourced, reviewed snapshots; the anonymous endpoint correctly returns
+  unavailable until then.
+- Broad-launch edge policy, monitoring vendor, SMTP provider, privacy/support
+  copy, and on-call owner are operational choices, not repository defaults.
+- There is no paid staging environment. Add one when multiple developers,
+  frequent migrations, hosted CI, or meaningful production traffic justify it.
+- Native clients are not built yet, but the production API/auth boundary is the
+  intended mobile backend.
 
-### MVP exclusions
+## Required release gates
 
-- No audio or text-to-speech.
-- No ads or subscriptions yet.
-- No token/reward economy yet.
-- No native iOS or Android clients yet.
-- No complicated collaborative-filtering or custom ML system. Start with explicit preferences, behavioral events, LLM interpretation, and simple ranking.
+Before external readers:
 
-## Visual direction
+1. Run lint, both TypeScript projects, all web/API tests, both production builds,
+   and responsive/CSP browser smoke tests.
+2. Start a clean disposable/local Supabase stack, apply every migration in
+   order, run all pgTAP/RLS tests and database lint, then inspect a linked dry
+   run. No real push before explicit approval and a backup checkpoint.
+3. Upgrade Vercel/Supabase only when ready to release. Create an Edison-specific
+   OpenAI API project/service account; ChatGPT subscriptions are unrelated.
+4. Configure custom SMTP, asymmetric Supabase JWT signing, exact Auth redirects,
+   disabled self-signup, required reader/admin allowlists, exact CORS, WAF rules,
+   spend caps/alerts, external error monitoring, and backups/restore drill.
+5. Deploy API and web first to temporary production URLs, run environment
+   preflight and `/v1/health`, invite only the owner, and verify a complete real
+   article/citation/save/share/Q&A/direction/retry/cost-ledger flow.
+6. Publish a genuine reviewed public starter edition and verify anonymous
+   current plus archived deep-link isolation.
+7. Obtain a separate owner decision and approval before attaching
+   `app.edisonreader.com`/`api.edisonreader.com` or replacing the apex demo.
 
-The locked identity is the **White Edition** system. Its core rule is a quiet,
-black-and-white editorial house with a restrained red signal. It should feel
-authoritative, literary, contemporary, and almost invisible once a story
-begins.
+The detailed runbook is `docs/PRODUCTION_RELEASE.md`; the shorter overview is
+`docs/DEPLOYMENT.md`. `docs/PRODUCTION_GAPS.md` must remain current with the
+working tree and must not list already-completed blockers.
 
-- `docs/brand/WHITE_EDITION_HANDOFF.md` is the canonical visual specification
-  and overrides older brand boards, README files, and exploratory assets.
-- Mark: use the promoted v2 monoline globe-and-two-rule mark from
-  `public/brand/edison-mark.svg`. Do not restore the retired circle-and-curved-
-  socket drawing.
-- Wordmark: lowercase `edison` in live Newsreader Roman 700, unpunctuated. It is
-  a temporary live-type wordmark, not custom lettering.
-- Permanent colors: Paper `#FCFBF8`, White `#FFFFFF`, Ink `#0B0B0B`, Soft Ink
-  `#30302E`, Caption `#6D6B67`, Rule `#D9D7D2`, Edison Red `#D12F32`, and Red
-  Wash `#F2E5E3`. Red is a signal, never a field color.
-- Typography roles: Libre Caslon Display for large headlines, Libre Caslon Text
-  for reading, Libre Franklin for interface text, and Newsreader only for the
-  live wordmark.
-- Favor hairline rules, generous margins, square imagery, flat surfaces, and
-  full-color editorial art. Do not use gradients, glass effects, tinted image
-  filters, hover scaling, ornamental shadows, or rounded-card layouts.
-- Mobile-first, excellent on tablet, and centered editorial layout on desktop.
-- The brand line remains **The world, edited for one.**
+## Local commands
 
-## Later live MVP requirements
+Use Node.js 22.x and pnpm 10.28.0:
 
-These remain the product target; they are not claims about the current
-sample-data demo or authorization to activate the live services now.
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build:all
+```
 
-1. Identity-aware private alpha using Supabase Auth bearer tokens and active membership checks.
-2. Supabase/Postgres durable state with grants and RLS for profiles, preferences, articles, feed items, reading events, saves, commands, and article conversations.
-3. First-run onboarding asking what the user wants to understand and preferred article length.
-4. A real feed populated from the database.
-5. AI article generation using the OpenAI Responses API.
-6. Web search for news/current topics and verifiable sources.
-7. Structured model output for article fields, summaries, topics, and feed-preference changes.
-8. Feed prompting that changes persisted preferences and refreshes recommendations.
-9. Article Q&A with stored message history.
-10. Long-press summaries, saves, feedback, reading completion, streak calculation, library, profile/settings, and shareable article routes.
-11. A small admin/diagnostic surface showing generation failures and recent jobs.
-12. Graceful seeded content and a clear setup state if `OPENAI_API_KEY` is missing; never fabricate AI results or fake a connected backend.
+`pnpm test` includes root web tests and API service tests. With Docker:
 
-## Suggested data model
+```bash
+pnpm supabase:start
+pnpm supabase:reset
+pnpm exec supabase test db
+pnpm exec supabase db lint
+pnpm exec supabase db push --linked --dry-run
+```
 
-- `profiles`
-- `feed_preferences`
-- `user_interests`
-- `articles`
-- `article_sources`
-- `feed_items`
-- `reading_events`
-- `saved_articles`
-- `feed_commands`
-- `article_conversations`
-- `conversation_messages`
-- `generation_jobs`
-
-Use ownership checks on every user-specific server route. Execute user queries in
-a transaction that installs verified JWT claims and switches to the fixed
-non-login `edison_api` database role so RLS remains effective without granting
-Supabase browser/mobile roles direct access to core tables. Runtime transaction
-pooler connections use `prepare: false`. Generate and inspect migrations, but
-apply them only with Supabase CLI; do not create schema dynamically at runtime or
-use `drizzle-kit push` against production.
-
-## Later live AI behavior
-
-- Use the Responses API server-side only.
-- For current events, use web search and preserve source URLs returned by the model/tooling.
-- Require structured JSON output matching a validated schema for generated articles and preference updates.
-- Prefer asynchronous or queued generation. The feed itself should normally be a fast database read, not a blocking model call.
-- Precompute each article’s three-bullet summary.
-- Store user commands and behavioral signals so personalization is explainable and reversible.
-- Start with a cost-conscious model. Make the model name configurable through `OPENAI_MODEL`.
-- Add sensible per-user generation limits and record approximate usage/cost metadata.
-
-## Quality bar
-
-- The eventual live MVP must be a functioning product, not a landing page or
-  static mock. The current owner-approved demo is an explicitly labeled
-  sample-data reading experience, not that live MVP.
-- Every visible control should work or be intentionally disabled with an honest explanation.
-- Include loading, empty, offline/error, and AI-not-configured states.
-- Meet basic keyboard, focus, contrast, and reduced-motion accessibility requirements.
-- Build successfully and run automated tests before the demo deployment.
-  Inspect/test Supabase migrations before a later live database deployment;
-  Docker and database tests are not prerequisites for the sample-data web demo.
-- Do not deploy, attach additional domains, or broaden public availability
-  without the owner's explicit approval. The current approval covers the
-  disconnected root demo on `edisonreader.com`, its `www` redirect, and its
-  Vercel alias; live services, paid hosting upgrades, and a broader product
-  launch remain separate. A Vercel URL is not inherently
-  access-controlled; check the chosen protection settings before sharing it.
+Apply schema only with the Supabase CLI. Never use `drizzle-kit push` against
+production. Vercel builds deliberately use Next’s Webpack path. Read relevant
+local Next 16 documentation under `node_modules/next/dist/docs/` before making
+framework changes; this repository’s Next version differs from remembered APIs.
 
 ## First prompt to give Codex
 
 > Continue building Edison Reader from this repository. Read
-> `CODEX_HANDOFF.md` completely and inspect the working tree before editing.
-> The current target is a personal, non-commercial sample-data web demo on
-> Vercel Hobby: root project only, `EDISON_DEMO_MODE=true`, no paid services,
-> live credentials, API deployment, or crons. Set build-only
-> `ENABLE_EXPERIMENTAL_COREPACK=1` for the pinned pnpm version on Vercel.
-> Preserve the Vercel/Supabase
-> API-first backend for the later live phase. Validate TypeScript, tests, web
-> and API builds, and the demo UI; test migrations/RLS before activating a live
-> database. Do as much as possible autonomously, but never request secrets in
-> source control or chat and never push, deploy, attach domains, or make the
-> app public without the owner's explicit approval. The recorded current
-> approval covers GitHub source publication, this root-only Vercel demo
-> deployment, and attaching `edisonreader.com` with its `www` redirect. It does
-> not authorize live-service activation or a paid hosting upgrade.
+> `CODEX_HANDOFF.md` completely, then inspect the working tree and current Git
+> state before editing. The target is the production private alpha using the
+> separate Vercel web/API + Supabase architecture described here; the hosted
+> apex remains an isolated credential-free demo. Preserve the exact finite News,
+> three-section sidebar/mobile-nav, inline Ask Edison, one-off commissioning,
+> and guest-reconciliation behavior. Run the full code/build/browser checks and
+> run migrations/RLS tests once a disposable Postgres/Supabase runtime is
+> available. Work autonomously without secrets, but do not purchase, migrate,
+> push, deploy, attach domains, alter hosted services, or invite readers without
+> explicit approval for that exact external action. Never request secrets in
+> source control or chat.

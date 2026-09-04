@@ -1,17 +1,30 @@
 # Edison deployment
 
-## Current phase: personal sample-data demo on Vercel Hobby
+## Authorized release preparation — September 4, 2026
 
-The owner has chosen a personal, non-commercial demo with **no paid services
-now**. Deploy only the root web project. Do not deploy `apps/api`, provision a
-database, invite real readers, or connect AI/email services for this phase.
+The owner approved committing/pushing the production release candidate and
+creating separate temporary Vercel web/API projects and a Supabase production
+project. Use `codex/production-release-candidate` with a draft pull request so
+the existing demo's automatic `main` deployment is not promoted incidentally.
+Stop before paid upgrades, secret entry, live migrations, invitations, or
+domain changes. This new authorization supersedes the older demo-only limits
+below only for those named preparation actions.
+
+## Current hosted phase: sample-data demo on Vercel Hobby
+
+The owner has now asked for the production private-alpha application to be
+built in the repository. The hosted environment has not been converted: it is
+still a personal, non-commercial demo with **no paid services or live
+credentials**. Do not deploy `apps/api`, provision a database, invite readers,
+or connect AI/email services merely because the production code exists.
 
 The explicit server-only flag `EDISON_DEMO_MODE=true` makes the sample UI
 available in a production build. Without it, an unconfigured production app
 shows the setup screen and a configured live app still requires authentication.
-The demo has sample stories and in-memory UI interactions that reset on reload;
-it has no real auth, AI generation, persisted personalization, or working
-public article sharing. Keep the sample-data notice visible.
+The demo has sample stories and no account-backed state. Reading state resets on
+reload; editorial drafts and direction may remain in the browser’s device-local
+workspace. It has no real auth, AI generation, server-side personalization, or
+working public article sharing. Keep the sample-data notice visible.
 
 Hobby permits personal, non-commercial use. The word “demo” does not create an
 exception for commercial use; reassess before commercial use or a product
@@ -109,7 +122,7 @@ intact for later: their five-minute and hourly schedules are not supported by
 2. Publish the reviewed commit to the approved GitHub repository and confirm
    approval for the Vercel deployment. Both have been completed for this root
    demo, as has separate approval for its apex domain and `www` redirect;
-   live-stack work remains unapproved.
+   production deployment and live-service activation remain unapproved.
 3. Deploy only the root web project with the settings above.
 4. Verify the production URL shows the sample-data notice and opens without a
    Supabase login/setup requirement; check feed, article, library, and profile
@@ -123,23 +136,24 @@ intact for later: their five-minute and hourly schedules are not supported by
    broaden the product launch without separate explicit approval.
 
 Local Supabase/Docker and database tests are not blockers for this sample-data
-web deployment. They remain requirements before activating the later live
-database. No staging environment is needed for the demo.
+web deployment. They remain requirements before activating the production
+private-alpha database. No staging environment is needed for the demo.
 
-## Later phase: live private alpha
+## Production private-alpha release (not deployed)
 
-This preserves the approved client/server architecture; graduating from the
-demo is configuration and release work, not an architecture rewrite. Remove
-or set `EDISON_DEMO_MODE=false` on the live production web project, activate
-the independent API and Supabase stack, and complete the launch checks below.
-Previews must remain credential-free and can retain explicit demo mode.
+The production client/server implementation is now the repository target;
+graduating from the hosted demo is configuration and controlled release work,
+not an architecture rewrite. Create a separate live web project with
+`EDISON_DEMO_MODE=false`, activate the independent API and Supabase stack, and
+complete every launch check below. Keep the existing apex demo isolated and
+keep previews credential-free in explicit demo mode.
 
 The live alpha uses one production Supabase project and two Vercel projects.
 There is no paid staging environment initially. Local Supabase is the database
 test environment, and Vercel previews are build/UI checks. Never point a
 preview deployment at the production database.
 
-### What the owner will need for the live alpha
+### What the owner will need for the private alpha
 
 1. Vercel Pro for the current API schedules, a suitable Supabase plan (Pro is
    recommended for backups and availability once readers depend on it), and
@@ -198,12 +212,14 @@ deployments credential-free.
   - `OPENAI_ARTICLE_MODEL`
   - `OPENAI_UTILITY_MODEL`
   - `OPENAI_MAX_DAILY_GENERATIONS`
+  - `OPENAI_MAX_DAILY_ARTICLE_QUESTIONS`
+  - `OPENAI_MAX_DAILY_FEED_COMMANDS`
   - `OPENAI_WEB_SEARCH_COST_MICROUSD`
   - `WEB_APP_URL=https://<web-host>`
   - `CORS_ALLOWED_ORIGINS=https://<web-host>`
   - `CRON_SECRET` (a newly generated high-entropy value)
   - `EDISON_ADMIN_EMAILS`
-  - `EDISON_ALLOWED_EMAILS` if a second explicit allowlist is desired
+  - `EDISON_ALLOWED_EMAILS` (required, fail-closed private-alpha allowlist)
   - `EDISON_DAILY_EDITION_LOCAL_HOUR`
   - `EDISON_DAILY_EDITION_TARGET`
   - `EDISON_DAILY_EDITION_BATCH_SIZE`
@@ -213,7 +229,11 @@ Postgres, and Supabase Auth are all reachable.
 
 `OPENAI_WEB_SEARCH_COST_MICROUSD` is an accounting estimate, not a billing
 control. Recheck it against OpenAI's current tool pricing before launch and
-reconcile Edison's usage ledger against the provider dashboard.
+reconcile Edison's usage ledger against the provider dashboard. If the provider
+returns an unexpected model identity, Edison records its tokens and response ID
+as explicitly `unpriced` with a `NULL` cost and stops that operation. Treat the
+aggregate estimate as unknown and reconcile manually; never convert that
+missing price to a zero-cost call.
 
 ### Live private launch sequence
 

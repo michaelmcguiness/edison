@@ -5,7 +5,9 @@ import {
   eq,
   gte,
   inArray,
+  isNotNull,
   notExists,
+  or,
   sql,
 } from "drizzle-orm";
 import {
@@ -18,11 +20,85 @@ import {
   dailyEditionIdempotencyKey,
   dailyEditionTimeInZone,
 } from "@edison/domain";
+import { safeCaughtErrorMetadata } from "../observability/safe-error";
 import { dispatchGenerationJob } from "./generation-jobs";
+import { ensureNewsEditionForDate } from "./news-editions";
 
 const DEFAULT_DAILY_TARGET = 3;
 const DEFAULT_LOCAL_HOUR = 5;
 const DEFAULT_READER_BATCH_SIZE = 25;
+export const MAX_DAILY_SLOT_ATTEMPTS = 2;
+
+export function dailyEditionAttemptIdempotencyKey(
+  dateKey: string,
+  slot: number,
+  attempt: number,
+) {
+  const base = dailyEditionIdempotencyKey(dateKey, slot);
+  return attempt === 1 ? base : `${base}:attempt:${attempt}`;
+}
+
+type DailySlotJobState = {
+  idempotencyKey: string;
+  status: string;
+  outputArticleId?: string | null;
+};
+
+export function planDailySlotAttempt(
+  dateKey: string,
+  slot: number,
+  existing: readonly DailySlotJobState[],
+):
+  | { outcome: "satisfied" }
+  | { outcome: "exhausted" }
+  | { outcome: "create"; attempt: number; idempotencyKey: string } {
+  const attempts = Array.from(
+    { length: MAX_DAILY_SLOT_ATTEMPTS },
+    (_, index) => ({
+      attempt: index + 1,
+      idempotencyKey: dailyEditionAttemptIdempotencyKey(
+        dateKey,
+        slot,
+        index + 1,
+      ),
+    }),
+  );
+  const matching = attempts.flatMap((attempt) => {
+    const row = existing.find(
+      (candidate) => candidate.idempotencyKey === attempt.idempotencyKey,
+    );
+    return row ? [{ ...attempt, row }] : [];
+  });
+  if (
+    matching.some(
+      ({ row }) =>
+        Boolean(row.outputArticleId) ||
+        row.status === "queued" ||
+        row.status === "running" ||
+        row.status === "succeeded",
+    )
+  ) {
+    return { outcome: "satisfied" };
+  }
+
+  const highestAttempt = matching.reduce(
+    (highest, candidate) => Math.max(highest, candidate.attempt),
+    0,
+  );
+  if (highestAttempt >= MAX_DAILY_SLOT_ATTEMPTS) {
+    return { outcome: "exhausted" };
+  }
+  const attempt = highestAttempt + 1;
+  return {
+    outcome: "create",
+    attempt,
+    idempotencyKey: dailyEditionAttemptIdempotencyKey(
+      dateKey,
+      slot,
+      attempt,
+    ),
+  };
+}
 
 function boundedIntegerSetting(
   name: string,
@@ -115,19 +191,43 @@ export async function scheduleDailyEditions(now = new Date()) {
       break;
     }
 
-    // The highest slot is a durable marker that the whole configured target
-    // was inserted. Raising the target later naturally selects the reader again.
-    const markerKey = dailyEditionIdempotencyKey(due.dateKey, target);
-    const missingMarker = notExists(
-      database
-        .select({ id: generationJobs.id })
-        .from(generationJobs)
-        .where(
-          and(
-            eq(generationJobs.userId, profiles.id),
-            eq(generationJobs.idempotencyKey, markerKey),
-          ),
-        ),
+    // A slot is complete while work is pending/successful, or terminal when
+    // its bounded final attempt exists. Readers with any retryable/missing slot
+    // remain selectable without letting completed readers starve later batches.
+    const slotNeedsWork = or(
+      ...Array.from({ length: target }, (_, index) => {
+        const slot = index + 1;
+        const attemptKeys = Array.from(
+          { length: MAX_DAILY_SLOT_ATTEMPTS },
+          (__, attemptIndex) =>
+            dailyEditionAttemptIdempotencyKey(
+              due.dateKey,
+              slot,
+              attemptIndex + 1,
+            ),
+        );
+        const finalAttemptKey = attemptKeys.at(-1)!;
+        return notExists(
+          database
+            .select({ id: generationJobs.id })
+            .from(generationJobs)
+            .where(
+              and(
+                eq(generationJobs.userId, profiles.id),
+                inArray(generationJobs.idempotencyKey, attemptKeys),
+                or(
+                  inArray(generationJobs.status, [
+                    "queued",
+                    "running",
+                    "succeeded",
+                  ]),
+                  isNotNull(generationJobs.outputArticleId),
+                  eq(generationJobs.idempotencyKey, finalAttemptKey),
+                ),
+              ),
+            ),
+        );
+      }),
     );
     const rows = await database
       .select({ userId: profiles.id, timeZone: profiles.timezone })
@@ -143,7 +243,7 @@ export async function scheduleDailyEditions(now = new Date()) {
         and(
           eq(profiles.onboardingComplete, true),
           eq(profiles.timezone, due.timeZone),
-          missingMarker,
+          slotNeedsWork,
         ),
       )
       .orderBy(asc(profiles.id))
@@ -158,32 +258,28 @@ export async function scheduleDailyEditions(now = new Date()) {
     );
   }
 
-  const plannedJobs = readers.flatMap((reader) =>
-    Array.from({ length: target }, (_, index) => {
-      const slot = index + 1;
-      return {
-        userId: reader.userId,
-        kind: "initial-edition" as const,
-        idempotencyKey: dailyEditionIdempotencyKey(reader.dateKey, slot),
-        input: {
-          source: "daily-edition-scheduler",
-          editionDate: reader.dateKey,
-          slot,
-          target,
-        },
-      };
-    }),
-  );
   const createdJobs: Array<{ id: string }> = [];
+  let jobsPlanned = 0;
   let jobsAlreadyPresent = 0;
   let jobsDeferredByLimit = 0;
+  let jobsSkippedByNewerEdition = 0;
+  let retryJobsCreated = 0;
+  let slotsRetryExhausted = 0;
+  let editionsInitialized = 0;
+  let editionsRotated = 0;
   const since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
   for (const reader of readers) {
-    const readerJobs = plannedJobs.filter(
-      (job) => job.userId === reader.userId,
-    );
-    const createdForReader = await database.transaction(async (transaction) => {
+    const allAttemptKeys = Array.from({ length: target }, (_, index) =>
+      Array.from({ length: MAX_DAILY_SLOT_ATTEMPTS }, (__, attemptIndex) =>
+        dailyEditionAttemptIdempotencyKey(
+          reader.dateKey,
+          index + 1,
+          attemptIndex + 1,
+        ),
+      ),
+    ).flat();
+    const result = await database.transaction(async (transaction) => {
       // Manual generation uses the same lock, making quota reservation atomic
       // across API requests and the scheduler.
       await transaction.execute(sql`
@@ -194,15 +290,16 @@ export async function scheduleDailyEditions(now = new Date()) {
 
       const [existingRows, [{ value: recentCount }]] = await Promise.all([
         transaction
-          .select({ idempotencyKey: generationJobs.idempotencyKey })
+          .select({
+            idempotencyKey: generationJobs.idempotencyKey,
+            status: generationJobs.status,
+            outputArticleId: generationJobs.outputArticleId,
+          })
           .from(generationJobs)
           .where(
             and(
               eq(generationJobs.userId, reader.userId),
-              inArray(
-                generationJobs.idempotencyKey,
-                readerJobs.map((job) => job.idempotencyKey),
-              ),
+              inArray(generationJobs.idempotencyKey, allAttemptKeys),
             ),
           ),
         transaction
@@ -216,28 +313,129 @@ export async function scheduleDailyEditions(now = new Date()) {
           ),
       ]);
 
-      const existingKeys = new Set(
-        existingRows.map((job) => job.idempotencyKey),
-      );
-      const missingJobs = readerJobs.filter(
-        (job) => !existingKeys.has(job.idempotencyKey),
+      const plans = Array.from({ length: target }, (_, index) => {
+        const slot = index + 1;
+        return {
+          slot,
+          plan: planDailySlotAttempt(
+            reader.dateKey,
+            slot,
+            existingRows,
+          ),
+        };
+      });
+      const jobsNeeded = plans.flatMap(({ slot, plan }) =>
+        plan.outcome === "create"
+          ? [
+              {
+                userId: reader.userId,
+                kind: "initial-edition" as const,
+                idempotencyKey: plan.idempotencyKey,
+                input: {
+                  source: "daily-edition-scheduler",
+                  editionDate: reader.dateKey,
+                  slot,
+                  target,
+                  dailyAttempt: plan.attempt,
+                },
+              },
+            ]
+          : [],
       );
       const remainingCapacity = Math.max(0, generationLimit - recentCount);
-      jobsAlreadyPresent += existingRows.length;
-      jobsDeferredByLimit += Math.max(
+      const deferredByLimit = Math.max(
         0,
-        missingJobs.length - remainingCapacity,
+        jobsNeeded.length - remainingCapacity,
       );
-      const jobsToCreate = missingJobs.slice(0, remainingCapacity);
-      if (!jobsToCreate.length) return [];
+      const jobsToCreate = jobsNeeded.slice(0, remainingCapacity);
+      if (!existingRows.length && !jobsToCreate.length) {
+        return {
+          created: [],
+          deferredByLimit,
+          existing: existingRows.length,
+          transition: null,
+          skippedByNewerEdition: 0,
+          planned: jobsNeeded.length,
+          retriesCreated: 0,
+          retriesExhausted: plans.filter(
+            ({ plan }) => plan.outcome === "exhausted",
+          ).length,
+        };
+      }
 
-      return transaction
+      // The state rotation and the first durable jobs for this local date share
+      // one transaction. Changing currentEditionId invalidates old temporary
+      // directions and increments revision, so stale edits and Undo fail closed.
+      const lifecycle = await ensureNewsEditionForDate(
+        transaction,
+        reader.userId,
+        reader.dateKey,
+      );
+      if (lifecycle.transition === "superseded") {
+        return {
+          created: [],
+          deferredByLimit,
+          existing: existingRows.length,
+          transition: lifecycle.transition,
+          skippedByNewerEdition: jobsNeeded.length,
+          planned: jobsNeeded.length,
+          retriesCreated: 0,
+          retriesExhausted: 0,
+        };
+      }
+
+      if (!jobsToCreate.length) {
+        return {
+          created: [],
+          deferredByLimit,
+          existing: existingRows.length,
+          transition: lifecycle.transition,
+          skippedByNewerEdition: 0,
+          planned: jobsNeeded.length,
+          retriesCreated: 0,
+          retriesExhausted: plans.filter(
+            ({ plan }) => plan.outcome === "exhausted",
+          ).length,
+        };
+      }
+
+      const created = await transaction
         .insert(generationJobs)
-        .values(jobsToCreate)
+        .values(
+          jobsToCreate.map((job) => ({
+            ...job,
+            input: {
+              ...job.input,
+              newsEditionId: lifecycle.state.currentEditionId,
+            },
+          })),
+        )
         .onConflictDoNothing()
         .returning({ id: generationJobs.id });
+      return {
+        created,
+        deferredByLimit,
+        existing: existingRows.length,
+        transition: lifecycle.transition,
+        skippedByNewerEdition: 0,
+        planned: jobsNeeded.length,
+        retriesCreated: jobsToCreate.filter(
+          (job) => job.input.dailyAttempt > 1,
+        ).length,
+        retriesExhausted: plans.filter(
+          ({ plan }) => plan.outcome === "exhausted",
+        ).length,
+      };
     });
-    createdJobs.push(...createdForReader);
+    createdJobs.push(...result.created);
+    jobsPlanned += result.planned;
+    jobsAlreadyPresent += result.existing;
+    jobsDeferredByLimit += result.deferredByLimit;
+    jobsSkippedByNewerEdition += result.skippedByNewerEdition;
+    retryJobsCreated += result.retriesCreated;
+    slotsRetryExhausted += result.retriesExhausted;
+    if (result.transition === "initialized") editionsInitialized += 1;
+    if (result.transition === "rotated") editionsRotated += 1;
   }
 
   let dispatched = 0;
@@ -254,7 +452,7 @@ export async function scheduleDailyEditions(now = new Date()) {
       failed += 1;
       console.error("Daily-edition workflow dispatch failed", {
         jobId: job.id,
-        error,
+        ...safeCaughtErrorMetadata(error),
       });
     }
   }
@@ -268,10 +466,15 @@ export async function scheduleDailyEditions(now = new Date()) {
     dueTimeZones: dueTimeZones.length,
     invalidTimeZones,
     readersSelected: readers.length,
-    jobsPlanned: plannedJobs.length,
+    jobsPlanned,
     jobsCreated: createdJobs.length,
     jobsAlreadyPresent,
     jobsDeferredByLimit,
+    jobsSkippedByNewerEdition,
+    retryJobsCreated,
+    slotsRetryExhausted,
+    editionsInitialized,
+    editionsRotated,
     dispatched,
     alreadyDispatched,
     skipped,

@@ -5,6 +5,7 @@ import {
 } from "@edison/contracts";
 import {
   feedPreferences as feedPreferencesTable,
+  profiles as profilesTable,
   userInterests,
 } from "@edison/db";
 import { apiHandler, json } from "../../../src/http/api-handler";
@@ -74,6 +75,29 @@ export async function PATCH(request: Request) {
           .where(eq(feedPreferencesTable.userId, claims.sub));
       }
 
+      let currentProfile = profile;
+      if (input.timezone !== undefined) {
+        const [updatedProfile] = await transaction
+          .update(profilesTable)
+          .set({
+            timezone: input.timezone,
+            // Scheduling begins only after an actual IANA timezone is
+            // captured. Other non-blocking preference edits must not activate
+            // a profile that still carries the UTC bootstrap placeholder.
+            onboardingComplete: true,
+          })
+          .where(eq(profilesTable.id, claims.sub))
+          .returning();
+        if (!updatedProfile) {
+          throw new HttpError(
+            500,
+            "profile_update_failed",
+            "Edison could not update the reader profile.",
+          );
+        }
+        currentProfile = updatedProfile;
+      }
+
       const [preferences] = await transaction
         .select()
         .from(feedPreferencesTable)
@@ -96,7 +120,9 @@ export async function PATCH(request: Request) {
         );
 
       return json(
-        profileSchema.parse(presentProfile(profile, preferences, interests)),
+        profileSchema.parse(
+          presentProfile(currentProfile, preferences, interests),
+        ),
       );
     });
   });

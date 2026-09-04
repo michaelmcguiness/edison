@@ -7,6 +7,7 @@ import {
 import { feedPreferences, generationJobs, getDb } from "@edison/db";
 import { apiHandler, json } from "../../../src/http/api-handler";
 import { HttpError } from "../../../src/http/errors";
+import { safeCaughtErrorMetadata } from "../../../src/observability/safe-error";
 import { dispatchGenerationJob } from "../../../src/services/generation-jobs";
 import { withActiveMember } from "../../../src/services/members";
 
@@ -186,7 +187,7 @@ export async function POST(request: Request) {
     } catch (error) {
       console.error("Workflow dispatch failed; reconciler will retry", {
         jobId: result.job.id,
-        error,
+        ...safeCaughtErrorMetadata(error),
       });
     }
 
