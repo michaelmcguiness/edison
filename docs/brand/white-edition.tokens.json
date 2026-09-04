@@ -1,0 +1,97 @@
+{
+  "name": "Edison White Edition",
+  "version": "1.0.0",
+  "status": "approved",
+  "approvedOn": "2026-09-03",
+  "colors": {
+    "editionWhite": { "value": "#FCFBF8", "role": "Default publication canvas" },
+    "pureWhite": { "value": "#FFFFFF", "role": "Inputs and rare inset surfaces" },
+    "trueInk": { "value": "#0B0B0B", "role": "Logo, headlines, primary text and controls" },
+    "softInk": { "value": "#30302E", "role": "Decks and long-form reading" },
+    "caption": { "value": "#6D6B67", "role": "Metadata, captions and secondary copy" },
+    "rule": { "value": "#D9D7D2", "role": "Decorative separators only" },
+    "edisonRed": { "value": "#D12F32", "role": "Editorial punctuation, active state and focus" },
+    "redWash": { "value": "#F2E5E3", "role": "Rare selected-state wash" }
+  },
+  "semanticColors": {
+    "page": "{colors.editionWhite}",
+    "surface": "{colors.pureWhite}",
+    "textPrimary": "{colors.trueInk}",
+    "textBody": "{colors.softInk}",
+    "textMuted": "{colors.caption}",
+    "borderSubtle": "{colors.rule}",
+    "borderStrong": "{colors.trueInk}",
+    "primary": "{colors.trueInk}",
+    "onPrimary": "{colors.editionWhite}",
+    "accent": "{colors.edisonRed}",
+    "focus": "{colors.edisonRed}"
+  },
+  "fonts": {
+    "signature": { "family": "Newsreader", "weights": [700], "status": "temporary live-type wordmark" },
+    "display": { "family": "Libre Caslon Display", "weights": [400] },
+    "reading": { "family": "Libre Caslon Text", "weights": [400, 700], "styles": ["normal", "italic"] },
+    "utility": { "family": "Libre Franklin", "weights": [400, 500, 600] }
+  },
+  "typeStyles": {
+    "displayXl": { "family": "{fonts.display}", "size": "clamp(52px, 7.2vw, 82px)", "weight": 400, "lineHeight": 0.94, "letterSpacing": "-0.018em" },
+    "displayLg": { "family": "{fonts.display}", "size": "clamp(42px, 5vw, 64px)", "weight": 400, "lineHeight": 0.97, "letterSpacing": "-0.018em" },
+    "headlineLg": { "family": "{fonts.reading}", "size": "36px", "weight": 700, "lineHeight": 1.05, "letterSpacing": "-0.012em" },
+    "headlineMd": { "family": "{fonts.reading}", "size": "28px", "weight": 700, "lineHeight": 1.08, "letterSpacing": "-0.012em" },
+    "headlineSm": { "family": "{fonts.reading}", "size": "22px", "weight": 700, "lineHeight": 1.08, "letterSpacing": "-0.012em" },
+    "deck": { "family": "{fonts.reading}", "size": "20px", "weight": 400, "lineHeight": 1.42, "letterSpacing": "0" },
+    "body": { "family": "{fonts.reading}", "size": "19px", "mobileSize": "18px", "weight": 400, "lineHeight": 1.66, "mobileLineHeight": 1.62, "letterSpacing": "0", "maxMeasure": "40rem" },
+    "pullQuote": { "family": "{fonts.reading}", "size": "21px", "weight": 400, "style": "italic", "lineHeight": 1.4, "letterSpacing": "0" },
+    "ui": { "family": "{fonts.utility}", "size": "14px", "weight": 500, "lineHeight": 1.35, "letterSpacing": "0" },
+    "metadata": { "family": "{fonts.utility}", "size": "12px", "weight": 500, "lineHeight": 1.4, "letterSpacing": "0" },
+    "deskLabel": { "family": "{fonts.utility}", "size": "11px", "weight": 600, "lineHeight": 1.25, "letterSpacing": "0.11em", "textTransform": "uppercase" }
+  },
+  "spacing": {
+    "1": "4px",
+    "2": "8px",
+    "3": "12px",
+    "4": "16px",
+    "5": "24px",
+    "6": "32px",
+    "7": "48px",
+    "8": "64px",
+    "9": "96px",
+    "pageGutter": "clamp(24px, 4vw, 50px)",
+    "gridGap": "24px"
+  },
+  "layout": {
+    "maximumWidth": "1280px",
+    "readingMeasure": "40rem",
+    "desktopColumns": 12,
+    "tabletColumns": 6,
+    "mobileColumns": 4
+  },
+  "shape": {
+    "defaultRadius": "0px",
+    "controlRadius": "2px",
+    "controlMinimum": "44px",
+    "ruleWidth": "1px",
+    "shadow": "none"
+  },
+  "logo": {
+    "viewBox": "0 0 24 24",
+    "globePath": "M12 1.45C16.53 1.45 20.2 5.12 20.2 9.65C20.2 14.9 17.25 17.85 12 17.85C6.75 17.85 3.8 14.9 3.8 9.65C3.8 5.12 7.47 1.45 12 1.45Z",
+    "basePath": "M7.85 20.55H16.15M9.35 22.85H14.65",
+    "strokeWidth": 1.75,
+    "strokeLinecap": "round",
+    "strokeLinejoin": "round",
+    "desktopMark": "31px",
+    "desktopWordmark": "30.4px",
+    "desktopGap": "7px",
+    "mobileMark": "27px",
+    "mobileWordmark": "27.2px",
+    "mobileGap": "6px",
+    "wordmark": "edison",
+    "punctuation": "none"
+  },
+  "motion": {
+    "durationFast": "120ms",
+    "durationNormal": "180ms",
+    "easing": "ease-out",
+    "decorativeLogoAnimation": false
+  }
+}

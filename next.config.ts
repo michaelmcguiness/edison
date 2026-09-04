@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  reactStrictMode: true,
+  transpilePackages: ["@edison/contracts"],
+  poweredByHeader: false,
 };
 
 export default nextConfig;

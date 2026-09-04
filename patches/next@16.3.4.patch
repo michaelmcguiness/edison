@@ -1,0 +1,38 @@
+diff --git a/dist/lib/metadata/resolve-metadata.js b/dist/lib/metadata/resolve-metadata.js
+--- a/dist/lib/metadata/resolve-metadata.js
++++ b/dist/lib/metadata/resolve-metadata.js
+@@ -861,7 +861,6 @@ async function accumulateViewport(metadataItems) {
+     return resolvedViewport;
+ }
+ async function resolveMetadata(tree, pathname, searchParams, errorConvention, interpolatedParams, metadataContext) {
+-    const metadataItems = await resolveMetadataItems(tree, searchParams, errorConvention, interpolatedParams);
+     const workStore = _workasyncstorageexternal.workAsyncStorage.getStore();
+     if (!workStore) {
+         throw Object.defineProperty(new _invarianterror.InvariantError('Expected workStore to be initialized'), "__NEXT_ERROR_CODE", {
+@@ -871,6 +870,7 @@ async function resolveMetadata(tree, pathname, searchParams, errorConvention, in
+             configurable: true
+         });
+     }
++    const metadataItems = await resolveMetadataItems(tree, searchParams, errorConvention, interpolatedParams);
+     return accumulateMetadata(workStore.route, metadataItems, pathname, metadataContext);
+ }
+ async function resolveViewport(tree, searchParams, errorConvention, interpolatedParams) {
+diff --git a/dist/esm/lib/metadata/resolve-metadata.js b/dist/esm/lib/metadata/resolve-metadata.js
+--- a/dist/esm/lib/metadata/resolve-metadata.js
++++ b/dist/esm/lib/metadata/resolve-metadata.js
+@@ -792,7 +792,6 @@ async function accumulateViewport(metadataItems) {
+ }
+ // Exposed API for metadata component, that directly resolve the loader tree and related context as resolved metadata.
+ export async function resolveMetadata(tree, pathname, searchParams, errorConvention, interpolatedParams, metadataContext) {
+-    const metadataItems = await resolveMetadataItems(tree, searchParams, errorConvention, interpolatedParams);
+     const workStore = workAsyncStorage.getStore();
+     if (!workStore) {
+         throw Object.defineProperty(new InvariantError('Expected workStore to be initialized'), "__NEXT_ERROR_CODE", {
+@@ -802,6 +801,7 @@ export async function resolveMetadata(tree, pathname, searchParams, errorConvent
+             configurable: true
+         });
+     }
++    const metadataItems = await resolveMetadataItems(tree, searchParams, errorConvention, interpolatedParams);
+     return accumulateMetadata(workStore.route, metadataItems, pathname, metadataContext);
+ }
+ // Exposed API for viewport component, that directly resolve the loader tree and related context as resolved viewport.

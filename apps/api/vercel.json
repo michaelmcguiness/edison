@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/internal/cron/reconcile-feed-commands",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/internal/cron/reconcile-generation-jobs",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/internal/cron/schedule-daily-editions",
+      "schedule": "5 * * * *"
+    }
+  ]
+}

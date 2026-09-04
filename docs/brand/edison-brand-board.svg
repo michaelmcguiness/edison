@@ -1,0 +1,100 @@
+<svg width="1600" height="1200" viewBox="0 0 1600 1200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      @font-face { font-family: EdisonNewsreader; src: url('../../app/fonts/newsreader-roman.woff2'); }
+      @font-face { font-family: EdisonGrotesk; src: url('../../app/fonts/schibsted-grotesk-roman.woff2'); }
+      .ui { font-family: EdisonGrotesk, "Helvetica Neue", Arial, sans-serif; }
+      .editorial { font-family: EdisonNewsreader, "Iowan Old Style", Charter, Georgia, serif; }
+      .label { font-family: EdisonGrotesk, "Helvetica Neue", Arial, sans-serif; font-size: 13px; font-weight: 650; letter-spacing: 1.65px; }
+      .note { font-family: EdisonGrotesk, "Helvetica Neue", Arial, sans-serif; font-size: 16px; }
+    </style>
+    <symbol id="lamp" viewBox="0 0 24 24">
+      <circle cx="12" cy="9.65" r="8.22" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M7.65 20.85C7.95 21.8 8.98 22.3 10.72 22.3h2.56c1.74 0 2.77-.5 3.07-1.45" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+  </defs>
+
+  <rect width="1600" height="1200" fill="#F7F1E5"/>
+
+  <g transform="translate(68 58)">
+    <text class="label" fill="#1C2A38">EDISON / IDENTITY 08</text>
+    <rect y="24" width="58" height="5" fill="#B33B2E"/>
+  </g>
+
+  <g transform="translate(68 126)" color="#1C2A38">
+    <use href="#lamp" width="52" height="52"/>
+    <text x="70" y="42" class="editorial" fill="currentColor" font-size="67" font-weight="700" letter-spacing="-2">edison</text>
+  </g>
+
+  <text x="68" y="308" class="editorial" fill="#1C2A38" font-size="96" font-weight="555" letter-spacing="-2.7">
+    <tspan x="68" dy="0">The world,</tspan>
+    <tspan x="68" dy="92">edited for one.</tspan>
+  </text>
+  <text x="72" y="496" class="editorial" fill="#59636A" font-size="27" font-weight="400">
+    <tspan x="72" dy="0">A daily publication with the calm of an old press</tspan>
+    <tspan x="72" dy="38">and the curiosity of something still in progress.</tspan>
+  </text>
+
+  <line x1="68" y1="602" x2="900" y2="602" stroke="#D7CEC0"/>
+  <g transform="translate(68 638)">
+    <circle cx="5" cy="-5" r="5" fill="#EAC763"/>
+    <text x="20" class="label" fill="#1C2A38">EDITED CLARITY</text>
+    <text x="270" class="label" fill="#1C2A38">VISIBLE SOURCES</text>
+    <text x="510" class="label" fill="#1C2A38">PERSONAL CONTINUITY</text>
+  </g>
+
+  <rect x="970" width="630" height="730" fill="#1C2A38"/>
+  <text x="1024" y="62" class="label" fill="#F7F1E5">THE EDISON LAMP / PRIMARY MARK</text>
+  <text x="1024" y="96" class="note" fill="#B7C0C8">One optical globe and one shallow open socket, drawn in one weight.</text>
+  <g transform="translate(1096 154)" color="#F7F1E5">
+    <use href="#lamp" width="382" height="382"/>
+  </g>
+  <line x1="1024" y1="590" x2="1546" y2="590" stroke="#42505D"/>
+  <text x="1024" y="632" class="label" fill="#F7F1E5">OPTICAL GLOBE</text>
+  <text x="1246" y="632" class="label" fill="#F7F1E5">OPEN SOCKET</text>
+  <text x="1465" y="632" class="label" fill="#F7F1E5">ONE WEIGHT</text>
+  <text x="1024" y="684" class="note" fill="#B7C0C8">No filament. No rays. No hidden letter. Just a bulb.</text>
+
+  <text x="68" y="772" class="label" fill="#B33B2E">COLOR / QUIET HOUSE, LIVELY EDITIONS</text>
+  <g transform="translate(68 806)">
+    <rect width="210" height="138" fill="#1C2A38"/>
+    <text x="18" y="104" class="ui" fill="#F7F1E5" font-size="17" font-weight="650">Midnight Ink</text>
+    <text x="18" y="126" class="ui" fill="#B7C0C8" font-size="13">#1C2A38</text>
+
+    <rect x="224" width="210" height="138" fill="#F7F1E5" stroke="#D7CEC0"/>
+    <text x="242" y="104" class="ui" fill="#1C2A38" font-size="17" font-weight="650">Book Paper</text>
+    <text x="242" y="126" class="ui" fill="#665F59" font-size="13">#F7F1E5</text>
+
+    <rect x="448" width="154" height="138" fill="#B33B2E"/>
+    <text x="466" y="104" class="ui" fill="#F7F1E5" font-size="17" font-weight="650">Oxide</text>
+    <text x="466" y="126" class="ui" fill="#F3C7BA" font-size="13">#B33B2E</text>
+
+    <rect x="616" width="154" height="138" fill="#D7CEC0"/>
+    <text x="634" y="104" class="ui" fill="#1C2A38" font-size="17" font-weight="650">Quiet Rule</text>
+    <text x="634" y="126" class="ui" fill="#665F59" font-size="13">#D7CEC0</text>
+  </g>
+
+  <g transform="translate(1038 758)">
+    <text class="label" fill="#B33B2E">TYPE / LOWERCASE, OLDSTYLE, CONFIDENT</text>
+    <text y="68" class="editorial" fill="#1C2A38" font-size="68" font-weight="700" letter-spacing="-2.04">edison</text>
+    <text y="108" class="editorial" fill="#59636A" font-size="22">Newsreader gives the masthead an authored warmth.</text>
+    <line y1="140" x2="500" y2="140" stroke="#D7CEC0"/>
+    <text y="176" class="ui" fill="#1C2A38" font-size="16" font-weight="650" letter-spacing="1.1">SCHIBSTED GROTESK / APPARATUS</text>
+    <text y="208" class="ui" fill="#665F59" font-size="16">Metadata, sources, controls, and quiet utility.</text>
+  </g>
+
+  <rect y="994" width="1600" height="206" fill="#1C2A38"/>
+  <rect x="68" y="1026" width="58" height="5" fill="#B33B2E"/>
+  <text x="68" y="1090" class="editorial" fill="#F7F1E5" font-size="39" font-weight="520">A quiet house identity with expressive editions.</text>
+  <text x="70" y="1140" class="ui" fill="#B7C0C8" font-size="14" letter-spacing="1.25">ONE JACKET COLOR AT A TIME · NEVER A CATEGORY RAINBOW</text>
+
+  <g transform="translate(1110 1025)">
+    <rect width="82" height="112" fill="#EA6547"/>
+    <rect x="96" width="82" height="112" fill="#EAC763"/>
+    <rect x="192" width="82" height="112" fill="#B7C9D9"/>
+    <rect x="288" width="82" height="112" fill="#C9DEDA"/>
+    <g transform="translate(392 12)" color="#F7F1E5">
+      <use href="#lamp" width="88" height="88"/>
+    </g>
+  </g>
+</svg>

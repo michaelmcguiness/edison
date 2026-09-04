@@ -1,0 +1,14 @@
+{
+  "name": "@edison/ai",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@edison/contracts": "workspace:*",
+    "openai": "latest",
+    "zod": "^3.25.76"
+  }
+}

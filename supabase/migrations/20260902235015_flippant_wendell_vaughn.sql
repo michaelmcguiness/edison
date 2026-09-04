@@ -1,0 +1,1 @@
+ALTER TABLE "feed_preferences" ADD COLUMN "editorial_brief" text DEFAULT '' NOT NULL;

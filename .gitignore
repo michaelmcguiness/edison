@@ -1,7 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+node_modules/
+/.pnpm-store
 /.pnp
 .pnp.*
 .yarn/*
@@ -15,6 +16,7 @@
 
 # next.js
 /.next/
+/apps/*/.next/
 /out/
 
 # misc
@@ -29,14 +31,24 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
+/.workflow
 
 # typescript
 next-env.d.ts
+*.tsbuildinfo
 /dist/
-/.wrangler/
-/.sites-runtime/
-/outputs/
-/work/
+/.swc/
+/supabase/.branches/
+/supabase/.temp/
+
+# Retired local brand experiments; preserve locally, omit from publication
+/public/favicon 2.svg
+/public/brand/edison-mark 2.svg
+/public/brand/edison-mark-mono 2.svg
+/public/brand/edison-app-icon 2.svg
+/docs/brand/edison-brand-board 2.svg
+/docs/brand/README 2.md

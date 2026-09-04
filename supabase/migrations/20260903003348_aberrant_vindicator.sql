@@ -1,0 +1,1 @@
+ALTER TABLE "feed_items" ALTER COLUMN "rank" SET DATA TYPE numeric(20, 6);

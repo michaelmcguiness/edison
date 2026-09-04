@@ -1,0 +1,2 @@
+ALTER TABLE "feed_commands" ADD COLUMN "idempotency_key" text NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "feed_commands_user_idempotency_unique" ON "feed_commands" USING btree ("user_id","idempotency_key");
