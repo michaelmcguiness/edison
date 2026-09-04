@@ -17,17 +17,42 @@ Hobby permits personal, non-commercial use. The word “demo” does not create 
 exception for commercial use; reassess before commercial use or a product
 launch. See [Vercel Hobby policy](https://vercel.com/docs/plans/hobby).
 
-### What the owner needs to provide now
+### Current authorization and access
 
-1. GitHub authorization for the selected source repository:
+1. GitHub authorization was completed for the selected source repository:
    [michaelmcguiness/edison](https://github.com/michaelmcguiness/edison).
    The owner has approved publishing reviewed code there with public visibility.
-2. Access to the existing Vercel Hobby account.
-3. Approval for the separate Vercel deployment and domain attachment steps.
+2. The repository is connected to the existing Vercel Hobby account's
+   [`edison` project](https://vercel.com/mike-michaelmcguis-projects/edison).
+3. The owner has approved this disconnected root demo deployment to a
+   temporary Vercel URL. The initial deployment is Ready at
+   [edison-lake-phi.vercel.app](https://edison-lake-phi.vercel.app/).
+   Domain attachment, live services, paid infrastructure, and a broader public
+   launch still require separate approval.
 
 No upgrade, Supabase project, OpenAI billing, SMTP provider, admin email, or
 live-service secret is needed for this demo. Do not request or paste secrets
-into chat. The decision to keep this a demo is not deployment approval.
+into chat. The recorded deployment approval is limited to this root web demo.
+
+### Verified initial deployment — September 4, 2026
+
+- Source commit: `4855596` on GitHub `main`.
+- Hosted clean install: pnpm 10.28.0; successful Next 16.3.4 Webpack build.
+  The deployed runtime and saved Vercel project setting are Node.js 22.x.
+- All 12 unauthenticated smoke checks passed: `/` and three static assets
+  returned 200; `/login`, `/admin/jobs`, `/auth/callback`, and `/auth/confirm`
+  redirected home with 307; POST `/auth/signout` redirected home with 303;
+  sample share, API, and cron paths returned 404.
+- Desktop at 1440px and mobile at 390px had no horizontal overflow. Onboarding,
+  article reading, summary-to-full-story navigation, saves/library, profile,
+  and session-state resets on reload were verified. Browser error logs were
+  empty during these checks.
+- Standard Vercel Authentication remains enabled. The stable production URL
+  accepts anonymous visitors; the unique deployment URL redirects to Vercel
+  sign-in. Do not describe the stable production demo as private.
+- Production and Preview variables are configured as below, but a separate
+  Preview deployment has not been tested. No custom domain, live services,
+  paid infrastructure, or plan changes were activated.
 
 ### Demo Vercel project settings
 
@@ -42,8 +67,14 @@ Create exactly one Next.js project from the reviewed repository:
 | Install command | `pnpm install --frozen-lockfile` |
 | Build command | `pnpm build:web` |
 | Output directory | Next.js default; do not override |
-| Production environment | `EDISON_DEMO_MODE=true` only |
-| Preview environment | `EDISON_DEMO_MODE=true` only |
+| Production environment | `EDISON_DEMO_MODE=true`, `ENABLE_EXPERIMENTAL_COREPACK=1` |
+| Preview environment | `EDISON_DEMO_MODE=true`, `ENABLE_EXPERIMENTAL_COREPACK=1` |
+
+The Corepack variable is a build-tool setting, not a live-service credential.
+It makes Vercel honor `packageManager: pnpm@10.28.0` in the root `package.json`.
+Without Corepack, an overridden pnpm install command can select an older
+supported version. See [Vercel package managers](https://vercel.com/docs/package-managers)
+and [Corepack configuration](https://vercel.com/docs/builds/configure-a-build#corepack).
 
 Do not add Supabase, API, OpenAI, SMTP, or cron environment values. Do not
 create an `apps/api` Vercel project or copy its `vercel.json` into the root.
@@ -55,8 +86,9 @@ intact for later: their five-minute and hourly schedules are not supported by
 
 1. Review the working tree, run lint, TypeScript checks, tests, and the web
    production build. Preserve unrelated owner changes.
-2. Publish the reviewed commit to the approved GitHub repository, then obtain
-   approval for the separate temporary Vercel deployment.
+2. Publish the reviewed commit to the approved GitHub repository and confirm
+   approval for the separate temporary Vercel deployment. Both have been
+   completed for this root demo; they do not authorize domain/live-stack work.
 3. Deploy only the root web project with the settings above.
 4. Verify the temporary URL shows the sample-data notice and opens without a
    Supabase login/setup requirement; check feed, article, library, and profile

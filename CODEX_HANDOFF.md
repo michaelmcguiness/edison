@@ -17,6 +17,9 @@ This project is independent. It is not affiliated with Perch.
 - The hosted demo uses only the root web project, with server-only
   `EDISON_DEMO_MODE=true` in both Vercel Production and Preview. It needs no
   Supabase, OpenAI, SMTP, API deployment, or cron configuration.
+- Set build-only `ENABLE_EXPERIMENTAL_COREPACK=1` in Production and Preview
+  as well, so Vercel honors the pinned pnpm 10.28.0 rather than selecting an
+  older version for the custom install command.
 - Demo interactions are in-memory UI exploration and reset on reload; no real
   authentication, AI generation, persisted personalization, or public article
   share links are available. Do not present sample data as a connected product.
@@ -37,19 +40,36 @@ This project is independent. It is not affiliated with Perch.
 - The demo web production build, TypeScript, ESLint, and all 30 automated
   tests pass. Local production-server checks confirm the sample home page,
   disconnected live routes, and fail-closed setup state when demo is disabled.
-  These checks used the installed Node 24 runtime; validate the declared
-  Node 22/pnpm 10.28 clean install before deployment. The Workflow-enabled API
-  production build passed in the prior live-stack work. Database tests remain
+  Those local checks used the installed Node 24 runtime. The first hosted
+  deployment also passed its clean pnpm 10.28.0 install and Next 16.3.4 Webpack
+  production build; Vercel confirms the runtime and saved project setting are
+  Node.js 22.x. The Workflow-enabled API production build passed in the prior
+  live-stack work. Database tests remain
   pending until Docker or a disposable hosted Supabase test project is available;
   they are not required to deploy this disconnected sample-data demo.
-- No production services, paid infrastructure, custom domains, or public launch
-  have been activated yet.
+- The owner has authorized importing the repository into the Vercel Hobby
+  project [`edison`](https://vercel.com/mike-michaelmcguis-projects/edison) and
+  deploying the disconnected root demo. The initial deployment of commit
+  `4855596` is Ready and was verified on September 4, 2026 at
+  [edison-lake-phi.vercel.app](https://edison-lake-phi.vercel.app/).
+- All 12 unauthenticated production smoke checks passed: home and three assets
+  return 200; login, admin, callback, and confirmation redirect home with 307;
+  signout POST redirects home with 303; share, API, and cron paths return 404.
+  Desktop (1440px) and mobile (390px) UI checks found no horizontal overflow or
+  browser errors. Onboarding, reading, summary-to-full-story navigation,
+  saves/library, profile, and resetting session changes on reload were verified.
+- Standard Vercel Authentication remains enabled: the stable production URL is
+  publicly accessible, while the unique deployment URL redirects to Vercel
+  sign-in. Production and Preview variables are configured; a separate Preview
+  deployment has not been tested. No live backend, paid infrastructure, or
+  custom domain was activated, and this step does not authorize those changes
+  or a broader public launch.
 - The owner created `michaelmcguiness/edison` on GitHub and approved publishing
   the reviewed code there, including public visibility. The canonical source
   URL is `https://github.com/michaelmcguiness/edison`. Check Git status and
-  remote refs for the current commit/push state. Source publication does not
-  activate Vercel, the live backend, or a custom domain; those remain separate
-  release steps.
+  remote refs for the current commit/push state. Source publication and the
+  approved root demo deployment do not activate the live backend or a custom
+  domain; those remain separate release steps.
 - `OPENAI_API_KEY` is not configured or needed for the demo. Never commit it or
   paste it into chat; add it directly to the API Vercel project only when the
   later live stack is approved.
@@ -76,6 +96,12 @@ configured live app retains its authentication requirement. Use Node.js 22.x,
 the pinned pnpm 10.28.0, and `pnpm build:web` from the root. Do not deploy
 `apps/api`, copy its `vercel.json` to the root, or remove its backend/workflows
 to make the web demo deployable. The root demo has no scheduled jobs.
+
+On Vercel, set `ENABLE_EXPERIMENTAL_COREPACK=1` in Production and Preview to
+honor the package-manager pin with `pnpm install --frozen-lockfile`. Without
+Corepack, a custom pnpm install command can select an older supported version.
+See [Vercel package managers](https://vercel.com/docs/package-managers) and
+[Corepack configuration](https://vercel.com/docs/builds/configure-a-build#corepack).
 
 Hobby is restricted to personal, non-commercial use; “demo” alone is not an
 exemption. Reassess the plan before commercial use or a product launch. See
@@ -248,8 +274,10 @@ use `drizzle-kit push` against production.
   Inspect/test Supabase migrations before a later live database deployment;
   Docker and database tests are not prerequisites for the sample-data web demo.
 - Do not deploy, attach `edisonreader.com`, or make the app public without the
-  owner’s explicit approval. A Vercel URL is not inherently access-controlled;
-  check the chosen protection settings before sharing it.
+  owner's explicit approval. The current approval covers only the disconnected
+  root demo on its temporary Vercel URL; domain attachment, live services, and
+  a broader launch remain separate. A Vercel URL is not inherently
+  access-controlled; check the chosen protection settings before sharing it.
 
 ## First prompt to give Codex
 
@@ -257,9 +285,13 @@ use `drizzle-kit push` against production.
 > `CODEX_HANDOFF.md` completely and inspect the working tree before editing.
 > The current target is a personal, non-commercial sample-data web demo on
 > Vercel Hobby: root project only, `EDISON_DEMO_MODE=true`, no paid services,
-> live credentials, API deployment, or crons. Preserve the Vercel/Supabase
+> live credentials, API deployment, or crons. Set build-only
+> `ENABLE_EXPERIMENTAL_COREPACK=1` for the pinned pnpm version on Vercel.
+> Preserve the Vercel/Supabase
 > API-first backend for the later live phase. Validate TypeScript, tests, web
 > and API builds, and the demo UI; test migrations/RLS before activating a live
 > database. Do as much as possible autonomously, but never request secrets in
 > source control or chat and never push, deploy, attach domains, or make the
-> app public without the owner's explicit approval.
+> app public without the owner's explicit approval. The recorded current
+> approval covers GitHub source publication and this root-only Vercel demo
+> deployment, not domain attachment or live-service activation.

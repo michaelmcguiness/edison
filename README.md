@@ -8,8 +8,15 @@ live release; keeping the demo small does not require rewriting that architectur
 
 ## Current demo
 
+The demo is live at [edison-lake-phi.vercel.app](https://edison-lake-phi.vercel.app/).
+The initial deployment of commit `4855596` was verified on September 4, 2026.
+The stable production URL is publicly accessible; unique deployment URLs
+retain Vercel Authentication. No custom domain or live services are connected.
+
 Deploy only the root Next.js web project with the server-only environment value
 `EDISON_DEMO_MODE=true`. Set it in both Vercel **Production** and **Preview**.
+Also set the build-only `ENABLE_EXPERIMENTAL_COREPACK=1` in both environments
+so Vercel uses the repository's pinned pnpm version.
 No Supabase, OpenAI, SMTP, API project, or scheduled jobs are needed. The demo
 shows sample stories and lets you explore the reading interface. UI changes
 are held in memory and reset on reload; there is no real authentication,
@@ -144,8 +151,15 @@ For the current demo, create **one** Vercel project from the repository:
 - Root directory: `.`; framework: Next.js; Node.js: 22.x
 - Install: `pnpm install --frozen-lockfile` (pnpm 10.28.0)
 - Build: `pnpm build:web`
-- Environment: `EDISON_DEMO_MODE=true` in Production and Preview; no live keys
-- Use a temporary Vercel URL only after explicit owner approval
+- Environment: `EDISON_DEMO_MODE=true` and `ENABLE_EXPERIMENTAL_COREPACK=1`
+  in Production and Preview; no live keys
+- The owner-approved root demo is deployed at
+  [edison-lake-phi.vercel.app](https://edison-lake-phi.vercel.app/)
+
+Corepack is required to honor `packageManager: pnpm@10.28.0`. Without it, an
+overridden install command can select an older pnpm version. See
+[Vercel package managers](https://vercel.com/docs/package-managers) and
+[Corepack configuration](https://vercel.com/docs/builds/configure-a-build#corepack).
 
 Do not create an `apps/api` project or copy its cron configuration to the root.
 The root web deployment has no crons. The existing API, migrations, and
@@ -156,9 +170,14 @@ and hourly schedules are incompatible with Hobby's once-daily cron limit; see
 The source repository is
 [michaelmcguiness/edison](https://github.com/michaelmcguiness/edison). The owner
 has approved publishing the reviewed code there, including public visibility.
-Connect that repository to Vercel for Git-based deployment. Publishing source
-does not activate the demo, its live backend, or a custom domain; deployment
-and domain changes remain separate release steps.
+The owner has separately authorized importing it into the Vercel Hobby project
+[`edison`](https://vercel.com/mike-michaelmcguis-projects/edison) and deploying
+the disconnected root demo. The initial deployment is Ready: the hosted clean
+install used pnpm 10.28.0, Next 16.3.4 built with Webpack, and the runtime and
+saved project setting are Node.js 22.x. Anonymous route checks and desktop/mobile
+UI checks passed. Preview environment settings are configured, but a separate
+Preview deployment has not been tested. This approval does not authorize the
+live backend, paid services, or attaching `edisonreader.com`.
 
 For the **later live release**, create two Vercel projects from that repository:
 
