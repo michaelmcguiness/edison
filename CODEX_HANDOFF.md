@@ -48,8 +48,17 @@ services.
   API, OpenAI, SMTP, or cron credentials. It must stay isolated while the alpha
   is proven.
 - The public GitHub source is
-  [michaelmcguiness/edison](https://github.com/michaelmcguiness/edison). Do not
-  assume uncommitted production work has been pushed or deployed; inspect Git.
+  [michaelmcguiness/edison](https://github.com/michaelmcguiness/edison). The
+  candidate is pushed on `codex/production-release-candidate` in
+  [draft PR #1](https://github.com/michaelmcguiness/edison/pull/1). Inspect Git
+  for the latest revision; do not merge or promote it without approval.
+- Separate `edison-app` and `edison-api` Vercel project shells now exist with
+  the intended Next.js/Node 22/build settings, but no Git links, deployments,
+  credentials, or domains. See `docs/DEPLOYMENT.md` for IDs and setup status.
+- Supabase project creation remains blocked at sign-in. Automatic approval
+  review requires explicit authorization for Supabase GitHub authentication
+  and for Vercel's repository-connection flow. Do not retry these blocked
+  controls without the owner signing in or approving the specific action.
 - The working tree contains the production private-alpha implementation. It has
   not been migrated, seeded, deployed, or exercised against a hosted database.
 - Local pgTAP/migration execution is still required. This machine did not have

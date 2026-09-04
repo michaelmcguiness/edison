@@ -10,6 +10,38 @@ Stop before paid upgrades, secret entry, live migrations, invitations, or
 domain changes. This new authorization supersedes the older demo-only limits
 below only for those named preparation actions.
 
+### Preparation completed
+
+- Release candidate `6d0ebe9` is pushed on
+  `codex/production-release-candidate` in
+  [draft PR #1](https://github.com/michaelmcguiness/edison/pull/1).
+  `main` and the apex demo were not promoted or changed.
+- Two empty Vercel projects were created in the existing Hobby team:
+  [`edison-app`](https://vercel.com/mike-michaelmcguis-projects/edison-app)
+  (`prj_TLrYocZ2r6okKwPr59ht2XQo8bmp`) and
+  [`edison-api`](https://vercel.com/mike-michaelmcguis-projects/edison-api)
+  (`prj_BDlcI2KFhFawilRiMDvloXcOLnsd`). They have no Git connection,
+  deployments, environment values, or custom domains.
+- Both use Next.js, Node 22.x, and `pnpm install --frozen-lockfile`. Web uses
+  the repository root and `pnpm build:web`; API uses `apps/api`, includes
+  source outside its root, and runs `pnpm build`. API's selected function
+  region is Washington, D.C. (`iad1`). Output directories remain defaults.
+- Automatic approval review blocked Vercel's GitHub connection control
+  because it may request repository permissions beyond project creation.
+  Obtain approval to connect only `michaelmcguiness/edison`; do not grant
+  broader repository access without a separate decision.
+- Supabase redirected to sign-in. Automatic approval review blocked
+  **Continue with GitHub** because the sign-in method/account was not
+  expressly approved. The owner must sign in or explicitly authorize that
+  authentication step. No Supabase project has been created.
+- No paid upgrades, secret entry, live migrations, invitations, or domain
+  changes were performed. A Supabase creation form may require a database
+  password; stop for the owner at that boundary even after sign-in.
+
+These are configured project shells, not a deployed production service.
+The existing demo's Git integration independently built a credential-free
+preview of the release branch; that did not change the apex deployment.
+
 ## Current hosted phase: sample-data demo on Vercel Hobby
 
 The owner has now asked for the production private-alpha application to be

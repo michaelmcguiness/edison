@@ -20,10 +20,18 @@ demo. This document is a release gate, not authorization to buy plans, create
 external resources, apply migrations, add secrets, invite readers, deploy, or
 attach domains.
 
+Subsequent owner authorization permits publishing the candidate and creating
+temporary project shells only; see `docs/DEPLOYMENT.md` for the September 4
+preparation record and draft PR. The two Vercel project shells exist, but Git
+linking and Supabase sign-in require further specific authorization. No live
+stack has been activated and all launch gates below remain applicable.
+
 Current audit limits:
 
-- No Vercel, Supabase, SMTP, OpenAI, DNS, or billing configuration was changed
-  or independently verified during this audit.
+- The initial code audit did not change provider configuration. The later
+  authorized preparation created only the two credential-free Vercel project
+  shells and their build settings; Supabase, SMTP, OpenAI, DNS, and billing
+  configuration remain untouched.
 - No secret was requested, displayed, stored, or tested.
 - The production database does not exist here, and the full migrations/RLS
   suite has not yet been run against a clean local Supabase instance.
