@@ -28,24 +28,70 @@ Never reveal existing secrets or ask for them in chat. No extra paid services,
 broader invitations, or website-domain changes are part of this first release;
 the apex demo remains isolated while the owner-only live alpha is validated.
 
-The Supabase CLI 2.116.0 official login flow and linking to production project
-`bcxxnntastmnormcmxbq` succeeded. CLI-managed login credentials supplied temporary
-database access without handling a database password. A linked dry run succeeded
-and lists exactly the 13 checked-in migrations, with no schema applied yet.
-Fresh CI now includes strict application-schema lint after the 106 pgTAP tests.
-Local lint, both typechecks, all 163 application tests, and both production
-builds pass; the pinned Node 22/pnpm 10.28.0 CI result remains the release gate.
-Independent review then caught forbidden direct Auth grants in the initial
-migration, before the existing final permission fix could execute. Those two
-grants are now removed; the final non-delegable PG17 membership supplies access.
-A source regression test and direct-ACL pgTAP assertion raise the expected
-totals to 164 application tests and 107 database assertions. The 66-test API
-suite, lint, and both typechecks pass after that change.
-Hosted preflight confirms PG17.6, zero Auth users, zero application tables,
-zero Edison roles/bucket/trigger. Supabase lists physical backups at
-2026-09-05 04:35:02 UTC and 2026-09-04 19:54:12 UTC. Restoration is untested;
-the empty-project checkpoint protects the initial migration only, not a claim
-of proven reader-data recovery.
+Candidate `c731fe2` is committed and pushed on
+`codex/production-release-candidate` in draft PR #1; `main` is neither merged
+nor protected. [CI run 33976398848](https://github.com/michaelmcguiness/edison/actions/runs/33976398848)
+passed on Node 22/pnpm 10.28.0 with lint, both typechecks, 164 application tests,
+both production builds, all 107 pgTAP assertions, and strict application-schema
+lint.
+
+The reviewed linked dry run and backup checkpoint preceded a successful
+production push of all 13 migrations to Supabase project
+`bcxxnntastmnormcmxbq`. A separate read-only metadata check on PostgreSQL 17.6
+found all 24 expected tables, all 21 expected RLS settings, 45 policies, 20
+triggers, zero invalid constraints, the expected Storage bucket, and the
+intended role/grant boundaries. There are still zero Auth users. Recovery from
+backup remains untested; do not describe the checkpoint as a restore rehearsal.
+
+Vercel unexpectedly treated the release-branch push as Production in the two
+new projects even though their saved production branch is `main`. Web deployment
+`dpl_Cdi68WU5m2K5kYDFNqjjWKi3EY4p` serves candidate `c731fe2` at
+`https://project-qlqve.vercel.app` with HTTP 200 and the expected CSP. The apex
+`edisonreader.com` continues to serve the older isolated sample-data demo with
+HTTP 200. The API has no successful deployment: the first attempt failed the
+TLS preflight; a later uncached attempt
+`dpl_EcLwNMETMBjV3QY9ytq1aJqc5MJ8` proved the saved database URL uses the wrong
+pooler port. Production Secret metadata confirms a recent `DATABASE_URL` update,
+but fresh uncached Production deployment
+`dpl_CCZ7T5S4XTHztzB5m3chZjSzMtcZ` of `c731fe2` at 13:00 EDT still failed the
+exact port-`6543` preflight. The remaining owner input is to privately replace
+the connection endpoint with the Supabase Transaction pooler URI on port `6543`
+with TLS, without exposing the URI in chat; then the API must be redeployed and
+smoke-tested.
+
+Vercel CLI 59.11.7 was available only through an ephemeral `pnpm dlx` run. Its
+login could not be completed and the pending attempt was canceled, so there is
+no authenticated local Vercel CLI session.
+
+OpenAI project `edison-production` (`proj_EFKsL4Yfs6pDFOzI4aGWThSf`) now has an
+enforced $50 monthly project cap and model access limited to `gpt-5.6-terra`
+and `gpt-5.6-luna`; the owner also funded the API account with $50 in credits.
+Its `edison-api-production` service-account key was privately saved as the API
+Production `OPENAI_API_KEY`; no secret was printed or stored in the repository.
+The owner explicitly approved Responses-only scope, and the key is now saved as
+Restricted. A fresh permission readback shows Write only for Responses
+(`/v1/responses`) and None for every other permission leaf. The safety reviewer
+initially rejected the save when the UI reported “2 selected permissions.” A
+non-saving check changed only the Responses control and observed that displayed
+count move from `0` at None to `1` at Read and `2` at Write while every other
+leaf remained None; the retry then succeeded. No further key-scope approval is
+pending. The new key has not made a provider request. The original
+default-project key remains unread and unrevoked.
+
+The owner also explicitly authorized the single owner invitation, but none has
+been sent because the API is unavailable. The hosted invite template is saved
+and fresh-reload verified with exactly one invitation link using the
+Dashboard-compatible `.SiteURL` `/auth/confirm` token-hash callback.
+The matching repository correction and focused release-boundary regression are
+in the working tree: all five tests in that file and the API typecheck pass with
+the existing local Node 24.19 runtime, distinct from the prior full Node 22 CI
+gate. The change is included in this local release checkpoint; it is not yet
+pushed or deployed as application code.
+
+Head of Editorial accepted starter candidate v2 with exact SHA-256
+`aa26d2258cb391ad552466f39bee01ae4d1596d480fef59381dfeb9b184d8c50`
+in its isolated worktree. It remains an unpublished draft; integrate only that
+exact accepted artifact after the owner account and admin boundary work.
 
 ### Historical setup and approval record
 
@@ -150,24 +196,28 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   is proven.
 - The public GitHub source is
   [michaelmcguiness/edison](https://github.com/michaelmcguiness/edison). The
-  candidate is pushed on `codex/production-release-candidate` in
-  [draft PR #1](https://github.com/michaelmcguiness/edison/pull/1). Inspect Git
-  for the latest revision. The latest full-release authorization permits
-  promotion after the database and CI gates pass.
-- Separate `edison-app` and `edison-api` Vercel project shells now exist with
-  the intended Next.js/Node 22/build settings. Both are connected to the
-  approved repository with `main` as the production branch. Fresh September 5
-  overviews show No Production Deployment and No Preview Deployments for both;
-  neither has a custom domain. Their assigned
-  Production domains are `project-qlqve.vercel.app` for web and
-  `project-fjr95.vercel.app` for API.
+  current candidate is `c731fe2`, pushed on
+  `codex/production-release-candidate` in
+  [draft PR #1](https://github.com/michaelmcguiness/edison/pull/1). `main` is
+  unmerged and unprotected.
+- Separate `edison-app` and `edison-api` Vercel projects exist with the intended
+  Next.js/Node 22/build settings and saved production branch `main`. The
+  release-branch push nevertheless targeted Production in both projects. Web
+  deployment `dpl_Cdi68WU5m2K5kYDFNqjjWKi3EY4p` is live at
+  `project-qlqve.vercel.app`; API deployment remains failed and
+  `project-fjr95.vercel.app` has no serving deployment. Neither project has a
+  custom domain.
 - `edison-app` has five Production Config values: Corepack, explicit live mode,
   the temporary API `/v1` URL, and the production Supabase URL/publishable key.
   Preview has only Corepack plus explicit demo mode. `edison-api` has 17
   Production Config values for Corepack, Supabase public Auth metadata, JWT
   audience, reviewed models and quotas, temporary web/CORS origin, initial
   edition scheduling, and the owner-only reader/admin allowlists. The existing
-  owner-entered Production-only OpenAI Secret was preserved and never read.
+  Production-only OpenAI Secret now contains the privately transferred
+  `edison-api-production` service-account key for the dedicated Edison project;
+  it was never printed or read back. Its saved Restricted policy grants only
+  Responses Write and leaves every other permission leaf at None; the key is
+  still unused.
   `DATABASE_URL` and `CRON_SECRET` are also verified Production-only Secrets;
   the API has 17 Production Config values and three Production Secrets total.
   API Preview had no variables
@@ -197,34 +247,37 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   [`edison-production`](https://supabase.com/dashboard/project/bcxxnntastmnormcmxbq)
   exists and is Healthy, in the Pro organization in `us-east-1`, PostgreSQL
   `17.6.1.166`; the organization inventory still labels compute Nano.
-  Its overview reports no migrations or GitHub schema-deployment connection
-  and now shows a recent backup. Backup contents and recovery have not been
-  verified. Its public project URL and publishable key are configured in the
-  correct Production Vercel projects. The owner-saved database URL has not been
-  connection-tested, and no Edison schema has been applied. The creation form
-  had automatic table exposure disabled;
-  verify actual hosted grants before activation. The current release approval
-  permits migration after the reviewed dry run, passing CI, and backup checkpoint.
+  All 13 repository migrations are applied. Read-only hosted checks confirm the
+  expected schema, RLS, policies, triggers, Storage bucket, functions, and
+  constrained grants. Backup contents and recovery have not been verified. The
+  API's current database URL still fails preflight because its endpoint is not
+  on pooler port `6543`, including after the latest metadata-confirmed update and
+  fresh uncached deployment. The owner must replace it privately with the
+  Transaction pooler URI on port `6543` with TLS.
 - Hosted Supabase Auth has global signup and anonymous sign-in disabled, the
   email provider enabled for invitations, the temporary web Site URL, and only
   its exact `/auth/callback` and `/auth/confirm` redirects. Its current signing
-  key is already ECC P-256. The repository invitation template and subject
-  “Your Edison Reader invitation” are saved, and the preview link contains the
-  required `token_hash` plus `type=invite`. No invitation or delivery test was
-  sent. In local `supabase/config.toml`, `[auth].enable_signup=false` is the
+  key is already ECC P-256. The hosted invitation template and subject
+  “Your Edison Reader invitation” are saved and fresh-reload verified; its
+  single CTA uses
+  `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=invite`
+  because Dashboard invitations cannot supply a callback override. No
+  invitation or delivery test was sent. The matching repository template
+  correction and focused regression are included in this local release
+  checkpoint, not yet pushed or deployed as application code.
+  In local `supabase/config.toml`, `[auth].enable_signup=false` is the
   signup denial; `[auth.email].enable_signup=true` correctly keeps the email
   provider available and maps to `GOTRUE_EXTERNAL_EMAIL_ENABLED`. Confirm-email
   remains enabled. The dashboard template preview has an unresolved logo and
-  the web project is still undeployed; real delivery and asset loading remain
-  a release test gate.
-- The working tree contains the production private-alpha implementation. It has
-  not been migrated, seeded, deployed, or exercised against a hosted database.
-- Candidate `52aa993` passed the clean GitHub CI application job on Node 22
-  and all 106 pgTAP assertions after applying every migration to disposable
-  Supabase/PostgreSQL 17. This machine still has no usable Docker/Postgres
-  runtime. Strict schema lint is now included in CI but awaits its fresh run.
-  Hosted readiness, real-provider concurrency checks,
-  and the backup/restore rehearsal remain release gates.
+  no invitation or delivery test has run; real delivery and asset loading remain
+  release gates.
+- Candidate `c731fe2` is live in the temporary web project and its schema is live
+  in Supabase, but the API is not deployed successfully. No owner account or
+  invitation exists yet, so no authenticated or provider-backed journey has run.
+- CI run `33976398848` is green for all 164 application tests, 107 pgTAP
+  assertions, strict schema lint, and both production builds. Hosted API health,
+  OpenAI access, email delivery, end-to-end owner acceptance, and a
+  backup/restore rehearsal remain release gates.
 
 ## Production topology
 
@@ -356,26 +409,29 @@ The latter specifications supersede the old category-tab/infinite-feed design.
 
 ## Required release gates
 
-Before external readers:
+The source, disposable-database, CI, production migration, and temporary-web
+deployment gates are complete for `c731fe2`. Before the owner-only alpha is
+usable:
 
-1. Run lint, both TypeScript projects, all web/API tests, both production builds,
-   and responsive/CSP browser smoke tests.
-2. Start a clean disposable/local Supabase stack, apply every migration in
-   order, run all pgTAP/RLS tests and database lint, then inspect a linked dry
-   run. No real push before explicit approval and a backup checkpoint.
-3. Vercel and Supabase are already Pro, and the owner has saved the API's
-   Production-only OpenAI Secret. Before release, verify its project scoping,
-   provider access, model permissions, billing, rate limits, and spend caps.
-4. Preserve the verified custom SMTP, asymmetric JWT key, exact temporary Auth
-   redirects, disabled self-signup/anonymous access, owner-only reader/admin
-   allowlists, and exact CORS. Add WAF rules, spend alerts, external error
-   monitoring, and a backup/restore drill.
-5. Deploy API and web first to temporary production URLs, run environment
-   preflight and `/v1/health`, invite only the owner, and verify a complete real
+1. The owner privately saves the correct Supabase Transaction pooler URI on
+   port `6543` with TLS as API Production `DATABASE_URL`; never request or copy
+   the URI into chat or documentation.
+2. Redeploy the API, require `/v1/health` to return `200` with every check `ok`,
+   and verify unauthenticated, CORS, and wrong/missing cron-secret denial before
+   any valid cron request.
+3. Make one bounded provider acceptance request through the successfully
+   deployed API and reconcile its usage record against the saved Responses-only
+   key, dedicated project, model allowlist, and $50 cap.
+4. Invite only `mike@michaelmcguiness.com` using the corrected hosted template;
+   verify email delivery, Auth callback,
+   `/v1/me`, first-visit timezone persistence, and one complete real
    article/citation/save/share/Q&A/direction/retry/cost-ledger flow.
-6. Publish a genuine reviewed public starter edition and verify anonymous
-   current plus archived deep-link isolation.
-7. Obtain a separate owner decision and approval before attaching
+5. Verify cron/Workflow logs, add the planned WAF controls, publish and review
+   only the accepted starter v2 artifact with SHA-256
+   `aa26d2258cb391ad552466f39bee01ae4d1596d480fef59381dfeb9b184d8c50`,
+   and complete a backup/restore rehearsal before broader external readers.
+6. Merge the reviewed candidate and protect `main` when the temporary alpha is
+   accepted. Obtain a separate owner decision before attaching
    `app.edisonreader.com`/`api.edisonreader.com` or replacing the apex demo.
 
 The detailed runbook is `docs/PRODUCTION_RELEASE.md`; the shorter overview is
@@ -416,14 +472,20 @@ framework changes; this repository’s Next version differs from remembered APIs
 > separate Vercel web/API + Supabase architecture described here; the hosted
 > apex remains an isolated credential-free demo. Preserve the exact finite News,
 > three-section sidebar/mobile-nav, inline Ask Edison, one-off commissioning,
-> and guest-reconciliation behavior. The non-secret temporary-origin, Supabase
-> public metadata, quota, allowlist, build-guard, hosted Auth restriction, and
-> invitation-template setup is complete; do not redo it. The September 5
-> full-release authorization at the top of this file supersedes earlier stops.
-> Secure CLI login/link and the 13-migration hosted dry run have succeeded.
-> Complete fresh CI/schema lint, backup checkpoint, migrations, candidate
-> promotion, live deployment, and the owner-only acceptance tests autonomously.
-> Verify provider budgets before AI calls. Do not ask for keys in chat, expose
-> secrets, buy additional services, invite other readers, or change website
-> domains. Report genuine blockers and distinguish an owner-only live alpha
-> from readiness for broader external readers.
+> and guest-reconciliation behavior. Candidate `c731fe2`, CI run `33976398848`,
+> all 13 hosted migrations, the read-only schema/grant audit, and the temporary
+> web deployment are complete; do not redo them. The apex demo is still isolated.
+> The API is blocked because even the latest uncached deployment rejects its
+> saved database connection endpoint as non-`6543`. Continue from the owner's
+> private replacement with the Supabase Transaction pooler URI on port `6543`
+> with TLS, then redeploy and require a fully healthy API plus negative
+> auth/CORS/cron smokes. The dedicated OpenAI service-account key is already
+> Restricted to Responses Write with every other leaf None; no further scope
+> approval is needed, but the unused key still needs one bounded acceptance
+> request. The hosted invite callback is corrected, while the matching repo fix
+> and five-test regression are uncommitted. Then invite and test only the owner.
+> The September 5
+> full-release authorization at the top supersedes historical stops. Never ask
+> for or expose secrets, buy additional services, invite other readers, or
+> change website domains. Report genuine blockers and distinguish an owner-only
+> live alpha from broader-reader readiness.

@@ -6,6 +6,12 @@ launching; they can change without a code release.
 
 ## Decision and current status
 
+**Current input gate:** the saved API connection still fails the transaction
+pooler port check. The only remaining owner input is to privately supply the
+correct `6543` endpoint with TLS. Responses-only key scope and the single owner
+invitation are already explicitly approved; the key restriction is saved and
+verified. No invitation was sent because the API is unavailable.
+
 **Current authorization, September 5:** the owner has authorized completing
 the production release autonomously, including secure CLI access, reviewed
 migrations, commit/push/promotion, deploying the existing web/API projects, and
@@ -14,22 +20,55 @@ step-by-step permission stops recorded below; they are historical, not current
 blockers. Preserve the apex demo and website domains, do not add paid services
 or other readers, and never reveal saved credentials or request secrets in chat.
 
-**Current release checkpoint:** official Supabase CLI 2.116.0 login and link to
-`bcxxnntastmnormcmxbq` succeeded with CLI-managed temporary database access and
-no database password handling. The linked dry run succeeds and proposes all
-13 checked-in migrations only. Nothing has been applied yet. Strict schema
-lint was added to CI after pgTAP. Local lint, both typechecks, 163 application
-tests, and both builds pass; wait for the fresh pinned Node 22 CI before the
-actual migration and production promotion. Independent review then removed
-two forbidden direct Auth grants from the never-deployed initial migration;
-the final constrained PG17 membership supplies the same effective access.
-New regression coverage raises totals to 164 application tests / 107 pgTAP
-assertions. Post-fix API tests, lint, and both typechecks pass.
-Hosted preflight confirms PG17.6 and zero Auth users, application tables,
-Edison roles, reserved bucket, or provisioning trigger. Supabase lists physical
-backups from September 5 04:35:02 UTC and September 4 19:54:12 UTC. Restore
-testing remains outstanding before external reader data; do not describe this
-empty-database checkpoint as a successful restore rehearsal.
+**Current release checkpoint:** candidate `c731fe2` is committed and pushed on
+`codex/production-release-candidate` in draft PR #1; `main` is unmerged and
+unprotected. [CI run 33976398848](https://github.com/michaelmcguiness/edison/actions/runs/33976398848)
+passed lint, both typechecks, 164 application tests, both production builds, all
+107 pgTAP assertions, and strict application-schema lint on Node 22/pnpm
+10.28.0. The reviewed dry run and backup checkpoint preceded successful
+application of all 13 migrations to Supabase project
+`bcxxnntastmnormcmxbq`. A separate read-only production audit confirmed 24/24
+expected tables, 21/21 expected RLS settings, 45 policies, 20 triggers, zero
+invalid constraints, the expected Storage bucket, and the intended role/grant
+boundaries. Auth still has zero users. Restore testing remains outstanding.
+
+The temporary web deployment is live: Vercel deployment
+`dpl_Cdi68WU5m2K5kYDFNqjjWKi3EY4p` serves `c731fe2` at
+`https://project-qlqve.vercel.app` with HTTP 200 and the expected CSP. Vercel
+treated the candidate-branch push as Production in both new projects despite
+their saved production branch remaining `main`. The apex
+`edisonreader.com` remains the older isolated sample-data demo and returns HTTP
+200. The API is not live. Its first attempt failed for missing database TLS;
+after replacement, uncached retry `dpl_EcLwNMETMBjV3QY9ytq1aJqc5MJ8` reached
+preflight and showed that the saved URL uses the wrong port. Production Secret
+metadata confirms a later update, but fresh uncached Production deployment
+`dpl_CCZ7T5S4XTHztzB5m3chZjSzMtcZ` of `c731fe2` at 13:00 EDT still failed the
+exact port-`6543` guard. The owner must privately replace the connection
+endpoint with the Supabase Transaction pooler URI on port `6543` with TLS;
+never copy that URI into chat.
+
+Dedicated OpenAI project `edison-production`
+(`proj_EFKsL4Yfs6pDFOzI4aGWThSf`) has an enforced $50 monthly cap and permits
+only `gpt-5.6-terra` and `gpt-5.6-luna`; the owner also funded the API account
+with $50 in credits. Its
+`edison-api-production` service-account key was privately saved as API
+Production `OPENAI_API_KEY`; no key was printed, stored, or read back. The owner
+approved Responses-only scope, and the key is now saved as Restricted. Fresh
+readback shows Responses (`/v1/responses`) Write and every other permission leaf
+None. No further key approval is pending. The new project/key has not made a
+provider request. The original default-project key remains unread and unrevoked.
+
+The hosted invitation template is saved and fresh-reload verified with exactly
+one Dashboard-compatible `.SiteURL` `/auth/confirm` token-hash link. The
+matching repository fix and release-boundary regression are in the working
+tree; its five focused tests and the API typecheck pass with the existing local
+Node 24.19 runtime, distinct from the full candidate CI on Node 22. The source
+change is included in this local release checkpoint; it is not yet pushed or
+deployed as application code.
+The explicitly authorized owner invitation remains unsent while the API is
+unavailable. Editorial has accepted unpublished starter candidate v2 with exact
+SHA-256 `aa26d2258cb391ad552466f39bee01ae4d1596d480fef59381dfeb9b184d8c50`
+in an isolated worktree.
 
 Edison's client/server architecture is appropriate for a web product and later
 iOS and Android clients. It is an API-first modular monolith: web and native
@@ -39,12 +78,18 @@ OpenAI. The API owns authorization and Postgres access; durable Vercel
 Workflows own slow AI work. This can scale a useful private alpha and an early
 paid product without a rewrite or premature microservices.
 
-The repository is **authorized for an owner-only production release, not yet
-verified ready for external readers**. The
-existing `edisonreader.com` deployment is still a credential-free sample-data
-demo. This document is a release gate, not authorization to buy plans, create
-external resources, apply migrations, add secrets, invite readers, deploy, or
-attach domains.
+The repository and hosted services are **partially deployed for an owner-only
+production release, not yet usable as a connected alpha or verified ready for
+external readers**. The temporary web and production schema are live; the API,
+owner invitation, authenticated journey, provider request, and email-delivery
+test are not. The existing `edisonreader.com` deployment remains an isolated
+credential-free sample-data demo.
+
+### Historical preparation record
+
+The following provider/setup record preserves the earlier sequence. Statements
+that the database or live projects were empty or undeployed describe those
+earlier checkpoints and are superseded by the current checkpoint above.
 
 The September 4 owner authorization initially permitted publishing the
 candidate and creating temporary project shells; see `docs/DEPLOYMENT.md` for
@@ -92,7 +137,7 @@ the form. A subsequent metadata-only check confirms `DATABASE_URL` and
 This does not establish valid connection details or provider access, and does
 not authorize local migration credentials, schema changes, deployment, or invites.
 
-Current audit limits:
+Historical preparation audit limits (superseded where noted above):
 
 - The authorized preparation created two undeployed Vercel project shells and
   their Git/build settings, plus the owner-created empty Supabase project. The
@@ -353,6 +398,12 @@ Command is:
 if [ "$VERCEL_ENV" = production ]; then node scripts/check-production-env.mjs web || exit 1; fi; pnpm build:web
 ```
 
+Deployment `dpl_Cdi68WU5m2K5kYDFNqjjWKi3EY4p` currently serves candidate
+`c731fe2` at the assigned Production domain and passed HTTP/CSP smoke checks.
+This occurred from the candidate branch even though the project's saved
+production branch is `main`; do not assume the branch setting alone prevented
+Production targeting.
+
 ### Live API project (`edison-api`)
 
 | Setting | Value |
@@ -373,11 +424,11 @@ Production-only environment:
 | Name | Purpose / launch value |
 | --- | --- |
 | `ENABLE_EXPERIMENTAL_COREPACK` | `1` |
-| `DATABASE_URL` | Owner-saved Production Secret; value unread and untested. Must use the Supabase transaction-pooler URI, port `6543`, TLS required; never the direct connection |
+| `DATABASE_URL` | Owner-saved Production Secret; current value fails preflight because it uses the wrong port. Replace privately with the Supabase Transaction pooler URI on port `6543`, with TLS required; never the direct connection |
 | `SUPABASE_URL` | Saved as `https://bcxxnntastmnormcmxbq.supabase.co` |
 | `SUPABASE_PUBLISHABLE_KEY` | Saved matching publishable key used for Auth health; literal value omitted; not an admin key |
 | `SUPABASE_JWT_AUDIENCE` | `authenticated` |
-| `OPENAI_API_KEY` | Existing owner-saved Production Secret; value unread and omitted |
+| `OPENAI_API_KEY` | Privately transferred `edison-api-production` service-account key for dedicated project `proj_EFKsL4Yfs6pDFOzI4aGWThSf`; saved Restricted to Responses Write only, value unread, provider access untested |
 | `OPENAI_ARTICLE_MODEL` | Explicit approved and priced article model; currently `gpt-5.6-terra` (other families fail readiness and accounting closed) |
 | `OPENAI_UTILITY_MODEL` | Explicit approved and priced utility model; currently `gpt-5.6-luna` (other families fail readiness and accounting closed) |
 | `OPENAI_MAX_DAILY_GENERATIONS` | Saved as `4` for the tiny alpha; must be at least the daily target |
@@ -404,14 +455,25 @@ exist, but its health endpoint should remain not-ready and its workflows should
 not process real jobs.
 
 Dashboard metadata confirms 17 Production Config values matching the table,
-plus three Production Secrets: `DATABASE_URL`, `CRON_SECRET`, and the preserved
-owner-saved `OPENAI_API_KEY`. No saved Secret value was read. API Preview
+plus three Production Secrets: `DATABASE_URL`, `CRON_SECRET`, and
+`OPENAI_API_KEY`. No saved Secret value was read. API Preview
 has exactly one Config value, `ENABLE_EXPERIMENTAL_COREPACK=1`, and no live
 values. The saved API Build Command is:
 
 ```sh
 if [ "$VERCEL_ENV" = production ]; then node ../../scripts/check-production-env.mjs api || exit 1; fi; pnpm build
 ```
+
+No API deployment has passed. The initial candidate deployment
+`dpl_B4RDxaiAqgLvzZWskVYJyC7h9Vzz` failed the preflight for missing TLS. A later
+install-only failure did not expose a useful error; uncached retry
+`dpl_EcLwNMETMBjV3QY9ytq1aJqc5MJ8` reached the preflight and identified the
+wrong database port. Correcting `DATABASE_URL` privately is the next deployment
+gate. A later metadata-confirmed Secret update did not clear the guard: fresh
+uncached Production deployment `dpl_CCZ7T5S4XTHztzB5m3chZjSzMtcZ` of
+`c731fe2` at 13:00 EDT also failed exact port `6543`. Vercel CLI 59.11.7 was
+available only through an ephemeral invocation;
+login did not complete and the pending attempt was canceled.
 
 ### Credential-safe preflight
 
@@ -421,10 +483,10 @@ private-alpha lists, and safe scheduling ranges. It never loads a file
 automatically and never prints secret, database, or email values.
 
 On September 5, a local audit of the exact saved public web configuration passed
-with zero warnings. No hosted secrets were loaded. All required API variable
-names are now saved, but the full API preflight is still unexecuted and must
-not be reported as passed based on environment-name metadata alone. Database
-URL/TLS formatting and provider connectivity remain unverified.
+with zero warnings. No hosted secrets were loaded. The hosted API preflight has
+now failed safely twice: first for missing TLS and then, after replacement, for
+the wrong pooler port. It has not passed. Provider connectivity remains
+unverified.
 
 Run it against one project's environment at a time before production promotion:
 
@@ -452,21 +514,24 @@ if [ "$VERCEL_ENV" = production ]; then node ../../scripts/check-production-env.
 
 ## Supabase production setup
 
-Use the existing empty US East `edison-production` project. It is already Pro;
-do not apply the live migration or store reader data before the remaining gates
-and explicit approval.
+Use the existing US East `edison-production` project. It is already Pro and now
+contains all 13 repository migrations. Do not replay or rewrite the applied
+chain; any future schema change must be additive.
 
 ### Database
 
 Current operator-access status: Supabase CLI 2.116.0 is authenticated through
 the official browser login and linked to `bcxxnntastmnormcmxbq`. Its temporary
-database login role completed the linked migration dry run without requesting
-a database password. Do not copy the saved Vercel runtime secret into a
-migration command or ask for it in chat.
-The machine has no available container runtime, so clean local reset, pgTAP,
-and schema lint cannot currently run here. Existing CI covers migration
-application and pgTAP; the release change adds strict lint for `public`,
-`private`, and `edison_public_api`. Require its fresh CI result before migration.
+database login role completed the linked dry run and production migration
+without requesting a database password. CI run `33976398848` passed all 107
+pgTAP assertions and strict lint for `public`, `private`, and
+`edison_public_api`. The subsequent read-only hosted audit confirmed every
+expected migration, table/RLS setting, role boundary, and Storage object. Do
+not copy the saved Vercel runtime secret into a migration command or ask for it
+in chat.
+
+The procedure below is the required pattern for future migrations; the current
+13-migration release has already completed steps 3 through 6.
 
 1. Enable MFA on the owner account and restrict project membership.
 2. Store the database password in the password manager. Rotate it if it has ever
@@ -501,8 +566,7 @@ application and pgTAP; the release change adds strict lint for `public`,
    ```
 
 6. Compare the dry run with the reviewed migration set and verify the backup
-   checkpoint. The September 5 full-release authorization permits the real
-   `db push` after these checks and fresh CI pass.
+   checkpoint before applying a future additive migration.
 7. Use the transaction pooler for `DATABASE_URL` because Vercel Functions are
    serverless; port `6543`, prepared statements disabled by the checked-in DB
    client, and TLS required. Prefer certificate verification supported by the
@@ -542,28 +606,29 @@ web origin:
 - The current asymmetric signing key is already ECC P-256; no rotation was
   needed. The API verifies public JWKS and never needs the signing secret.
 - Keep OTP expiry at no more than 3,600 seconds and review Auth rate limits.
-- Invite subject “Your Edison Reader invitation” and
-  `supabase/templates/invite.html` are saved and persisted after reload. The
-  rendered link is
-  `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=invite`; confirm-email is
-  enabled, and no invitation was sent. The dashboard preview has an unresolved
-  logo and the web project is undeployed; actual delivery and asset loading
-  still require verification.
+- Invite subject “Your Edison Reader invitation” and the hosted template are
+  saved and fresh-reload verified with exactly one CTA. Because Dashboard
+  invitations cannot set
+  `redirectTo`, the rendered CTA is exactly
+  `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=invite`;
+  confirm-email is enabled, and no invitation was sent. The matching repository
+  correction and regression test are included in this local release checkpoint,
+  not yet pushed or deployed as application code. The dashboard preview has an
+  unresolved logo; actual delivery and asset loading still require verification.
 - Custom SMTP is saved on the Edison mail domain. Disable provider click
-  tracking/link rewriting, then—only after separate send approval—verify
-  delivery, expiry, and one-use behavior with the owner's mailbox. SPF and DKIM
-  are already verified; optional DMARC remains a future decision.
+  tracking/link rewriting, then use the current owner-only release authorization
+  to verify delivery, expiry, and one-use behavior with the owner's mailbox.
+  SPF and DKIM are already verified; optional DMARC remains a future decision.
 
 Before each invitation, add the normalized email to `EDISON_ALLOWED_EMAILS`.
 Add it to `EDISON_ADMIN_EMAILS` only if the owner explicitly approves that
 reader as an administrator; ordinary readers must not receive admin access.
-Redeploy the API only after the applicable approval. In a secure local operator
-session, provide only
-`SUPABASE_URL`, `SUPABASE_SECRET_KEY`, and `WEB_APP_URL`, then run:
-
-```sh
-pnpm invite reader@example.com
-```
+Redeploy the API after correcting its private database URL and passing the
+preflight. For the already approved owner invitation, use Auth > Users > Send
+invitation in the Dashboard after confirming the hosted `.SiteURL` callback;
+that flow does not require retrieving or exposing an admin key. The existing
+local operator script remains available for a separately controlled session,
+but is not required for this owner invitation.
 
 Never put the Supabase secret key in either Vercel project. The database trigger
 creates the profile and active alpha membership for a newly invited Auth user;
@@ -584,14 +649,24 @@ starter immediately while that first-visit activation completes.
 API billing is separate from ChatGPT. Use an Edison-specific OpenAI API project,
 not a personal reusable key and not an organization Admin API key.
 
+Current state: project `edison-production`
+(`proj_EFKsL4Yfs6pDFOzI4aGWThSf`) has an enforced $50 monthly cap and allows
+only `gpt-5.6-terra` and `gpt-5.6-luna`. Its
+`edison-api-production` service-account key is saved privately in the API
+Production environment. Its saved Restricted policy grants Responses
+(`/v1/responses`) Write and leaves every other permission leaf at None. No
+request has yet verified the new key or model access. The old default-project
+Edison key remains unread and unrevoked.
+
 1. Give the owner organization/project access with MFA. Create a production
    project and a project-scoped service account.
 2. Restrict the key to only the API capabilities Edison uses and allow only the
    reviewed article/utility models. Put the resulting key only in the API
    project's Production environment.
 3. Start with provider rate/token limits close to the private-alpha workload.
-   Configure usage alerts around $25, $50, and $75 and a $75-$100 hard monthly
-   spend limit. Hard limits return `429` and can overshoot slightly because of
+   Retain the current enforced $50 monthly project cap and add useful lower
+   alerts if the dashboard supports them. Hard limits return `429` and can
+   overshoot slightly because of
    in-flight work, so Edison must fail gracefully and the provider cap is the
    last guard, not the first. See
    [OpenAI spend limits](https://developers.openai.com/api/docs/guides/spend-limits)
@@ -733,57 +808,66 @@ a cost stop and a product outage.
 
 ## Release sequence
 
-1. Close every must-pass code gate and run the clean local test/database suite.
-2. Vercel/Supabase Pro, SMTP, and all required API variable names are in place,
-   including the three Production Secrets. Provider budget alerts/caps, full
-   API preflight, and runtime credential validation remain gates. Secure CLI
-   access and linking are complete. Nobody sends secrets through chat.
-3. Supabase Auth/JWT/SMTP, invite template, exact temporary callbacks, web/API
-   public metadata, quotas, allowlists, origins, and build guards are configured.
-4. Review the linked migration dry run, verify the checkpoint and fresh CI,
-   then apply migrations under the current full-release authorization.
-5. Deploy `edison-api` and `edison-app` to their temporary Vercel production
-   URLs. Run both environment preflights. Keep apex/demo untouched.
-6. Confirm API health is `200`; invite only the owner; verify token/JWKS,
-   membership, the first-visit timezone PATCH, and scheduler activation.
+1. Preserve the completed source, CI, migration, production metadata-audit, and
+   temporary-web evidence for candidate `c731fe2`; push the local
+   invite-template regression checkpoint and require fresh CI without rerunning
+   applied migrations as though production were still empty.
+2. The owner privately replaces API Production `DATABASE_URL` with the Supabase
+   Transaction pooler URI on port `6543` with TLS. Nobody sends or copies the
+   URI through chat, source, logs, or documentation.
+3. Redeploy `edison-api` to its temporary Production URL. Require the production
+   environment preflight and `/v1/health` to pass while keeping the apex demo
+   untouched.
+4. Before any valid cron call, verify unauthenticated `/v1/me`, disallowed CORS,
+   and all three cron routes with missing/wrong Bearer tokens fail closed; verify
+   the configured web origin preflight succeeds.
+5. Make one bounded OpenAI acceptance request, confirm the saved Responses-only
+   permission and usage/cost accounting, and reconcile it with the dedicated
+   project dashboard.
+6. Invite only the owner through the Dashboard using the corrected hosted
+   callback; verify SMTP delivery, Auth callback, token/JWKS,
+   membership, first-visit timezone PATCH, and scheduler activation.
 7. Run one complete finite News edition. Verify exact UUID/date filtering,
    deterministic slot order, searched citations, usage ledger, job state,
    bounded failed-slot retry, save, feedback, Q&A idempotency, share
    sanitization, and share revocation.
-8. Verify editorial-direction create/update/delete/undo concurrency, the
+8. Publish and verify only the accepted starter v2 artifact with SHA-256
+   `aa26d2258cb391ad552466f39bee01ae4d1596d480fef59381dfeb9b184d8c50`.
+9. Verify editorial-direction create/update/delete/undo concurrency, the
    50-per-section cap, future-generation effect, and stale-output guard. Verify
    the current and archived public starter responses contain only their
    documented sanitized schema.
-9. Verify admin allowlist, non-admin denial, revoked-admin denial with a still
+10. Verify admin allowlist, non-admin denial, revoked-admin denial with a still
    valid token, CORS denial from another browser origin, unauthenticated denial,
    and cron denial/success behavior.
-10. Inspect desktop/mobile layout, CSP console, server logs, Workflow telemetry,
+11. Inspect desktop/mobile layout, CSP console, server logs, Workflow telemetry,
     Supabase logs, email delivery, OpenAI usage, and all configured alerts.
-11. Owner chooses the domain topology and explicitly approves attachment. Add
+12. Merge the reviewed candidate and protect `main` after temporary-alpha
+    acceptance. The branch is currently unmerged and unprotected.
+13. Owner chooses the domain topology and explicitly approves attachment. Add
     `app.edisonreader.com` and `api.edisonreader.com`, then update and redeploy
     the web API URL, API web/CORS origins, and Supabase Site/redirect URLs as one
     coordinated cutover.
-12. Repeat the complete smoke test on custom domains. Invite no more than two or
+14. Repeat the complete smoke test on custom domains. Invite no more than two or
     three readers for 48 hours; review cost, reliability, and feedback before
     increasing the allowlist.
 
-## User actions versus work that can be completed autonomously
+## Ownership for remaining release work
 
-The owner must personally review or perform:
+The owner's only immediate secret-handling action is to save the correct
+Transaction pooler URI on port `6543` with TLS in the existing Vercel Secret
+field. Do not request, display, or read it. The owner also retains decisions on:
 
-- plan upgrades and billing/spend ceilings;
-- Supabase/OpenAI/SMTP project ownership, MFA, and credential entry;
-- first reader/admin email selection (enter them directly, not in chat);
+- future plan upgrades or higher billing/spend ceilings;
 - privacy/support wording and acceptable alpha risk;
-- migration application, production promotion, domain attachment, and reader
-  invitation approvals;
+- domain attachment and any invitation beyond the already approved owner;
 - incident/on-call ownership.
 
-Codex can continue without secrets to finish code, tests, RLS coverage,
-readiness coverage, the checked-in CI workflow, deployment manifests,
-smoke-test scripts, and reviewable release checklists. It must stop before
-purchases, external project mutations, secrets, live migration, deployment,
-DNS, or email unless the owner separately authorizes that exact action.
+The September 5 authorization already covers finishing the existing release,
+including the API redeploy and the single approved owner's invitation and
+acceptance test after the private URL is corrected. Do not ask for another
+generic approval. It does not cover new purchases, additional readers, or
+website-domain changes.
 
 ## Reference checklist
 

@@ -83,6 +83,31 @@ test("Auth helper access uses only the bounded PG17 membership edge", () => {
   );
 });
 
+test("dashboard invitations target the SSR invite confirmation route", () => {
+  const inviteTemplate = source(
+    "../../../../supabase/templates/invite.html",
+  );
+  const confirmRoute = source("../../../../app/auth/confirm/route.ts");
+  const inviteScript = source("../../../../scripts/invite-reader.ts");
+
+  assert.match(
+    inviteTemplate,
+    /href="\{\{ \.SiteURL \}\}\/auth\/confirm\?token_hash=\{\{ \.TokenHash \}\}&amp;type=invite"/,
+  );
+  assert.doesNotMatch(
+    inviteTemplate,
+    /href="\{\{ \.RedirectTo \}\}\?token_hash=/,
+  );
+  assert.match(
+    confirmRoute,
+    /verifyOtp\(\{\s*token_hash: tokenHash,\s*type: "invite",\s*\}\)/,
+  );
+  assert.match(
+    inviteScript,
+    /redirectTo: new URL\("\/auth\/confirm", webUrl\)\.toString\(\)/,
+  );
+});
+
 test("dispatch and reconciliation logs never serialize caught error objects", () => {
   for (const file of [
     "../../app/v1/generation-jobs/route.ts",
