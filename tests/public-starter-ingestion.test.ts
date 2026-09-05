@@ -243,5 +243,6 @@ test("operator CLI defaults to local validation and has no publish mode", () => 
   assert.match(runPublicStarterCli([]), /no external action taken/);
   const help = runPublicStarterCli(["--help"]);
   assert.match(help, /default is validation only/i);
+  assert.match(help, /--emit-read-sql/);
   assert.doesNotMatch(help, /--publish|bearer|token/i);
 });

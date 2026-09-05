@@ -27,22 +27,30 @@ const localQueryArgs = [
 ];
 
 function parseRows(output: string) {
-  const start = output.indexOf("[");
-  if (start < 0) throw new Error("The local query did not return JSON.");
+  const match = /(^|\n)\s*\[/.exec(output);
+  if (!match) {
+    const prefix = output.trim().replace(/\s+/g, " ").slice(0, 240);
+    throw new Error(
+      `The local generic-fixture SELECT did not return JSON. Output prefix: ${JSON.stringify(prefix)}`,
+    );
+  }
+  const start = output.indexOf("[", match.index);
   return JSON.parse(output.slice(start)) as Record<string, unknown>[];
 }
 
+function execute(args: string[]) {
+  return execFileSync("pnpm", [...localQueryArgs, ...args], {
+    encoding: "utf8",
+    maxBuffer: 2 * 1024 * 1024,
+  });
+}
+
 function query(args: string[]) {
-  return parseRows(
-    execFileSync("pnpm", [...localQueryArgs, ...args], {
-      encoding: "utf8",
-      maxBuffer: 2 * 1024 * 1024,
-    }),
-  );
+  return parseRows(execute(args));
 }
 
 function queryFile(path: string) {
-  return query(["--file", path]);
+  execute(["--file", path]);
 }
 
 function expectQueryFileFailure(path: string, expectedCode: string) {
@@ -127,7 +135,7 @@ function makeGenericCorrection(
 function setupArticle(correction: ValidatedCorrection, slug: string) {
   const { original, identity } = correction;
   const source = original.sources[0]!;
-  query([
+  execute([
     `INSERT INTO public.articles (
       id, owner_id, slug, status, category, kicker, topic, title, deck, body,
       summary, why_written, reading_minutes, source_count, researched_at,
@@ -152,7 +160,7 @@ function setupArticle(correction: ValidatedCorrection, slug: string) {
       ${sqlLiteral(original.model)}
     );`,
   ]);
-  query([
+  execute([
     `INSERT INTO public.article_sources (
       id, article_id, citation_order, title, publisher, url, published_at,
       accessed_at, cited_claims
@@ -180,7 +188,7 @@ const ownerId = crypto.randomUUID();
 const tempDirectory = mkdtempSync(join(tmpdir(), "edison-correction-ci-"));
 
 try {
-  query([
+  execute([
     `INSERT INTO auth.users (id, email)
      VALUES (${sqlLiteral(ownerId)}::uuid, ${sqlLiteral(`correction-${ownerId}@edison.test`)});`,
   ]);
@@ -240,7 +248,7 @@ try {
     "share",
   );
   setupArticle(withShare, `generic-share-${withShare.identity.articleId}`);
-  query([
+  execute([
     `INSERT INTO public.article_shares (
        article_id, user_id, slug, snapshot
      ) VALUES (
@@ -267,7 +275,7 @@ try {
     withConversation,
     `generic-conversation-${withConversation.identity.articleId}`,
   );
-  query([
+  execute([
     `INSERT INTO public.article_conversations (user_id, article_id, title)
      VALUES (
        ${sqlLiteral(ownerId)}::uuid,
@@ -295,7 +303,7 @@ try {
     changedOriginal,
     `generic-changed-${changedOriginal.identity.articleId}`,
   );
-  query([
+  execute([
     `UPDATE public.articles
      SET title = 'Unexpected concurrent title'
      WHERE id = ${sqlLiteral(changedOriginal.identity.articleId)}::uuid;`,

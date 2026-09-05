@@ -195,6 +195,7 @@ test("operator CLI exposes validation and SQL emission only", () => {
 
   assert.match(help, /default validates/);
   assert.match(help, /--emit-sql \/private\/tmp\//);
+  assert.match(help, /--emit-result-sql \/private\/tmp\//);
   assert.doesNotMatch(help, /--execute|--publish|--post/i);
   assert.doesNotMatch(source, /\bfetch\s*\(|DATABASE_URL|SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(source, /mode: 0o600/);
