@@ -147,6 +147,20 @@ export function readerRouteHref(route: ReaderRoute): string {
   return query ? `/?${query}` : "/";
 }
 
+export function selectReaderRouteFocusTarget<T>(
+  returnedCardControl: T | null,
+  routeHeading: T | null,
+  routeMain: T | null,
+): T | null {
+  return returnedCardControl ?? routeHeading ?? routeMain;
+}
+
+export function articleQuestionDescription(title: string | null | undefined): string {
+  const normalizedTitle = title?.trim() || "This article";
+  const separator = /[.!?…]["'”’)]?$/u.test(normalizedTitle) ? " " : ". ";
+  return `${normalizedTitle}${separator}Questions stay with this article and do not change a loop’s direction.`;
+}
+
 /** Only explicit commissioning language is diverted away from editorial direction. */
 export function detectOneOffSection(text: string): PublicationSection | null {
   if (!/^\s*(?:please\s+)?(?:write|create|make|compose|commission|generate|draft)\b/i.test(text)) return null;
@@ -310,6 +324,9 @@ function ReaderSession({
   const { capture: capturePosition, restore: restorePosition, hydrated: continuityReady } = continuity;
   const restorePending = useRef(true);
   const returnCard = useRef<{ articleId: string; feedScrollY: number } | null>(null);
+  const curateReturnFocus = useRef<HTMLElement | null>(null);
+  const newLoopReturnFocus = useRef<HTMLElement | null>(null);
+  const askReturnFocus = useRef<HTMLElement | null>(null);
   const [curateOpen, setCurateOpen] = useState(false);
   const [curateLoopId, setCurateLoopId] = useState("");
   const [curateDrafts, setCurateDrafts] = useState<Record<string, string>>({});
@@ -542,9 +559,21 @@ function ReaderSession({
       const card = view === "home" && returnCard.current
         ? document.querySelector<HTMLElement>(`[data-article-id="${returnCard.current.articleId}"]`)
         : null;
-      const focusTarget = card?.querySelector<HTMLElement>(".pulse-card-open-target") ?? document.querySelector<HTMLElement>("main h1, main");
+      const returnedCardControl = card?.querySelector<HTMLElement>(".pulse-card-open-target") ?? null;
+      const focusTarget = selectReaderRouteFocusTarget(
+        returnedCardControl,
+        document.querySelector<HTMLElement>("main h1"),
+        document.querySelector<HTMLElement>("main"),
+      );
       if (focusTarget) {
-        if (!focusTarget.matches("button, a[href], input, select, textarea")) focusTarget.setAttribute("tabindex", "-1");
+        if (!returnedCardControl) {
+          focusTarget.setAttribute("tabindex", "-1");
+          focusTarget.classList.add("pulse-route-focus-target");
+          focusTarget.addEventListener("blur", () => {
+            focusTarget.removeAttribute("tabindex");
+            focusTarget.classList.remove("pulse-route-focus-target");
+          }, { once: true });
+        }
         focusTarget.focus({ preventScroll: true });
       }
       restorePosition(readerRouteHref(route), view === "home" ? returnCard.current?.feedScrollY ?? 0 : 0);
@@ -960,11 +989,29 @@ function ReaderSession({
   }
 
   function openCurate() {
-    if (!readingLoops.loops.length) { setNewLoopOpen(true); return; }
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (!readingLoops.loops.length) {
+      newLoopReturnFocus.current = opener;
+      setNewLoopError("");
+      setNewLoopOpen(true);
+      return;
+    }
+    curateReturnFocus.current = opener;
     setCurateLoopId(activeLoop?.id ?? "");
     setCurateError("");
     setCurateStatus("");
     setCurateOpen(true);
+  }
+
+  function openNewLoop() {
+    newLoopReturnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setNewLoopError("");
+    setNewLoopOpen(true);
+  }
+
+  function openArticleAsk() {
+    askReturnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setAskOpen(true);
   }
 
   async function createLoop() {
@@ -1789,10 +1836,10 @@ function ReaderSession({
           error={feedError || readingLoops.error || readingLoops.device.error || continuity.error}
           onOpenArticle={openStory}
           onToggleSave={toggleSave}
-          emptyState={<div className="pulse-empty"><h2>No ready article here yet</h2><p>{activeLoop ? dataMode === "live" ? "Your subject is saved. Future scheduled reading can use it; no new article has been requested by adding this loop." : "Your subject is saved on this device. We don’t have prepared reading for it yet." : "There are no ready articles in this selection."}</p><button type="button" onClick={() => navigate({ section: "news", view: "home", articleId: null, loopId: "collection" })}>Browse prepared reading</button><button type="button" onClick={() => { setNewLoopError(""); setNewLoopOpen(true); }}>Explore another subject</button></div>}
+          emptyState={<div className="pulse-empty"><h2>No ready article here yet</h2><p>{activeLoop ? dataMode === "live" ? "Your subject is saved. Future scheduled reading can use it; no new article has been requested by adding this loop." : "Your subject is saved on this device. We don’t have prepared reading for it yet." : "There are no ready articles in this selection."}</p><button type="button" onClick={() => navigate({ section: "news", view: "home", articleId: null, loopId: "collection" })}>Browse prepared reading</button><button type="button" onClick={openNewLoop}>Explore another subject</button></div>}
         >
           {readingLoops.error && <button type="button" onClick={() => void readingLoops.reload().catch((error) => showNotice(handleError(error), "error"))}>Retry loops</button>}
-          {!readingLoops.loops.length && <button className="editorial-text-action" type="button" onClick={() => setNewLoopOpen(true)}>What&apos;s something you want to learn more about?</button>}
+          {!readingLoops.loops.length && <button className="editorial-text-action" type="button" onClick={openNewLoop}>What&apos;s something you want to learn more about?</button>}
           {activeLoopId !== "collection" && readingLoops.loops.length > 0 && <button className="editorial-text-action" type="button" onClick={() => navigate({ section: "news", view: "home", articleId: null, loopId: "collection" })}>Browse the prepared collection</button>}
           {dataMode === "live" && <button className="editorial-text-action" type="button" onClick={() => { setOneOffError(""); setOneOffOpen(true); }}>Commission one article</button>}
           {creation && <p role="status">{creation.status === "succeeded" ? "Your commissioned article is ready." : creation.status === "failed" || creation.status === "cancelled" ? "Your commissioned article could not be written. Your draft is preserved." : "Your commissioned article is being prepared."}{creation.outputArticleId && <button type="button" onClick={() => navigate({ section: "news", view: "article", articleId: creation.outputArticleId, loopId: activeLoopId })}>Read commissioned article</button>}</p>}
@@ -1875,7 +1922,7 @@ function ReaderSession({
             if (readingJourney) continuity.rememberJourney(nextArticle.id, { ...readingJourney, returnArticleId: nextArticle.id });
             void openStory(nextArticle);
           } : undefined}
-          onAsk={pulseEnabled ? () => setAskOpen(true) : undefined}
+          onAsk={pulseEnabled ? openArticleAsk : undefined}
           deviceSave={pulseEnabled && articleIsPublic}
           pulse={pulseEnabled}
           save={() => void toggleSave(article)}
@@ -1975,6 +2022,7 @@ function ReaderSession({
         <CurateDialog
           open={curateOpen}
           localOnly={dataMode !== "live"}
+          returnFocusRef={curateReturnFocus}
           loops={readingLoops.loops}
           selectedLoopId={curateLoopId}
           draftText={curateDrafts[curateLoopId] ?? selectedCurateLoop?.direction ?? ""}
@@ -2002,13 +2050,22 @@ function ReaderSession({
           pending={readingLoops.pending}
           error={newLoopError || readingLoops.device.error}
           status={dataMode === "live" ? "Your loops sync to your Edison account. Adding a loop does not request immediate generation." : "Loops and public saves stay on this device. No account is needed to read the collection."}
+          returnFocusRef={newLoopReturnFocus}
           onOpenChange={setNewLoopOpen}
           onDraftChange={(value) => { setNewLoopDraft(value); setNewLoopError(""); void readingLoops.device.update((workspace) => ({ ...workspace, newLoopDraft: value })).catch(() => undefined); }}
           onSubmit={createLoop}
         />
         <Sheet open={askOpen && view === "article"} onOpenChange={setAskOpen}>
-          <SheetContent className="pulse-ask-sheet">
-            <SheetHeader><SheetTitle>Ask about this article</SheetTitle><SheetDescription>{article?.title}. Questions stay with this article and do not change a loop’s direction.</SheetDescription></SheetHeader>
+          <SheetContent
+            className="pulse-ask-sheet"
+            onCloseAutoFocus={(event) => {
+              const returnTarget = askReturnFocus.current;
+              if (!returnTarget?.isConnected) return;
+              event.preventDefault();
+              returnTarget.focus({ preventScroll: true });
+            }}
+          >
+            <SheetHeader><SheetTitle>Ask about this article</SheetTitle><SheetDescription>{articleQuestionDescription(article?.title)}</SheetDescription></SheetHeader>
             {article && <>
               <div className="pulse-question-messages" aria-live="polite">
                 {(conversationMessages[article.id] ?? []).map((message) => <div key={message.id}><b>{message.role === "user" ? "You" : "Edison"}</b><p>{message.content}</p>{message.citations.map((citation) => { const source = article.sources.find((entry) => entry.id === citation.sourceId); return source ? <a key={`${citation.sourceId}-${citation.label}`} href={source.url} target="_blank" rel="noreferrer">{citation.label} · {source.publisher}</a> : null; })}</div>)}
@@ -2116,7 +2173,7 @@ function ReaderSession({
   return pulseEnabled ? (
     <PulseShell loops={readingLoops.loops} activeLoopId={activeLoopId} showCurate={view === "home"} showLoopNavigation={view === "home"}
       onSelectLoop={(loopId) => navigate({ section: "news", view: "home", articleId: null, loopId })}
-      onAddLoop={() => { setNewLoopError(""); setNewLoopOpen(true); }}
+      onAddLoop={openNewLoop}
       onOpenHome={() => navigate({ section: "news", view: "home", articleId: null, loopId: "for-you" })}
       onOpenLibrary={openLibrary}
       onOpenProfile={() => navigate({ section, view: "profile", articleId: null, loopId: activeLoopId })}

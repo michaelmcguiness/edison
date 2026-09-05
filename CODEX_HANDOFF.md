@@ -15,7 +15,45 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
-### September 5 full-release authorization — current and controlling
+### September 5 Pulse + loops release — latest implementation checkpoint
+
+Michael approved the selected Pulse + loops v5 and explicitly asked the CTO to
+get it live in Production. The controlling product scope is
+`docs/brand/APPROVED_PULSE_LOOPS_CTO_HANDOFF_2026-09-05.md` and its linked v5
+implementation details. This supersedes older interface descriptions below;
+it does not authorize a domain change, merge into `main`, new readers or paid
+services. The older setup checkpoints are historical, not pending instructions.
+
+Release `f6b7bb1cb49244c28f37f70519b97184510708a9` passed full Node 22 CI
+`33995500057` including 165 pgTAP assertions and actual disposable publication/
+correction rehearsals. Explicit cache-free Production rebuilds are Ready:
+
+- Web: `dpl_ArHbfeAQeHmREgBQjkN91ivL977h`,
+  `https://project-qlqve.vercel.app`, September 5 at 22:29:22 UTC.
+- API: `dpl_4SBpQxDpes2wrnpGFpJ1z2AWEyHf`,
+  `https://project-fjr95.vercel.app`, September 5 at 22:23:54 UTC.
+
+All 15 migrations are applied. The accepted Sleep/History public edition is
+published and its real UUIDs/artwork are bound in the client; complete hosted
+snapshots were independently verified. The owner article's accepted manual
+editorial correction is applied with immutable protected before/after audit
+and a narrow owner-only disclosure. Do not repeat those writes or use obsolete
+starter/correction drafts. Generation jobs remain 4, usage rows 1, recorded
+cost $0.062654. Do not reset quotas or claim this correction improved the writer.
+
+Actual guest reading, Save/Library, Next/Back/card focus, loop matching, Curate
+save/undo, question-draft and scroll-position reload checks pass. The new API's
+health, private-route rejection, exact CORS and all negative cron checks pass.
+Design has rendered actual 320/390px layouts without horizontal overflow;
+a bounded keyboard/focus/styling follow-up is being prepared. The controlled
+browser still has no authenticated owner session; owner-only rendered flows,
+the correction note, provider-dashboard reconciliation and backup restoration
+remain unverified. Do not extract credentials or resend invitations.
+
+The live release record is `docs/PULSE_RELEASE_2026-09-05.md`. Preserve rollback
+deployments and the isolated apex demo. `main` remains unmerged at `e559a6b`.
+
+### September 5 full-release authorization — security and release authority
 
 The owner's latest instruction is: “I trust you - let's just do everything to
 get this fully deployed and ready for production. Only ask me if you need me
@@ -262,7 +300,7 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   is proven.
 - The public GitHub source is
   [michaelmcguiness/edison](https://github.com/michaelmcguiness/edison). The
-  current candidate is `4f774eb`, pushed on
+  current deployed Pulse candidate is `f6b7bb1`, pushed on
   `codex/production-release-candidate` in
   [draft PR #1](https://github.com/michaelmcguiness/edison/pull/1). `main` is
   unmerged and unprotected.
@@ -270,9 +308,9 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   Next.js/Node 22/build settings and saved production branch `main`.
   Release-branch pushes now target Preview; the current deployments were
   explicit Production rebuilds. Web deployment
-  `dpl_Eqed7bwPxcNaEACSj2Nxx8WtzRwZ` (`d463d44`) is live at
+  `dpl_ArHbfeAQeHmREgBQjkN91ivL977h` (`f6b7bb1`) is live at
   `project-qlqve.vercel.app`. API deployment
-  `dpl_12vWp1rShga96hTQ1yJzu8VTiRYh` (`4f774eb`) is Ready at
+  `dpl_4SBpQxDpes2wrnpGFpJ1z2AWEyHf` (`f6b7bb1`) is Ready at
   `project-fjr95.vercel.app`, and readiness is fully healthy.
   Neither project has a custom domain.
 - `edison-app` has five Production Config values: Corepack, explicit live mode,
@@ -484,7 +522,8 @@ The latter specifications supersede the old category-tab/infinite-feed design.
 
 The source, disposable-database, CI, production migration, temporary-web/API
 deployment, health, public-role, and negative auth/CORS/cron gates are complete
-through `df3e712`.
+through the latest Pulse checkpoint at the top, not just the historical
+`df3e712` setup release.
 Before the owner-only alpha is usable:
 
 1. Owner invitation redemption, active membership, authenticated `/v1/me`, and
@@ -494,10 +533,10 @@ Before the owner-only alpha is usable:
    preserve the saved Responses-only key, model allowlist, and $50 cap.
 3. Complete one real article/citation/save/share/Q&A/direction/retry/cost-ledger
    flow for the owner.
-4. Verify cron/Workflow logs, add the planned WAF controls, publish and review
-   only the accepted starter v2 artifact with SHA-256
-   `aa26d2258cb391ad552466f39bee01ae4d1596d480fef59381dfeb9b184d8c50`,
-   and complete a backup/restore rehearsal before broader external readers.
+4. Verify cron/Workflow logs, add the planned WAF controls and complete a
+   backup/restore rehearsal before broader external readers. The accepted
+   Sleep/History starter publication is complete; older starter v2 instructions
+   are obsolete and must not be run.
 5. Merge the reviewed candidate and protect `main` when the temporary alpha is
    accepted. Obtain a separate owner decision before attaching
    `app.edisonreader.com`/`api.edisonreader.com` or replacing the apex demo.
@@ -539,11 +578,13 @@ framework changes; this repository’s Next version differs from remembered APIs
 > state before editing. The target is the production private alpha using the
 > separate Vercel web/API + Supabase architecture described here; the hosted
 > apex remains an isolated credential-free demo. Preserve the exact finite News,
-> three-section sidebar/mobile-nav, inline Ask Edison, one-off commissioning,
-> and guest-reconciliation behavior. Candidate `4f774eb`, CI run `33987973278`,
-> all 13 hosted migrations, the read-only schema/grant audit, the temporary web
-> deployment, and the negative auth/CORS/cron smokes are complete; do not redo
-> them. The apex demo is still isolated. The Production API is Ready and health
+> approved Pulse + loops v5, article-scoped Ask, truthful guest/device boundaries
+> and non-overwriting explicit import. Use the latest checkpoint and
+> `docs/PULSE_RELEASE_2026-09-05.md`; older setup records are historical.
+> All 15 hosted migrations, the accepted Sleep/History publication, audited
+> owner-article correction, real UUID/artwork binding and Production deployment
+> are complete; do not repeat live writes or execute obsolete prepared SQL.
+> The apex demo is still isolated. The Production API is Ready and health
 > passes configuration, database, and Auth; the shared runtime/preflight policy
 > enforces TLS even when the provider URI omits a query option. No further owner
 > database edit is pending. Owner invitation redemption, authenticated API reads,
@@ -551,8 +592,10 @@ framework changes; this repository’s Next version differs from remembered APIs
 > remaining owner reading checks. The provider output-schema fix is live and
 > one retry succeeded with a priced $0.062654 ledger row. The three original
 > failed jobs remain intact and all four daily slots are consumed; do not reset
-> quotas. Editorial withheld the first real output for overconfident headline
-> framing and incorrect source dates; controlled correction/recheck is pending. Route editorial
+> quotas. Editorial initially withheld the first real output; the accepted
+> manual correction is now applied with a protected audit, not a new provider
+> generation. Authenticated rendered correction-note acceptance remains open.
+> Route editorial
 > review to Chief of Staff, not archived tasks. The dedicated OpenAI service-account
 > key is already
 > Restricted to Responses Write with every other leaf None; no further scope

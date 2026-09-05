@@ -4,13 +4,43 @@ Last updated: September 5, 2026
 
 This file describes the production backend currently implemented in the
 working tree and the work that still blocks a real launch. Nothing described
-here should be inferred from an earlier audit alone. All 13 migrations and the
+here should be inferred from an earlier audit alone. All 15 migrations and the
 separate temporary live web/API projects are now deployed; API readiness,
 negative auth/CORS/cron checks, owner invitation redemption, authenticated API
 reads, and first-visit timezone activation pass. The apex remains an isolated
-demo. See `docs/PRODUCTION_RELEASE.md` for exact candidate and hosted evidence.
+demo. The approved Pulse + learning-loops interface and the two accepted public
+articles are deployed. See `docs/PULSE_RELEASE_2026-09-05.md` for the latest
+candidate, publication, correction and hosted evidence; older setup evidence is
+retained in `docs/PRODUCTION_RELEASE.md`.
 
 ## Implemented in this slice
+
+### Pulse learning loops and reading continuity
+
+The approved News interface uses the real finite inventory, per-loop reading,
+an explicitly targeted Curate dialog, article-scoped Ask, and truthful empty
+states. Sleep and History are bound to actual published UUIDs and approved
+artwork. Five unwritten concepts remain excluded. Guests can retain loops,
+directions and public saves on their device; guest directions do not generate,
+adapt or reorder prepared articles. Explicit guest import adds missing account
+loops without overwriting conflicts or starting generation.
+
+Authenticated loops have immutable original curiosity, revisioned direction
+and undo, active-owner isolation and capacity bounds. Generation request v3
+freezes exact loop revision and bounded recent article context; publication
+rejects stale context. Per-identity client state is remounted, article journeys
+freeze Next destinations and source labels, and per-tab drafts/semantic reading
+positions survive reload without putting curiosity text in URLs.
+
+### Audited correction
+
+The first owner article's bounded headline/source-date correction is accepted
+by Editorial through Chief of Staff and applied. Its original and corrected
+snapshots are retained in a protected private audit, and a narrow active-owner
+function exposes only the dated correction note. The application cannot read
+the raw audit. The atomic operator rejects original drift, existing shares or
+conversations and safely replays. This was a manual editorial correction, not a
+new provider generation or acceptance of the automated writer in general.
 
 ### Revision-safe editorial direction
 
@@ -117,8 +147,11 @@ by a valid bearer token, the fail-closed `EDISON_ADMIN_EMAILS` allowlist, and a
 currently active alpha membership. Its JSON body is streamed through an
 explicit 2 MiB limit before schema validation, independent of a client-supplied
 `Content-Length` header.
-Until an operator publishes real reviewed and sourced snapshots, the public
-current endpoint intentionally returns `404 starter_edition_unavailable`.
+The accepted Sleep/History edition was published at `2026-09-05T22:15:29.572Z`
+with the reviewed native SQL operator. Current and both public detail endpoints
+return `200`; complete hosted snapshots were independently compared with the
+accepted source fixture. The no-publication state still fails closed with
+`404 starter_edition_unavailable`.
 
 Legacy `GET /v1/shares/:slug` links also switch to `edison_public`, but that role
 cannot select from shares or memberships. It can execute one fixed
@@ -182,25 +215,30 @@ Required API configuration includes:
 
 ## Remaining launch blockers
 
-1. **There is no published starter content yet.** A qualified operator or
-   publishing pipeline must submit real, reviewed, sourced snapshots. Demo
-   fixtures must not be substituted.
+1. **Broader editorial operation is not yet accepted.** The two public starter
+   articles and the bounded private correction are accepted and live. A
+   reliable recurring editorial pipeline and quality acceptance for future
+   automatically generated articles remain separate work. Do not substitute
+   demo fixtures or infer a daily publication cadence from the prepared pair.
 2. **Broad-access edge/write-rate controls remain operational work.** Database
    quotas protect model spend, but production WAF rules and a modest
    editorial-write limit are still required before broad public access.
-3. **End-to-end reading and editorial acceptance remain incomplete.** The first owner-only daily
+3. **Authenticated end-to-end acceptance remains incomplete.** The first owner-only daily
    scheduler invoked real Workflows, but all three articles failed because
    OpenAI rejected the source URL's unsupported `format: uri`. Fix `4f774eb` is
    now live without weakening canonical URL/citation validation. One fresh
    bounded retry succeeded and produced one article plus a priced $0.062654
    ledger row. Provider-dashboard reconciliation remains pending. All four daily
    slots are consumed; do not reset quotas or delete failed history. The first
-   article has an independent editorial **withhold** verdict pending bounded
-   headline/source-date corrections and recheck;
-   rendered save/share/Q&A/direction checks remain unverified. Candidate
-   `4f774eb` passed 183 application tests, 107 pgTAP assertions,
-   strict schema lint, both builds, and hosted readiness. Full reader
-   acceptance and backup recovery testing remain outstanding.
+   article originally received a **withhold** verdict; its accepted bounded
+   correction is now live with a protected audit. Actual guest reading,
+   Save/Library, Next/Back, direction save/undo and draft/scroll reload checks
+   pass on the new deployed interface. The controlled browser has no owner
+   session: authenticated rendered save/share/Q&A/direction and correction-note
+   acceptance remain unverified. Do not extract tokens or resend invitations.
+   Candidate `f6b7bb1` passed the full Node 22 CI gate, 165 pgTAP assertions,
+   strict schema lint, both builds and hosted readiness. Full owner acceptance,
+   provider-dashboard reconciliation and backup recovery testing remain open.
 4. **Production operations and reader-trust materials remain external setup.**
    Approved provider projects/plans, exact origins/owner allowlists, custom SMTP,
    invite delivery/redemption, and the dedicated OpenAI project cap are configured.
@@ -209,7 +247,7 @@ Required API configuration includes:
 
 ## Database verification reference
 
-All 13 migrations are applied to the production project. Do not reapply them
+All 15 migrations are applied to the production project. Do not reapply them
 or run a production reset. The earlier timestamped base migrations remain part
 of future clean disposable verification. In a disposable
 environment, let a clean reset apply every migration; review this newer
@@ -223,6 +261,8 @@ production-readiness sequence in order as part of that reset:
 6. `20260904192144_preference_bounds.sql`
 7. `20260904195000_public_article_share_boundary.sql`
 8. `20260904202000_edison_api_auth_membership.sql`
+9. `20260905201500_learning_loops.sql`
+10. `20260905223000_article_correction_audit.sql`
 
 For a new clean release, run every pgTAP test, schema lint, both typechecks, all application tests,
 and both production builds from a clean checkout. Verify current/archived public

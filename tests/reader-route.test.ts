@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  articleQuestionDescription,
   detectOneOffSection,
   guestDirectionImportKey,
   isAmbiguousCreationRequest,
@@ -8,6 +9,7 @@ import {
   parseReaderRoute,
   readerRouteHref,
   resolveLiveNewsEditionId,
+  selectReaderRouteFocusTarget,
 } from "../components/edison/reader-app";
 
 test("reader routes keep sections and article deep links explicit", () => {
@@ -23,6 +25,23 @@ test("reader routes keep sections and article deep links explicit", () => {
   });
   assert.equal(readerRouteHref({ section: "podcasts", view: "profile", articleId: null }), "/?section=podcasts&view=profile");
   assert.equal(readerRouteHref({ section: "news", view: "article", articleId: "story/one" }), "/?view=article&article=story%2Fone");
+});
+
+test("Pulse route focus prefers a returned card, then the route heading, then main", () => {
+  assert.equal(selectReaderRouteFocusTarget("card", "heading", "main"), "card");
+  assert.equal(selectReaderRouteFocusTarget(null, "heading", "main"), "heading");
+  assert.equal(selectReaderRouteFocusTarget(null, null, "main"), "main");
+});
+
+test("article question descriptions do not double terminal punctuation", () => {
+  assert.equal(
+    articleQuestionDescription("Six-Hour Nights Can Feel Fine. That’s the Problem."),
+    "Six-Hour Nights Can Feel Fine. That’s the Problem. Questions stay with this article and do not change a loop’s direction.",
+  );
+  assert.equal(
+    articleQuestionDescription("How clocks found longitude"),
+    "How clocks found longitude. Questions stay with this article and do not change a loop’s direction.",
+  );
 });
 
 test("invalid and incomplete reader routes fail back to a safe News home", () => {

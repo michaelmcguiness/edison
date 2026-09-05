@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef } from "react";
+import { useId, useRef, type RefObject } from "react";
 import { ArrowUp, RotateCcw, X } from "lucide-react";
 import {
   Dialog,
@@ -37,6 +37,7 @@ export interface CurateDialogProps {
   status?: string;
   requireLoopSelection?: boolean;
   localOnly?: boolean;
+  returnFocusRef?: RefObject<HTMLElement | null>;
   onOpenChange: (open: boolean) => void;
   onSelectLoop: (loopId: string) => void;
   onDraftChange: (text: string) => void;
@@ -68,6 +69,7 @@ export function CurateDialog({
   status = "",
   requireLoopSelection = false,
   localOnly = false,
+  returnFocusRef,
   onOpenChange,
   onSelectLoop,
   onDraftChange,
@@ -101,6 +103,12 @@ export function CurateDialog({
         onOpenAutoFocus={(event) => {
           event.preventDefault();
           (requireLoopSelection ? select.current : textarea.current)?.focus({ preventScroll: true });
+        }}
+        onCloseAutoFocus={(event) => {
+          const returnTarget = returnFocusRef?.current;
+          if (!returnTarget?.isConnected) return;
+          event.preventDefault();
+          returnTarget.focus({ preventScroll: true });
         }}
       >
         <DialogHeading title="Curate your reading" closeLabel="Close Curate" />
@@ -228,6 +236,7 @@ export interface NewLoopDialogProps {
   pending?: boolean;
   error?: string;
   status?: string;
+  returnFocusRef?: RefObject<HTMLElement | null>;
   onOpenChange: (open: boolean) => void;
   onDraftChange: (text: string) => void;
   onSubmit: PulseAction;
@@ -240,6 +249,7 @@ export function NewLoopDialog({
   pending = false,
   error = "",
   status = "",
+  returnFocusRef,
   onOpenChange,
   onDraftChange,
   onSubmit,
@@ -260,6 +270,12 @@ export function NewLoopDialog({
         onOpenAutoFocus={(event) => {
           event.preventDefault();
           textarea.current?.focus({ preventScroll: true });
+        }}
+        onCloseAutoFocus={(event) => {
+          const returnTarget = returnFocusRef?.current;
+          if (!returnTarget?.isConnected) return;
+          event.preventDefault();
+          returnTarget.focus({ preventScroll: true });
         }}
       >
         <DialogHeading title="Start a learning loop" closeLabel="Close new loop" />

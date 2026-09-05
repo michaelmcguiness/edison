@@ -6,11 +6,20 @@ launching; they can change without a code release.
 
 ## Decision and current status
 
-**Current gate:** owner sign-in, authenticated API reads, New York timezone
-persistence, and one real article generation with a priced ledger row pass.
-The provider-schema compatibility fix is live. Full rendered reading, editorial
-acceptance, and provider-dashboard reconciliation remain; no owner credential,
-invitation, database, or TLS change is pending.
+**Latest release:** the authorized Pulse + loops v5 is deployed to the separate
+Production web/API projects at `f6b7bb1`. All 15 migrations, the accepted
+Sleep/History publication with verified real article/artwork bindings, and the
+accepted private correction with protected audit are complete. Actual guest
+reading, persistence and negative API security checks pass. The detailed,
+controlling record is `docs/PULSE_RELEASE_2026-09-05.md`; the setup checkpoints
+below are historical, not instructions to repeat migrations, invites or older
+publication operators.
+
+**Remaining gate:** finish the bounded rendered keyboard/styling follow-up;
+authenticated owner reading/correction-note acceptance, provider-dashboard
+reconciliation and backup restore rehearsal remain. No owner credential,
+invitation, database or TLS change is pending. No additional generation or
+spending is part of this release verification.
 
 **Current authorization, September 5:** the owner has authorized completing
 the production release autonomously, including secure CLI access, reviewed
@@ -20,7 +29,7 @@ step-by-step permission stops recorded below; they are historical, not current
 blockers. Preserve the apex demo and website domains, do not add paid services
 or other readers, and never reveal saved credentials or request secrets in chat.
 
-**Current release checkpoint:** candidate `4f774eb` is committed and pushed on
+**Earlier September 5 setup checkpoint:** candidate `4f774eb` was committed and pushed on
 `codex/production-release-candidate` in draft PR #1; `main` is unmerged and
 unprotected. [CI run 33987973278](https://github.com/michaelmcguiness/edison/actions/runs/33987973278)
 passed lint, both typechecks, all 183 application tests (110 web plus 73 API),
