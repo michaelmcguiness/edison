@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { getDb } from "@edison/db";
 import { publicApiHandler, json } from "../../../src/http/api-handler";
+import { safeDatabaseErrorMetadata } from "../../../src/observability/safe-database-error";
 import { safeCaughtErrorMetadata } from "../../../src/observability/safe-error";
 import { productionRuntimeConfigurationIssues } from "../../../src/services/runtime-configuration";
 
@@ -239,7 +240,7 @@ async function databaseIsReady() {
   } catch (error) {
     console.error(
       "Edison readiness database check failed",
-      safeCaughtErrorMetadata(error),
+      safeDatabaseErrorMetadata(error),
     );
     return false;
   }
