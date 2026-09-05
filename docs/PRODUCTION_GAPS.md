@@ -188,14 +188,18 @@ Required API configuration includes:
 2. **Broad-access edge/write-rate controls remain operational work.** Database
    quotas protect model spend, but production WAF rules and a modest
    editorial-write limit are still required before broad public access.
-3. **Provider-backed reading is not yet working.** The first owner-only daily
+3. **End-to-end reading and editorial acceptance remain incomplete.** The first owner-only daily
    scheduler invoked real Workflows, but all three articles failed because
-   OpenAI rejected the source URL's unsupported `format: uri`. A provider-wire
-   compatibility fix is being prepared without weakening canonical URL and
-   citation validation. No article or observed response-usage row exists. Deploy
-   the fix and verify the one remaining bounded daily retry; do not reset quotas.
-   Candidate `df3e712` already passed 180 application tests, 107 pgTAP assertions,
-   strict schema lint, both builds, and hosted readiness. Full provider/reader
+   OpenAI rejected the source URL's unsupported `format: uri`. Fix `4f774eb` is
+   now live without weakening canonical URL/citation validation. One fresh
+   bounded retry succeeded and produced one article plus a priced $0.062654
+   ledger row. Provider-dashboard reconciliation remains pending. All four daily
+   slots are consumed; do not reset quotas or delete failed history. The first
+   article has an independent editorial **withhold** verdict pending bounded
+   headline/source-date corrections and recheck;
+   rendered save/share/Q&A/direction checks remain unverified. Candidate
+   `4f774eb` passed 183 application tests, 107 pgTAP assertions,
+   strict schema lint, both builds, and hosted readiness. Full reader
    acceptance and backup recovery testing remain outstanding.
 4. **Production operations and reader-trust materials remain external setup.**
    Approved provider projects/plans, exact origins/owner allowlists, custom SMTP,

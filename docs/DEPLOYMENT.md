@@ -3,10 +3,10 @@
 ## Current release authorization — September 5, 2026
 
 The database connection and owner sign-in are working. Authenticated API reads
-and first-visit New York timezone persistence pass. The current blocker is an
-application compatibility defect: OpenAI rejected the generated-article schema's
-source URL `format: uri`. Fix and deploy it before a bounded retry; no owner
-credential, invitation, database setting, or key-scope change is pending.
+and first-visit New York timezone persistence pass. The provider schema fix is
+live, and one real article with a priced usage record has been produced. Full
+reading/editorial acceptance and provider-dashboard reconciliation remain; no
+owner credential, invitation, database setting, or key-scope change is pending.
 
 The owner has authorized completing the production release autonomously. This
 supersedes the earlier preparation-only stops below: secure CLI access,
@@ -15,12 +15,12 @@ deployment, and the single approved owner's invitation/acceptance testing are
 authorized. Keep the existing apex demo and website domains unchanged. No
 additional paid services, other readers, or disclosure of saved secrets.
 
-Candidate `df3e712` is committed and pushed on
+Candidate `4f774eb` is committed and pushed on
 `codex/production-release-candidate`; draft PR #1 remains open and `main` is
-unmerged and unprotected. [CI run 33985642189](https://github.com/michaelmcguiness/edison/actions/runs/33985642189)
-passed lint, both typechecks, 180 application tests (107 web, 73 API), both
+unmerged and unprotected. [CI run 33987973278](https://github.com/michaelmcguiness/edison/actions/runs/33987973278)
+passed lint, both typechecks, 183 application tests (110 web, 73 API), both
 production builds, all 107 pgTAP assertions, and strict schema lint on Node
-22/pnpm 10.28.0.
+22.23.2/pnpm 10.28.0.
 
 The reviewed dry run and backup checkpoint preceded successful application of
 all 13 migrations to Supabase project `bcxxnntastmnormcmxbq`. A separate
@@ -59,8 +59,8 @@ account with $50 in credits. The
 API Production `OPENAI_API_KEY` without printing, storing, or reading either
 secret. The key is now saved as Restricted: a fresh readback shows Responses
 (`/v1/responses`) Write and every other permission leaf None. No key approval
-remains pending. The key has reached OpenAI but not returned an accepted
-generation response. The original
+remains pending. The key has returned one successful generation response with
+priced usage; provider-dashboard reconciliation is not yet complete. The original
 default-project key remains unread and unrevoked. Vercel
 CLI 59.11.7 was installed only through an ephemeral `pnpm dlx`; login could not
 be completed and the pending login was canceled, so no authenticated CLI
@@ -90,9 +90,22 @@ created three real `initial-edition` jobs; all failed by 19:33:57Z without an
 article, feed item, provider response ID, or usage-ledger row. Workflow exposed
 HTTP 400: the article schema's source URL had unsupported `format: uri`.
 Each generation step made four attempts within one workflow/job attempt. The
-local compatibility fix keeps canonical URL/citation validation and bumps the
-request version to 2, but is not yet deployed. Preserve the failed history and
-the quota of four jobs: one fresh job remains for the post-deploy retry.
+compatibility fix keeps canonical URL/citation validation and bumps the
+request version to 2. Independent review and all 183 tests pass.
+
+Fixed Production API deployment `dpl_12vWp1rShga96hTQ1yJzu8VTiRYh` of
+`4f774eb` was Ready at 19:47:17Z; health was 200/all `ok` at 19:47:37Z.
+One scheduler retry at 19:48:11Z created a single fresh slot-1 job under the
+unchanged quota. It succeeded at 19:48:41.516Z and published one owner article.
+The completed Workflow is `wrun_01M1SHTG1K70NG2D4NE3PC4QNS`. Its priced
+ledger records `gpt-5.6-terra`, 14,045 input tokens, 0 cached input, 2,047
+output tokens, one web-search call, and $0.062654 estimated cost. The provider
+dashboard still showed no data at the first follow-up; billing reconciliation
+remains pending. All four daily job slots are consumed, with failed history
+preserved. Do not reset quotas. This is one real article, not a complete edition.
+Chief of Staff's independent editorial verdict is **withhold** pending bounded
+headline/source-date corrections and recheck; no
+private output was checked into Git or silently changed in production.
 
 The following setup record is historical; current authority is stated above.
 

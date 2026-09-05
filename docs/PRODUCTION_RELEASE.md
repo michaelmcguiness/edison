@@ -6,11 +6,11 @@ launching; they can change without a code release.
 
 ## Decision and current status
 
-**Current gate:** owner sign-in, authenticated API reads, and New York timezone
-persistence pass. The first real scheduled generation reached OpenAI but failed
-with HTTP 400 because our output schema emitted unsupported `format: uri` for
-source URLs. Fix and deploy that compatibility defect before one bounded retry.
-No owner credential, invitation, database, or TLS change is pending.
+**Current gate:** owner sign-in, authenticated API reads, New York timezone
+persistence, and one real article generation with a priced ledger row pass.
+The provider-schema compatibility fix is live. Full rendered reading, editorial
+acceptance, and provider-dashboard reconciliation remain; no owner credential,
+invitation, database, or TLS change is pending.
 
 **Current authorization, September 5:** the owner has authorized completing
 the production release autonomously, including secure CLI access, reviewed
@@ -20,12 +20,12 @@ step-by-step permission stops recorded below; they are historical, not current
 blockers. Preserve the apex demo and website domains, do not add paid services
 or other readers, and never reveal saved credentials or request secrets in chat.
 
-**Current release checkpoint:** candidate `df3e712` is committed and pushed on
+**Current release checkpoint:** candidate `4f774eb` is committed and pushed on
 `codex/production-release-candidate` in draft PR #1; `main` is unmerged and
-unprotected. [CI run 33985642189](https://github.com/michaelmcguiness/edison/actions/runs/33985642189)
-passed lint, both typechecks, all 180 application tests (107 web plus 73 API),
+unprotected. [CI run 33987973278](https://github.com/michaelmcguiness/edison/actions/runs/33987973278)
+passed lint, both typechecks, all 183 application tests (110 web plus 73 API),
 both production builds, all 107 pgTAP assertions, and strict
-application-schema lint on Node 22/pnpm 10.28.0.
+application-schema lint on Node 22.23.2/pnpm 10.28.0.
 The reviewed dry run and backup checkpoint preceded successful
 application of all 13 migrations to Supabase project
 `bcxxnntastmnormcmxbq`. A separate read-only production audit confirmed 24/24
@@ -71,8 +71,8 @@ with $50 in credits. Its
 Production `OPENAI_API_KEY`; no key was printed, stored, or read back. The owner
 approved Responses-only scope, and the key is now saved as Restricted. Fresh
 readback shows Responses (`/v1/responses`) Write and every other permission leaf
-None. No further key approval is pending. The new project/key reached OpenAI
-but has not returned an accepted generation response. The original default-project
+None. No further key approval is pending. The new project/key has returned one
+successful article-generation response with a priced ledger row. The original default-project
 key remains unread and unrevoked.
 
 The hosted invitation template is saved and fresh-reload verified with exactly
@@ -107,13 +107,36 @@ from the provider's [supported string formats](https://developers.openai.com/api
 feed item, provider response ID, or usage-ledger row exists after those attempts;
 the provider usage dashboard also showed no data at the initial check, not a
 final billing reconciliation. The prepared fix retains runtime URL/citation
-validation and increments the provider request-envelope version to 2. It still
-needs deployment and real acceptance. Local verification on Node 24.19 passed
+validation and increments the provider request-envelope version to 2. Local verification on Node 24.19 passed
 all 183 application tests, both typechecks, and full ESLint; the three new
 regressions inspect actual SDK schemas for all provider paths and retain
-canonical URL/citation rejection. The new candidate still needs authoritative
-Node 22 CI/build evidence. Keep the rolling generation quota at 4;
-three failed jobs leave one fresh job available. Do not reset or delete history.
+canonical URL/citation rejection. Independent review found no P0/P1/P2 issues,
+and the candidate's Node 22 CI/build gate is now green as recorded above.
+
+Production API deployment `dpl_12vWp1rShga96hTQ1yJzu8VTiRYh` of `4f774eb`
+was Ready at 19:47:17Z; health at 19:47:37Z returned 200 with all checks `ok`
+(request `e3f2ec39-c7b6-4c9a-8004-5434ca61114e`). The single retry scheduler
+invocation at 19:48:11Z created only one fresh job under the unchanged quota.
+Job `2bc18fba-142d-4be6-af9a-c1c18523809c` succeeded at 19:48:41.516Z;
+Workflow `wrun_01M1SHTG1K70NG2D4NE3PC4QNS` is completed. One owner-only
+article is published at rank 1 for September 5. Its unique priced ledger row
+has model `gpt-5.6-terra`, 14,045 input tokens, 0 cached input, 2,047 output,
+one web-search call, and estimated cost $0.062654. Provider response identity
+is present; no secret was read. The provider usage dashboard still showed no
+data at the first follow-up, so this is not a completed invoice reconciliation.
+
+Preserve all three original failed jobs and the successful retry. All four
+rolling daily job slots are consumed; do not delete history or reset the quota.
+The result proves one real article, not a complete three-article edition.
+Editorial review found overconfident headline framing and false precision in
+source dates. The exact private output is preserved without silent live edits;
+Chief of Staff's final independent verdict is **withhold** pending bounded
+headline/opening, source-date/label, and projection-timing corrections. Core
+numbers and the local-grid explanation are supported. No live content correction
+was performed; preserve an identified corrected version and obtain focused
+editorial recheck before acceptance. Full rendered
+save/share/Q&A/direction acceptance remains pending because the owner's signed-in
+browser session is not available to current browser controls.
 
 Edison's client/server architecture is appropriate for a web product and later
 iOS and Android clients. It is an API-first modular monolith: web and native
@@ -125,9 +148,9 @@ paid product without a rewrite or premature microservices.
 
 The repository and hosted services are **deployed for an owner-only production
 acceptance, not yet verified ready for external readers**. The temporary web,
-production schema, and healthy API are live, and owner sign-in works. Generation
-currently fails at provider schema validation; no provider-backed article or
-complete reading journey has passed. The existing `edisonreader.com` deployment remains an isolated
+production schema, and healthy API are live, owner sign-in works, and one real
+article generation is verified. Editorial acceptance and the complete reading
+journey have not passed. The existing `edisonreader.com` deployment remains an isolated
 credential-free sample-data demo.
 
 ### Historical preparation record
@@ -544,8 +567,9 @@ is needed for the Shared Pooler.
 On September 5, a local audit of the exact saved public web configuration passed
 with zero warnings. No hosted secrets were loaded. The latest hosted API build
 preflight and runtime health both pass; configuration, database, and Supabase
-Auth are all `ok`. Provider connectivity remains unverified because no OpenAI
-request has been made.
+Auth are all `ok`. The corrected provider request has now returned one real
+article and a priced usage row; provider-dashboard reconciliation and full
+reading/editorial acceptance remain outstanding.
 
 Run it against one project's environment at a time before production promotion:
 
@@ -715,9 +739,9 @@ only `gpt-5.6-terra` and `gpt-5.6-luna`. Its
 `edison-api-production` service-account key is saved privately in the API
 Production environment. Its saved Restricted policy grants Responses
 (`/v1/responses`) Write and leaves every other permission leaf at None. No
-request has returned a successful generation response; the first reached the
-provider but was rejected for the unsupported article-schema format described
-above. The old default-project
+additional key approval is needed. A corrected request returned one successful
+generation response and priced ledger row; provider-dashboard reconciliation
+is still pending. The old default-project
 Edison key remains unread and unrevoked.
 
 1. Give the owner organization/project access with MFA. Create a production
@@ -874,12 +898,10 @@ a cost stop and a product outage.
    temporary web/API deployments, healthy readiness, public-role read, and
    negative auth/CORS/cron evidence through candidate `df3e712`; do not rerun
    applied migrations as though production were still empty.
-2. The owner clicks **Accept invitation** in the single delivered Edison email.
-   Verify the `/auth/confirm` callback, token/JWKS, active membership,
-   authenticated `/v1/me`, first-visit timezone PATCH, and scheduler activation.
-3. Make one bounded OpenAI acceptance request through that authenticated owner
-   flow, confirm the saved Responses-only permission and usage/cost accounting,
-   and reconcile it with the dedicated project dashboard.
+2. Owner invitation redemption, active membership, authenticated `/v1/me`,
+   timezone persistence, and scheduler activation pass. Do not resend the invite.
+3. The corrected OpenAI request and its priced ledger row pass; reconcile the
+   usage with the dedicated project dashboard when available.
 4. Run one complete finite News edition. Verify exact UUID/date filtering,
    deterministic slot order, searched citations, usage ledger, job state,
    bounded failed-slot retry, save, feedback, Q&A idempotency, share
@@ -909,7 +931,7 @@ a cost stop and a product outage.
 ## Ownership for remaining release work
 
 No immediate owner credential or invitation action is pending. Owner sign-in
-works; CTO is resolving the generation compatibility defect and verifying the
+works; CTO resolved the generation compatibility defect and is verifying the
 remaining reading flow. The owner also
 retains decisions on:
 

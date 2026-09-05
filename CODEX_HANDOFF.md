@@ -28,12 +28,12 @@ Never reveal existing secrets or ask for them in chat. No extra paid services,
 broader invitations, or website-domain changes are part of this first release;
 the apex demo remains isolated while the owner-only live alpha is validated.
 
-Candidate `df3e712` is committed and pushed on
+Candidate `4f774eb` is committed and pushed on
 `codex/production-release-candidate` in draft PR #1; `main` is neither merged
-nor protected. [CI run 33985642189](https://github.com/michaelmcguiness/edison/actions/runs/33985642189)
-passed on Node 22/pnpm 10.28.0 with lint, both typechecks, 180 application tests,
+nor protected. [CI run 33987973278](https://github.com/michaelmcguiness/edison/actions/runs/33987973278)
+passed on Node 22.23.2/pnpm 10.28.0 with lint, both typechecks, 183 application tests,
 both production builds, all 107 pgTAP assertions, and strict application-schema
-lint. The application total is 107 web plus 73 API tests, with zero failures.
+lint. The application total is 110 web plus 73 API tests, with zero failures.
 
 The reviewed linked dry run and backup checkpoint preceded a successful
 production push of all 13 migrations to Supabase project
@@ -123,12 +123,36 @@ exactly one eligible profile, the approved owner. It created exactly three
 The Workflow inspector identifies the concrete provider error: HTTP 400,
 `sources.items.properties.url` emitted unsupported JSON Schema `format: uri`.
 Each generation step attempted four times within its one workflow run; the
-database job attempt count is one, not a provider-call count. The local fix
+database job attempt count is one, not a provider-call count. Fix `4f774eb`
 separates the compatible provider wire format from unchanged canonical URL and
-citation validation and increments the request-envelope version to 2. It is
-not yet deployed or accepted by a real provider response. Do not repeat the
-old failing deployment or reset quotas; only one of the four rolling daily
-job slots remains available for a fresh bounded retry after deployment.
+citation validation and increments the request-envelope version to 2.
+Independent review found no P0/P1/P2 issues; actual SDK schema regressions and
+all 183 application tests pass.
+
+Production API deployment `dpl_12vWp1rShga96hTQ1yJzu8VTiRYh` of `4f774eb`
+was Ready at 19:47:17Z. Its 19:47:37Z health check returned 200 with all three
+checks `ok` (request `e3f2ec39-c7b6-4c9a-8004-5434ca61114e`). One subsequent
+dashboard scheduler invocation at 19:48:11Z created only the quota-permitted
+fresh slot-1 retry. Job `2bc18fba-142d-4be6-af9a-c1c18523809c` succeeded at
+19:48:41.516Z, publishing one owner article at rank 1 for September 5. Workflow
+`wrun_01M1SHTG1K70NG2D4NE3PC4QNS` is completed. Its one priced ledger row
+records `gpt-5.6-terra`, 14,045 input tokens, zero cached tokens, 2,047 output
+tokens, one web-search call, and estimated cost 62,654 micro-USD ($0.062654).
+The provider usage dashboard still showed no data at the initial follow-up, so
+provider-side billing reconciliation is not complete. No quota or history was
+reset: all four rolling daily job slots are consumed, and the edition is one
+article rather than a complete three-article acceptance.
+
+The first article is genuine production output but is not editorially accepted.
+Primary-source review found overconfident headline framing and incorrect precise
+source dates; the original private artifact is retained without silently changing
+the live article. Chief of Staff now owns Editorial, Strategy, and Growth; do not
+reactivate those archived tasks. Chief of Staff's independent final verdict is
+**withhold** this exact article pending bounded corrections: headline/opening
+certainty, source dates/labels, and clearer projection timing. The core numerical
+claims and grid lead-time explanation are supported. No content was changed;
+a preserved corrected version and focused recheck remain pending. New unapproved product/design proposals must not enter
+engineering until Michael approves their design; existing release fixes continue.
 
 Head of Editorial accepted starter candidate v2 with exact SHA-256
 `aa26d2258cb391ad552466f39bee01ae4d1596d480fef59381dfeb9b184d8c50`
@@ -238,7 +262,7 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   is proven.
 - The public GitHub source is
   [michaelmcguiness/edison](https://github.com/michaelmcguiness/edison). The
-  current candidate is `df3e712`, pushed on
+  current candidate is `4f774eb`, pushed on
   `codex/production-release-candidate` in
   [draft PR #1](https://github.com/michaelmcguiness/edison/pull/1). `main` is
   unmerged and unprotected.
@@ -248,7 +272,7 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   explicit Production rebuilds. Web deployment
   `dpl_Eqed7bwPxcNaEACSj2Nxx8WtzRwZ` (`d463d44`) is live at
   `project-qlqve.vercel.app`. API deployment
-  `dpl_GVJFA1vDQks3eBya4ArrXGpCHzFU` (`df3e712`) is Ready at
+  `dpl_12vWp1rShga96hTQ1yJzu8VTiRYh` (`4f774eb`) is Ready at
   `project-fjr95.vercel.app`, and readiness is fully healthy.
   Neither project has a custom domain.
 - `edison-app` has five Production Config values: Corepack, explicit live mode,
@@ -261,7 +285,7 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   `edison-api-production` service-account key for the dedicated Edison project;
   it was never printed or read back. Its saved Restricted policy grants only
   Responses Write and leaves every other permission leaf at None; the key is
-  has reached OpenAI but not returned an accepted generation response.
+  has returned one successful, priced article-generation response.
   `DATABASE_URL` and `CRON_SECRET` are also verified Production-only Secrets;
   the API has 17 Production Config values and three Production Secrets total.
   API Preview had no variables
@@ -317,14 +341,14 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   remains enabled. The dashboard template preview has an unresolved logo and
   the owner has redeemed the invitation successfully. Owner-side email asset
   rendering remains unverified, but the callback/authenticated API gate passes.
-- Candidate `df3e712` is pushed and its API deployment is Ready with
+- Candidate `4f774eb` is pushed and its API deployment is Ready with
   configuration, database, and Auth health all `ok`. The temporary web and
   Supabase schema are live. Owner authentication and timezone persistence pass;
-  the first scheduled generation exposed the provider-schema compatibility bug
-  recorded above. No real article has been produced.
-- CI run `33985642189` is green for all 180 application tests, 107 pgTAP
+  one real article and its usage ledger now exist after the provider-schema fix.
+  Full rendered reading and editorial acceptance remain incomplete.
+- CI run `33987973278` is green for all 183 application tests, 107 pgTAP
   assertions, strict schema lint, and both production builds. Hosted OpenAI
-  output acceptance, owner-side email rendering, end-to-end owner acceptance, and
+  billing reconciliation, owner-side email rendering, end-to-end owner acceptance, and
   a backup/restore rehearsal remain release gates.
 
 ## Production topology
@@ -465,10 +489,9 @@ Before the owner-only alpha is usable:
 
 1. Owner invitation redemption, active membership, authenticated `/v1/me`, and
    first-visit timezone persistence passed at 19:23Z. Do not resend an invitation.
-2. Deploy and verify the provider output-schema fix, then make one bounded
-   provider acceptance request through the successfully
-   deployed API and reconcile its usage record against the saved Responses-only
-   key, dedicated project, model allowlist, and $50 cap.
+2. The provider output-schema fix is live and one bounded article generation
+   and priced ledger row pass. Complete provider-dashboard reconciliation;
+   preserve the saved Responses-only key, model allowlist, and $50 cap.
 3. Complete one real article/citation/save/share/Q&A/direction/retry/cost-ledger
    flow for the owner.
 4. Verify cron/Workflow logs, add the planned WAF controls, publish and review
@@ -517,7 +540,7 @@ framework changes; this repository’s Next version differs from remembered APIs
 > separate Vercel web/API + Supabase architecture described here; the hosted
 > apex remains an isolated credential-free demo. Preserve the exact finite News,
 > three-section sidebar/mobile-nav, inline Ask Edison, one-off commissioning,
-> and guest-reconciliation behavior. Candidate `df3e712`, CI run `33985642189`,
+> and guest-reconciliation behavior. Candidate `4f774eb`, CI run `33987973278`,
 > all 13 hosted migrations, the read-only schema/grant audit, the temporary web
 > deployment, and the negative auth/CORS/cron smokes are complete; do not redo
 > them. The apex demo is still isolated. The Production API is Ready and health
@@ -525,14 +548,16 @@ framework changes; this repository’s Next version differs from remembered APIs
 > enforces TLS even when the provider URI omits a query option. No further owner
 > database edit is pending. Owner invitation redemption, authenticated API reads,
 > and timezone/onboarding persistence are now verified. Continue with the
-> provider output-schema fix and one bounded retry; the old live schema emits
-> unsupported `format: uri` and all three initial daily jobs failed without an
-> article or observed response usage. Do not reset quotas or rerun the old
-> deployment. The dedicated OpenAI service-account
+> remaining owner reading checks. The provider output-schema fix is live and
+> one retry succeeded with a priced $0.062654 ledger row. The three original
+> failed jobs remain intact and all four daily slots are consumed; do not reset
+> quotas. Editorial withheld the first real output for overconfident headline
+> framing and incorrect source dates; controlled correction/recheck is pending. Route editorial
+> review to Chief of Staff, not archived tasks. The dedicated OpenAI service-account
 > key is already
 > Restricted to Responses Write with every other leaf None; no further scope
-> approval is needed, but the key still needs one successful bounded acceptance
-> request. The hosted invite callback and matching pushed repository regression
+> approval is needed. Provider usage-dashboard reconciliation remains pending.
+> The hosted invite callback and matching pushed repository regression
 > are corrected. The single owner invitation was sent once and provider metadata
 > reports Delivered without its body or token being read. Test only that owner;
 > the already completed sign-in does not need repeating.
