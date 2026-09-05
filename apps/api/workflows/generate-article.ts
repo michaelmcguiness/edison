@@ -40,7 +40,9 @@ export const ARTICLE_GENERATION_PROVIDER_TIMEOUT_MS = 2 * 60 * 1_000;
 // Bump whenever the provider prompt, tools, or request envelope changes. An
 // in-flight snapshot from another version then fails closed instead of reusing
 // one provider key for two different HTTP request bodies.
-export const ARTICLE_GENERATION_REQUEST_VERSION = 1;
+// Version 2 removes the unsupported `uri` format from the provider wire schema;
+// existing snapshots must not reuse a version-1 key for this changed body.
+export const ARTICLE_GENERATION_REQUEST_VERSION = 2;
 
 type NewsDirectionCandidate = {
   id: string;

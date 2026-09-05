@@ -2,10 +2,11 @@
 
 ## Current release authorization — September 5, 2026
 
-The database connection is working. The next owner input is to click **Accept
-invitation** in the single delivered invitation to `mike@michaelmcguiness.com`.
-No further database setting or key-scope approval is pending. Authenticated
-reader and provider acceptance still require that first sign-in.
+The database connection and owner sign-in are working. Authenticated API reads
+and first-visit New York timezone persistence pass. The current blocker is an
+application compatibility defect: OpenAI rejected the generated-article schema's
+source URL `format: uri`. Fix and deploy it before a bounded retry; no owner
+credential, invitation, database setting, or key-scope change is pending.
 
 The owner has authorized completing the production release autonomously. This
 supersedes the earlier preparation-only stops below: secure CLI access,
@@ -47,8 +48,8 @@ Root and independent hosted checks passed: no-auth `/v1/me` is 401, allowed
 CORS preflight is 204 with exact origin reflection, denied CORS is 403 without
 reflection, and all six missing/wrong-token GET cron checks are 401. The public
 starter read reaches its real SQL role and returns the expected
-`404 starter_edition_unavailable`; no starter is published. No valid cron or
-provider request was made.
+`404 starter_edition_unavailable`; no starter is published. These checks preceded
+the valid owner-only scheduler attempt described below.
 
 Dedicated OpenAI project `edison-production`
 (`proj_EFKsL4Yfs6pDFOzI4aGWThSf`) has an enforced $50 monthly project cap and
@@ -58,7 +59,8 @@ account with $50 in credits. The
 API Production `OPENAI_API_KEY` without printing, storing, or reading either
 secret. The key is now saved as Restricted: a fresh readback shows Responses
 (`/v1/responses`) Write and every other permission leaf None. No key approval
-remains pending, and the key has not made a provider request. The original
+remains pending. The key has reached OpenAI but not returned an accepted
+generation response. The original
 default-project key remains unread and unrevoked. Vercel
 CLI 59.11.7 was installed only through an ephemeral `pnpm dlx`; login could not
 be completed and the pending login was canceled, so no authenticated CLI
@@ -71,12 +73,26 @@ checkpoint `d463d44`. The single owner invitation was sent at
 `2026-09-05 19:15:11.951927+00`; Resend message
 `4fecf81e-099f-4144-acf6-4f26bf85ef51` reports Delivered with subject
 “Your Edison Reader invitation.” No email body or callback token was read.
-The latest metadata check has `email_confirmed_at` and `last_sign_in_at` null;
-owner redemption, email rendering, and the authenticated journey remain
-unverified. Editorial accepted unpublished
+Owner redemption now passes: `email_confirmed_at` is
+`2026-09-05 19:23:00.363055+00`, and `last_sign_in_at` is
+`2026-09-05 19:23:00.372394+00`. At 19:23:02Z, authenticated `/v1/me`,
+`/v1/feed`, `/v1/editorial-direction`, and the initial profile PATCH returned
+200. Read-only metadata confirms active membership, completed onboarding, and
+timezone `America/New_York`. Email asset rendering and the full rendered reading
+journey remain unverified; no additional invitation is needed. Editorial accepted unpublished
 starter candidate v2 with exact SHA-256
 `aa26d2258cb391ad552466f39bee01ae4d1596d480fef59381dfeb9b184d8c50`
 in an isolated worktree.
+
+At 19:33:45.426Z, one click on the existing Vercel daily-edition **Run** control
+returned 200. A read-only precheck found only the approved owner eligible. It
+created three real `initial-edition` jobs; all failed by 19:33:57Z without an
+article, feed item, provider response ID, or usage-ledger row. Workflow exposed
+HTTP 400: the article schema's source URL had unsupported `format: uri`.
+Each generation step made four attempts within one workflow/job attempt. The
+local compatibility fix keeps canonical URL/citation validation and bumps the
+request version to 2, but is not yet deployed. Preserve the failed history and
+the quota of four jobs: one fresh job remains for the post-deploy retry.
 
 The following setup record is historical; current authority is stated above.
 

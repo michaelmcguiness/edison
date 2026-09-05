@@ -10,6 +10,7 @@ import {
 } from "./daily-editions";
 import {
   ARTICLE_GENERATION_PROVIDER_TIMEOUT_MS,
+  ARTICLE_GENERATION_REQUEST_VERSION,
   articleGenerationProviderIdempotencyKey,
   generationRequestSnapshotMatchesDirection,
   newsDirectionSnapshotIsCurrent,
@@ -118,8 +119,9 @@ test("provider retries reuse one bounded key for one exact generation snapshot",
   );
   assert.match(
     key,
-    /^edison-generation-v1-[0-9a-f-]{36}-[0-9a-f-]{36}-r7$/,
+    /^edison-generation-v2-[0-9a-f-]{36}-[0-9a-f-]{36}-r7$/,
   );
+  assert.equal(ARTICLE_GENERATION_REQUEST_VERSION, 2);
   assert.equal(ARTICLE_GENERATION_PROVIDER_TIMEOUT_MS, 120_000);
 
   const aiSource = readFileSync(

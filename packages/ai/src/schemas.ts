@@ -40,10 +40,10 @@ const generatedSourceShape = {
 
 const generatedSourceFormatSchema = z.object({
   ...generatedSourceShape,
-  // The provider-facing strict JSON schema cannot represent sourceUrlSchema's
-  // custom protocol/credential refinement. Repeat its representable bounds
-  // here, then apply the canonical contract schema before publication below.
-  url: z.string().url().max(2048),
+  // OpenAI Structured Outputs does not support the `uri` string format that
+  // Zod's `.url()` emits. Keep the provider-facing schema to supported JSON
+  // Schema keywords, then apply the canonical URL contract before publication.
+  url: z.string().regex(/^https?:\/\//).max(2048),
 });
 
 const generatedSourceSchema = z.object({

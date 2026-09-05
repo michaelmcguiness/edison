@@ -70,7 +70,8 @@ with exact origin reflection, an unapproved origin is `403` without reflection,
 and all six missing/wrong-token checks across the three GET cron routes are
 `401 invalid_cron_secret`. The unauthenticated public-starter read reached the
 real public SQL role and returned the expected `404 starter_edition_unavailable`
-because no starter is published. No valid cron or provider request was made.
+because no starter is published. These negative checks preceded the first
+valid owner-only scheduler invocation described below.
 
 Vercel CLI 59.11.7 was available only through an ephemeral `pnpm dlx` run. Its
 login could not be completed and the pending attempt was canceled, so there is
@@ -88,24 +89,46 @@ initially rejected the save when the UI reported “2 selected permissions.” A
 non-saving check changed only the Responses control and observed that displayed
 count move from `0` at None to `1` at Read and `2` at Write while every other
 leaf remained None; the retry then succeeded. No further key-scope approval is
-pending. The new key has not made a provider request. The original
+pending. The first provider attempt reached OpenAI but was rejected for an
+unsupported output-schema format, as described below. The original
 default-project key remains unread and unrevoked.
 
 The single authorized owner invitation was sent once through the Supabase
 Dashboard at approximately 19:15Z after health and all ten safe live checks
 passed. Auth now contains exactly owner
 `5611f8fa-e0dd-460c-ae4d-5fb7dd7bfe83`, with
-`invited_at=2026-09-05 19:15:11.951927+00`, `email_confirmed_at=NULL`, and
-`last_sign_in_at=NULL`; Resend metadata shows message
+`invited_at=2026-09-05 19:15:11.951927+00`; Resend metadata shows message
 `4fecf81e-099f-4144-acf6-4f26bf85ef51`, subject “Your Edison Reader
 invitation,” as Delivered. No email body, callback token, or secret was read.
-The owner must now click **Accept invitation**. The hosted template is saved and
+The owner has now redeemed the invitation: `email_confirmed_at` is
+`2026-09-05 19:23:00.363055+00` and `last_sign_in_at` is
+`2026-09-05 19:23:00.372394+00`. Live API logs show authenticated `/v1/me`,
+`/v1/feed`, and `/v1/editorial-direction` reads plus the first `/v1/me` PATCH
+all returning 200 at 19:23:02Z. Read-only metadata confirms active membership,
+`onboarding_complete=true`, and `timezone=America/New_York`. No additional
+sign-in, invitation, or credential change is required. The owner's signed-in
+browser is not connected to the current controlled browser session, so the
+rendered authenticated reading journey remains unverified. The hosted template is saved and
 fresh-reload verified with exactly one invitation link using the
 Dashboard-compatible `.SiteURL` `/auth/confirm` token-hash callback. The
 matching repository correction and focused release-boundary regression were
 included in pushed checkpoint `d463d44`. Candidate `df3e712` includes the safe
 database diagnostic and enforced TLS policy with the full green release gate.
-No OpenAI request has been sent.
+
+At 19:33:45.426Z, one authorized click on Vercel's existing daily-edition
+**Run** control returned 200. A read-only precheck confirmed the scheduler had
+exactly one eligible profile, the approved owner. It created exactly three
+`initial-edition` jobs and dispatched real Workflows. All three failed by
+19:33:57Z, with no article, feed item, provider response ID, or usage-ledger row.
+The Workflow inspector identifies the concrete provider error: HTTP 400,
+`sources.items.properties.url` emitted unsupported JSON Schema `format: uri`.
+Each generation step attempted four times within its one workflow run; the
+database job attempt count is one, not a provider-call count. The local fix
+separates the compatible provider wire format from unchanged canonical URL and
+citation validation and increments the request-envelope version to 2. It is
+not yet deployed or accepted by a real provider response. Do not repeat the
+old failing deployment or reset quotas; only one of the four rolling daily
+job slots remains available for a fresh bounded retry after deployment.
 
 Head of Editorial accepted starter candidate v2 with exact SHA-256
 `aa26d2258cb391ad552466f39bee01ae4d1596d480fef59381dfeb9b184d8c50`
@@ -238,7 +261,7 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   `edison-api-production` service-account key for the dedicated Edison project;
   it was never printed or read back. Its saved Restricted policy grants only
   Responses Write and leaves every other permission leaf at None; the key is
-  still unused.
+  has reached OpenAI but not returned an accepted generation response.
   `DATABASE_URL` and `CRON_SECRET` are also verified Production-only Secrets;
   the API has 17 Production Config values and three Production Secrets total.
   API Preview had no variables
@@ -292,15 +315,16 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   signup denial; `[auth.email].enable_signup=true` correctly keeps the email
   provider available and maps to `GOTRUE_EXTERNAL_EMAIL_ENABLED`. Confirm-email
   remains enabled. The dashboard template preview has an unresolved logo and
-  the owner has not yet redeemed the invitation; callback and asset loading
-  remain release gates.
+  the owner has redeemed the invitation successfully. Owner-side email asset
+  rendering remains unverified, but the callback/authenticated API gate passes.
 - Candidate `df3e712` is pushed and its API deployment is Ready with
   configuration, database, and Auth health all `ok`. The temporary web and
-  Supabase schema are live. The one delivered owner invitation awaits redemption;
-  no authenticated or provider-backed journey has run.
+  Supabase schema are live. Owner authentication and timezone persistence pass;
+  the first scheduled generation exposed the provider-schema compatibility bug
+  recorded above. No real article has been produced.
 - CI run `33985642189` is green for all 180 application tests, 107 pgTAP
   assertions, strict schema lint, and both production builds. Hosted OpenAI
-  access, owner-side email rendering/callback, end-to-end owner acceptance, and
+  output acceptance, owner-side email rendering, end-to-end owner acceptance, and
   a backup/restore rehearsal remain release gates.
 
 ## Production topology
@@ -424,8 +448,8 @@ The latter specifications supersede the old category-tab/infinite-feed design.
   unavailable until then.
 - Resend's sending domain is verified and Supabase custom SMTP is configured,
   including the corrected username. Provider metadata confirms the owner invite
-  was Delivered, but owner-side rendering and callback acceptance remain
-  unverified. Broad-launch edge policy, monitoring vendor,
+  was Delivered, and invitation redemption/authenticated API access pass.
+  Owner-side rendering remains unverified. Broad-launch edge policy, monitoring vendor,
   privacy/support copy, and on-call owner still require operational decisions.
 - There is no paid staging environment. Add one when multiple developers,
   frequent migrations, hosted CI, or meaningful production traffic justify it.
@@ -439,10 +463,10 @@ deployment, health, public-role, and negative auth/CORS/cron gates are complete
 through `df3e712`.
 Before the owner-only alpha is usable:
 
-1. The owner clicks **Accept invitation** in the single delivered email; then
-   verify the `/auth/confirm` callback, active membership, authenticated
-   `/v1/me`, and first-visit timezone persistence.
-2. Make one bounded provider acceptance request through the successfully
+1. Owner invitation redemption, active membership, authenticated `/v1/me`, and
+   first-visit timezone persistence passed at 19:23Z. Do not resend an invitation.
+2. Deploy and verify the provider output-schema fix, then make one bounded
+   provider acceptance request through the successfully
    deployed API and reconcile its usage record against the saved Responses-only
    key, dedicated project, model allowlist, and $50 cap.
 3. Complete one real article/citation/save/share/Q&A/direction/retry/cost-ledger
@@ -499,15 +523,19 @@ framework changes; this repository’s Next version differs from remembered APIs
 > them. The apex demo is still isolated. The Production API is Ready and health
 > passes configuration, database, and Auth; the shared runtime/preflight policy
 > enforces TLS even when the provider URI omits a query option. No further owner
-> database edit is pending. Continue with redemption of the already-delivered
-> owner invitation and authenticated acceptance. The dedicated OpenAI service-account
+> database edit is pending. Owner invitation redemption, authenticated API reads,
+> and timezone/onboarding persistence are now verified. Continue with the
+> provider output-schema fix and one bounded retry; the old live schema emits
+> unsupported `format: uri` and all three initial daily jobs failed without an
+> article or observed response usage. Do not reset quotas or rerun the old
+> deployment. The dedicated OpenAI service-account
 > key is already
 > Restricted to Responses Write with every other leaf None; no further scope
-> approval is needed, but the unused key still needs one bounded acceptance
+> approval is needed, but the key still needs one successful bounded acceptance
 > request. The hosted invite callback and matching pushed repository regression
 > are corrected. The single owner invitation was sent once and provider metadata
-> reports Delivered without its body or token being read. Continue when the
-> owner clicks **Accept invitation**, then test only that owner.
+> reports Delivered without its body or token being read. Test only that owner;
+> the already completed sign-in does not need repeating.
 > The September 5
 > full-release authorization at the top supersedes historical stops. Never ask
 > for or expose secrets, buy additional services, invite other readers, or

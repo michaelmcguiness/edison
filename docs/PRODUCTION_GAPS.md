@@ -1,10 +1,14 @@
 # Edison production-readiness audit
 
-Last updated: September 4, 2026
+Last updated: September 5, 2026
 
 This file describes the production backend currently implemented in the
 working tree and the work that still blocks a real launch. Nothing described
-here has been migrated, deployed, seeded, or enabled in a hosted environment.
+here should be inferred from an earlier audit alone. All 13 migrations and the
+separate temporary live web/API projects are now deployed; API readiness,
+negative auth/CORS/cron checks, owner invitation redemption, authenticated API
+reads, and first-visit timezone activation pass. The apex remains an isolated
+demo. See `docs/PRODUCTION_RELEASE.md` for exact candidate and hosted evidence.
 
 ## Implemented in this slice
 
@@ -184,20 +188,26 @@ Required API configuration includes:
 2. **Broad-access edge/write-rate controls remain operational work.** Database
    quotas protect model spend, but production WAF rules and a modest
    editorial-write limit are still required before broad public access.
-3. **Hosted verification and recovery testing are outstanding.** Candidate
-   `52aa993` passed clean migration application and 106/106 pgTAP assertions in
-   disposable Supabase/PostgreSQL 17 on GitHub CI. Schema lint, hosted
-   readiness, provider concurrency, production credentials, monitoring,
-   backup/restore, and incident procedures have not been verified.
+3. **Provider-backed reading is not yet working.** The first owner-only daily
+   scheduler invoked real Workflows, but all three articles failed because
+   OpenAI rejected the source URL's unsupported `format: uri`. A provider-wire
+   compatibility fix is being prepared without weakening canonical URL and
+   citation validation. No article or observed response-usage row exists. Deploy
+   the fix and verify the one remaining bounded daily retry; do not reset quotas.
+   Candidate `df3e712` already passed 180 application tests, 107 pgTAP assertions,
+   strict schema lint, both builds, and hosted readiness. Full provider/reader
+   acceptance and backup recovery testing remain outstanding.
 4. **Production operations and reader-trust materials remain external setup.**
-   The private alpha still needs the approved provider projects/plans, exact
-   origins and allowlists, custom SMTP, firewall rules, budgets/alerts, error
-   monitoring, a backup/restore drill, privacy/support copy, and a named
-   incident owner before invitations.
+   Approved provider projects/plans, exact origins/owner allowlists, custom SMTP,
+   invite delivery/redemption, and the dedicated OpenAI project cap are configured.
+   Firewall rules, actionable alerts/error monitoring, a backup/restore drill,
+   privacy/support copy, and a named incident owner remain before broader readers.
 
-## Deployment and operations still required
+## Database verification reference
 
-The earlier timestamped base migrations remain required. In a disposable
+All 13 migrations are applied to the production project. Do not reapply them
+or run a production reset. The earlier timestamped base migrations remain part
+of future clean disposable verification. In a disposable
 environment, let a clean reset apply every migration; review this newer
 production-readiness sequence in order as part of that reset:
 
@@ -210,7 +220,7 @@ production-readiness sequence in order as part of that reset:
 7. `20260904195000_public_article_share_boundary.sql`
 8. `20260904202000_edison_api_auth_membership.sql`
 
-Then run every pgTAP test, schema lint, both typechecks, all application tests,
+For a new clean release, run every pgTAP test, schema lint, both typechecks, all application tests,
 and both production builds from a clean checkout. Verify current/archived public
 RLS while executing as the non-owner `edison_api`/`edison_public` roles,
 direction concurrency and limits, rotation replay, stale-result accounting,
@@ -222,10 +232,12 @@ unrevoked snapshots while `edison_public` has no direct share or membership
 table access. RLS is enabled and enforced
 for those roles; these migrations do not use `FORCE ROW LEVEL SECURITY`.
 
-Production still requires Supabase, Vercel, SMTP, and a separate billed OpenAI
-API project; exact origins/allowlists; backups and a restore drill; health/job/
-cost alerts; secret rotation; an editorial provenance review; and an explicit
-owner-approved deploy and domain cutover. Credentials stay server-only.
+The configured Supabase, Vercel, SMTP, dedicated billed OpenAI API project, and
+exact origins/allowlists are no longer setup blockers. Remaining operations
+include the restore drill, health/job/cost alerts, credential-rotation procedure,
+editorial provenance review, and acceptance. Existing release deployment is
+authorized; any domain cutover or broader invitation requires a separate owner
+decision. Credentials stay server-only.
 
 ## One-off generation boundary
 

@@ -6,10 +6,11 @@ launching; they can change without a code release.
 
 ## Decision and current status
 
-**Current input gate:** the owner must click **Accept invitation** in the one
-delivered Edison email. The database connection is healthy; no further owner
-database or TLS edit is pending. Responses-only key scope is saved and
-verified, but the key remains unused until the authenticated owner flow.
+**Current gate:** owner sign-in, authenticated API reads, and New York timezone
+persistence pass. The first real scheduled generation reached OpenAI but failed
+with HTTP 400 because our output schema emitted unsupported `format: uri` for
+source URLs. Fix and deploy that compatibility defect before one bounded retry.
+No owner credential, invitation, database, or TLS change is pending.
 
 **Current authorization, September 5:** the owner has authorized completing
 the production release autonomously, including secure CLI access, reviewed
@@ -59,7 +60,8 @@ reflection, an unapproved origin is `403` without reflection, and all six
 missing/wrong-token checks across the three GET cron routes are
 `401 invalid_cron_secret`. The unauthenticated public-starter read reached the
 real public SQL role and returned the expected `404 starter_edition_unavailable`
-because no starter is published. No valid cron or provider request was made.
+because no starter is published. These checks preceded the valid owner-only
+scheduler attempt recorded below.
 
 Dedicated OpenAI project `edison-production`
 (`proj_EFKsL4Yfs6pDFOzI4aGWThSf`) has an enforced $50 monthly cap and permits
@@ -69,8 +71,9 @@ with $50 in credits. Its
 Production `OPENAI_API_KEY`; no key was printed, stored, or read back. The owner
 approved Responses-only scope, and the key is now saved as Restricted. Fresh
 readback shows Responses (`/v1/responses`) Write and every other permission leaf
-None. No further key approval is pending. The new project/key has not made a
-provider request. The original default-project key remains unread and unrevoked.
+None. No further key approval is pending. The new project/key reached OpenAI
+but has not returned an accepted generation response. The original default-project
+key remains unread and unrevoked.
 
 The hosted invitation template is saved and fresh-reload verified with exactly
 one Dashboard-compatible `.SiteURL` `/auth/confirm` token-hash link. The
@@ -78,14 +81,39 @@ matching repository fix and release-boundary regression are included in pushed
 checkpoint `d463d44`. The single authorized owner invitation was sent once at
 approximately 19:15Z. Auth contains only owner
 `5611f8fa-e0dd-460c-ae4d-5fb7dd7bfe83`, with
-`invited_at=2026-09-05 19:15:11.951927+00`, `email_confirmed_at=NULL`, and
-`last_sign_in_at=NULL`. Resend metadata reports message
+`invited_at=2026-09-05 19:15:11.951927+00`. Resend metadata reports message
 `4fecf81e-099f-4144-acf6-4f26bf85ef51`, subject “Your Edison Reader
 invitation,” as Delivered; no email body, callback token, or secret was read.
-The owner must now click **Accept invitation**. Editorial has accepted
+The owner redeemed the invitation: `email_confirmed_at` is
+`2026-09-05 19:23:00.363055+00`, and `last_sign_in_at` is
+`2026-09-05 19:23:00.372394+00`. Authenticated `/v1/me`, `/v1/feed`,
+`/v1/editorial-direction`, and the initial profile PATCH returned 200 at
+19:23:02Z. Read-only metadata confirms active membership,
+`onboarding_complete=true`, and `America/New_York`. No repeat invitation is
+needed. The owner's browser session is not available to the current browser
+controls; rendered authenticated reading is not yet verified. Editorial has accepted
 unpublished starter candidate v2 with exact
 SHA-256 `aa26d2258cb391ad552466f39bee01ae4d1596d480fef59381dfeb9b184d8c50`
 in an isolated worktree.
+
+At 19:33:45.426Z, one Vercel dashboard **Run** invocation of the configured
+daily scheduler returned 200 and created exactly three owner-only
+`initial-edition` jobs. A precheck confirmed no other eligible reader. The
+real Workflow generation steps each attempted four times and failed by
+19:33:57Z; each database job records one workflow attempt. Workflow run
+`wrun_01M1SH020WMSZV9R17KVGVB8K9` exposed the provider's HTTP 400:
+`sources.items.properties.url` had unsupported `format: uri`, which is absent
+from the provider's [supported string formats](https://developers.openai.com/api/docs/guides/structured-outputs#supported-schemas). No article,
+feed item, provider response ID, or usage-ledger row exists after those attempts;
+the provider usage dashboard also showed no data at the initial check, not a
+final billing reconciliation. The prepared fix retains runtime URL/citation
+validation and increments the provider request-envelope version to 2. It still
+needs deployment and real acceptance. Local verification on Node 24.19 passed
+all 183 application tests, both typechecks, and full ESLint; the three new
+regressions inspect actual SDK schemas for all provider paths and retain
+canonical URL/citation rejection. The new candidate still needs authoritative
+Node 22 CI/build evidence. Keep the rolling generation quota at 4;
+three failed jobs leave one fresh job available. Do not reset or delete history.
 
 Edison's client/server architecture is appropriate for a web product and later
 iOS and Android clients. It is an API-first modular monolith: web and native
@@ -97,9 +125,9 @@ paid product without a rewrite or premature microservices.
 
 The repository and hosted services are **deployed for an owner-only production
 acceptance, not yet verified ready for external readers**. The temporary web,
-production schema, and healthy API are live, and the one delivered owner
-invitation awaits redemption. The authenticated journey and provider request
-have not run. The existing `edisonreader.com` deployment remains an isolated
+production schema, and healthy API are live, and owner sign-in works. Generation
+currently fails at provider schema validation; no provider-backed article or
+complete reading journey has passed. The existing `edisonreader.com` deployment remains an isolated
 credential-free sample-data demo.
 
 ### Historical preparation record
@@ -642,10 +670,11 @@ web origin:
   invitations cannot set
   `redirectTo`, the rendered CTA is exactly
   `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=invite`;
-  confirm-email is enabled, and no invitation was sent. The matching repository
+  confirm-email is enabled. The single owner invitation was delivered and redeemed
+  successfully as recorded above. The matching repository
   correction and regression test are included in pushed checkpoint `d463d44`
   and its green CI run. The dashboard preview has an
-  unresolved logo; actual delivery and asset loading still require verification.
+  unresolved logo; owner-side asset loading remains unverified.
 - Custom SMTP is saved on the Edison mail domain. Disable provider click
   tracking/link rewriting, then use the current owner-only release authorization
   to verify delivery, expiry, and one-use behavior with the owner's mailbox.
@@ -654,9 +683,9 @@ web origin:
 Before each invitation, add the normalized email to `EDISON_ALLOWED_EMAILS`.
 Add it to `EDISON_ADMIN_EMAILS` only if the owner explicitly approves that
 reader as an administrator; ordinary readers must not receive admin access.
-Redeploy the API after correcting its private database URL and passing the
-preflight. For the already approved owner invitation, use Auth > Users > Send
-invitation in the Dashboard after confirming the hosted `.SiteURL` callback;
+API database health and owner invitation redemption now pass. For future
+separately approved invitations, use Auth > Users > Send invitation in the
+Dashboard after confirming the hosted `.SiteURL` callback;
 that flow does not require retrieving or exposing an admin key. The existing
 local operator script remains available for a separately controlled session,
 but is not required for this owner invitation.
@@ -686,7 +715,9 @@ only `gpt-5.6-terra` and `gpt-5.6-luna`. Its
 `edison-api-production` service-account key is saved privately in the API
 Production environment. Its saved Restricted policy grants Responses
 (`/v1/responses`) Write and leaves every other permission leaf at None. No
-request has yet verified the new key or model access. The old default-project
+request has returned a successful generation response; the first reached the
+provider but was rejected for the unsupported article-schema format described
+above. The old default-project
 Edison key remains unread and unrevoked.
 
 1. Give the owner organization/project access with MFA. Create a production
@@ -877,8 +908,9 @@ a cost stop and a product outage.
 
 ## Ownership for remaining release work
 
-The owner's only immediate action is to click **Accept invitation** in the one
-delivered Edison email. No further secret handling is pending. The owner also
+No immediate owner credential or invitation action is pending. Owner sign-in
+works; CTO is resolving the generation compatibility defect and verifying the
+remaining reading flow. The owner also
 retains decisions on:
 
 - future plan upgrades or higher billing/spend ceilings;
