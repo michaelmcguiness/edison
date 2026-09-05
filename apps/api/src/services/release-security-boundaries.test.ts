@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
 import { requireActiveAdmin } from "./admin";
@@ -56,6 +56,31 @@ test("the legacy public share route uses only the narrow public database role", 
   assert.match(migration, /SECURITY DEFINER/);
   assert.match(migration, /REVOKE ALL ON TABLE public\.article_shares/);
   assert.match(migration, /membership\.status = 'active'/);
+});
+
+test("Auth helper access uses only the bounded PG17 membership edge", () => {
+  const migrationsUrl = new URL("../../../../supabase/migrations/", import.meta.url);
+  const migrationSource = readdirSync(migrationsUrl)
+    .filter((fileName) => fileName.endsWith(".sql"))
+    .sort()
+    .map((fileName) => readFileSync(new URL(fileName, migrationsUrl), "utf8"))
+    .join("\n");
+  const membershipMigration = source(
+    "../../../../supabase/migrations/20260904202000_edison_api_auth_membership.sql",
+  );
+
+  assert.doesNotMatch(
+    migrationSource,
+    /GRANT\s+USAGE\s+ON\s+SCHEMA\s+"?auth"?\s+TO\s+"?edison_api"?/i,
+  );
+  assert.doesNotMatch(
+    migrationSource,
+    /GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+"?auth"?\."?uid"?\(\)\s+TO\s+"?edison_api"?/i,
+  );
+  assert.match(
+    membershipMigration,
+    /GRANT\s+authenticated\s+TO\s+edison_api\s+WITH\s+ADMIN\s+FALSE,\s*INHERIT\s+TRUE,\s*SET\s+FALSE/i,
+  );
 });
 
 test("dispatch and reconciliation logs never serialize caught error objects", () => {

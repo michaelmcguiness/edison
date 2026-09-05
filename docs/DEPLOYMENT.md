@@ -1,5 +1,31 @@
 # Edison deployment
 
+## Current release authorization — September 5, 2026
+
+The owner has authorized completing the production release autonomously. This
+supersedes the earlier preparation-only stops below: secure CLI access,
+reviewed migrations, candidate commit/push/promotion, existing live-project
+deployment, and the single approved owner's invitation/acceptance testing are
+authorized. Keep the existing apex demo and website domains unchanged. No
+additional paid services, other readers, or disclosure of saved secrets.
+
+Supabase CLI 2.116.0 is now authenticated through its official browser flow and
+linked to `bcxxnntastmnormcmxbq`. Its temporary database role completed a linked
+dry run proposing exactly the 13 checked-in migrations without applying them
+or handling a database password. Strict schema lint has been added to CI after
+pgTAP. Local lint, both typechecks, all 163 application tests, and both builds
+pass; fresh pinned Node 22 CI and the backup checkpoint precede migration.
+Independent review removed two forbidden direct Auth grants from the initial
+migration; the final constrained PG17 role membership remains the permission
+mechanism. New tests bring the expected totals to 164 application tests and
+107 pgTAP assertions. The 66-test API suite, lint, and both typechecks pass.
+Hosted preflight confirms zero Auth users, application tables, Edison roles,
+reserved bucket, or existing provisioning trigger. Two physical backups are
+listed, latest September 5 at 04:35:02 UTC; recovery is not yet rehearsed.
+Deployment and real-provider acceptance tests remain pending.
+
+The following setup record is historical; current authority is stated above.
+
 ## Authorized release preparation — September 4, 2026
 
 The owner approved committing/pushing the production release candidate and
@@ -21,39 +47,158 @@ below only for those named preparation actions.
   production builds on Node 22, and all 106 pgTAP assertions after clean
   disposable Supabase/PostgreSQL 17 migration application. Hosted readiness,
   schema lint, real-provider behavior, and backup/restore are still unverified.
-- Two empty Vercel projects were created in the existing Hobby team:
+- Two Vercel projects were created in the existing team (Hobby at creation,
+  now verified Pro after the owner's upgrade):
   [`edison-app`](https://vercel.com/mike-michaelmcguis-projects/edison-app)
   (`prj_TLrYocZ2r6okKwPr59ht2XQo8bmp`) and
   [`edison-api`](https://vercel.com/mike-michaelmcguis-projects/edison-api)
-  (`prj_BDlcI2KFhFawilRiMDvloXcOLnsd`). They have no Git connection,
-  deployments, environment values, or custom domains.
+  (`prj_BDlcI2KFhFawilRiMDvloXcOLnsd`). Both are now connected to only
+  `michaelmcguiness/edison` with `main` as the production branch. Fresh
+  September 5 overviews show **No Production Deployment** and **No Preview
+  Deployments** for both. Neither has custom
+  domains. The assigned Production domains are `project-qlqve.vercel.app` for
+  web and `project-fjr95.vercel.app` for API. The owner-saved `OPENAI_API_KEY`
+  remains a Production-only Secret in `edison-api`; only its metadata was
+  inspected, never its value.
 - Both use Next.js, Node 22.x, and `pnpm install --frozen-lockfile`. Web uses
   the repository root and `pnpm build:web`; API uses `apps/api`, includes
   source outside its root, and runs `pnpm build`. API's selected function
   region is Washington, D.C. (`iad1`). Output directories remain defaults.
-- Automatic approval review blocked Vercel's GitHub connection control
-  because it may request repository permissions beyond project creation.
-  Obtain approval to connect only `michaelmcguiness/edison`; do not grant
-  broader repository access without a separate decision.
-- Supabase redirected to sign-in. Automatic approval review blocked
-  **Continue with GitHub** because the sign-in method/account was not
-  expressly approved. The owner must sign in or explicitly authorize that
-  authentication step. No Supabase project has been created.
-- No paid upgrades, secret entry, live migrations, invitations, or domain
-  changes were performed. A Supabase creation form may require a database
-  password; stop for the owner at that boundary even after sign-in.
+- Both Production Build Commands now fail closed through the checked-in
+  environment preflight before running the build. Web uses
+  `if [ "$VERCEL_ENV" = production ]; then node scripts/check-production-env.mjs web || exit 1; fi; pnpm build:web`;
+  API uses
+  `if [ "$VERCEL_ENV" = production ]; then node ../../scripts/check-production-env.mjs api || exit 1; fi; pnpm build`.
+- After the initial permission-review pause, the owner explicitly approved
+  Supabase sign-in with the `michaelmcguiness` GitHub account and connecting
+  only `michaelmcguiness/edison` to both Vercel projects. Vercel's existing
+  GitHub access was sufficient; no broader installation permissions were
+  requested or granted.
+- The owner completed Supabase GitHub sign-in as `michaelmcguiness` and
+  created
+  [`edison-production`](https://supabase.com/dashboard/project/bcxxnntastmnormcmxbq)
+  in the existing **Mike's Org** (`sarqlycnznjatyftxttz`), initially Free and
+  now independently verified **Pro** after the owner's upgrade.
+  The organization inventory shows one project, AWS **us-east-1** (North
+  Virginia), **Nano**. Its overview reports **Healthy**, and General
+  settings confirm PostgreSQL **17.6.1.166**, matching the tested major.
+- The creation form used standard Postgres, Data API enabled,
+  **Automatically expose new tables** disabled, and automatic RLS off
+  (the migrations explicitly define RLS). Hosted Auth restrictions are now
+  configured as recorded below; actual hosted database grants still require
+  post-migration verification. The overview reports
+  no GitHub schema-deployment connection or migrations. It now shows a recent
+  backup; backup contents, retention, and recovery remain unverified.
+- No database password was read, generated, or entered by the agent.
+  Creation required owner-handled credential entry. The stale creation tab
+  did not confirm submission; a fresh organization inventory independently
+  confirmed the single created project. Do not submit that form again.
+- No live migrations, deployments, or invitations were performed by the agent.
+  The Supabase public URL and matching publishable key are configured in the
+  appropriate Production Vercel projects. Subsequent authorized database/cron
+  entry is complete as recorded below; no application has been deployed against
+  this database.
+- The owner created and signed into Resend via GitHub, then explicitly approved
+  adding `mail.edisonreader.com` and its required email-verification DNS records
+  in Vercel without changing website routing. The domain is now **Verified**:
+  [Resend domain](https://resend.com/domains/81f985d3-02be-48bd-b9d1-9f7e6902114e),
+  region `us-east-1`. DKIM and both sending/SPF records are Verified, Sending
+  is on, Receiving is off, and tracking is unconfigured.
+- Exactly three DNS records were added in Vercel, each TTL 60:
+  `resend._domainkey.mail` TXT (the exact Resend-generated public DKIM key),
+  `send.mail` MX priority 10 to `feedback-smtp.us-east-1.amazonses.com.`, and
+  `send.mail` TXT `v=spf1 include:amazonses.com ~all`. Both authoritative
+  nameservers and resolver `1.1.1.1` return the exact records. No existing
+  records, nameservers, optional DMARC policy, inbound-mail MX, or website
+  project connections were changed. Apex HTTPS remains 200 with the demo
+  banner; `www` remains a path/query-preserving 308; TLS verification passes.
+- The owner reports creating the Resend key and saving custom SMTP. A fresh
+  Supabase settings page confirms SMTP enabled, sender
+  `Edison <auth@mail.edisonreader.com>`, host `smtp.resend.com`, port `465`,
+  and minimum interval 60 seconds. The owner corrected the Username from
+  `edison-production` to `resend`; an independent fresh settings page on
+  September 5 confirms the correction is saved and custom SMTP remains enabled.
+  The password was not revealed, changed, or read by the agent. Resend key
+  permissions, credential validity, and actual email delivery remain unverified.
+  The intended key is Sending-access restricted to `mail.edisonreader.com`,
+  entered only in Supabase Auth's SMTP Password field, never in chat, source
+  control, or Vercel. No Resend secret was created or read by the agent.
 
-These are configured project shells, not a deployed production service.
+### Non-secret live-project configuration — September 5, 2026
+
+The owner explicitly authorized and the dashboards confirm the following saved
+state. Public publishable-key values are deliberately not copied into this file.
+
+- `edison-app` Production has exactly five Config values: Corepack `1`, demo
+  mode `false`, API URL `https://project-fjr95.vercel.app/v1`, Supabase URL
+  `https://bcxxnntastmnormcmxbq.supabase.co`, and the matching Supabase
+  publishable key. Preview has exactly Corepack `1` and demo mode `true`, with
+  no live URLs or credentials. Development was left unchanged.
+- `edison-api` Production has 17 Config values: Corepack `1`; the same Supabase
+  URL and publishable key; JWT audience `authenticated`; article model
+  `gpt-5.6-terra`; utility model `gpt-5.6-luna`; rolling per-reader quotas of 4
+  generations, 20 article questions, and 10 feed commands; web-search cost
+  estimate `10000` microdollars per call; both `WEB_APP_URL` and the sole CORS
+  origin set to `https://project-qlqve.vercel.app`; initial edition settings
+  hour `5`, target `3`, batch `25`; and both allowed-reader and admin lists set
+  to the owner-provided `mike@michaelmcguiness.com`. The existing Production
+  OpenAI Secret was preserved unread. Subsequent authorized entry added
+  `DATABASE_URL` and `CRON_SECRET` as Production-only Secrets, for three Secrets
+  total; their saved values were not revealed or connection-tested.
+- `edison-api` Preview now has exactly one Config value,
+  `ENABLE_EXPERIMENTAL_COREPACK=1`, and no live URL or credential values.
+- No deploy/redeploy, push, branch change, custom-domain alias, invitation,
+  migration, or additional secret entry was performed under this authorization.
+- A read-only attempt to open Supabase's Direct Connection string was blocked
+  before execution because it could expose credentials. No connection value or
+  inferred pooler hostname was read or stored, and no workaround was attempted.
+  The later approved database/cron entry is recorded below; never send either
+  value through chat or documentation. Secure local migration access is a
+  separate approval boundary.
+
+Hosted Supabase Auth now has global signup and anonymous sign-in disabled while
+the email provider remains enabled for invitations. Site URL is exactly
+`https://project-qlqve.vercel.app`, and the only redirect URLs are that origin's
+`/auth/callback` and `/auth/confirm`. The current JWT signing key is already ECC
+P-256; no rotation was needed. Invite subject “Your Edison Reader invitation”
+and `supabase/templates/invite.html` are saved and persisted after reload. The
+rendered link is exactly
+`{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=invite`; no message was sent.
+
+The checked-in local pairing is intentional: `[auth].enable_signup=false`
+denies global self-service signup, while `[auth.email].enable_signup=true` keeps
+the email provider enabled and maps to `GOTRUE_EXTERNAL_EMAIL_ENABLED`. Do not
+change the latter to false as a proxy for invite-only access. Confirm-email is
+enabled. Fifteen focused authentication/configuration tests pass. The dashboard
+invite preview has an unresolved logo and the web project is still undeployed;
+real delivery and asset loading remain release gates.
+
+These are provisioned resources, not a deployed production service.
+
+The owner subsequently approved guided private entry, entered `DATABASE_URL`,
+and explicitly requested generation of `CRON_SECRET`. The agent filled only
+the cron field with 32 cryptographically random bytes encoded as 64 hexadecimal
+characters; neither secret was printed or read back, and the database field
+was left untouched. The owner saved the form and confirmed completion.
+A September 5 metadata-only check independently confirms both names as
+Production-only Secrets alongside the existing OpenAI Secret. The full API
+preflight, database URL/TLS validation, and connection testing have not run.
+This does not authorize secret inspection, secure local migration access,
+deployment, migration, or invitations.
+
+Future Git pushes may trigger builds in the newly connected projects. This
+connection-status update is intentionally local until publishing is intended.
 The existing demo's Git integration independently built a credential-free
 preview of the release branch; that did not change the apex deployment.
 
-## Current hosted phase: sample-data demo on Vercel Hobby
+## Current hosted phase: isolated sample-data demo
 
 The owner has now asked for the production private-alpha application to be
 built in the repository. The hosted environment has not been converted: it is
-still a personal, non-commercial demo with **no paid services or live
-credentials**. Do not deploy `apps/api`, provision a database, invite readers,
-or connect AI/email services merely because the production code exists.
+still a sample-data demo with **no live-service credentials**. The owner has
+upgraded the hosting plans, and separate production resources exist as recorded
+above; these do not activate the demo or authorize deployment, invitations, or
+connecting additional services merely because the production code exists.
 
 The explicit server-only flag `EDISON_DEMO_MODE=true` makes the sample UI
 available in a production build. Without it, an unconfigured production app
@@ -63,7 +208,8 @@ reload; editorial drafts and direction may remain in the browser’s device-loca
 workspace. It has no real auth, AI generation, server-side personalization, or
 working public article sharing. Keep the sample-data notice visible.
 
-Hobby permits personal, non-commercial use. The word “demo” does not create an
+Before the owner's Pro upgrade, Hobby permitted personal, non-commercial use.
+The word “demo” does not create an
 exception for commercial use; reassess before commercial use or a product
 launch. See [Vercel Hobby policy](https://vercel.com/docs/plans/hobby).
 
@@ -72,7 +218,7 @@ launch. See [Vercel Hobby policy](https://vercel.com/docs/plans/hobby).
 1. GitHub authorization was completed for the selected source repository:
    [michaelmcguiness/edison](https://github.com/michaelmcguiness/edison).
    The owner has approved publishing reviewed code there with public visibility.
-2. The repository is connected to the existing Vercel Hobby account's
+2. The repository is connected to the existing Vercel team's
    [`edison` project](https://vercel.com/mike-michaelmcguis-projects/edison).
 3. The owner has approved this disconnected root demo deployment to a
    Vercel production URL, then purchased `edisonreader.com` on Vercel and
@@ -180,7 +326,7 @@ private-alpha database. No staging environment is needed for the demo.
 
 The production client/server implementation is now the repository target;
 graduating from the hosted demo is configuration and controlled release work,
-not an architecture rewrite. Create a separate live web project with
+not an architecture rewrite. Use the existing separate live web project with
 `EDISON_DEMO_MODE=false`, activate the independent API and Supabase stack, and
 complete every launch check below. Keep the existing apex demo isolated and
 keep previews credential-free in explicit demo mode.
@@ -190,17 +336,20 @@ There is no paid staging environment initially. Local Supabase is the database
 test environment, and Vercel previews are build/UI checks. Never point a
 preview deployment at the production database.
 
-### What the owner will need for the private alpha
+### Completed prerequisites and remaining owner gates
 
-1. Vercel Pro for the current API schedules, a suitable Supabase plan (Pro is
-   recommended for backups and availability once readers depend on it), and
-   OpenAI billing/accounts.
-2. Access to the Git host/repository that Vercel should deploy.
-3. A production Supabase project in the same general region as the Vercel API.
-4. A transactional email provider connected to Supabase Auth before external
-   invitations.
-5. The first reader/admin email addresses.
-6. Explicit approval before any deployment or custom-domain attachment.
+Vercel Pro, Supabase Pro, Git connections, the US East Supabase project,
+verified sending domain/custom SMTP, temporary public connection metadata, and
+the initial owner reader/admin allowlists are in place. Remaining owner-private
+or explicitly approved gates are:
+
+1. Configure `DATABASE_URL` and `CRON_SECRET` without sending either through
+   chat or source control.
+2. Approve and configure provider budget alerts/caps and WAF rules.
+3. Review the linked migration dry run, backup/restore evidence, and schema
+   lint, then separately approve any real migration.
+4. Separately approve live deployment, an owner-only invitation/delivery test,
+   and any custom-domain attachment.
 
 Enter every credential directly in the relevant dashboard or local
 `.env.local`; do not paste credentials into chat, commits, tickets, or docs.
@@ -215,29 +364,38 @@ planning migrations; the Auth-helper membership migration uses PostgreSQL
 1. Link the CLI to the production project.
 2. Run database tests against local Supabase first.
 3. Inspect `supabase db push --dry-run`, then apply the committed migrations.
-4. Keep global and email self-service signup disabled.
+4. Keep global self-service signup and anonymous sign-in disabled; keep the
+   email provider enabled so administrator-issued invitations can be redeemed.
 5. In Auth > JWT Signing Keys, make an asymmetric key (preferably ES256) the
    active signing key. The API intentionally verifies user tokens through the
    project's public JWKS endpoint rather than sharing a JWT secret.
-6. Set the production Site URL and redirect allowlist.
-7. Install `supabase/templates/invite.html` as the Invite email template.
-8. Configure custom SMTP and send a test invitation to the owner.
+6. Keep the temporary Production Site URL and its two exact Auth redirects until
+   the coordinated custom-domain cutover.
+7. Keep `supabase/templates/invite.html` and its verified invite subject saved.
+8. Custom SMTP is configured; validate delivery only after separate approval to
+   send a test invitation to the owner.
 9. Use the transaction-pooler URL for `DATABASE_URL`; keep the direct URL only
    for migrations and administrative backup/restore work.
 
 ### Live Vercel projects
 
-Create both projects from the same repository and keep automatic preview
-deployments credential-free.
+Use the two existing projects from the same repository and keep automatic
+preview deployments credential-free.
 
 #### Web project
 
 - Root directory: `.`
 - Production environment:
-  - `EDISON_DEMO_MODE=false` (or remove the demo flag)
-  - `NEXT_PUBLIC_API_URL=https://<api-host>/v1`
-  - `NEXT_PUBLIC_SUPABASE_URL`
-  - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+  - `ENABLE_EXPERIMENTAL_COREPACK=1`
+  - `EDISON_DEMO_MODE=false`
+  - `NEXT_PUBLIC_API_URL=https://project-fjr95.vercel.app/v1`
+  - `NEXT_PUBLIC_SUPABASE_URL=https://bcxxnntastmnormcmxbq.supabase.co`
+  - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` matching that project; do not copy it
+    into documentation
+- Preview environment: only `ENABLE_EXPERIMENTAL_COREPACK=1` and
+  `EDISON_DEMO_MODE=true`
+- Build command:
+  `if [ "$VERCEL_ENV" = production ]; then node scripts/check-production-env.mjs web || exit 1; fi; pnpm build:web`
 
 #### API project
 
@@ -245,26 +403,34 @@ deployments credential-free.
 - Enable **Include source files outside of the Root Directory** so the API build
   receives the root lockfile, patches, and shared workspace packages.
 - Region: close to the Supabase project
+- Assigned Production domain: `project-fjr95.vercel.app`
+- Build command:
+  `if [ "$VERCEL_ENV" = production ]; then node ../../scripts/check-production-env.mjs api || exit 1; fi; pnpm build`
 - Production environment:
-  - `DATABASE_URL`
-  - `SUPABASE_URL`
-  - `SUPABASE_PUBLISHABLE_KEY`
+  - `ENABLE_EXPERIMENTAL_COREPACK=1`
+  - `DATABASE_URL` — owner-saved Production Secret; value unread and untested
+  - `SUPABASE_URL=https://bcxxnntastmnormcmxbq.supabase.co`
+  - `SUPABASE_PUBLISHABLE_KEY` matching that project; do not copy it into docs
   - `SUPABASE_JWT_AUDIENCE=authenticated`
-  - `OPENAI_API_KEY`
-  - `OPENAI_ARTICLE_MODEL`
-  - `OPENAI_UTILITY_MODEL`
-  - `OPENAI_MAX_DAILY_GENERATIONS`
-  - `OPENAI_MAX_DAILY_ARTICLE_QUESTIONS`
-  - `OPENAI_MAX_DAILY_FEED_COMMANDS`
-  - `OPENAI_WEB_SEARCH_COST_MICROUSD`
-  - `WEB_APP_URL=https://<web-host>`
-  - `CORS_ALLOWED_ORIGINS=https://<web-host>`
-  - `CRON_SECRET` (a newly generated high-entropy value)
-  - `EDISON_ADMIN_EMAILS`
-  - `EDISON_ALLOWED_EMAILS` (required, fail-closed private-alpha allowlist)
-  - `EDISON_DAILY_EDITION_LOCAL_HOUR`
-  - `EDISON_DAILY_EDITION_TARGET`
-  - `EDISON_DAILY_EDITION_BATCH_SIZE`
+  - `OPENAI_API_KEY` — existing owner-saved Production Secret, unread
+  - `OPENAI_ARTICLE_MODEL=gpt-5.6-terra`
+  - `OPENAI_UTILITY_MODEL=gpt-5.6-luna`
+  - `OPENAI_MAX_DAILY_GENERATIONS=4`
+  - `OPENAI_MAX_DAILY_ARTICLE_QUESTIONS=20`
+  - `OPENAI_MAX_DAILY_FEED_COMMANDS=10`
+  - `OPENAI_WEB_SEARCH_COST_MICROUSD=10000`
+  - `WEB_APP_URL=https://project-qlqve.vercel.app`
+  - `CORS_ALLOWED_ORIGINS=https://project-qlqve.vercel.app`
+  - `CRON_SECRET` — verified saved Production Secret; generated on explicit request, no value printed or read back
+  - `EDISON_ADMIN_EMAILS=mike@michaelmcguiness.com`
+  - `EDISON_ALLOWED_EMAILS=mike@michaelmcguiness.com`
+  - `EDISON_DAILY_EDITION_LOCAL_HOUR=5`
+  - `EDISON_DAILY_EDITION_TARGET=3`
+  - `EDISON_DAILY_EDITION_BATCH_SIZE=25`
+
+The API has 17 persisted Production Config values and three Production Secrets:
+`DATABASE_URL`, `CRON_SECRET`, and `OPENAI_API_KEY`. API Preview contains only
+`ENABLE_EXPERIMENTAL_COREPACK=1`; every live URL and credential stays out.
 
 The API readiness endpoint returns `503` until required configuration,
 Postgres, and Supabase Auth are all reachable.

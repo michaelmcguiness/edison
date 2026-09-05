@@ -61,3 +61,6 @@ jobs:
 
       - name: Run migrations and pgTAP tests
         run: pnpm exec supabase test db
+
+      - name: Lint migrated application schemas
+        run: pnpm exec supabase db lint --local --schema public,private,edison_public_api --level warning --fail-on warning

@@ -15,6 +15,40 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
+### September 5 full-release authorization — current and controlling
+
+The owner's latest instruction is: “I trust you - let's just do everything to
+get this fully deployed and ready for production. Only ask me if you need me
+if you really think it's necessary.” This supersedes the step-by-step stop
+boundaries in the historical setup record below. It authorizes secure release
+access, reviewed migrations, committing/pushing the candidate, deploying the
+existing live projects, and inviting/testing only the previously approved owner,
+`mike@michaelmcguiness.com`. Do not request another generic release approval.
+Never reveal existing secrets or ask for them in chat. No extra paid services,
+broader invitations, or website-domain changes are part of this first release;
+the apex demo remains isolated while the owner-only live alpha is validated.
+
+The Supabase CLI 2.116.0 official login flow and linking to production project
+`bcxxnntastmnormcmxbq` succeeded. CLI-managed login credentials supplied temporary
+database access without handling a database password. A linked dry run succeeded
+and lists exactly the 13 checked-in migrations, with no schema applied yet.
+Fresh CI now includes strict application-schema lint after the 106 pgTAP tests.
+Local lint, both typechecks, all 163 application tests, and both production
+builds pass; the pinned Node 22/pnpm 10.28.0 CI result remains the release gate.
+Independent review then caught forbidden direct Auth grants in the initial
+migration, before the existing final permission fix could execute. Those two
+grants are now removed; the final non-delegable PG17 membership supplies access.
+A source regression test and direct-ACL pgTAP assertion raise the expected
+totals to 164 application tests and 107 database assertions. The 66-test API
+suite, lint, and both typechecks pass after that change.
+Hosted preflight confirms PG17.6, zero Auth users, zero application tables,
+zero Edison roles/bucket/trigger. Supabase lists physical backups at
+2026-09-05 04:35:02 UTC and 2026-09-04 19:54:12 UTC. Restoration is untested;
+the empty-project checkpoint protects the initial migration only, not a claim
+of proven reader-data recovery.
+
+### Historical setup and approval record
+
 The owner has asked to build the actual production version and wants as much as
 possible completed autonomously. The approved technical direction is Vercel
 Pro + Supabase Pro + an Edison-specific OpenAI API project when the private
@@ -40,10 +74,77 @@ draft pull request; `main` still automatically deploys the existing apex demo.
 Project creation does not authorize merging the release or activating live
 services.
 
+The owner subsequently approved signing into Supabase with the
+`michaelmcguiness` GitHub account and connecting only
+`michaelmcguiness/edison` to both new Vercel projects. The Git connections are
+complete. The owner completed Supabase sign-in as `michaelmcguiness` and
+created `edison-production` in Mike's Org, North Virginia
+(`us-east-1`). Project `bcxxnntastmnormcmxbq` reports Healthy and PostgreSQL
+`17.6.1.166`, matching the tested major version. No database password was
+read, generated, or entered by the agent. Secret entry and all other stop
+limits remain in force.
+
+The owner then upgraded the Vercel team and Mike's Org to Pro; refreshed
+dashboards independently confirm both plans. The owner saved `OPENAI_API_KEY`
+directly in `edison-api`; its environment list shows a Production-only Secret.
+Only metadata was inspected, never its value, and provider access/billing has
+not been tested. The owner created and signed into Resend via GitHub, then
+explicitly approved adding `mail.edisonreader.com` and its required email DNS
+records in Vercel while leaving website routing unchanged. That setup is now
+complete: Resend domain `81f985d3-02be-48bd-b9d1-9f7e6902114e`, North Virginia,
+reports Verified for DKIM and both sending/SPF records. Sending is enabled,
+Receiving is disabled, and tracking is unconfigured. Exactly three TTL-60
+records were added; both authoritative nameservers and a public resolver match
+the expected records. Apex/`www` HTTP/TLS smoke checks still pass. No optional
+DMARC policy, inbound-mail MX, or website routing change was made.
+
+The owner reports creating the Resend key and saving Supabase custom SMTP.
+A fresh settings page confirms SMTP enabled, sender
+`Edison <auth@mail.edisonreader.com>`, host `smtp.resend.com`, port `465`, and
+60-second minimum interval. The owner corrected the SMTP Username to `resend`;
+an independent fresh page on September 5 confirms it is saved and SMTP remains
+enabled. The password was not revealed, changed, or read by the agent; its
+validity and the Resend key's permissions have not been tested. No delivery
+test has run. Browser text/DOM inspection
+omits some email/username values; fresh screenshots confirmed the public
+settings without revealing the password. Do not mistake omitted text for
+unsaved settings or reveal secrets to verify them.
+
+No existing secret values or test emails were handled by the agent during
+SMTP setup. The separately authorized cron generation is recorded below.
+Migration, deployment, invitation, and domain-change boundaries remain in
+force; the email-domain approval does not authorize app/API domains.
+
+On September 5, the owner explicitly authorized the remaining non-secret
+web/API connection settings, initial usage quotas, temporary origins, and
+private-alpha allowlists, plus the hosted Auth restrictions and invitation
+template. That setup is complete as recorded below. It does **not** authorize
+entering or inspecting additional secrets, configuring the database or cron
+secret, applying migrations, pushing code, deploying either live project,
+sending an invitation, or changing domains.
+
+The owner then approved guided private credential entry, entered
+`DATABASE_URL`, and separately authorized generating `CRON_SECRET`. The agent
+generated 32 cryptographically random bytes, encoded them as 64 hexadecimal
+characters, and filled only the cron field without printing or reading back
+either secret. The database value was not inspected or changed. The owner
+clicked Save and confirmed completion. A September 5 metadata-only check
+independently confirms both names saved as Production-only Secret values in
+`edison-api`, alongside the existing OpenAI Secret. No values were revealed.
+
+All required API variable names are now present, but metadata does not prove
+database URL formatting/TLS, credential validity, or provider connectivity.
+Full API preflight and real connection tests remain pending. This approval
+does not authorize inspecting secrets, secure local migration access, schema
+application, deployment, or invitations. Never read an in-progress secret form
+or ask for keys in chat. The next gate is separately approved secure local
+migration access and a reviewed dry run, not another Vercel secret-entry form.
+
 ## Hosted state versus working-tree state
 
 - [edisonreader.com](https://edisonreader.com/) and its `www` redirect still
-  serve the credential-free sample demo from the existing Vercel Hobby project.
+  serve the credential-free sample demo from the existing Vercel project,
+  now in the upgraded Pro team.
 - The demo is explicit `EDISON_DEMO_MODE=true`; it has no production Supabase,
   API, OpenAI, SMTP, or cron credentials. It must stay isolated while the alpha
   is proven.
@@ -51,20 +152,78 @@ services.
   [michaelmcguiness/edison](https://github.com/michaelmcguiness/edison). The
   candidate is pushed on `codex/production-release-candidate` in
   [draft PR #1](https://github.com/michaelmcguiness/edison/pull/1). Inspect Git
-  for the latest revision; do not merge or promote it without approval.
+  for the latest revision. The latest full-release authorization permits
+  promotion after the database and CI gates pass.
 - Separate `edison-app` and `edison-api` Vercel project shells now exist with
-  the intended Next.js/Node 22/build settings, but no Git links, deployments,
-  credentials, or domains. See `docs/DEPLOYMENT.md` for IDs and setup status.
-- Supabase project creation remains blocked at sign-in. Automatic approval
-  review requires explicit authorization for Supabase GitHub authentication
-  and for Vercel's repository-connection flow. Do not retry these blocked
-  controls without the owner signing in or approving the specific action.
+  the intended Next.js/Node 22/build settings. Both are connected to the
+  approved repository with `main` as the production branch. Fresh September 5
+  overviews show No Production Deployment and No Preview Deployments for both;
+  neither has a custom domain. Their assigned
+  Production domains are `project-qlqve.vercel.app` for web and
+  `project-fjr95.vercel.app` for API.
+- `edison-app` has five Production Config values: Corepack, explicit live mode,
+  the temporary API `/v1` URL, and the production Supabase URL/publishable key.
+  Preview has only Corepack plus explicit demo mode. `edison-api` has 17
+  Production Config values for Corepack, Supabase public Auth metadata, JWT
+  audience, reviewed models and quotas, temporary web/CORS origin, initial
+  edition scheduling, and the owner-only reader/admin allowlists. The existing
+  owner-entered Production-only OpenAI Secret was preserved and never read.
+  `DATABASE_URL` and `CRON_SECRET` are also verified Production-only Secrets;
+  the API has 17 Production Config values and three Production Secrets total.
+  API Preview had no variables
+  until the final authorized setup step; it now has exactly one Config value,
+  `ENABLE_EXPERIMENTAL_COREPACK=1`, and no live values. Future pushes can
+  trigger builds;
+  do not push merely to update setup notes before deployment is intended.
+  See `docs/DEPLOYMENT.md` for IDs and setup status.
+- Exact temporary wiring is web → `https://project-fjr95.vercel.app/v1`, both
+  projects → `https://bcxxnntastmnormcmxbq.supabase.co` with the matching public
+  key, and API web/CORS → only `https://project-qlqve.vercel.app`. API models
+  are `gpt-5.6-terra`/`gpt-5.6-luna`; per-reader quotas are 4 generations,
+  20 article questions, and 10 commands; search accounting is 10000 microdollars
+  per call; edition settings are hour 5, target 3, batch 25. Both API email lists
+  contain only `mike@michaelmcguiness.com`. Do not put the literal publishable
+  key in documentation even though it is intentionally public client metadata.
+- The web and API Build Commands persist the production-only
+  `scripts/check-production-env.mjs` guards documented in the release runbook.
+  Fifteen focused authentication/configuration tests pass.
+- A read-only attempt to open Supabase's Direct Connection string was blocked
+  before execution because it could expose credentials. No database connection
+  value was read, copied, or inferred, and no workaround was attempted. Later
+  authorized Vercel entry is complete as recorded above. Secure local migration
+  access subsequently succeeded through the official CLI login/link flow;
+  never request credentials in chat.
+- Supabase project
+  [`edison-production`](https://supabase.com/dashboard/project/bcxxnntastmnormcmxbq)
+  exists and is Healthy, in the Pro organization in `us-east-1`, PostgreSQL
+  `17.6.1.166`; the organization inventory still labels compute Nano.
+  Its overview reports no migrations or GitHub schema-deployment connection
+  and now shows a recent backup. Backup contents and recovery have not been
+  verified. Its public project URL and publishable key are configured in the
+  correct Production Vercel projects. The owner-saved database URL has not been
+  connection-tested, and no Edison schema has been applied. The creation form
+  had automatic table exposure disabled;
+  verify actual hosted grants before activation. The current release approval
+  permits migration after the reviewed dry run, passing CI, and backup checkpoint.
+- Hosted Supabase Auth has global signup and anonymous sign-in disabled, the
+  email provider enabled for invitations, the temporary web Site URL, and only
+  its exact `/auth/callback` and `/auth/confirm` redirects. Its current signing
+  key is already ECC P-256. The repository invitation template and subject
+  “Your Edison Reader invitation” are saved, and the preview link contains the
+  required `token_hash` plus `type=invite`. No invitation or delivery test was
+  sent. In local `supabase/config.toml`, `[auth].enable_signup=false` is the
+  signup denial; `[auth.email].enable_signup=true` correctly keeps the email
+  provider available and maps to `GOTRUE_EXTERNAL_EMAIL_ENABLED`. Confirm-email
+  remains enabled. The dashboard template preview has an unresolved logo and
+  the web project is still undeployed; real delivery and asset loading remain
+  a release test gate.
 - The working tree contains the production private-alpha implementation. It has
   not been migrated, seeded, deployed, or exercised against a hosted database.
 - Candidate `52aa993` passed the clean GitHub CI application job on Node 22
   and all 106 pgTAP assertions after applying every migration to disposable
   Supabase/PostgreSQL 17. This machine still has no usable Docker/Postgres
-  runtime. Schema lint, hosted readiness, real-provider concurrency checks,
+  runtime. Strict schema lint is now included in CI but awaits its fresh run.
+  Hosted readiness, real-provider concurrency checks,
   and the backup/restore rehearsal remain release gates.
 
 ## Production topology
@@ -186,8 +345,10 @@ The latter specifications supersede the old category-tab/infinite-feed design.
 - No genuine public starter content is checked in or seeded. An operator must
   publish sourced, reviewed snapshots; the anonymous endpoint correctly returns
   unavailable until then.
-- Broad-launch edge policy, monitoring vendor, SMTP provider, privacy/support
-  copy, and on-call owner are operational choices, not repository defaults.
+- Resend's sending domain is verified and Supabase custom SMTP is configured,
+  including the corrected username, but email delivery testing remains pending.
+  Broad-launch edge policy, monitoring vendor,
+  privacy/support copy, and on-call owner still require operational decisions.
 - There is no paid staging environment. Add one when multiple developers,
   frequent migrations, hosted CI, or meaningful production traffic justify it.
 - Native clients are not built yet, but the production API/auth boundary is the
@@ -202,11 +363,13 @@ Before external readers:
 2. Start a clean disposable/local Supabase stack, apply every migration in
    order, run all pgTAP/RLS tests and database lint, then inspect a linked dry
    run. No real push before explicit approval and a backup checkpoint.
-3. Upgrade Vercel/Supabase only when ready to release. Create an Edison-specific
-   OpenAI API project/service account; ChatGPT subscriptions are unrelated.
-4. Configure custom SMTP, asymmetric Supabase JWT signing, exact Auth redirects,
-   disabled self-signup, required reader/admin allowlists, exact CORS, WAF rules,
-   spend caps/alerts, external error monitoring, and backups/restore drill.
+3. Vercel and Supabase are already Pro, and the owner has saved the API's
+   Production-only OpenAI Secret. Before release, verify its project scoping,
+   provider access, model permissions, billing, rate limits, and spend caps.
+4. Preserve the verified custom SMTP, asymmetric JWT key, exact temporary Auth
+   redirects, disabled self-signup/anonymous access, owner-only reader/admin
+   allowlists, and exact CORS. Add WAF rules, spend alerts, external error
+   monitoring, and a backup/restore drill.
 5. Deploy API and web first to temporary production URLs, run environment
    preflight and `/v1/health`, invite only the owner, and verify a complete real
    article/citation/save/share/Q&A/direction/retry/cost-ledger flow.
@@ -253,9 +416,14 @@ framework changes; this repository’s Next version differs from remembered APIs
 > separate Vercel web/API + Supabase architecture described here; the hosted
 > apex remains an isolated credential-free demo. Preserve the exact finite News,
 > three-section sidebar/mobile-nav, inline Ask Edison, one-off commissioning,
-> and guest-reconciliation behavior. Run the full code/build/browser checks and
-> run migrations/RLS tests once a disposable Postgres/Supabase runtime is
-> available. Work autonomously without secrets, but do not purchase, migrate,
-> push, deploy, attach domains, alter hosted services, or invite readers without
-> explicit approval for that exact external action. Never request secrets in
-> source control or chat.
+> and guest-reconciliation behavior. The non-secret temporary-origin, Supabase
+> public metadata, quota, allowlist, build-guard, hosted Auth restriction, and
+> invitation-template setup is complete; do not redo it. The September 5
+> full-release authorization at the top of this file supersedes earlier stops.
+> Secure CLI login/link and the 13-migration hosted dry run have succeeded.
+> Complete fresh CI/schema lint, backup checkpoint, migrations, candidate
+> promotion, live deployment, and the owner-only acceptance tests autonomously.
+> Verify provider budgets before AI calls. Do not ask for keys in chat, expose
+> secrets, buy additional services, invite other readers, or change website
+> domains. Report genuine blockers and distinguish an owner-only live alpha
+> from readiness for broader external readers.

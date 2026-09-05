@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(27);
+select plan(28);
 
 select has_schema('private', 'private workflow schema exists');
 select has_table('public', 'profiles', 'profiles table exists');
@@ -175,6 +175,32 @@ select ok(
 select ok(
   has_function_privilege('edison_api', 'auth.uid()', 'execute'),
   'the Edison API role can execute the Auth identity helper'
+);
+
+select ok(
+  not exists (
+    select 1
+    from pg_catalog.pg_namespace as namespace_record
+    cross join lateral pg_catalog.aclexplode(
+      coalesce(namespace_record.nspacl, '{}'::aclitem[])
+    ) as grant_record
+    join pg_catalog.pg_roles as grantee_role
+      on grantee_role.oid = grant_record.grantee
+    where namespace_record.nspname = 'auth'
+      and grantee_role.rolname = 'edison_api'
+  )
+    and not exists (
+      select 1
+      from pg_catalog.pg_proc as function_record
+      cross join lateral pg_catalog.aclexplode(
+        coalesce(function_record.proacl, '{}'::aclitem[])
+      ) as grant_record
+      join pg_catalog.pg_roles as grantee_role
+        on grantee_role.oid = grant_record.grantee
+      where function_record.oid = to_regprocedure('auth.uid()')
+        and grantee_role.rolname = 'edison_api'
+    ),
+  'Auth helper access is inherited without direct Auth ACL grants'
 );
 
 select ok(
