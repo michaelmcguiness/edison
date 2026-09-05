@@ -58,6 +58,31 @@ test("Pulse shell removes feed-only navigation and Curate outside the feed", () 
   assert.match(html, /aria-label="Open Profile"/);
 });
 
+test("Pulse shell keeps a long active loop visible instead of burying it in More", () => {
+  const activeTitle = "A deliberately long active learning loop title";
+  const properties: ComponentProps<typeof PulseShell> = {
+    loops: [
+      { id: "first", title: "Sleep" },
+      { id: "second", title: "History" },
+      { id: "third", title: "Cities" },
+      { id: "active", title: activeTitle },
+    ],
+    activeLoopId: "active",
+    onSelectLoop: noop,
+    onAddLoop: noop,
+    onOpenHome: noop,
+    onOpenLibrary: noop,
+    onOpenProfile: noop,
+    onOpenCurate: noop,
+    children: createElement("main", null, "Reading"),
+  };
+  const html = renderToStaticMarkup(createElement(PulseShell, properties));
+
+  assert.ok(html.indexOf(activeTitle) < html.indexOf("<details"));
+  assert.match(html, /aria-current="page"/);
+  assert.match(html, />More</);
+});
+
 test("Pulse feed keeps an intentional no-art fallback for unmatched identities", () => {
   const [withoutArt] = makeDemoStories("2026-09-05T12:00:00.000Z");
   const html = renderToStaticMarkup(createElement(PulseFeed, {
@@ -68,7 +93,12 @@ test("Pulse feed keeps an intentional no-art fallback for unmatched identities",
   }));
 
   assert.equal((html.match(/pulse-card--without-art/g) ?? []).length, 1);
+  assert.match(html, /class="pulse-card-open-target"[^>]*aria-labelledby=/);
+  assert.match(html, /<h2 id="[^"]+">/);
   assert.match(html, /aria-label="Save to Library:/);
+  assert.equal((html.match(/<button/g) ?? []).length, 2);
+  assert.doesNotMatch(html, /<button\b[^>]*>(?:(?!<\/button>)[\s\S])*<button\b/);
+  assert.match(html, /That’s all for now\./);
   assert.equal((html.match(/<main/g) ?? []).length, 1);
 });
 

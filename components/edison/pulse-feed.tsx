@@ -73,6 +73,7 @@ function PulseArticleCard({
   onOpenArticle: PulseFeedProps["onOpenArticle"];
   onToggleSave?: PulseFeedProps["onToggleSave"];
 }) {
+  const titleId = useId();
   const style = {
     "--pulse-card-caption": artwork?.captionColor ?? "#343638",
   } as CSSProperties;
@@ -83,6 +84,13 @@ function PulseArticleCard({
       style={style}
       data-article-id={article.id}
     >
+      <button
+        type="button"
+        className="pulse-card-open-target"
+        aria-labelledby={titleId}
+        onClick={() => void onOpenArticle(article)}
+      />
+
       {artwork ? (
         <div className="pulse-card-art">
           <Image
@@ -97,18 +105,13 @@ function PulseArticleCard({
 
       <div className="pulse-card-copy">
         <ArticleMeta article={article} />
-        <h2>{article.title}</h2>
+        <h2 id={titleId}>{article.title}</h2>
         <p className="pulse-card-deck">{article.deck}</p>
         <div className="pulse-card-footer">
-          <button
-            type="button"
-            className="pulse-card-open"
-            aria-label={`Read article: ${article.title}`}
-            onClick={() => void onOpenArticle(article)}
-          >
+          <span className="pulse-card-open" aria-hidden="true">
             <span>Read article</span>
             <ArrowRight aria-hidden="true" />
-          </button>
+          </span>
 
           {onToggleSave ? (
             <button
@@ -194,6 +197,12 @@ export function PulseFeed({
       ) : null}
 
       {children}
+
+      {hasArticles && !loading && !error ? (
+        <div className="pulse-feed-ending">
+          <h2>That’s all for now.</h2>
+        </div>
+      ) : null}
     </main>
   );
 }

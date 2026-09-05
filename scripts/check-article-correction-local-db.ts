@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  buildCorrectionResultSql,
   buildCorrectionSql,
   sha256,
   validateCorrectionPair,
@@ -149,8 +150,10 @@ function setupArticle(correction: ValidatedCorrection, slug: string) {
       ${sqlLiteral(original.researched_at)}::timestamp with time zone,
       ${sqlLiteral(original.published_at)}::timestamp with time zone,
       ${sqlLiteral(original.model)}
-    );
-    INSERT INTO public.article_sources (
+    );`,
+  ]);
+  query([
+    `INSERT INTO public.article_sources (
       id, article_id, citation_order, title, publisher, url, published_at,
       accessed_at, cited_claims
     ) VALUES (
@@ -194,8 +197,10 @@ try {
     "accepted",
     buildCorrectionSql(accepted),
   );
-  const first = queryFile(acceptedSql);
-  const replay = queryFile(acceptedSql);
+  queryFile(acceptedSql);
+  const first = query([buildCorrectionResultSql(accepted)]);
+  queryFile(acceptedSql);
+  const replay = query([buildCorrectionResultSql(accepted)]);
   assert.deepEqual(replay, first);
 
   const applied = query([

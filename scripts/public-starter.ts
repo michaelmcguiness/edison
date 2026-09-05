@@ -451,9 +451,8 @@ export function buildPublicationSql(fixture: PublicStarterFixture) {
   return `-- Generated from content/public-starters/accepted-sleep-history-v1.json.
 -- PREPARED ONLY: contains public article content and no credentials.
 -- Review before running against the exact linked Supabase project. This script
--- mirrors the application publication boundary and never overwrites existing data.
-
-BEGIN;
+-- is one atomic native-query statement, mirrors the application publication
+-- boundary, and never overwrites existing data.
 
 DO $edison_public_starter$
 DECLARE
@@ -532,12 +531,12 @@ ${rows};
   END IF;
 END
 $edison_public_starter$;
+`;
+}
 
-COMMIT;
-
--- Save this single sanitized JSON value and bind it with --bind-response only
--- after publication. Database-generated article IDs are intentionally not guessed.
-SELECT jsonb_build_object(
+export function buildPublicationReadSql(fixture: PublicStarterFixture) {
+  const idempotencyKey = sqlLiteral(fixture.edition.idempotencyKey);
+  return `SELECT jsonb_build_object(
   'id', edition.id,
   'section', edition.section,
   'editionDate', edition.edition_date,
@@ -644,6 +643,7 @@ function usage() {
     "  pnpm public-starter",
     "  pnpm public-starter --emit-request <new-file>",
     "  pnpm public-starter --emit-sql <new-file>",
+    "  pnpm public-starter --emit-read-sql <new-file>",
     "  pnpm public-starter --bind-response <response-json> --emit-manifest <new-file>",
     "",
     "The default is validation only. This tool never connects to an API or database.",
@@ -666,6 +666,10 @@ export function runPublicStarterCli(args: string[]) {
   if (args.length === 2 && args[0] === "--emit-sql") {
     const path = writeNewFile(args[1]!, buildPublicationSql(fixture));
     return `Wrote reviewed publication SQL to ${path}; no external action taken.`;
+  }
+  if (args.length === 2 && args[0] === "--emit-read-sql") {
+    const path = writeNewFile(args[1]!, buildPublicationReadSql(fixture));
+    return `Wrote the sanitized post-publication read SQL to ${path}; no external action taken.`;
   }
   if (
     args.length === 4 &&

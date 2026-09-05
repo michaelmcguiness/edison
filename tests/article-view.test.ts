@@ -55,11 +55,12 @@ test("Pulse reading has a real Next headline and contextual Back without a requi
   const next = { ...story, id: "00000000-0000-4000-8000-000000000009", title: "The real next headline" };
   const markup = renderToStaticMarkup(createElement(ArticleView, {
     article, conversationMessages: [], dataMode: "guest", pulse: true, deviceSave: true,
-    backLabel: "Back to Sleep", nextArticle: next, onNext: () => undefined, onAsk: () => undefined,
+    backLabel: "Back to Sleep", nextArticle: next, nextSourceLabel: "History", onNext: () => undefined, onAsk: () => undefined,
     back: () => undefined, save: () => undefined, onError: () => undefined,
     onCompleted: () => undefined, onShared: () => undefined,
   }));
   assert.match(markup, /Next article/);
+  assert.match(markup, /Next article · History/);
   assert.match(markup, /The real next headline/);
   assert.match(markup, /Back to Sleep/);
   assert.match(markup, /Ask about this article/);

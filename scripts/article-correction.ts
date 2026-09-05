@@ -423,10 +423,7 @@ export function buildCorrectionSql(correction: ValidatedCorrection) {
   return `-- Prepared locally from hash-pinned private editorial artifacts.
 -- Contains private article content: keep this 0600 file under /private/tmp.
 -- No credentials are embedded. Review, then execute once through an approved
--- authenticated Supabase native SQL query session.
-BEGIN;
-SET LOCAL lock_timeout = '5s';
-SET LOCAL statement_timeout = '30s';
+-- authenticated Supabase native SQL query session. This is one atomic statement.
 
 DO $article_correction$
 DECLARE
@@ -440,6 +437,9 @@ DECLARE
   affected_count integer;
   existing_audit private.article_correction_audits%ROWTYPE;
 BEGIN
+  PERFORM pg_catalog.set_config('lock_timeout', '5s', true);
+  PERFORM pg_catalog.set_config('statement_timeout', '30s', true);
+
   PERFORM pg_advisory_xact_lock(
     hashtextextended(${sqlLiteral(`article-correction:${identity.articleId}`)}, 0)
   );
@@ -604,10 +604,12 @@ ${sourceValues}
   );
 END;
 $article_correction$;
+`;
+}
 
-COMMIT;
-
-SELECT jsonb_build_object(
+export function buildCorrectionResultSql(correction: ValidatedCorrection) {
+  const { identity } = correction;
+  return `SELECT jsonb_build_object(
   'articleId', audit.article_id,
   'correctedAt', audit.corrected_at,
   'correctedArtifactSha256', audit.corrected_artifact_sha256
@@ -672,6 +674,7 @@ function usage() {
     "Usage:",
     "  pnpm article-correction",
     "  pnpm article-correction --emit-sql /private/tmp/<new-file>.sql",
+    "  pnpm article-correction --emit-result-sql /private/tmp/<new-file>.sql",
     "",
     "The default validates the exact accepted private artifacts only.",
     "This tool never reads credentials or connects to an API or database.",
@@ -692,6 +695,14 @@ export function runArticleCorrectionCli(args: string[]) {
       buildCorrectionSql(correction),
     );
     return `Wrote reviewed correction SQL to ${outputPath}; no external action taken.`;
+  }
+
+  if (args.length === 2 && args[0] === "--emit-result-sql") {
+    const outputPath = writePrivateTempFile(
+      args[1]!,
+      buildCorrectionResultSql(correction),
+    );
+    return `Wrote the private correction-result read SQL to ${outputPath}; no external action taken.`;
   }
 
   throw new Error(usage());

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   bindPublishedSubjectManifest,
+  buildPublicationReadSql,
   buildPublicationSql,
   loadPublicStarterFixture,
   publicStarterFixturePath,
@@ -144,7 +145,15 @@ test("checked-in SQL is generated from the validated fixture and preserves publi
   );
   assert.equal(checkedIn, generated);
   assert.match(generated, /^-- Generated from .*\n-- PREPARED ONLY:/);
-  assert.match(generated, /BEGIN;[\s\S]*COMMIT;/);
+  assert.match(
+    generated,
+    /DO \$edison_public_starter\$[\s\S]*\$edison_public_starter\$;\n$/,
+  );
+  assert.doesNotMatch(generated, /^BEGIN;|^COMMIT;/m);
+  assert.doesNotMatch(
+    generated,
+    /\$edison_public_starter\$;[\s\S]+\bSELECT\b/,
+  );
   assert.match(generated, /pg_advisory_xact_lock/);
   assert.match(
     generated,
@@ -185,6 +194,11 @@ test("checked-in SQL is generated from the validated fixture and preserves publi
       itemInsert > editionInsert &&
       publicationUpdate > itemInsert,
   );
+
+  const readSql = buildPublicationReadSql(fixture);
+  assert.match(readSql, /^SELECT jsonb_build_object\(/);
+  assert.match(readSql, /AS public_starter_edition/);
+  assert.doesNotMatch(readSql, /\b(?:INSERT|UPDATE|DELETE|DO)\b/i);
 });
 
 test("subject IDs bind only after exact database-generated publication IDs exist", () => {

@@ -40,6 +40,7 @@ export function ArticleView({
   onShared,
   backLabel = "Back to edition",
   nextArticle,
+  nextSourceLabel,
   onNext,
   onAsk,
   deviceSave = false,
@@ -57,6 +58,7 @@ export function ArticleView({
   onShared: (shareId: string | null) => void;
   backLabel?: string;
   nextArticle?: ArticleCard | null;
+  nextSourceLabel?: string;
   onNext?: () => void;
   onAsk?: () => void;
   deviceSave?: boolean;
@@ -311,7 +313,7 @@ export function ArticleView({
 
       {pulse && <nav className="pulse-reading-next" aria-label="Continue reading">
         {nextArticle && onNext ? <>
-          <p>Next article</p>
+          <p>Next article{nextSourceLabel ? ` · ${nextSourceLabel}` : ""}</p>
           <button type="button" className="pulse-next-article" onClick={() => { void complete(); onNext(); }}><span>{nextArticle.title}</span><ArrowRight aria-hidden="true" /></button>
           <button type="button" className="pulse-back-to-feed" onClick={() => { void complete(); back(); }}>{backLabel}</button>
         </> : <button type="button" className="pulse-next-article" onClick={() => { void complete(); back(); }}>{backLabel}<ArrowRight aria-hidden="true" /></button>}

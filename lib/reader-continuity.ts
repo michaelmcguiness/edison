@@ -7,6 +7,7 @@ export const readingJourneySchema = z.object({
   articleIds: z.array(z.string().uuid()).max(60),
   returnArticleId: z.string().uuid().nullable(),
   feedScrollY: z.number().finite().min(0).max(1_000_000),
+  sourceLabels: z.record(z.string().uuid(), z.string().min(1).max(120)).refine((items) => Object.keys(items).length <= 60).default({}),
 }).strict();
 
 export type ReadingJourney = z.infer<typeof readingJourneySchema>;
@@ -22,12 +23,14 @@ export function createReadingJourney(
   articleIds: string[],
   returnArticleId: string,
   feedScrollY: number,
+  sourceLabels: Record<string, string> = {},
 ): ReadingJourney {
   return readingJourneySchema.parse({
     loopId,
     articleIds: [...new Set(articleIds)].slice(0, 60),
     returnArticleId,
     feedScrollY: Math.max(0, feedScrollY),
+    sourceLabels,
   });
 }
 

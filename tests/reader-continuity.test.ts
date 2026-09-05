@@ -14,6 +14,13 @@ test("frozen reading order deduplicates and Next opens a real available destinat
   assert.equal(nextReadableArticle(ids[0], null, readable), null);
 });
 
+test("Next source labels are frozen with the selected reading, not inferred after a loop changes", () => {
+  const labels = { [ids[0]]: "Sleep", [ids[1]]: "History" };
+  const journey = createReadingJourney("for-you", ids.slice(0, 2), ids[0], 240, labels);
+  labels[ids[1]] = "Changed later";
+  assert.equal(journey.sourceLabels[ids[1]], "History");
+});
+
 test("loop routes never accept private text or unsafe destinations", () => {
   assert.equal(validReaderLoopId("for-you"), "for-you");
   assert.equal(validReaderLoopId(ids[0]), ids[0]);

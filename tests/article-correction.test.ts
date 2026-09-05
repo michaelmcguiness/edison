@@ -5,6 +5,7 @@ import { dirname, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
+  buildCorrectionResultSql,
   buildCorrectionSql,
   runArticleCorrectionCli,
   validateCorrectionPair,
@@ -132,8 +133,15 @@ test("generated operator SQL uses exact CAS, history guards, and atomic audit", 
   const correction = validateCorrectionPair(genericSpecimens());
   const sql = buildCorrectionSql(correction);
 
-  assert.match(sql, /BEGIN;[\s\S]*COMMIT;/);
+  assert.match(
+    sql,
+    /DO \$article_correction\$[\s\S]*\$article_correction\$;\n$/,
+  );
+  assert.doesNotMatch(sql, /^BEGIN;|^COMMIT;/m);
+  assert.doesNotMatch(sql, /\$article_correction\$;[\s\S]+\bSELECT\b/);
   assert.doesNotMatch(sql, /\\set\s+/);
+  assert.match(sql, /set_config\('lock_timeout', '5s', true\)/);
+  assert.match(sql, /set_config\('statement_timeout', '30s', true\)/);
   assert.match(sql, /pg_advisory_xact_lock/);
   assert.match(sql, /FOR UPDATE/);
   assert.match(sql, /article_correction_snapshot_fingerprint/);
@@ -155,6 +163,11 @@ test("generated operator SQL uses exact CAS, history guards, and atomic audit", 
     sql,
     /(?:DATABASE_URL|SUPABASE_SERVICE_ROLE_KEY|Authorization:|Bearer\s)/i,
   );
+
+  const resultSql = buildCorrectionResultSql(correction);
+  assert.match(resultSql, /^SELECT jsonb_build_object\(/);
+  assert.match(resultSql, /AS correction_result/);
+  assert.doesNotMatch(resultSql, /\b(?:INSERT|UPDATE|DELETE|DO)\b/i);
 
   const articleUpdate = sql.match(
     /UPDATE public\.articles[\s\S]*?WHERE id =[^;]+;/,
@@ -258,6 +271,13 @@ test("API helper reads only the narrow correction disclosure function", () => {
     source,
     /before_snapshot|after_snapshot|fingerprint|corrected_by/,
   );
+});
+
+test("readiness requires the correction audit and narrow disclosure grant", () => {
+  const source = readFileSync(resolve(repositoryRoot, "apps/api/app/v1/health/route.ts"), "utf8");
+  assert.match(source, /to_regclass\('private\.article_correction_audits'\)/);
+  assert.match(source, /to_regprocedure\('private\.read_article_correction_disclosure\(uuid\)'\)/);
+  assert.match(source, /has_function_privilege\(\s*'edison_api',\s*'private\.read_article_correction_disclosure\(uuid\)'/);
 });
 
 test("disposable database gate is local-only and exercises replay and blockers", () => {

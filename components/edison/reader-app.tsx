@@ -98,7 +98,7 @@ import { useReaderContinuity } from "@/hooks/use-reader-continuity";
 import { createReadingJourney, nextReadableArticle, validReaderLoopId } from "@/lib/reader-continuity";
 import { matchPreparedSubject, preparedArtworkByArticleId, preparedSuggestions } from "@/lib/prepared-catalog";
 import { emptyPulseWorkspace } from "@/lib/pulse-workspace";
-import { readerHistoryState } from "@/lib/reader-navigation-history";
+import { readerBackSteps, readerHistoryState } from "@/lib/reader-navigation-history";
 import { clearPendingArticleQuestions } from "@/lib/device-reading-data";
 import { PulseShell } from "@/components/edison/pulse-shell";
 import { PulseFeed } from "@/components/edison/pulse-feed";
@@ -309,6 +309,7 @@ function ReaderSession({
   const continuity = useReaderContinuity(dataMode === "prototype" ? "demo" : reader.id);
   const { capture: capturePosition, restore: restorePosition, hydrated: continuityReady } = continuity;
   const restorePending = useRef(true);
+  const returnCard = useRef<{ articleId: string; feedScrollY: number } | null>(null);
   const [curateOpen, setCurateOpen] = useState(false);
   const [curateLoopId, setCurateLoopId] = useState("");
   const [curateDrafts, setCurateDrafts] = useState<Record<string, string>>({});
@@ -463,7 +464,7 @@ function ReaderSession({
         "",
         window.location.href,
       );
-      const nextState = readerHistoryState(routeRef.current, next, state, returnOverride);
+      const nextState = readerHistoryState(routeRef.current, next, state, returnOverride, replace);
       if (replace) window.history.replaceState(nextState, "", readerRouteHref(next));
       else window.history.pushState(nextState, "", readerRouteHref(next));
       window.scrollTo(0, 0);
@@ -479,6 +480,12 @@ function ReaderSession({
   const backHome = useCallback(() => {
     if (dataMode !== "prototype" && section === "news") {
       const current = routeRef.current;
+      const steps = readerBackSteps(current, window.history.state ?? {});
+      if (steps !== null) {
+        capturePosition(readerRouteHref(current));
+        window.history.go(-steps);
+        return;
+      }
       if (current.view === "article" && window.history.state?.__edisonArticleReturnRoute) {
         navigate(window.history.state.__edisonArticleReturnRoute as ReaderRoute, true, window.history.state.__edisonArticleReturnParent as ReaderRoute | null);
         return;
@@ -495,7 +502,7 @@ function ReaderSession({
       return;
     }
     navigate({ section, view: "home", articleId: null }, true);
-  }, [dataMode, navigate, section]);
+  }, [capturePosition, dataMode, navigate, section]);
 
   useEffect(() => {
     routeRef.current = route;
@@ -505,6 +512,11 @@ function ReaderSession({
     const applyLocation = (state?: unknown) => {
       articleRequest.current += 1;
       const next = parseReaderRoute(window.location.search);
+      const previous = routeRef.current;
+      if (next.view === "home" && previous.view === "article" && previous.articleId) {
+        const journey = continuity.record.current.journeys[previous.articleId];
+        returnCard.current = { articleId: journey?.returnArticleId ?? previous.articleId, feedScrollY: journey?.feedScrollY ?? 0 };
+      } else returnCard.current = null;
       routeRef.current = next;
       setRoute(next);
       restorePending.current = true;
@@ -515,22 +527,31 @@ function ReaderSession({
       requestAnimationFrame(() => window.scrollTo(0, Number.isFinite(scrollY) ? scrollY : 0));
     };
     applyLocation(window.history.state);
-    const onPopState = (event: PopStateEvent) => applyLocation(event.state);
+    const previousRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
+    const onPopState = (event: PopStateEvent) => { capturePosition(readerRouteHref(routeRef.current)); applyLocation(event.state); };
     window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, []);
+    return () => { window.history.scrollRestoration = previousRestoration; window.removeEventListener("popstate", onPopState); };
+  }, [capturePosition, continuity.record]);
 
   useEffect(() => {
     if (!continuityReady || loading || (view === "home" && readingLoops.loading) || (view === "library" && libraryLoading) || (view === "article" && article?.id !== route.articleId)) return;
     if (!restorePending.current) return;
-    restorePending.current = false;
     const frame = requestAnimationFrame(() => {
-      const focusTarget = document.querySelector<HTMLElement>("main h1, main");
+      restorePending.current = false;
+      const card = view === "home" && returnCard.current
+        ? document.querySelector<HTMLElement>(`[data-article-id="${returnCard.current.articleId}"]`)
+        : null;
+      const focusTarget = card?.querySelector<HTMLElement>(".pulse-card-open-target") ?? document.querySelector<HTMLElement>("main h1, main");
       if (focusTarget) {
-        focusTarget.setAttribute("tabindex", "-1");
+        if (!focusTarget.matches("button, a[href], input, select, textarea")) focusTarget.setAttribute("tabindex", "-1");
         focusTarget.focus({ preventScroll: true });
       }
-      restorePosition(readerRouteHref(route), view === "home" ? readingJourney?.feedScrollY ?? 0 : 0);
+      restorePosition(readerRouteHref(route), view === "home" ? returnCard.current?.feedScrollY ?? 0 : 0);
+      if (card) {
+        const bounds = card.getBoundingClientRect();
+        if (bounds.bottom < 90 || bounds.top > window.innerHeight - 100) card.scrollIntoView({ block: "nearest", behavior: "instant" });
+      }
     });
     return () => cancelAnimationFrame(frame);
   }, [article?.id, continuityReady, libraryLoading, loading, readingJourney?.feedScrollY, readingLoops.loading, restorePosition, route, view]);
@@ -878,7 +899,10 @@ function ReaderSession({
     }
     setArticle(articleCache.current.get(story.id) ?? null);
     if (pulseEnabled && view === "home") {
-      continuity.rememberJourney(story.id, createReadingJourney(activeLoopId, pulseArticles.map((entry) => entry.id), story.id, window.scrollY));
+      const sourceLabels = Object.fromEntries(pulseArticles.map((entry) => [entry.id,
+        selectedLoops.find((loop) => [...loop.articleIds, ...loop.publicArticleIds].includes(entry.id))?.title ?? (knownPublicArticleIds.has(entry.id) ? "The collection" : "Your reading"),
+      ]));
+      continuity.rememberJourney(story.id, createReadingJourney(activeLoopId, pulseArticles.map((entry) => entry.id), story.id, window.scrollY, sourceLabels));
     }
     const originLoopId = view === "library" ? continuity.record.current.journeys[story.id]?.loopId ?? activeLoopId : activeLoopId;
     navigate({ section: "news", view: "article", articleId: story.id, ...(pulseEnabled ? { loopId: originLoopId } : {}) });
@@ -1755,6 +1779,7 @@ function ReaderSession({
       {view === "home" && pulseEnabled && (
         <PulseFeed
           articles={pulseArticles}
+          heading={activeLoopId === "collection" || (dataMode === "guest" && !readingLoops.loops.length) ? "The collection" : "Your reading"}
           activeLoopLabel={activeLoopLabel}
           intro={activeLoop
             ? activeLoop.direction || `Keep exploring ${activeLoop.title}.`
@@ -1845,6 +1870,7 @@ function ReaderSession({
           back={backHome}
           backLabel={pulseEnabled ? typeof window !== "undefined" && window.history.state?.__edisonArticleReturnRoute?.view === "library" ? "Back to Library" : `Back to ${activeLoopLabel}` : undefined}
           nextArticle={pulseEnabled ? nextArticle : null}
+          nextSourceLabel={pulseEnabled && nextArticle ? readingJourney?.sourceLabels[nextArticle.id] : undefined}
           onNext={pulseEnabled && nextArticle ? () => {
             if (readingJourney) continuity.rememberJourney(nextArticle.id, { ...readingJourney, returnArticleId: nextArticle.id });
             void openStory(nextArticle);
@@ -1948,6 +1974,7 @@ function ReaderSession({
         </Sheet>
         <CurateDialog
           open={curateOpen}
+          localOnly={dataMode !== "live"}
           loops={readingLoops.loops}
           selectedLoopId={curateLoopId}
           draftText={curateDrafts[curateLoopId] ?? selectedCurateLoop?.direction ?? ""}

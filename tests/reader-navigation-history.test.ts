@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readerHistoryState } from "../lib/reader-navigation-history";
+import { readerBackSteps, readerHistoryState } from "../lib/reader-navigation-history";
 
 const home = { section: "news", view: "home", articleId: null, loopId: "for-you" };
 const library = { ...home, view: "library" };
@@ -25,4 +25,27 @@ test("a direct Library visit without a parent cannot create an article return cy
   const opened = readerHistoryState(library, article, {});
   const returned = readerHistoryState(article, library, opened, null);
   assert.equal(returned.__edisonReturnRoute, null);
+});
+
+test("article detours resume the real entry without converting its feed origin to Library", () => {
+  const articleState = readerHistoryState(home, article, {});
+  const libraryState = readerHistoryState(article, library, articleState);
+  assert.equal(readerBackSteps(library, libraryState), 1);
+  // Browser history resumes articleState, not a new Library-to-article entry.
+  assert.equal(readerBackSteps(article, articleState), 1);
+  assert.equal(articleState.__edisonArticleReturnRoute, null);
+  const profile = { ...home, view: "profile" };
+  const profileState = readerHistoryState(article, profile, articleState);
+  const nestedLibraryState = readerHistoryState(profile, library, profileState);
+  assert.equal(readerBackSteps(library, nestedLibraryState), 1);
+  assert.equal(readerBackSteps(profile, profileState), 1);
+  assert.equal(readerBackSteps(article, articleState), 1);
+});
+
+test("Next preserves the actual feed or Library history destination across several articles", () => {
+  const first = readerHistoryState(library, article, {});
+  const second = readerHistoryState(article, { ...article, articleId: "two" }, first);
+  assert.equal(readerBackSteps(article, second), 2);
+  assert.equal(readerBackSteps(article, {}), null);
+  assert.equal(readerBackSteps(article, { __edisonRoute: true, __edisonArticleReturnSteps: 999 }), null);
 });

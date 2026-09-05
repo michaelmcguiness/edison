@@ -23,6 +23,18 @@ async function databaseIsReady() {
         and to_regclass('public.public_starter_edition_articles') is not null
         and to_regclass('public.learning_loop_direction_mutations') is not null
         and to_regclass('public.learning_loop_public_articles') is not null
+        and to_regclass('private.article_correction_audits') is not null
+        and to_regprocedure('private.read_article_correction_disclosure(uuid)') is not null
+        and has_function_privilege(
+          'edison_api',
+          'private.read_article_correction_disclosure(uuid)',
+          'execute'
+        )
+        and not has_table_privilege(
+          'edison_api',
+          'private.article_correction_audits',
+          'select'
+        )
         and (
           select count(*)
           from pg_catalog.pg_attribute attribute

@@ -49,7 +49,12 @@ export function createLocalLoop(workspace: PulseWorkspace, input: {
 }, id: string, now: string): { workspace: PulseWorkspace; loop: LocalLoop } {
   const normalized = input.title.trim().toLocaleLowerCase("en-US");
   const existing = workspace.loops.find((loop) => loop.title.trim().toLocaleLowerCase("en-US") === normalized);
-  if (existing) return { workspace, loop: existing };
+  if (existing) {
+    if (existing.originalCuriosity !== input.originalCuriosity.trim()) {
+      throw new Error("A loop with this title already keeps a different question. Your new question is still here; give it a distinct subject or keep exploring the existing loop.");
+    }
+    return { workspace, loop: existing };
+  }
   if (workspace.loops.length >= 20) throw new Error("You can keep up to 20 loops on this device.");
   const loop = localLoopSchema.parse({ ...input, id, title: input.title.trim(), direction: "", revision: 0, paused: false, articleIds: [], lastMutationId: null, history: [], createdAt: now, updatedAt: now });
   return { workspace: { ...workspace, loops: [...workspace.loops, loop] }, loop };

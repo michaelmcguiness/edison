@@ -1,9 +1,8 @@
 -- Generated from content/public-starters/accepted-sleep-history-v1.json.
 -- PREPARED ONLY: contains public article content and no credentials.
 -- Review before running against the exact linked Supabase project. This script
--- mirrors the application publication boundary and never overwrites existing data.
-
-BEGIN;
+-- is one atomic native-query statement, mirrors the application publication
+-- boundary, and never overwrites existing data.
 
 DO $edison_public_starter$
 DECLARE
@@ -83,40 +82,3 @@ BEGIN
   END IF;
 END
 $edison_public_starter$;
-
-COMMIT;
-
--- Save this single sanitized JSON value and bind it with --bind-response only
--- after publication. Database-generated article IDs are intentionally not guessed.
-SELECT jsonb_build_object(
-  'id', edition.id,
-  'section', edition.section,
-  'editionDate', edition.edition_date,
-  'label', edition.label,
-  'publishedAt', to_char(
-    edition.published_at AT TIME ZONE 'UTC',
-    'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'
-  ),
-  'itemCount', (
-    SELECT count(*)::integer
-    FROM public.public_starter_edition_articles AS count_item
-    WHERE count_item.edition_id = edition.id
-  ),
-  'items', (
-    SELECT coalesce(
-      jsonb_agg(
-        jsonb_build_object(
-          'id', item.id,
-          'position', item.position,
-          'reason', item.reason,
-          'article', item.snapshot
-        ) ORDER BY item.position
-      ),
-      '[]'::jsonb
-    )
-    FROM public.public_starter_edition_articles AS item
-    WHERE item.edition_id = edition.id
-  )
-) AS public_starter_edition
-FROM public.public_starter_editions AS edition
-WHERE edition.idempotency_key = 'public-starter.accepted-sleep-history-v1';

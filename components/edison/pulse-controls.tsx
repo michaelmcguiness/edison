@@ -36,6 +36,7 @@ export interface CurateDialogProps {
   error?: string;
   status?: string;
   requireLoopSelection?: boolean;
+  localOnly?: boolean;
   onOpenChange: (open: boolean) => void;
   onSelectLoop: (loopId: string) => void;
   onDraftChange: (text: string) => void;
@@ -66,6 +67,7 @@ export function CurateDialog({
   error = "",
   status = "",
   requireLoopSelection = false,
+  localOnly = false,
   onOpenChange,
   onSelectLoop,
   onDraftChange,
@@ -146,7 +148,7 @@ export function CurateDialog({
 
           <div className="pulse-field">
             <label htmlFor={`${id}-direction`}>
-              {selectedLoop ? `What should your ${selectedLoop.title} loop focus on?` : "What should this loop focus on?"}
+              {selectedLoop ? `What should your ${selectedLoop.title} loop focus on?` : "Choose a loop to start."}
             </label>
             <div className="pulse-composer">
               <textarea
@@ -156,9 +158,12 @@ export function CurateDialog({
                 maxLength={MAX_DIRECTION_LENGTH}
                 value={draftText}
                 readOnly={pending}
+                disabled={!selectedLoop}
                 aria-invalid={Boolean(error)}
                 aria-describedby={describedBy}
-                placeholder="More historical context. Less introductory explanation."
+                placeholder={selectedLoop
+                  ? "More historical context. Less introductory explanation."
+                  : "Select a learning loop above."}
                 onChange={(event) => onDraftChange(event.target.value)}
               />
               <div className="pulse-composer-footer">
@@ -175,7 +180,9 @@ export function CurateDialog({
         </form>
 
         <p className="pulse-dialog-note" id={`${id}-direction-note`}>
-          Applies to future selections in {selectedLoop?.title ?? "the selected loop"}. Today’s articles stay as they are.
+          {localOnly
+            ? "Saved on this device. Guest directions do not change article selections."
+            : `Applies to future scheduled reading in ${selectedLoop?.title ?? "the selected loop"}. Existing articles stay as they are.`}
         </p>
 
         {status && !error ? <p className="pulse-dialog-status" role="status">{status}</p> : null}

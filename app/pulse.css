@@ -23,8 +23,8 @@
   box-sizing: border-box;
 }
 
-.pulse-app :is(button, input, select, textarea),
-.pulse-dialog :is(button, input, select, textarea) {
+.pulse-app :where(button, input, select, textarea),
+.pulse-dialog :where(button, input, select, textarea) {
   color: inherit;
   font: inherit;
 }
@@ -123,6 +123,7 @@
   position: sticky;
   top: 0;
   z-index: 30;
+  isolation: isolate;
   margin-bottom: 28px;
   padding: 9px 0 18px;
   background: var(--pulse-white);
@@ -202,7 +203,6 @@
 }
 
 .pulse-loop-overflow {
-  position: relative;
   font-size: 13px;
 }
 
@@ -238,8 +238,8 @@
   right: 0;
   z-index: 35;
   display: grid;
-  width: 240px;
-  max-width: calc(100vw - 40px);
+  width: min(240px, 100%);
+  max-width: 100%;
   gap: 2px;
   padding: 8px;
   border: 1px solid #dddddd;
@@ -338,6 +338,20 @@
   color: #ffffff;
 }
 
+.pulse-card-open-target {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+}
+
+.pulse-card-open-target:focus-visible {
+  outline-offset: -3px;
+}
+
 .pulse-card-art {
   position: relative;
   aspect-ratio: 1.48;
@@ -398,7 +412,6 @@
   margin-top: auto;
 }
 
-.pulse-card-open,
 .pulse-card-save {
   border: 0;
   background: transparent;
@@ -415,7 +428,8 @@
   text-align: left;
 }
 
-.pulse-card-open:hover span {
+.pulse-card:has(.pulse-card-open-target:hover) .pulse-card-open span,
+.pulse-card:has(.pulse-card-open-target:focus-visible) .pulse-card-open span {
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 4px;
@@ -949,6 +963,260 @@
   text-underline-offset: 3px;
 }
 
+.pulse-app .subpage {
+  width: min(100%, 940px);
+  margin: 0 auto;
+  padding: 0 0 calc(72px + env(safe-area-inset-bottom, 0px));
+  color: var(--pulse-ink);
+  font-family: var(--font-inter), Inter, Arial, system-ui, sans-serif;
+}
+
+.pulse-app .subpage .back {
+  min-height: 44px;
+  gap: 6px;
+  margin-top: 0;
+  color: var(--pulse-muted);
+  font-family: var(--font-inter), Inter, Arial, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.pulse-app .subpage .back:hover {
+  color: var(--pulse-ink);
+  text-decoration-color: currentColor;
+  text-decoration-thickness: 1px;
+}
+
+.pulse-app .subpage > header {
+  padding: 24px 0 28px;
+  border-bottom: 1px solid var(--pulse-line);
+}
+
+.pulse-app .subpage .eyebrow {
+  color: var(--pulse-muted);
+  font-family: var(--font-inter), Inter, Arial, system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.pulse-app .subpage h1 {
+  margin: 8px 0 12px;
+  color: var(--pulse-ink);
+  font-family: var(--font-inter), Inter, Arial, system-ui, sans-serif;
+  font-size: 36px;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1.18;
+}
+
+.pulse-app .subpage > header p {
+  max-width: 650px;
+  margin: 0;
+  color: var(--pulse-muted);
+  font-family: var(--font-inter), Inter, Arial, system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.pulse-app .subpage section {
+  margin: 40px 0;
+}
+
+.pulse-app .subpage h2 {
+  margin: 0 0 18px;
+  color: var(--pulse-ink);
+  font-family: var(--font-inter), Inter, Arial, system-ui, sans-serif;
+  font-size: 27px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.25;
+}
+
+.pulse-app .subpage :where(button, input) {
+  font-family: var(--font-inter), Inter, Arial, system-ui, sans-serif;
+}
+
+.pulse-app .subpage .thread-grid,
+.pulse-app .subpage .interest-list {
+  border-top-color: var(--pulse-line);
+}
+
+.pulse-app .subpage .thread-grid {
+  gap: 0 24px;
+}
+
+.pulse-app .subpage .thread-grid > div,
+.pulse-app .subpage .library-story,
+.pulse-app .subpage .interest-list li,
+.pulse-app .subpage .learned p {
+  border-color: var(--pulse-line);
+}
+
+.pulse-app .subpage .thread-grid b,
+.pulse-app .subpage .library-story b {
+  color: var(--pulse-ink);
+  font-family: var(--font-inter), Inter, Arial, system-ui, sans-serif;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.pulse-app .subpage .thread-grid span,
+.pulse-app .subpage .library-story small,
+.pulse-app .subpage .settings label small,
+.pulse-app .subpage .article-length-setting small,
+.pulse-app .subpage .interest-topic small {
+  color: var(--pulse-muted);
+  font-family: var(--font-inter), Inter, Arial, system-ui, sans-serif;
+}
+
+.pulse-app .subpage .library-story {
+  gap: 14px;
+  padding: 18px 0;
+  color: var(--pulse-ink);
+}
+
+.pulse-app .subpage .library-story:hover b,
+.pulse-app .subpage .library-story:focus-visible b {
+  text-decoration-color: currentColor;
+  text-decoration-thickness: 1px;
+}
+
+.pulse-app .subpage .library-story > svg,
+.pulse-app .subpage .data-status svg {
+  color: var(--pulse-muted);
+}
+
+.pulse-app .subpage .quiet-empty,
+.pulse-app .subpage .section-intro,
+.pulse-app .subpage .learned p {
+  color: var(--pulse-muted);
+  font-family: var(--font-inter), Inter, Arial, system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.pulse-app .subpage .streak-card {
+  padding: 22px;
+  border-radius: 20px;
+  background: var(--pulse-action);
+  color: #ffffff;
+}
+
+.pulse-app .subpage .streak-card > svg {
+  color: #ffffff;
+}
+
+.pulse-app .subpage .streak-card b {
+  font-family: var(--font-inter), Inter, Arial, system-ui, sans-serif;
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.pulse-app .subpage .signout {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  border: 1px solid #d9d9d9;
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--pulse-ink);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.pulse-app .subpage .signout:hover {
+  background: var(--pulse-wash);
+  color: var(--pulse-ink);
+}
+
+.pulse-app .subpage .settings > label,
+.pulse-app .subpage .article-length-setting {
+  border-top-color: var(--pulse-line);
+}
+
+.pulse-app .subpage .settings [data-slot="slider-track"] {
+  height: 3px;
+  border-radius: 999px;
+  background: var(--pulse-line);
+}
+
+.pulse-app .subpage .settings [data-slot="slider-range"] {
+  background: var(--pulse-action);
+}
+
+.pulse-app .subpage .settings [data-slot="slider-thumb"] {
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--pulse-action);
+}
+
+.pulse-app .subpage .settings [data-slot="slider-thumb"]:hover,
+.pulse-app .subpage .settings [data-slot="slider-thumb"]:focus-visible {
+  background: #2a2b2d;
+}
+
+.pulse-app .subpage .settings .article-length-option {
+  border-color: var(--pulse-line);
+  border-radius: 12px;
+}
+
+.pulse-app .subpage .settings .article-length-option:has(input:checked) {
+  border-color: #bfc0c2;
+  background: var(--pulse-wash);
+}
+
+.pulse-app .subpage .article-length-option input {
+  accent-color: var(--pulse-action);
+}
+
+.pulse-app .subpage .interest-form input {
+  border-color: #c9c9c9;
+  border-radius: 12px;
+  background: #ffffff;
+  color: var(--pulse-ink);
+}
+
+.pulse-app .subpage .interest-form button,
+.pulse-app .subpage .interest-list button {
+  border-color: #d2d2d2;
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--pulse-ink);
+  font-weight: 500;
+}
+
+.pulse-app .subpage .interest-form button {
+  border-color: var(--pulse-action);
+  background: var(--pulse-action);
+  color: #ffffff;
+}
+
+.pulse-app .subpage .interest-form button:hover:not(:disabled) {
+  border-color: #2a2b2d;
+  background: #2a2b2d;
+  color: #ffffff;
+}
+
+.pulse-app .subpage .interest-list button:hover:not(:disabled) {
+  background: var(--pulse-wash);
+  color: var(--pulse-ink);
+}
+
+.pulse-app .subpage .interest-delete-action {
+  color: var(--pulse-muted);
+}
+
+.pulse-app .subpage .learned p::before {
+  color: var(--pulse-muted);
+}
+
 .pulse-app .pulse-device-settings {
   display: grid;
   gap: 12px;
@@ -1130,6 +1398,11 @@
 .pulse-field select:disabled,
 .pulse-field textarea:read-only {
   cursor: wait;
+  opacity: 0.65;
+}
+
+.pulse-field textarea:disabled {
+  cursor: not-allowed;
   opacity: 0.65;
 }
 
@@ -1395,6 +1668,10 @@
 
   .pulse-feed-heading h1 {
     font-size: 30px;
+  }
+
+  .pulse-app .subpage h1 {
+    font-size: 32px;
   }
 
   .pulse-article-reader {
