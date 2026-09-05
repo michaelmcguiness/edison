@@ -28,10 +28,17 @@ Release `f6b7bb1cb49244c28f37f70519b97184510708a9` passed full Node 22 CI
 `33995500057` including 165 pgTAP assertions and actual disposable publication/
 correction rehearsals. Explicit cache-free Production rebuilds are Ready:
 
-- Web: `dpl_ArHbfeAQeHmREgBQjkN91ivL977h`,
+- Initial web: `dpl_ArHbfeAQeHmREgBQjkN91ivL977h`,
   `https://project-qlqve.vercel.app`, September 5 at 22:29:22 UTC.
 - API: `dpl_4SBpQxDpes2wrnpGFpJ1z2AWEyHf`,
   `https://project-fjr95.vercel.app`, September 5 at 22:23:54 UTC.
+
+The final web-only follow-up `a08c6a1a346f281182f23214500bc93e72075243`
+passed full Node 22 CI `33996724371` with 236 application tests and 165 pgTAP
+assertions. Production web `dpl_3pzB3bKXiX7qFUVpits8QxP3CFpt` was Ready at
+22:49:02 UTC on the same stable web URL. API remains f6; the follow-up changed
+only web files, focused tests and documentation. Do not redeploy API or rerun
+migrations for a documentation-only closeout.
 
 All 15 migrations are applied. The accepted Sleep/History public edition is
 published and its real UUIDs/artwork are bound in the client; complete hosted
@@ -44,8 +51,12 @@ cost $0.062654. Do not reset quotas or claim this correction improved the writer
 Actual guest reading, Save/Library, Next/Back/card focus, loop matching, Curate
 save/undo, question-draft and scroll-position reload checks pass. The new API's
 health, private-route rejection, exact CORS and all negative cron checks pass.
-Design has rendered actual 320/390px layouts without horizontal overflow;
-a bounded keyboard/focus/styling follow-up is being prepared. The controlled
+Design has rendered actual 320/390/760/1024/1280/1440px layouts without
+horizontal overflow. The bounded keyboard/focus/styling follow-up is live;
+root verified its deployment marker, heading focus, removed Pulse-only stripe,
+Ask dismissal restoring its control's focus and original-card return. Design's
+focused a08 recheck closed all five keyboard/styling findings at desktop and
+320/390px. Its exact report is linked from the release record. The controlled
 browser still has no authenticated owner session; owner-only rendered flows,
 the correction note, provider-dashboard reconciliation and backup restoration
 remain unverified. Do not extract credentials or resend invitations.
@@ -66,7 +77,12 @@ Never reveal existing secrets or ask for them in chat. No extra paid services,
 broader invitations, or website-domain changes are part of this first release;
 the apex demo remains isolated while the owner-only live alpha is validated.
 
-Candidate `4f774eb` is committed and pushed on
+#### Historical pre-Pulse setup chronology
+
+The following checkpoint is retained as history and is superseded by the
+latest Pulse release above.
+
+Candidate `4f774eb` was committed and pushed on
 `codex/production-release-candidate` in draft PR #1; `main` is neither merged
 nor protected. [CI run 33987973278](https://github.com/michaelmcguiness/edison/actions/runs/33987973278)
 passed on Node 22.23.2/pnpm 10.28.0 with lint, both typechecks, 183 application tests,
@@ -181,21 +197,24 @@ provider-side billing reconciliation is not complete. No quota or history was
 reset: all four rolling daily job slots are consumed, and the edition is one
 article rather than a complete three-article acceptance.
 
-The first article is genuine production output but is not editorially accepted.
+At this earlier checkpoint, the first genuine production article was not
+editorially accepted.
 Primary-source review found overconfident headline framing and incorrect precise
 source dates; the original private artifact is retained without silently changing
 the live article. Chief of Staff now owns Editorial, Strategy, and Growth; do not
 reactivate those archived tasks. Chief of Staff's independent final verdict is
 **withhold** this exact article pending bounded corrections: headline/opening
 certainty, source dates/labels, and clearer projection timing. The core numerical
-claims and grid lead-time explanation are supported. No content was changed;
-a preserved corrected version and focused recheck remain pending. New unapproved product/design proposals must not enter
+claims and grid lead-time explanation were supported. The bounded correction
+was subsequently accepted and applied with a protected audit as recorded at
+the top; this historical withhold is not a current instruction to repeat it.
+New unapproved product/design proposals must not enter
 engineering until Michael approves their design; existing release fixes continue.
 
 Head of Editorial accepted starter candidate v2 with exact SHA-256
 `aa26d2258cb391ad552466f39bee01ae4d1596d480fef59381dfeb9b184d8c50`
-in its isolated worktree. It remains an unpublished draft; integrate only that
-exact accepted artifact after the owner account and admin boundary work.
+in its isolated worktree. That older draft is superseded by the accepted and
+published Sleep/History fixture. Do not integrate or publish the obsolete v2.
 
 ### Historical setup and approval record
 
@@ -300,7 +319,7 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   is proven.
 - The public GitHub source is
   [michaelmcguiness/edison](https://github.com/michaelmcguiness/edison). The
-  current deployed Pulse candidate is `f6b7bb1`, pushed on
+  deployed Pulse candidates are `a08c6a1` (web) and `f6b7bb1` (API), pushed on
   `codex/production-release-candidate` in
   [draft PR #1](https://github.com/michaelmcguiness/edison/pull/1). `main` is
   unmerged and unprotected.
@@ -308,7 +327,7 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   Next.js/Node 22/build settings and saved production branch `main`.
   Release-branch pushes now target Preview; the current deployments were
   explicit Production rebuilds. Web deployment
-  `dpl_ArHbfeAQeHmREgBQjkN91ivL977h` (`f6b7bb1`) is live at
+  `dpl_3pzB3bKXiX7qFUVpits8QxP3CFpt` (`a08c6a1`) is live at
   `project-qlqve.vercel.app`. API deployment
   `dpl_4SBpQxDpes2wrnpGFpJ1z2AWEyHf` (`f6b7bb1`) is Ready at
   `project-fjr95.vercel.app`, and readiness is fully healthy.
@@ -353,7 +372,7 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   [`edison-production`](https://supabase.com/dashboard/project/bcxxnntastmnormcmxbq)
   exists and is Healthy, in the Pro organization in `us-east-1`, PostgreSQL
   `17.6.1.166`; the organization inventory still labels compute Nano.
-  All 13 repository migrations are applied. Read-only hosted checks confirm the
+  All 15 repository migrations are applied. Read-only hosted checks confirm the
   expected schema, RLS, policies, triggers, Storage bucket, functions, and
   constrained grants. Backup contents and recovery have not been verified. The
   owner privately saved the actual Shared Transaction pooler URI. Runtime
@@ -379,12 +398,14 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   remains enabled. The dashboard template preview has an unresolved logo and
   the owner has redeemed the invitation successfully. Owner-side email asset
   rendering remains unverified, but the callback/authenticated API gate passes.
-- Candidate `4f774eb` is pushed and its API deployment is Ready with
+- API candidate `f6b7bb1` is deployed and Ready with
   configuration, database, and Auth health all `ok`. The temporary web and
   Supabase schema are live. Owner authentication and timezone persistence pass;
   one real article and its usage ledger now exist after the provider-schema fix.
-  Full rendered reading and editorial acceptance remain incomplete.
-- CI run `33987973278` is green for all 183 application tests, 107 pgTAP
+  Accepted public articles and the audited manual correction are live. Guest
+  rendered acceptance passes; authenticated owner acceptance remains incomplete.
+- CI run `33996724371` is green for web follow-up `a08c6a1`: 236 application
+  tests, 165 pgTAP
   assertions, strict schema lint, and both production builds. Hosted OpenAI
   billing reconciliation, owner-side email rendering, end-to-end owner acceptance, and
   a backup/restore rehearsal remain release gates.

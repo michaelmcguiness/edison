@@ -7,13 +7,23 @@ production web/API projects. See the approved brand handoff. The apex demo and
 domain configuration remain unchanged. No additional reader, paid service,
 provider batch, or quota reset belongs to this release.
 
-Candidate `f6b7bb1cb49244c28f37f70519b97184510708a9` is pushed on
+The initial API/content/web release is
+`f6b7bb1cb49244c28f37f70519b97184510708a9`, pushed on
 `codex/production-release-candidate`, draft PR #1. Node 22 CI run
 [33995500057](https://github.com/michaelmcguiness/edison/actions/runs/33995500057)
-is green, including application tests, both typechecks/builds, lint, disposable
+is green, including 234 application tests (151 web + 83 API), both typechecks/builds, lint, disposable
 database migrations, 165 pgTAP assertions, strict schema lint, and real
 publication/correction apply/replay/fail-closed rehearsals. `main` remains
 `e559a6b5bb9811ea603e28ab976f3ca18d86dbc3`, unmerged.
+
+The final web-only follow-up is
+`a08c6a1a346f281182f23214500bc93e72075243`. Full Node 22 CI
+[33996724371](https://github.com/michaelmcguiness/edison/actions/runs/33996724371)
+passed at 22:46:24 UTC: 236 application tests (153 web + 83 API), both
+typechecks/builds, lint, 165 pgTAP assertions in 7 files, real publication/
+correction apply/replay/history guards and strict schema lint. Only web code,
+focused web tests and documentation changed from f6; no API or database source
+changed. The API remains on its verified f6 Production build.
 
 The prior candidate `c354092` passed the application builds and migration/pgTAP
 checks. Its new public-publication rehearsal failed before writing: the native
@@ -108,21 +118,46 @@ unavailable-live-answer disclosure and retained per-tab draft. Article scroll
 was 720px before and after a full reload after hydration; frozen Next retained
 the History source label. Profile honestly disables account-only controls.
 
-Design's separate actual 320/390px checks confirmed no horizontal overflow,
-legible cards, a contained new-loop dialog and reachable fixed Curate. Actual
+Design's separate actual 320/390/760/1024/1280/1440px checks confirmed no
+horizontal overflow, legible cards, contained dialogs and a reachable fixed
+Curate. A three-loop, long-active-title menu remained within the 320px viewport,
+and Library/Profile and the sticky article toolbar were verified. Actual
 QA identified dialog-close focus returning to BODY and several styling
 leftovers. A bounded web-only follow-up restores exact opener focus for Curate,
 new loop and Ask, uses heading-first route focus without hiding control rings,
 removes the Pulse-only legacy body border, restores Inter dialog descriptions,
-and leaves one composer focus ring. Hosted verification of that follow-up is
-still pending at this checkpoint. Local prototype/headless/proxy rendering
-remains prohibited.
+and leaves one composer focus ring. The follow-up is now live. Root verified
+the actual successor's deployment marker, 0px Pulse body border, H1 route focus
+without the whole-main outline, Ask's corrected punctuation, and both Escape
+and the close button returning focus to the article Ask button. The button
+retained its visible 2px focus ring. A test question draft was cleared through
+ordinary keyboard editing and stayed empty after reload; article Back still
+returned focus to the original Sleep card. Design's focused successor recheck
+is recorded separately in its implementation review. Local prototype/headless/
+proxy rendering remains prohibited.
+
+Design's focused actual-a08 recheck closed all five findings: desktop
+heading-first focus and white canvas, Curate/Add-loop exact trigger focus on
+Escape and close-button activation, Inter descriptions, and a single outer
+composer focus ring at 320/390px. The 320px dialog stayed at x16–304 with no
+overflow; Profile also retained the white canvas and heading focus. See
+`docs/brand/PULSE_LOOPS_IMPLEMENTATION_REVIEW_2026-09-05.md` for separately owned
+measurements, chronology and evidence limits. No further application change was
+required after a08. Documentation-only closeout is not another app release.
 
 The controlled browser does not contain the owner's signed-in session; do not
 extract credentials or claim authenticated rendered acceptance from database
 metadata. Owner reading/Q&A/share/direction and correction-note rendering,
 provider-dashboard reconciliation, backup restoration, and any unsupported
 zoom/native-mobile-keyboard checks remain distinct from guest acceptance.
+
+The bounded approved Pulse release is live and guest-tested, not a certification
+for broader external readers. Chief of Staff owns prioritizing the remaining
+owner/operational acceptance. No generic release approval, secret edit or
+repeat sign-in invitation is pending. Test-only guest data stays on this
+controlled browser: Sleep/History loops, the restored-empty Sleep direction,
+and Design's clearly named long-label QA loop. No account loop was created by
+these guest checks.
 
 The existing production targets remain `https://project-qlqve.vercel.app`
 (web) and `https://project-fjr95.vercel.app` (API). Explicit Production rebuilds
@@ -137,6 +172,14 @@ Both explicit cache-free Production rebuilds of exact f6 were Ready:
   `edison-mzg3h5nfg-mike-michaelmcguis-projects.vercel.app`.
 - Web: `dpl_ArHbfeAQeHmREgBQjkN91ivL977h`, 22:29:22 UTC,
   `edison-kp3is9p19-mike-michaelmcguis-projects.vercel.app`.
+
+Final web-only a08 Production rebuild was Ready at **22:49:02 UTC**:
+`dpl_3pzB3bKXiX7qFUVpits8QxP3CFpt`,
+`edison-6k95wqcyc-mike-michaelmcguis-projects.vercel.app`.
+The stable web URL remains `https://project-qlqve.vercel.app`. It was rebuilt
+explicitly with saved Production variables and build cache unchecked, not
+promoted from credential-free Preview. Root observed this exact deployment
+marker in the actual site's script URLs.
 
 Independent read-only API smoke window 22:29:03–22:30:44 UTC:
 
@@ -154,6 +197,12 @@ Independent read-only API smoke window 22:29:03–22:30:44 UTC:
   retain no-store, strict CSP/HSTS/nosniff/frame-deny headers.
 - Apex homepage returned 200 and its equivalent API path returned static 404;
   it is not serving the new API.
+
+Independent f6 web inspection at 22:43:34 UTC returned 200 with private/no-cache/
+no-store and a nonce CSP; all 13 script tags carried the matching nonce. Both
+approved PNGs returned 200 as image/png. At 22:43:51 UTC the apex returned the
+explicit sample/demo notice and four-story sample edition, with no Pulse shell,
+Curate or new artwork paths. The subsequent a08 rebuild affected only edison-app.
 
 Retain prior web `dpl_Eqed7bwPxcNaEACSj2Nxx8WtzRwZ` and API
 `dpl_12vWp1rShga96hTQ1yJzu8VTiRYh`, plus both f6 deployments, as rollback

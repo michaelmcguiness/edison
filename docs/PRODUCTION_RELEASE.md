@@ -7,7 +7,8 @@ launching; they can change without a code release.
 ## Decision and current status
 
 **Latest release:** the authorized Pulse + loops v5 is deployed to the separate
-Production web/API projects at `f6b7bb1`. All 15 migrations, the accepted
+Production web/API projects (web `a08c6a1`, API `f6b7bb1`). All 15 migrations, the
+accepted
 Sleep/History publication with verified real article/artwork bindings, and the
 accepted private correction with protected audit are complete. Actual guest
 reading, persistence and negative API security checks pass. The detailed,
@@ -15,8 +16,12 @@ controlling record is `docs/PULSE_RELEASE_2026-09-05.md`; the setup checkpoints
 below are historical, not instructions to repeat migrations, invites or older
 publication operators.
 
-**Remaining gate:** finish the bounded rendered keyboard/styling follow-up;
-authenticated owner reading/correction-note acceptance, provider-dashboard
+The bounded rendered keyboard/styling follow-up is live with the complete
+236-application-test/165-pgTAP Node 22 gate green. Actual successor checks and
+the separate Design review are recorded in the latest release evidence.
+
+**Remaining gate:** authenticated owner reading/correction-note acceptance,
+provider-dashboard
 reconciliation and backup restore rehearsal remain. No owner credential,
 invitation, database or TLS change is pending. No additional generation or
 spending is part of this release verification.

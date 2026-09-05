@@ -236,7 +236,8 @@ Required API configuration includes:
    pass on the new deployed interface. The controlled browser has no owner
    session: authenticated rendered save/share/Q&A/direction and correction-note
    acceptance remain unverified. Do not extract tokens or resend invitations.
-   Candidate `f6b7bb1` passed the full Node 22 CI gate, 165 pgTAP assertions,
+   Final web `a08c6a1` and API `f6b7bb1` passed full Node 22 CI gates, including
+   236 application tests for the final follow-up and 165 pgTAP assertions,
    strict schema lint, both builds and hosted readiness. Full owner acceptance,
    provider-dashboard reconciliation and backup recovery testing remain open.
 4. **Production operations and reader-trust materials remain external setup.**
