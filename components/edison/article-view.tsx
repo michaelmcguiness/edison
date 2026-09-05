@@ -201,7 +201,9 @@ export function ArticleView({
                 : article.saved ? "Remove from library" : "Save to library"}
             aria-pressed={publicStarter && !deviceSave ? undefined : article.saved}
             disabled={publicStarter && !deviceSave}
-            title={dataMode === "guest"
+            title={deviceSave
+              ? "Public saves stay on this device"
+              : dataMode === "guest"
               ? "Sign in to save stories"
               : dataMode === "public"
                 ? "Public starter stories are separate from your private library"
