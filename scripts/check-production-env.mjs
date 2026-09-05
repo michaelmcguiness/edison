@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 
 import { pathToFileURL } from "node:url";
+import {
+  DatabaseConnectionPolicyError,
+  resolveDatabaseConnectionPolicy,
+} from "../packages/db/src/database-connection-policy.mjs";
 
 const TARGETS = new Set(["web", "api"]);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -268,25 +272,31 @@ function checkDatabaseUrl(environment, audit) {
     return;
   }
 
-  const sslMode = parsed.searchParams.get("sslmode")?.toLowerCase();
-  const sslFlag = parsed.searchParams.get("ssl")?.toLowerCase();
-  const acceptedModes = new Set(["require", "verify-ca", "verify-full"]);
-  if (!acceptedModes.has(sslMode ?? "") && sslFlag !== "true") {
+  let connectionPolicy;
+  try {
+    connectionPolicy = resolveDatabaseConnectionPolicy(configured, {
+      production: true,
+    });
+  } catch (error) {
     audit.error(
       "DATABASE_URL",
-      "must explicitly require TLS with sslmode=require, verify-ca, or verify-full",
+      error instanceof DatabaseConnectionPolicyError
+        ? error.message
+        : "DATABASE_URL TLS policy could not be evaluated",
     );
     return;
   }
 
   audit.ok(
     "DATABASE_URL",
-    "transaction-pooler URL and TLS setting are valid; credentials redacted",
+    "transaction-pooler URL is valid and runtime TLS is enforced; credentials redacted",
   );
-  if (sslMode === "require" || sslFlag === "true") {
+  if (connectionPolicy.ssl === "require") {
     audit.warn(
       "DATABASE_URL TLS verification",
-      "encrypted transport is configured; prefer sslmode=verify-full when the runtime trust store supports it",
+      connectionPolicy.tlsDefaulted
+        ? "the runtime defaults missing TLS options to sslmode=require; prefer sslmode=verify-full when the runtime trust store supports it"
+        : "encrypted transport is configured; prefer sslmode=verify-full when the runtime trust store supports it",
     );
   }
 }

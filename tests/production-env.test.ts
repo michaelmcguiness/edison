@@ -91,6 +91,46 @@ test("accepts the least-privilege API production environment", () => {
   assert.equal(result.warningCount, 0);
 });
 
+test("accepts a pooler URL without TLS query options because runtime defaults require", () => {
+  const result = checkProductionEnvironment(
+    {
+      ...validApiEnvironment(),
+      DATABASE_URL:
+        "postgresql://postgres.project:db-password-SENTINEL@aws-0-us-east-1.pooler.supabase.com:6543/postgres",
+    },
+    "api",
+  );
+  const report = formatProductionEnvironmentReport(result);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.warningCount, 1);
+  assert.match(report, /runtime defaults missing TLS options to sslmode=require/);
+  assert.doesNotMatch(report, /db-password-SENTINEL/);
+});
+
+test("rejects ambiguous or insecure database TLS query options", () => {
+  for (const query of [
+    "ssl=true&sslmode=disable",
+    "sslmode=require&sslmode=disable",
+    "ssl=false",
+    "sslmode=prefer",
+    "SSLMode=require",
+    "sslmode=verify-full&sslrootcert=system",
+  ]) {
+    const result = checkProductionEnvironment(
+      {
+        ...validApiEnvironment(),
+        DATABASE_URL: `postgresql://postgres.project:db-password-SENTINEL@aws-0-us-east-1.pooler.supabase.com:6543/postgres?${query}`,
+      },
+      "api",
+    );
+    const report = formatProductionEnvironmentReport(result);
+    assert.equal(result.ok, false, query);
+    assert.match(report, /TLS option/, query);
+    assert.doesNotMatch(report, /db-password-SENTINEL/, query);
+  }
+});
+
 test("rejects wildcard or mismatched browser origins", () => {
   const wildcard = checkProductionEnvironment(
     { ...validApiEnvironment(), CORS_ALLOWED_ORIGINS: "*" },

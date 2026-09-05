@@ -494,6 +494,22 @@ presence, exact public origins, credential separation, pooler/TLS settings,
 private-alpha lists, and safe scheduling ranges. It never loads a file
 automatically and never prints secret, database, or email values.
 
+The production database client and build preflight share one TLS policy. A
+provider-issued URI without TLS query parameters is safe to copy in full: the
+client explicitly requires encrypted transport instead of relying on a manual
+`?sslmode=require` suffix. Explicit certificate-verifying modes stay stronger;
+insecure, conflicting, duplicate, or unsupported TLS options fail closed.
+The explicit driver option prevents URL or `PGSSL` precedence from disabling
+encryption. The default `require` mode encrypts transport but does not verify
+the server certificate; prefer `verify-full` when the runtime trust store
+supports the provider's certificate chain. Local development is unchanged.
+
+In Supabase's current Connect dialog, choose **Direct → Transaction pooler →
+Use IPv4 connection**. That last switch selects the Shared Pooler; leaving it
+off selects the Dedicated Pooler on this paid project. Copy the complete
+generated URI because both hostname and username differ. No paid IPv4 add-on
+is needed for the Shared Pooler.
+
 On September 5, a local audit of the exact saved public web configuration passed
 with zero warnings. No hosted secrets were loaded. The latest hosted API build
 preflight passes. Runtime health then fails only its database check with the
