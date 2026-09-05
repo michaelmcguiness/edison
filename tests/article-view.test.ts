@@ -50,3 +50,43 @@ test("signed-in readers see honest public-edition controls without a sign-in pro
   assert.match(markup, /Feedback on public starter stories is separate from your private publication/);
   assert.doesNotMatch(markup, /Sign in/);
 });
+
+test("Pulse reading has a real Next headline and contextual Back without a required finish form", () => {
+  const next = { ...story, id: "00000000-0000-4000-8000-000000000009", title: "The real next headline" };
+  const markup = renderToStaticMarkup(createElement(ArticleView, {
+    article, conversationMessages: [], dataMode: "guest", pulse: true, deviceSave: true,
+    backLabel: "Back to Sleep", nextArticle: next, onNext: () => undefined, onAsk: () => undefined,
+    back: () => undefined, save: () => undefined, onError: () => undefined,
+    onCompleted: () => undefined, onShared: () => undefined,
+  }));
+  assert.match(markup, /Next article/);
+  assert.match(markup, /The real next headline/);
+  assert.match(markup, /Back to Sleep/);
+  assert.match(markup, /Ask about this article/);
+  assert.match(markup, /Save on this device/);
+  assert.doesNotMatch(markup, /Mark as read|Sign in to track reading|Was this worth your time/);
+  assert.match(markup, /data-reader-block/);
+});
+
+test("last Pulse article offers return without inventing a Next destination", () => {
+  const markup = renderToStaticMarkup(createElement(ArticleView, {
+    article, conversationMessages: [], dataMode: "guest", pulse: true,
+    backLabel: "Back to History", nextArticle: null,
+    back: () => undefined, save: () => undefined, onError: () => undefined,
+    onCompleted: () => undefined, onShared: () => undefined,
+  }));
+  assert.match(markup, /Back to History/);
+  assert.doesNotMatch(markup, /Next article|Mark as read/);
+});
+
+test("a corrected article shows its separate dated editorial disclosure", () => {
+  const markup = renderToStaticMarkup(createElement(ArticleView, {
+    article: { ...article, correction: { note: "Source dates were corrected.", correctedAt: "2026-09-05T00:00:00.000Z" } },
+    conversationMessages: [], dataMode: "live", pulse: true,
+    back: () => undefined, save: () => undefined, onError: () => undefined,
+    onCompleted: () => undefined, onShared: () => undefined,
+  }));
+  assert.match(markup, /Editorial correction/);
+  assert.match(markup, /Sep 5, 2026/);
+  assert.match(markup, /Source dates were corrected/);
+});

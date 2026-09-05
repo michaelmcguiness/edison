@@ -21,6 +21,45 @@ async function databaseIsReady() {
         and to_regclass('public.editorial_direction_mutations') is not null
         and to_regclass('public.public_starter_editions') is not null
         and to_regclass('public.public_starter_edition_articles') is not null
+        and to_regclass('public.learning_loop_direction_mutations') is not null
+        and to_regclass('public.learning_loop_public_articles') is not null
+        and (
+          select count(*)
+          from pg_catalog.pg_attribute attribute
+          where attribute.attrelid = 'public.learning_threads'::regclass
+            and attribute.attname in (
+              'normalized_title',
+              'original_curiosity',
+              'direction',
+              'revision'
+            )
+            and attribute.attnotnull
+            and not attribute.attisdropped
+        ) = 4
+        and exists (
+          select 1
+          from pg_catalog.pg_trigger trigger_record
+          where trigger_record.tgrelid = 'public.learning_threads'::regclass
+            and trigger_record.tgname = 'learning_threads_enforce_retained_limit'
+            and not trigger_record.tgisinternal
+        )
+        and exists (
+          select 1
+          from pg_catalog.pg_trigger trigger_record
+          where trigger_record.tgrelid =
+            'public.learning_loop_direction_mutations'::regclass
+            and trigger_record.tgname =
+              'learning_loop_direction_mutations_validate'
+            and not trigger_record.tgisinternal
+        )
+        and exists (
+          select 1
+          from pg_catalog.pg_constraint constraint_record
+          where constraint_record.conrelid = 'public.articles'::regclass
+            and constraint_record.conname = 'articles_learning_loop_owner_fk'
+            and constraint_record.contype = 'f'
+            and constraint_record.convalidated
+        )
         and exists (
           select 1
           from pg_catalog.pg_constraint constraint_record
@@ -78,6 +117,10 @@ async function databaseIsReady() {
         and to_regclass('private.ai_request_reservations') is not null
         and to_regclass('private.generation_jobs') is not null
         and to_regclass('private.usage_ledger') is not null
+        and to_regclass('private.article_correction_audits') is not null
+        and to_regprocedure(
+          'private.read_article_correction_disclosure(uuid)'
+        ) is not null
         and (
           select count(*)
           from pg_catalog.pg_attribute attribute
@@ -217,6 +260,23 @@ async function databaseIsReady() {
               api_role.oid,
               'private.ai_request_reservations',
               'UPDATE'
+            )
+        )
+        and exists (
+          select 1
+          from pg_catalog.pg_roles api_role
+          where api_role.rolname = 'edison_api'
+            and has_function_privilege(
+              api_role.oid,
+              to_regprocedure(
+                'private.read_article_correction_disclosure(uuid)'
+              ),
+              'EXECUTE'
+            )
+            and not has_table_privilege(
+              api_role.oid,
+              'private.article_correction_audits',
+              'SELECT'
             )
         )
         and exists (

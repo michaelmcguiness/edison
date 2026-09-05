@@ -62,5 +62,11 @@ jobs:
       - name: Run migrations and pgTAP tests
         run: pnpm exec supabase test db
 
+      - name: Verify reviewed starter publication and replay in disposable Postgres
+        run: pnpm exec tsx scripts/check-public-starter-local-db.ts
+
+      - name: Verify audited correction, replay and history guards in disposable Postgres
+        run: pnpm exec tsx scripts/check-article-correction-local-db.ts
+
       - name: Lint migrated application schemas
         run: pnpm exec supabase db lint --local --schema public,private,edison_public_api --level warning --fail-on warning

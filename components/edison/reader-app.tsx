@@ -93,6 +93,16 @@ import type {
 } from "@/lib/publication-state";
 import { readPublicationWorkspace } from "@/lib/publication-state";
 import { usePublicationWorkspace } from "@/hooks/use-publication-workspace";
+import { useReadingLoops } from "@/hooks/use-reading-loops";
+import { useReaderContinuity } from "@/hooks/use-reader-continuity";
+import { createReadingJourney, nextReadableArticle, validReaderLoopId } from "@/lib/reader-continuity";
+import { matchPreparedSubject, preparedArtworkByArticleId, preparedSuggestions } from "@/lib/prepared-catalog";
+import { emptyPulseWorkspace } from "@/lib/pulse-workspace";
+import { readerHistoryState } from "@/lib/reader-navigation-history";
+import { clearPendingArticleQuestions } from "@/lib/device-reading-data";
+import { PulseShell } from "@/components/edison/pulse-shell";
+import { PulseFeed } from "@/components/edison/pulse-feed";
+import { CurateDialog, NewLoopDialog } from "@/components/edison/pulse-controls";
 
 type DataMode = "prototype" | "guest" | "live";
 type ReaderView = "home" | "article" | "library" | "profile";
@@ -101,6 +111,7 @@ export type ReaderRoute = {
   section: PublicationSection;
   view: ReaderView;
   articleId: string | null;
+  loopId?: string;
 };
 
 const defaultRoute: ReaderRoute = {
@@ -119,9 +130,11 @@ export function parseReaderRoute(search: string): ReaderRoute {
   const section = rawSection && sections.has(rawSection) ? rawSection : "news";
   const view = rawView && views.has(rawView) ? rawView : "home";
   const articleId = view === "article" ? params.get("article")?.trim() || null : null;
+  const loopId = validReaderLoopId(params.get("loop"));
+  const loop = loopId ? { loopId } : {};
   return view === "article" && !articleId
-    ? { section, view: "home", articleId: null }
-    : { section, view, articleId };
+    ? { section, view: "home", articleId: null, ...loop }
+    : { section, view, articleId, ...loop };
 }
 
 export function readerRouteHref(route: ReaderRoute): string {
@@ -129,6 +142,7 @@ export function readerRouteHref(route: ReaderRoute): string {
   if (route.section !== "news") params.set("section", route.section);
   if (route.view !== "home") params.set("view", route.view);
   if (route.view === "article" && route.articleId) params.set("article", route.articleId);
+  if (validReaderLoopId(route.loopId)) params.set("loop", route.loopId!);
   const query = params.toString();
   return query ? `/?${query}` : "/";
 }
@@ -268,15 +282,22 @@ export function guestDirectionImportKey(
   return `guest-direction-${direction.id}-r${direction.revision}`;
 }
 
-export function ReaderApp({
-  reader,
-  dataMode = "prototype",
-  prototypeResearchedAt,
-}: {
+type ReaderAppProps = {
   reader: { id?: string; name: string; email: string };
   dataMode?: DataMode;
   prototypeResearchedAt?: string;
-}) {
+};
+
+export function ReaderApp(props: ReaderAppProps) {
+  // Account transitions must not reuse the previous reader's in-memory drafts.
+  return <ReaderSession key={`${props.dataMode ?? "prototype"}:${props.reader.id ?? "guest"}`} {...props} />;
+}
+
+function ReaderSession({
+  reader,
+  dataMode = "prototype",
+  prototypeResearchedAt,
+}: ReaderAppProps) {
   const prototypeStories = useMemo(
     () => makeDemoStories(prototypeResearchedAt ?? "1970-01-01T00:00:00.000Z"),
     [prototypeResearchedAt],
@@ -284,6 +305,20 @@ export function ReaderApp({
   const workspace = usePublicationWorkspace(
     dataMode === "prototype" ? "demo" : dataMode === "live" ? reader.id ?? null : null,
   );
+  const readingLoops = useReadingLoops(dataMode, reader.id);
+  const continuity = useReaderContinuity(dataMode === "prototype" ? "demo" : reader.id);
+  const { capture: capturePosition, restore: restorePosition, hydrated: continuityReady } = continuity;
+  const restorePending = useRef(true);
+  const [curateOpen, setCurateOpen] = useState(false);
+  const [curateLoopId, setCurateLoopId] = useState("");
+  const [curateDrafts, setCurateDrafts] = useState<Record<string, string>>({});
+  const [curateError, setCurateError] = useState("");
+  const [curateStatus, setCurateStatus] = useState("");
+  const [newLoopOpen, setNewLoopOpen] = useState(false);
+  const [newLoopDraft, setNewLoopDraft] = useState("");
+  const [newLoopError, setNewLoopError] = useState("");
+  const [askOpen, setAskOpen] = useState(false);
+  const [clearDeviceOpen, setClearDeviceOpen] = useState(false);
   const [route, setRoute] = useState<ReaderRoute>(defaultRoute);
   const routeRef = useRef(route);
   const [stories, setStories] = useState<ArticleCard[]>(
@@ -348,6 +383,35 @@ export function ReaderApp({
   const email = profile?.email ?? reader.email;
   const streak = profile?.currentStreak ?? 0;
   const sectionWorkspace = workspace.workspace.sections[section];
+  const pulseEnabled = dataMode !== "prototype" && section === "news";
+  const activeLoopId = route.loopId ?? "for-you";
+  const activeLoop = readingLoops.loops.find((loop) => loop.id === activeLoopId);
+  const activeLoopLabel = activeLoopId === "collection" ? "the collection" : activeLoopId === "for-you" ? "For You" : activeLoop?.title ?? "your reading";
+  const selectedCurateLoop = readingLoops.loops.find((loop) => loop.id === curateLoopId);
+  const savedPublic = readingLoops.device.workspace.savedPublicArticles;
+  const knownPublicArticleIds = useMemo(() => new Set([
+    ...publicArticleIds,
+    ...(starterEdition?.items.map((item) => item.id) ?? []),
+    ...readingLoops.articles.filter((item) => item.visibility === "public").map((item) => item.id),
+    ...savedPublic.map((item) => item.id),
+  ]), [publicArticleIds, readingLoops.articles, savedPublic, starterEdition]);
+  const allReadable = [...new Map([
+    ...(starterEdition?.items.map((item) => starterArticle(item)) ?? []),
+    ...readingLoops.articles,
+    ...stories,
+  ].map((item) => [item.id, item])).values()].map((item) => knownPublicArticleIds.has(item.id)
+    ? { ...item, saved: savedPublic.some((saved) => saved.id === item.id) }
+    : item);
+  const selectedLoops = activeLoopId === "for-you"
+    ? readingLoops.loops.filter((loop) => !loop.paused)
+    : activeLoop ? [activeLoop] : [];
+  const membership = new Set(selectedLoops.flatMap((loop) => [...loop.articleIds, ...loop.publicArticleIds]));
+  const pulseArticles = (activeLoopId === "collection"
+    ? allReadable.filter((item) => knownPublicArticleIds.has(item.id))
+    : activeLoopId === "for-you" && readingLoops.loops.length === 0 ? allReadable
+    : allReadable.filter((item) => membership.has(item.id))).slice(0, 30);
+  const readingJourney = route.articleId ? continuity.record.current.journeys[route.articleId] ?? null : null;
+  const nextArticle = article ? nextReadableArticle(article.id, readingJourney, allReadable) : null;
 
   const showNotice = useCallback((message: string, tone: NoticeTone = "info") => {
     if (noticeTimer.current) clearTimeout(noticeTimer.current);
@@ -384,9 +448,12 @@ export function ReaderApp({
     setDirectionReviewOpen(true);
   }, []);
 
-  const navigate = useCallback((next: ReaderRoute, replace = false) => {
+  const navigate = useCallback((next: ReaderRoute, replace = false, returnOverride?: ReaderRoute | null) => {
     articleRequest.current += 1;
     setSummary(null);
+    setAskOpen(false);
+    capturePosition(readerRouteHref(routeRef.current));
+    restorePending.current = true;
     if (typeof window !== "undefined") {
       const state = window.history.state && typeof window.history.state === "object"
         ? window.history.state as Record<string, unknown>
@@ -396,30 +463,39 @@ export function ReaderApp({
         "",
         window.location.href,
       );
-      const nextState = {
-        ...state,
-        __edisonRoute: true,
-        __edisonFromPublication: routeRef.current.view === "home",
-        __edisonScrollY: 0,
-      };
+      const nextState = readerHistoryState(routeRef.current, next, state, returnOverride);
       if (replace) window.history.replaceState(nextState, "", readerRouteHref(next));
       else window.history.pushState(nextState, "", readerRouteHref(next));
       window.scrollTo(0, 0);
     }
+    routeRef.current = next;
     setRoute(next);
-  }, []);
+  }, [capturePosition]);
 
   const goHome = useCallback((target = section) => {
-    navigate({ section: target, view: "home", articleId: null });
+    navigate({ section: target, view: "home", articleId: null, ...(target === "news" ? { loopId: routeRef.current.loopId ?? "for-you" } : {}) });
   }, [navigate, section]);
 
   const backHome = useCallback(() => {
+    if (dataMode !== "prototype" && section === "news") {
+      const current = routeRef.current;
+      if (current.view === "article" && window.history.state?.__edisonArticleReturnRoute) {
+        navigate(window.history.state.__edisonArticleReturnRoute as ReaderRoute, true, window.history.state.__edisonArticleReturnParent as ReaderRoute | null);
+        return;
+      }
+      if ((current.view === "library" || current.view === "profile") && window.history.state?.__edisonReturnRoute) {
+        navigate(window.history.state.__edisonReturnRoute as ReaderRoute, true);
+        return;
+      }
+      navigate({ section: "news", view: "home", articleId: null, loopId: current.loopId ?? "for-you" }, true);
+      return;
+    }
     if (typeof window !== "undefined" && window.history.state?.__edisonFromPublication) {
       window.history.back();
       return;
     }
     navigate({ section, view: "home", articleId: null }, true);
-  }, [navigate, section]);
+  }, [dataMode, navigate, section]);
 
   useEffect(() => {
     routeRef.current = route;
@@ -428,7 +504,11 @@ export function ReaderApp({
   useEffect(() => {
     const applyLocation = (state?: unknown) => {
       articleRequest.current += 1;
-      setRoute(parseReaderRoute(window.location.search));
+      const next = parseReaderRoute(window.location.search);
+      routeRef.current = next;
+      setRoute(next);
+      restorePending.current = true;
+      setAskOpen(false);
       const scrollY = state && typeof state === "object" && "__edisonScrollY" in state
         ? Number((state as { __edisonScrollY?: unknown }).__edisonScrollY)
         : 0;
@@ -439,6 +519,50 @@ export function ReaderApp({
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
+
+  useEffect(() => {
+    if (!continuityReady || loading || (view === "home" && readingLoops.loading) || (view === "library" && libraryLoading) || (view === "article" && article?.id !== route.articleId)) return;
+    if (!restorePending.current) return;
+    restorePending.current = false;
+    const frame = requestAnimationFrame(() => {
+      const focusTarget = document.querySelector<HTMLElement>("main h1, main");
+      if (focusTarget) {
+        focusTarget.setAttribute("tabindex", "-1");
+        focusTarget.focus({ preventScroll: true });
+      }
+      restorePosition(readerRouteHref(route), view === "home" ? readingJourney?.feedScrollY ?? 0 : 0);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [article?.id, continuityReady, libraryLoading, loading, readingJourney?.feedScrollY, readingLoops.loading, restorePosition, route, view]);
+
+  useEffect(() => {
+    const savePosition = () => { if (!restorePending.current) capturePosition(readerRouteHref(routeRef.current)); };
+    window.addEventListener("pagehide", savePosition);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const scrolled = () => {
+      clearTimeout(timer);
+      timer = setTimeout(savePosition, 180);
+    };
+    window.addEventListener("scroll", scrolled, { passive: true });
+    return () => { clearTimeout(timer); window.removeEventListener("pagehide", savePosition); window.removeEventListener("scroll", scrolled); };
+  }, [capturePosition]);
+
+  useEffect(() => {
+    if (!continuityReady) return;
+    queueMicrotask(() => setQuestionDrafts((current) => ({ ...continuity.record.current.questionDrafts, ...current })));
+  }, [continuityReady, continuity.record]);
+
+  useEffect(() => {
+    if (!readingLoops.device.hydrated) return;
+    queueMicrotask(() => {
+      setNewLoopDraft((current) => current || readingLoops.device.workspace.newLoopDraft);
+      setCurateDrafts((current) => ({ ...readingLoops.device.workspace.directionDrafts, ...current }));
+    });
+  }, [readingLoops.device.hydrated, readingLoops.device.workspace.directionDrafts, readingLoops.device.workspace.newLoopDraft]);
+
+  useEffect(() => {
+    queueMicrotask(() => rememberPublicArticles(readingLoops.articles.filter((item) => item.visibility === "public").map((item) => item.id)));
+  }, [readingLoops.articles, rememberPublicArticles]);
 
   const readDirections = useCallback(async () => {
     const sequence = ++directionReadSequence.current;
@@ -644,7 +768,7 @@ export function ReaderApp({
       view !== "article" ||
       !articleId ||
       dataMode !== "live" ||
-      publicArticleIds.has(articleId) ||
+      knownPublicArticleIds.has(articleId) ||
       article.writtenFor === "the public edition" ||
       !reader.id
     ) return;
@@ -714,7 +838,7 @@ export function ReaderApp({
       });
 
     return () => { active = false; };
-  }, [article, dataMode, handleError, publicArticleIds, reader.id, view]);
+  }, [article, dataMode, handleError, knownPublicArticleIds, reader.id, view]);
 
   useEffect(() => {
     if (view !== "library" || dataMode !== "live") return;
@@ -753,21 +877,39 @@ export function ReaderApp({
       articleCache.current.set(story.id, starterArticle(publicItem));
     }
     setArticle(articleCache.current.get(story.id) ?? null);
-    navigate({ section: "news", view: "article", articleId: story.id });
+    if (pulseEnabled && view === "home") {
+      continuity.rememberJourney(story.id, createReadingJourney(activeLoopId, pulseArticles.map((entry) => entry.id), story.id, window.scrollY));
+    }
+    const originLoopId = view === "library" ? continuity.record.current.journeys[story.id]?.loopId ?? activeLoopId : activeLoopId;
+    navigate({ section: "news", view: "article", articleId: story.id, ...(pulseEnabled ? { loopId: originLoopId } : {}) });
     return Promise.resolve();
   }
 
   function patchStory(articleId: string, patch: Partial<ArticleCard>) {
     setStories((current) => current.map((story) => story.id === articleId ? { ...story, ...patch } : story));
+    readingLoops.patchArticle(articleId, patch);
     const cached = articleCache.current.get(articleId);
     if (cached) articleCache.current.set(articleId, { ...cached, ...patch });
     setArticle((current) => current?.id === articleId ? { ...current, ...patch } : current);
   }
 
   async function toggleSave(story: ArticleCard) {
-    const publicStory = publicArticleIds.has(story.id) ||
-      (starterEdition?.items.some((item) => item.id === story.id) ?? false);
+    const publicStory = knownPublicArticleIds.has(story.id);
     if (dataMode === "guest" || publicStory) {
+      if (pulseEnabled) {
+        try {
+          const alreadySaved = savedPublic.some((entry) => entry.id === story.id);
+          await readingLoops.device.update((value) => ({
+            ...value,
+            savedPublicArticles: alreadySaved
+              ? value.savedPublicArticles.filter((entry) => entry.id !== story.id)
+              : [...value.savedPublicArticles.filter((entry) => entry.id !== story.id), { ...story, saved: true }].slice(-30),
+          }));
+          patchStory(story.id, { saved: !alreadySaved });
+          showNotice(alreadySaved ? "Removed from this device’s saved reading." : "Saved on this device. Public saves do not sync to your account.", "success");
+        } catch (error) { showNotice(handleError(error), "error"); }
+        return;
+      }
       showNotice(dataMode === "guest"
         ? "Sign in to keep stories in your library. Reading the public edition does not require an account."
         : "Public starter stories are readable now but are not part of your private library.");
@@ -790,7 +932,46 @@ export function ReaderApp({
   }
 
   function openLibrary() {
-    navigate({ section, view: "library", articleId: null });
+    navigate({ section, view: "library", articleId: null, ...(route.loopId ? { loopId: route.loopId } : {}) });
+  }
+
+  function openCurate() {
+    if (!readingLoops.loops.length) { setNewLoopOpen(true); return; }
+    setCurateLoopId(activeLoop?.id ?? "");
+    setCurateError("");
+    setCurateStatus("");
+    setCurateOpen(true);
+  }
+
+  async function createLoop() {
+    const curiosity = newLoopDraft.trim();
+    if (!curiosity) { setNewLoopError("Enter a subject or question, or close this to browse the collection."); return; }
+    const match = matchPreparedSubject(curiosity, allReadable);
+    const availableIds = new Set(allReadable.map((item) => item.id));
+    try {
+      const id = await readingLoops.create({
+        title: match?.title ?? curiosity.slice(0, 120),
+        originalCuriosity: curiosity,
+        publicArticleIds: match?.articleIds.filter((articleId) => availableIds.has(articleId)) ?? [],
+      });
+      setNewLoopOpen(false);
+      setNewLoopDraft("");
+      setNewLoopError("");
+      void readingLoops.device.update((value) => ({ ...value, newLoopDraft: "" })).catch(() => undefined);
+      navigate({ section: "news", view: "home", articleId: null, loopId: id });
+      showNotice(dataMode === "live" ? "Loop saved to your account." : "Loop saved on this device. No personal article has been generated.", "success");
+    } catch (error) { setNewLoopError(handleError(error)); }
+  }
+
+  async function curate(undoId?: string) {
+    if (!selectedCurateLoop) { setCurateError("Choose the loop you want to shape."); return; }
+    try {
+      await readingLoops.changeDirection(selectedCurateLoop.id, curateDrafts[selectedCurateLoop.id] ?? selectedCurateLoop.direction, undoId);
+      setCurateStatus(`${undoId ? "Direction restored" : "Direction saved"} for ${selectedCurateLoop.title}. ${dataMode === "live" ? "Future scheduled reading uses this direction; existing articles stay unchanged." : "Saved on this device only; guest directions do not generate or adapt articles."}`);
+      setCurateError("");
+      setCurateDrafts((current) => { const next = { ...current }; delete next[selectedCurateLoop.id]; return next; });
+      void readingLoops.device.update((value) => { const drafts = { ...value.directionDrafts }; delete drafts[selectedCurateLoop.id]; return { ...value, directionDrafts: drafts }; }).catch(() => undefined);
+    } catch (error) { setCurateError(handleError(error)); }
   }
 
   function editionIdFor(owner: PublicationSection): string {
@@ -1366,11 +1547,12 @@ export function ReaderApp({
         // The accepted conversation remains durable on the server.
       }
       setQuestionDrafts((current) => ({ ...current, [owner]: "" }));
+      continuity.rememberDraft(owner, "");
       setConversationMessages((current) => ({
         ...current,
         [owner]: mergeConversationMessages(current[owner] ?? [], incoming),
       }));
-      showNotice("Edison answered your follow-up below the article.", "success");
+      showNotice(pulseEnabled ? "Your answer is ready in this conversation." : "Edison answered your follow-up below the article.", "success");
     } catch (error) {
       const message = handleError(error);
       setConversationErrors((current) => ({ ...current, [owner]: message }));
@@ -1558,7 +1740,7 @@ export function ReaderApp({
         : stories.length
     : 0;
   const articleIsPublic = article
-    ? publicArticleIds.has(article.id) || article.writtenFor === "the public edition"
+    ? knownPublicArticleIds.has(article.id) || article.writtenFor === "the public edition"
     : false;
   const oneOffUnavailable = section === "books"
     ? "Book publishing and a book reader are not connected yet. Browser storage keeps the draft on this device when available."
@@ -1568,19 +1750,30 @@ export function ReaderApp({
         : dataMode === "guest" ? "Sign in to commission an article. Public reading does not require an account."
           : "AI article generation is not connected in this demo. Browser storage keeps the draft on this device when available.";
 
-  return (
-    <PublicationShell
-      section={section}
-      profileLabel={name || "Edison reader"}
-      streak={streak}
-      demo={dataMode === "prototype"}
-      showCreate={view === "home"}
-      onSectionChange={(next) => goHome(next)}
-      onOpenProfile={() => navigate({ section, view: "profile", articleId: null })}
-      onOpenLibrary={openLibrary}
-      onCreate={() => { setOneOffError(""); setOneOffOpen(true); }}
-    >
-      {view === "home" && (
+  const readerContent = (
+    <>
+      {view === "home" && pulseEnabled && (
+        <PulseFeed
+          articles={pulseArticles}
+          activeLoopLabel={activeLoopLabel}
+          intro={activeLoop
+            ? activeLoop.direction || `Keep exploring ${activeLoop.title}.`
+            : readingLoops.loops.length ? "Ready reading from the subjects you’re exploring." : "A few worthwhile reads, selected from Edison’s collection."}
+          artworkByArticleId={preparedArtworkByArticleId}
+          loading={loading || readingLoops.loading}
+          error={feedError || readingLoops.error || readingLoops.device.error || continuity.error}
+          onOpenArticle={openStory}
+          onToggleSave={toggleSave}
+          emptyState={<div className="pulse-empty"><h2>No ready article here yet</h2><p>{activeLoop ? dataMode === "live" ? "Your subject is saved. Future scheduled reading can use it; no new article has been requested by adding this loop." : "Your subject is saved on this device. We don’t have prepared reading for it yet." : "There are no ready articles in this selection."}</p><button type="button" onClick={() => navigate({ section: "news", view: "home", articleId: null, loopId: "collection" })}>Browse prepared reading</button><button type="button" onClick={() => { setNewLoopError(""); setNewLoopOpen(true); }}>Explore another subject</button></div>}
+        >
+          {readingLoops.error && <button type="button" onClick={() => void readingLoops.reload().catch((error) => showNotice(handleError(error), "error"))}>Retry loops</button>}
+          {!readingLoops.loops.length && <button className="editorial-text-action" type="button" onClick={() => setNewLoopOpen(true)}>What&apos;s something you want to learn more about?</button>}
+          {activeLoopId !== "collection" && readingLoops.loops.length > 0 && <button className="editorial-text-action" type="button" onClick={() => navigate({ section: "news", view: "home", articleId: null, loopId: "collection" })}>Browse the prepared collection</button>}
+          {dataMode === "live" && <button className="editorial-text-action" type="button" onClick={() => { setOneOffError(""); setOneOffOpen(true); }}>Commission one article</button>}
+          {creation && <p role="status">{creation.status === "succeeded" ? "Your commissioned article is ready." : creation.status === "failed" || creation.status === "cancelled" ? "Your commissioned article could not be written. Your draft is preserved." : "Your commissioned article is being prepared."}{creation.outputArticleId && <button type="button" onClick={() => navigate({ section: "news", view: "article", articleId: creation.outputArticleId, loopId: activeLoopId })}>Read commissioned article</button>}</p>}
+        </PulseFeed>
+      )}
+      {view === "home" && !pulseEnabled && (
         <main className="publication-content">
           {section !== "news" && <h1 className="visually-hidden">{section === "books" ? "Books" : "Podcasts"}</h1>}
           <PublicationFolio section={section} editionDate={editionDate} personalLabel={personalLabel} count={itemCount} />
@@ -1642,7 +1835,7 @@ export function ReaderApp({
       {view === "article" && (article ? (
         <ArticleView
           key={article.id}
-          article={article}
+          article={pulseEnabled && articleIsPublic ? { ...article, saved: savedPublic.some((saved) => saved.id === article.id) } : article}
           conversationMessages={conversationMessages[article.id] ?? []}
           conversationLoading={conversationLoading[article.id] ?? false}
           conversationError={conversationErrors[article.id] || undefined}
@@ -1650,6 +1843,15 @@ export function ReaderApp({
             ? dataMode === "live" ? "public" : "guest"
             : dataMode}
           back={backHome}
+          backLabel={pulseEnabled ? typeof window !== "undefined" && window.history.state?.__edisonArticleReturnRoute?.view === "library" ? "Back to Library" : `Back to ${activeLoopLabel}` : undefined}
+          nextArticle={pulseEnabled ? nextArticle : null}
+          onNext={pulseEnabled && nextArticle ? () => {
+            if (readingJourney) continuity.rememberJourney(nextArticle.id, { ...readingJourney, returnArticleId: nextArticle.id });
+            void openStory(nextArticle);
+          } : undefined}
+          onAsk={pulseEnabled ? () => setAskOpen(true) : undefined}
+          deviceSave={pulseEnabled && articleIsPublic}
+          pulse={pulseEnabled}
           save={() => void toggleSave(article)}
           onError={(error) => showNotice(handleError(error), "error")}
           onCompleted={(currentStreak) => {
@@ -1668,12 +1870,15 @@ export function ReaderApp({
         <LibraryView
           dataMode={dataMode}
           library={library}
-          fallbackSaved={stories.filter((story) => story.saved)}
+          fallbackSaved={pulseEnabled ? savedPublic : stories.filter((story) => story.saved)}
+          deviceSaved={pulseEnabled}
+          loops={pulseEnabled ? readingLoops.loops : undefined}
+          openLoop={(loopId) => navigate({ section: "news", view: "home", articleId: null, loopId })}
           loading={libraryLoading}
           error={libraryError}
           back={backHome}
           open={openStory}
-          openArticle={(articleId) => navigate({ section: "news", view: "article", articleId })}
+          openArticle={(articleId) => navigate({ section: "news", view: "article", articleId, ...(route.loopId ? { loopId: route.loopId } : {}) })}
         />
       )}
 
@@ -1694,10 +1899,20 @@ export function ReaderApp({
           deleteInterest={deleteExplicitInterest}
           manageCategories={() => setManage(true)}
           reviewDirection={() => openDirectionReview(section)}
+          deviceSettings={pulseEnabled && <section className="pulse-device-settings" aria-label="Device reading data">
+        <h2>Reading on this device</h2>
+        <p>Public saves and unfinished drafts stay on this device. Guest loops are separate from account loops.</p>
+        {dataMode === "live" && readingLoops.guestLoops.length > 0 && <>
+          <p>{readingLoops.guestLoops.length} guest {readingLoops.guestLoops.length === 1 ? "loop is" : "loops are"} available on this device. Importing adds missing loops and leaves matching account loops untouched. It does not request generation.</p>
+          <button type="button" disabled={readingLoops.pending} onClick={() => void readingLoops.importGuestLoops().then(({ imported, skipped }) => showNotice(`${imported} loops added; ${skipped} matching account loops left untouched. Guest originals remain on this device.`, "success")).catch((error) => showNotice(`${handleError(error)} Guest originals remain available; retrying will not overwrite account loops.`, "error"))}>Add guest loops to my account</button>
+        </>}
+        <button type="button" onClick={() => setClearDeviceOpen(true)}>Clear local Pulse data</button>
+        <details><summary>Other publication formats</summary><p>Books and podcasts are not connected yet.</p><button type="button" onClick={() => goHome("books")}>Books</button><button type="button" onClick={() => goHome("podcasts")}>Podcasts</button></details>
+      </section>}
         />
       )}
 
-      {view === "article" && article && dataMode === "live" && !articleIsPublic && (
+      {view === "article" && article && dataMode === "live" && !articleIsPublic && !pulseEnabled && (
         <div className="composer-wrap">
           <div className="prompt-chips">
             {["Go deeper", "Counterpoint", "Historical context"].map((prompt) => (
@@ -1726,6 +1941,63 @@ export function ReaderApp({
           </div>
         </div>
       )}
+
+      {pulseEnabled && <>
+        <Sheet open={clearDeviceOpen} onOpenChange={setClearDeviceOpen}>
+          <SheetContent><SheetHeader><SheetTitle>Clear local Pulse data?</SheetTitle><SheetDescription>This removes {dataMode === "guest" ? "guest loops, " : ""}public saves, Pulse loop and direction drafts, pending article questions, and this tab’s reading positions. Account articles, loops, saves and conversations are not deleted. Older publication-format drafts are kept.</SheetDescription></SheetHeader><button type="button" onClick={() => setClearDeviceOpen(false)}>Keep my data</button><button type="button" disabled={Object.values(questionPending).some(Boolean)} onClick={() => void readingLoops.device.update(() => emptyPulseWorkspace()).then(() => { clearPendingArticleQuestions(localStorage, reader.id); continuity.clear(); questionRequests.current.clear(); setQuestionDrafts({}); setNewLoopDraft(""); setCurateDrafts({}); setClearDeviceOpen(false); showNotice("Local Pulse data cleared. Account data was not deleted.", "success"); }).catch((error) => showNotice(`Some local data could not be cleared. ${handleError(error)}`, "error"))}>Clear local Pulse data</button></SheetContent>
+        </Sheet>
+        <CurateDialog
+          open={curateOpen}
+          loops={readingLoops.loops}
+          selectedLoopId={curateLoopId}
+          draftText={curateDrafts[curateLoopId] ?? selectedCurateLoop?.direction ?? ""}
+          currentDirection={selectedCurateLoop?.direction ?? ""}
+          history={selectedCurateLoop?.history ?? []}
+          lastMutationId={selectedCurateLoop?.lastMutationId}
+          pending={readingLoops.pending}
+          error={curateError || readingLoops.error || readingLoops.device.error}
+          status={curateStatus || (dataMode === "guest" ? "Directions stay on this device; guest reading is selected from prepared articles, not generated." : "Saved direction applies to future reading, not this article.")}
+          requireLoopSelection={!activeLoop}
+          onOpenChange={setCurateOpen}
+          onSelectLoop={(id) => { setCurateLoopId(id); setCurateError(""); setCurateStatus(""); }}
+          onDraftChange={(value) => {
+            if (!curateLoopId) return;
+            setCurateDrafts((current) => ({ ...current, [curateLoopId]: value }));
+            void readingLoops.device.update((workspace) => ({ ...workspace, directionDrafts: { ...workspace.directionDrafts, [curateLoopId]: value } })).catch(() => undefined);
+          }}
+          onSubmit={() => curate()}
+          onUndo={() => selectedCurateLoop?.lastMutationId ? curate(selectedCurateLoop.lastMutationId) : Promise.resolve()}
+        />
+        <NewLoopDialog
+          open={newLoopOpen}
+          draftText={newLoopDraft}
+          suggestions={preparedSuggestions(allReadable)}
+          pending={readingLoops.pending}
+          error={newLoopError || readingLoops.device.error}
+          status={dataMode === "live" ? "Your loops sync to your Edison account. Adding a loop does not request immediate generation." : "Loops and public saves stay on this device. No account is needed to read the collection."}
+          onOpenChange={setNewLoopOpen}
+          onDraftChange={(value) => { setNewLoopDraft(value); setNewLoopError(""); void readingLoops.device.update((workspace) => ({ ...workspace, newLoopDraft: value })).catch(() => undefined); }}
+          onSubmit={createLoop}
+        />
+        <Sheet open={askOpen && view === "article"} onOpenChange={setAskOpen}>
+          <SheetContent className="pulse-ask-sheet">
+            <SheetHeader><SheetTitle>Ask about this article</SheetTitle><SheetDescription>{article?.title}. Questions stay with this article and do not change a loop’s direction.</SheetDescription></SheetHeader>
+            {article && <>
+              <div className="pulse-question-messages" aria-live="polite">
+                {(conversationMessages[article.id] ?? []).map((message) => <div key={message.id}><b>{message.role === "user" ? "You" : "Edison"}</b><p>{message.content}</p>{message.citations.map((citation) => { const source = article.sources.find((entry) => entry.id === citation.sourceId); return source ? <a key={`${citation.sourceId}-${citation.label}`} href={source.url} target="_blank" rel="noreferrer">{citation.label} · {source.publisher}</a> : null; })}</div>)}
+                {conversationLoading[article.id] && <p>Opening this conversation…</p>}
+                {conversationErrors[article.id] && <p role="alert">{conversationErrors[article.id]}</p>}
+              </div>
+              <label htmlFor="pulse-article-question">Your question</label>
+              <textarea id="pulse-article-question" maxLength={4000} value={questionDrafts[article.id] ?? ""} onChange={(event) => { const value = event.target.value; setQuestionDrafts((current) => ({ ...current, [article.id]: value })); continuity.rememberDraft(article.id, value); }} />
+              {continuity.error && <p role="alert">{continuity.error}</p>}
+              {dataMode === "live" && !articleIsPublic
+                ? <button type="button" className="primary" disabled={questionPending[article.id] || !(questionDrafts[article.id] ?? "").trim()} onClick={() => void submitQuestion()}>{questionPending[article.id] ? "Getting an answer…" : "Ask Edison"}</button>
+                : <p>Answers are available on your private Edison articles. This prepared public article does not have live Q&amp;A.{!continuity.error && " Your draft stays in this tab for reload."}</p>}
+            </>}
+          </SheetContent>
+        </Sheet>
+      </>}
 
       <OneOffComposer
         open={oneOffOpen}
@@ -1812,6 +2084,23 @@ export function ReaderApp({
           ))}
         </SheetContent>
       </Sheet>
+    </>
+  );
+  return pulseEnabled ? (
+    <PulseShell loops={readingLoops.loops} activeLoopId={activeLoopId} showCurate={view === "home"} showLoopNavigation={view === "home"}
+      onSelectLoop={(loopId) => navigate({ section: "news", view: "home", articleId: null, loopId })}
+      onAddLoop={() => { setNewLoopError(""); setNewLoopOpen(true); }}
+      onOpenHome={() => navigate({ section: "news", view: "home", articleId: null, loopId: "for-you" })}
+      onOpenLibrary={openLibrary}
+      onOpenProfile={() => navigate({ section, view: "profile", articleId: null, loopId: activeLoopId })}
+      onOpenCurate={openCurate}>
+      {readerContent}
+    </PulseShell>
+  ) : (
+    <PublicationShell section={section} profileLabel={name || "Edison reader"} streak={streak} demo={dataMode === "prototype"} showCreate={view === "home"}
+      onSectionChange={(next) => goHome(next)} onOpenProfile={() => navigate({ section, view: "profile", articleId: null })} onOpenLibrary={openLibrary}
+      onCreate={() => { setOneOffError(""); setOneOffOpen(true); }}>
+      {readerContent}
     </PublicationShell>
   );
 }

@@ -73,6 +73,10 @@ export const articleSchema = articleCardSchema.extend({
   sources: z.array(articleSourceSchema),
   writtenFor: z.string().min(1),
   shareId: uuidSchema.nullable(),
+  correction: z.object({
+    note: z.string().trim().min(1).max(500),
+    correctedAt: z.string().datetime(),
+  }).strict().nullable().optional(),
 });
 
 export const articleFeedbackRequestSchema = z.object({

@@ -38,6 +38,15 @@ test("invalid and incomplete reader routes fail back to a safe News home", () =>
   });
 });
 
+test("Pulse routes retain an opaque originating loop through deep links and reject raw curiosity", () => {
+  const loopId = "00000000-0000-4000-8000-000000000003";
+  const route = { section: "news" as const, view: "article" as const, articleId: "00000000-0000-4000-8000-000000000004", loopId };
+  assert.deepEqual(parseReaderRoute(readerRouteHref(route).slice(1)), route);
+  assert.equal(parseReaderRoute("?loop=my%20private%20question").loopId, undefined);
+  assert.equal(parseReaderRoute("?loop=collection").loopId, "collection");
+  assert.doesNotMatch(readerRouteHref({ ...route, loopId: "my private question" }), /question/);
+});
+
 test("one-off detection is conservative and resolves an explicit format", () => {
   assert.equal(detectOneOffSection("Write me an article about public squares"), "news");
   assert.equal(detectOneOffSection("Please create a short book about bridges"), "books");

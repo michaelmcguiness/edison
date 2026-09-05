@@ -11,9 +11,13 @@ import {
   sql,
 } from "drizzle-orm";
 import {
+  maxLearningLoops,
+} from "@edison/contracts";
+import {
   alphaMemberships,
   generationJobs,
   getDb,
+  learningThreads,
   profiles,
 } from "@edison/db";
 import {
@@ -22,6 +26,7 @@ import {
 } from "@edison/domain";
 import { safeCaughtErrorMetadata } from "../observability/safe-error";
 import { dispatchGenerationJob } from "./generation-jobs";
+import { selectLearningLoopForDailySlot } from "./learning-loop-rules";
 import { ensureNewsEditionForDate } from "./news-editions";
 
 const DEFAULT_DAILY_TARGET = 3;
@@ -288,7 +293,8 @@ export async function scheduleDailyEditions(now = new Date()) {
         )
       `);
 
-      const [existingRows, [{ value: recentCount }]] = await Promise.all([
+      const [existingRows, [{ value: recentCount }], activeLoops] =
+        await Promise.all([
         transaction
           .select({
             idempotencyKey: generationJobs.idempotencyKey,
@@ -311,7 +317,23 @@ export async function scheduleDailyEditions(now = new Date()) {
               gte(generationJobs.createdAt, since),
             ),
           ),
+        transaction
+          .select({ id: learningThreads.id })
+          .from(learningThreads)
+          .where(
+            and(
+              eq(learningThreads.userId, reader.userId),
+              eq(learningThreads.status, "active"),
+            ),
+          )
+          .orderBy(asc(learningThreads.createdAt), asc(learningThreads.id))
+          .limit(maxLearningLoops + 1),
       ]);
+      if (activeLoops.length > maxLearningLoops) {
+        throw new Error(
+          "The reader has more active learning loops than the scheduler can safely rotate.",
+        );
+      }
 
       const plans = Array.from({ length: target }, (_, index) => {
         const slot = index + 1;
@@ -324,24 +346,31 @@ export async function scheduleDailyEditions(now = new Date()) {
           ),
         };
       });
-      const jobsNeeded = plans.flatMap(({ slot, plan }) =>
-        plan.outcome === "create"
-          ? [
-              {
-                userId: reader.userId,
-                kind: "initial-edition" as const,
-                idempotencyKey: plan.idempotencyKey,
-                input: {
-                  source: "daily-edition-scheduler",
-                  editionDate: reader.dateKey,
-                  slot,
-                  target,
-                  dailyAttempt: plan.attempt,
-                },
-              },
-            ]
-          : [],
-      );
+      const jobsNeeded = plans.flatMap(({ slot, plan }) => {
+        if (plan.outcome !== "create") return [];
+        const learningLoop = selectLearningLoopForDailySlot(
+          activeLoops,
+          reader.dateKey,
+          slot,
+        );
+        return [
+          {
+            userId: reader.userId,
+            kind: learningLoop
+              ? ("learning-thread" as const)
+              : ("initial-edition" as const),
+            idempotencyKey: plan.idempotencyKey,
+            input: {
+              source: "daily-edition-scheduler",
+              editionDate: reader.dateKey,
+              slot,
+              target,
+              dailyAttempt: plan.attempt,
+              learningLoopId: learningLoop?.id,
+            },
+          },
+        ];
+      });
       const remainingCapacity = Math.max(0, generationLimit - recentCount);
       const deferredByLimit = Math.max(
         0,

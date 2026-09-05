@@ -12,7 +12,7 @@ import {
   ARTICLE_GENERATION_PROVIDER_TIMEOUT_MS,
   ARTICLE_GENERATION_REQUEST_VERSION,
   articleGenerationProviderIdempotencyKey,
-  generationRequestSnapshotMatchesDirection,
+  generationRequestSnapshotMatchesContext,
   newsDirectionSnapshotIsCurrent,
   newsFeedRank,
   selectActiveNewsEditorialDirections,
@@ -119,9 +119,9 @@ test("provider retries reuse one bounded key for one exact generation snapshot",
   );
   assert.match(
     key,
-    /^edison-generation-v2-[0-9a-f-]{36}-[0-9a-f-]{36}-r7$/,
+    /^edison-generation-v3-[0-9a-f-]{36}-[0-9a-f-]{36}-r7-unscoped$/,
   );
-  assert.equal(ARTICLE_GENERATION_REQUEST_VERSION, 2);
+  assert.equal(ARTICLE_GENERATION_REQUEST_VERSION, 3);
   assert.equal(ARTICLE_GENERATION_PROVIDER_TIMEOUT_MS, 120_000);
 
   const aiSource = readFileSync(
@@ -138,13 +138,18 @@ test("mutable reader context cannot replace the durable request at one direction
     directionRevision: 7,
     directionEditionId: editionId,
     directionEditionDate: "2026-09-04",
+    learningLoop: null,
   };
   assert.equal(
-    generationRequestSnapshotMatchesDirection(stored, {
-      revision: 7,
-      editionId,
-      editionDate: "2026-09-04",
-    }),
+    generationRequestSnapshotMatchesContext(
+      stored,
+      {
+        revision: 7,
+        editionId,
+        editionDate: "2026-09-04",
+      },
+      null,
+    ),
     true,
   );
 
@@ -153,7 +158,7 @@ test("mutable reader context cannot replace the durable request at one direction
     "utf8",
   );
   const storedBranch = workflowSource.indexOf(
-    "generationRequestSnapshotMatchesDirection(stored, direction)",
+    "generationRequestSnapshotMatchesContext(",
   );
   const storedReturn = workflowSource.indexOf(
     'return { outcome: "ready", snapshot: stored }',
@@ -167,7 +172,7 @@ test("mutable reader context cannot replace the durable request at one direction
   assert.ok(newSnapshot > storedReturn);
   assert.match(
     workflowSource,
-    /if \(stored\.directionRevision >= direction\.revision\)/,
+    /stored\.directionRevision > direction\.revision/,
   );
 });
 
@@ -409,7 +414,7 @@ test("generation accounts for a stale model result before retrying without publi
   );
   const guard = source.indexOf("newsDirectionSnapshotIsCurrent(");
   const staleLedger = source.indexOf(
-    'operation: "article_generation_discarded_stale_direction"',
+    '"article_generation_discarded_stale_direction"',
   );
   const articleInsert = source.indexOf("transaction.insert(articles)");
   assert.ok(guard >= 0 && staleLedger > guard && articleInsert > staleLedger);

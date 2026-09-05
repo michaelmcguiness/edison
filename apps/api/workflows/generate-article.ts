@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { FatalError, RetryableError, getWorkflowMetadata } from "workflow";
 import { z } from "zod";
 import {
@@ -10,8 +10,12 @@ import {
   articleCategories,
   articleCategorySchema,
   knowledgeStateSchema,
+  learningLoopCuriositySchema,
+  learningLoopDirectionSchema,
+  learningLoopTitleSchema,
   maxEditorialInstructionsPerSection,
   maxRetainedExplicitInterests,
+  sharedArticleSnapshotSchema,
   uuidSchema,
   type ArticleCategory,
 } from "@edison/contracts";
@@ -24,7 +28,11 @@ import {
   feedPreferences,
   generationJobs,
   getDb,
+  learningLoopPublicArticles,
+  learningThreads,
   profiles,
+  publicStarterEditionArticles,
+  publicStarterEditions,
   usageLedger,
   userInterests,
 } from "@edison/db";
@@ -40,9 +48,10 @@ export const ARTICLE_GENERATION_PROVIDER_TIMEOUT_MS = 2 * 60 * 1_000;
 // Bump whenever the provider prompt, tools, or request envelope changes. An
 // in-flight snapshot from another version then fails closed instead of reusing
 // one provider key for two different HTTP request bodies.
-// Version 2 removes the unsupported `uri` format from the provider wire schema;
-// existing snapshots must not reuse a version-1 key for this changed body.
-export const ARTICLE_GENERATION_REQUEST_VERSION = 2;
+// Version 3 adds an explicitly scoped learning-loop assignment and continuity
+// context. Existing snapshots must not reuse a version-2 key for that changed
+// provider request body.
+export const ARTICLE_GENERATION_REQUEST_VERSION = 3;
 
 type NewsDirectionCandidate = {
   id: string;
@@ -62,6 +71,22 @@ export type NewsDirectionSnapshot = {
   }>;
 };
 
+export type LearningLoopGenerationSnapshot = {
+  id: string;
+  revision: number;
+  direction: string;
+  title: string;
+  originalCuriosity: string;
+};
+
+const learningLoopRequestSnapshotSchema = z
+  .object({
+    id: uuidSchema,
+    revision: z.number().int().nonnegative(),
+    direction: learningLoopDirectionSchema,
+  })
+  .strict();
+
 const persistedGenerationContextSchema = z
   .object({
     userId: uuidSchema,
@@ -73,18 +98,36 @@ const persistedGenerationContextSchema = z
       .array(
         z
           .object({
-            scope: z.enum(["persistent", "edition"]),
-            text: z.string().min(3).max(1000),
+            scope: z.enum(["persistent", "edition", "loop"]),
+            text: z.string().min(1).max(1000),
           })
           .strict(),
       )
-      .max(maxEditorialInstructionsPerSection),
+      .max(maxEditorialInstructionsPerSection + 1),
     allowedCategories: z.array(articleCategorySchema).min(1),
     goals: z.array(z.string()),
     interests: z.array(z.string()),
     mutedInterests: z.array(z.string()),
     knowledgeState: knowledgeStateSchema,
     recentTitles: z.array(z.string()),
+    learningLoop: z
+      .object({
+        title: learningLoopTitleSchema,
+        originalCuriosity: learningLoopCuriositySchema,
+        previousArticles: z
+          .array(
+            z
+              .object({
+                topic: z.string().min(1).max(200),
+                title: z.string().min(1).max(180),
+                summary: z.array(z.string().min(1).max(280)).length(3),
+              })
+              .strict(),
+          )
+          .max(3),
+      })
+      .strict()
+      .optional(),
     preferredLength: z.enum(["brief", "standard", "deep"]),
     depth: z.number().int().min(0).max(100),
     novelty: z.number().int().min(0).max(100),
@@ -109,6 +152,7 @@ const generationRequestSnapshotSchema = z
     directionRevision: z.number().int().nonnegative(),
     directionEditionId: uuidSchema,
     directionEditionDate: z.string().date(),
+    learningLoop: learningLoopRequestSnapshotSchema.nullable(),
     providerIdempotencyKey: z
       .string()
       .min(1)
@@ -116,7 +160,31 @@ const generationRequestSnapshotSchema = z
       .regex(/^[A-Za-z0-9._:-]+$/),
     context: persistedGenerationContextSchema,
   })
-  .strict();
+  .strict()
+  .superRefine((snapshot, context) => {
+    if ((snapshot.learningLoop === null) === (snapshot.context.learningLoop !== undefined)) {
+      context.addIssue({
+        code: "custom",
+        path: ["context", "learningLoop"],
+        message: "Learning-loop request identity and context must agree.",
+      });
+    }
+    const loopDirections = snapshot.context.editorialDirections.filter(
+      (instruction) => instruction.scope === "loop",
+    );
+    const expectedLoopDirections = snapshot.learningLoop?.direction ? 1 : 0;
+    if (
+      loopDirections.length !== expectedLoopDirections ||
+      (expectedLoopDirections === 1 &&
+        loopDirections[0]?.text !== snapshot.learningLoop?.direction)
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["context", "editorialDirections"],
+        message: "Learning-loop direction context must match its snapshot.",
+      });
+    }
+  });
 
 type GenerationRequestSnapshot = z.infer<
   typeof generationRequestSnapshotSchema
@@ -159,9 +227,36 @@ export function newsDirectionSnapshotIsCurrent(
   );
 }
 
+export function learningLoopSnapshotIsCurrent(
+  snapshot: Pick<
+    LearningLoopGenerationSnapshot,
+    "id" | "revision" | "direction"
+  > | null,
+  current:
+    | {
+        id: string;
+        revision: number;
+        direction: string;
+        status: string;
+      }
+    | undefined,
+) {
+  if (snapshot === null) return current === undefined;
+  return (
+    current?.id === snapshot.id &&
+    current.status === "active" &&
+    current.revision === snapshot.revision &&
+    current.direction === snapshot.direction
+  );
+}
+
 export function articleGenerationProviderIdempotencyKey(
   jobId: string,
   direction: Pick<NewsDirectionSnapshot, "editionId" | "revision">,
+  learningLoop: Pick<
+    LearningLoopGenerationSnapshot,
+    "id" | "revision"
+  > | null = null,
 ) {
   return [
     "edison-generation",
@@ -169,6 +264,9 @@ export function articleGenerationProviderIdempotencyKey(
     jobId,
     direction.editionId,
     `r${direction.revision}`,
+    learningLoop
+      ? `loop-${learningLoop.id}-r${learningLoop.revision}`
+      : "unscoped",
   ].join("-");
 }
 
@@ -186,6 +284,33 @@ export function generationRequestSnapshotMatchesDirection(
     snapshot.directionRevision === direction.revision &&
     snapshot.directionEditionId === direction.editionId &&
     snapshot.directionEditionDate === direction.editionDate
+  );
+}
+
+export function generationRequestSnapshotMatchesContext(
+  snapshot: Pick<
+    GenerationRequestSnapshot,
+    | "directionEditionDate"
+    | "directionEditionId"
+    | "directionRevision"
+    | "learningLoop"
+  >,
+  direction: Pick<
+    NewsDirectionSnapshot,
+    "editionDate" | "editionId" | "revision"
+  >,
+  learningLoop: Pick<
+    LearningLoopGenerationSnapshot,
+    "id" | "revision" | "direction"
+  > | null,
+) {
+  return (
+    generationRequestSnapshotMatchesDirection(snapshot, direction) &&
+    (learningLoop === null
+      ? snapshot.learningLoop === null
+      : snapshot.learningLoop?.id === learningLoop.id &&
+        snapshot.learningLoop.revision === learningLoop.revision &&
+        snapshot.learningLoop.direction === learningLoop.direction)
   );
 }
 
@@ -331,6 +456,67 @@ async function captureNewsDirection(
   });
 }
 
+async function captureActiveLearningLoop(userId: string, loopId: string) {
+  const [loop] = await getDb()
+    .select({
+      id: learningThreads.id,
+      revision: learningThreads.revision,
+      direction: learningThreads.direction,
+      title: learningThreads.title,
+      originalCuriosity: learningThreads.originalCuriosity,
+    })
+    .from(learningThreads)
+    .where(
+      and(
+        eq(learningThreads.id, loopId),
+        eq(learningThreads.userId, userId),
+        eq(learningThreads.status, "active"),
+      ),
+    )
+    .limit(1);
+  return loop satisfies LearningLoopGenerationSnapshot | undefined;
+}
+
+async function cancelUnavailableLearningLoopJob(
+  jobId: string,
+  workflowRunId: string,
+) {
+  const [cancelled] = await getDb()
+    .update(generationJobs)
+    .set({
+      status: "cancelled",
+      failureCode: "learning_loop_unavailable",
+      error: "This learning loop is no longer active.",
+      finishedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(generationJobs.id, jobId),
+        eq(generationJobs.status, "running"),
+        eq(generationJobs.workflowRunId, workflowRunId),
+      ),
+    )
+    .returning({ id: generationJobs.id });
+
+  if (cancelled) return { articleId: null, cancelled: true as const };
+
+  const [current] = await getDb()
+    .select({
+      status: generationJobs.status,
+      outputArticleId: generationJobs.outputArticleId,
+    })
+    .from(generationJobs)
+    .where(eq(generationJobs.id, jobId))
+    .limit(1);
+  if (current?.outputArticleId) {
+    return { articleId: current.outputArticleId, cancelled: false as const };
+  }
+  if (current?.status === "cancelled") {
+    return { articleId: null, cancelled: true as const };
+  }
+  throw new FatalError("The unavailable learning-loop job could not be cancelled");
+}
+
 async function cancelSupersededEditionJob(
   jobId: string,
   workflowRunId: string,
@@ -375,12 +561,15 @@ async function cancelSupersededEditionJob(
 type PersistGenerationRequestResult =
   | { outcome: "ready"; snapshot: GenerationRequestSnapshot }
   | { outcome: "completed"; articleId: string }
-  | { outcome: "direction_changed" };
+  | { outcome: "direction_changed" }
+  | { outcome: "learning_loop_changed" }
+  | { outcome: "learning_loop_unavailable" };
 
 async function persistGenerationRequestSnapshot(
   jobId: string,
   workflowRunId: string,
   direction: NewsDirectionSnapshot,
+  learningLoop: LearningLoopGenerationSnapshot | null,
   freshContext: PersistedGenerationContext,
 ): Promise<PersistGenerationRequestResult> {
   return getDb().transaction(async (transaction) => {
@@ -427,6 +616,33 @@ async function persistGenerationRequestSnapshot(
       return { outcome: "direction_changed" };
     }
 
+    const [currentLearningLoop] = learningLoop
+      ? await transaction
+          .select({
+            id: learningThreads.id,
+            revision: learningThreads.revision,
+            direction: learningThreads.direction,
+            status: learningThreads.status,
+          })
+          .from(learningThreads)
+          .where(
+            and(
+              eq(learningThreads.id, learningLoop.id),
+              eq(learningThreads.userId, freshContext.userId),
+            ),
+          )
+          .for("share")
+          .limit(1)
+      : [];
+    if (learningLoop && currentLearningLoop?.status !== "active") {
+      return { outcome: "learning_loop_unavailable" };
+    }
+    if (
+      !learningLoopSnapshotIsCurrent(learningLoop, currentLearningLoop)
+    ) {
+      return { outcome: "learning_loop_changed" };
+    }
+
     if (
       !job.input ||
       typeof job.input !== "object" ||
@@ -446,10 +662,17 @@ async function persistGenerationRequestSnapshot(
         );
       }
       const stored = parsedStored.data;
-      if (generationRequestSnapshotMatchesDirection(stored, direction)) {
+      if (
+        generationRequestSnapshotMatchesContext(
+          stored,
+          direction,
+          learningLoop,
+        )
+      ) {
         const expectedKey = articleGenerationProviderIdempotencyKey(
           jobId,
           direction,
+          learningLoop,
         );
         if (stored.providerIdempotencyKey !== expectedKey) {
           throw new FatalError(
@@ -460,14 +683,28 @@ async function persistGenerationRequestSnapshot(
         // ambiguous provider timeout. Reuse the exact stored request anyway.
         return { outcome: "ready", snapshot: stored };
       }
-      if (stored.directionRevision >= direction.revision) {
+      const storedLoop = stored.learningLoop;
+      const loopCannotAdvance =
+        (storedLoop === null) !== (learningLoop === null) ||
+        (storedLoop !== null &&
+          learningLoop !== null &&
+          (storedLoop.id !== learningLoop.id ||
+            storedLoop.revision > learningLoop.revision ||
+            (storedLoop.revision === learningLoop.revision &&
+              storedLoop.direction !== learningLoop.direction)));
+      const directionCannotAdvance =
+        stored.directionRevision > direction.revision ||
+        (stored.directionRevision === direction.revision &&
+          (stored.directionEditionId !== direction.editionId ||
+            stored.directionEditionDate !== direction.editionDate));
+      if (loopCannotAdvance || directionCannotAdvance) {
         throw new FatalError(
           "Generation provider request snapshot cannot move backward or change identity at one revision",
         );
       }
-      // A strictly newer editorial revision intentionally starts one new
-      // logical provider request. Stale observed responses are ledgered before
-      // the workflow advances to this point.
+      // A strictly newer editorial or selected-loop revision intentionally
+      // starts one new logical provider request. Stale observed responses are
+      // ledgered before the workflow advances to this point.
     }
 
     const snapshot = generationRequestSnapshotSchema.parse({
@@ -475,9 +712,17 @@ async function persistGenerationRequestSnapshot(
       directionRevision: direction.revision,
       directionEditionId: direction.editionId,
       directionEditionDate: direction.editionDate,
+      learningLoop: learningLoop
+        ? {
+            id: learningLoop.id,
+            revision: learningLoop.revision,
+            direction: learningLoop.direction,
+          }
+        : null,
       providerIdempotencyKey: articleGenerationProviderIdempotencyKey(
         jobId,
         direction,
+        learningLoop,
       ),
       context: freshContext,
     });
@@ -669,33 +914,13 @@ async function generateAndPublish(jobId: string, workflowRunId: string) {
     );
   }
 
-  const [interests, recentArticles] = await Promise.all([
-    database
-      .select({ topic: userInterests.topic, status: userInterests.status })
-      .from(userInterests)
-      .where(
-        and(
-          eq(userInterests.userId, record.job.userId),
-          eq(userInterests.kind, "explicit"),
-          inArray(userInterests.status, ["active", "muted"]),
-        ),
-      )
-      .orderBy(asc(userInterests.createdAt), asc(userInterests.id))
-      .limit(maxRetainedExplicitInterests),
-    database
-      .select({ title: articles.title })
-      .from(articles)
-      .where(eq(articles.ownerId, record.job.userId))
-      .orderBy(desc(articles.createdAt))
-      .limit(20),
-  ]);
-
   const input = record.job.input as {
     topic?: string;
     category?: string;
     source?: string;
     editionDate?: string;
     newsEditionId?: string;
+    learningLoopId?: string;
     slot?: number;
     target?: number;
   };
@@ -725,6 +950,106 @@ async function generateAndPublish(jobId: string, workflowRunId: string) {
   const scheduledEditionId = parsedScheduledEditionId.success
     ? parsedScheduledEditionId.data
     : undefined;
+  const parsedLearningLoopId = uuidSchema.safeParse(input.learningLoopId);
+  if (input.learningLoopId !== undefined && !parsedLearningLoopId.success) {
+    throw new FatalError("Generation job contains an invalid learning loop ID");
+  }
+  const learningLoop = parsedLearningLoopId.success
+    ? await captureActiveLearningLoop(
+        record.job.userId,
+        parsedLearningLoopId.data,
+      )
+    : undefined;
+  if (parsedLearningLoopId.success && !learningLoop) {
+    return cancelUnavailableLearningLoopJob(jobId, workflowRunId);
+  }
+
+  const [
+    interests,
+    recentArticles,
+    previousPrivateLoopArticles,
+    previousPublicLoopArticles,
+  ] = await Promise.all([
+    database
+      .select({ topic: userInterests.topic, status: userInterests.status })
+      .from(userInterests)
+      .where(
+        and(
+          eq(userInterests.userId, record.job.userId),
+          eq(userInterests.kind, "explicit"),
+          inArray(userInterests.status, ["active", "muted"]),
+        ),
+      )
+      .orderBy(asc(userInterests.createdAt), asc(userInterests.id))
+      .limit(maxRetainedExplicitInterests),
+    database
+      .select({ title: articles.title })
+      .from(articles)
+      .where(eq(articles.ownerId, record.job.userId))
+      .orderBy(desc(articles.createdAt), desc(articles.id))
+      .limit(20),
+    learningLoop
+      ? database
+          .select({
+            topic: articles.topic,
+            title: articles.title,
+            summary: articles.summary,
+          })
+          .from(articles)
+          .where(
+            and(
+              eq(articles.ownerId, record.job.userId),
+              eq(articles.learningThreadId, learningLoop.id),
+              eq(articles.status, "published"),
+            ),
+          )
+          .orderBy(desc(articles.publishedAt), desc(articles.id))
+          .limit(3)
+      : Promise.resolve([]),
+    learningLoop
+      ? database
+          .select({
+            snapshot: publicStarterEditionArticles.snapshot,
+          })
+          .from(learningLoopPublicArticles)
+          .innerJoin(
+            publicStarterEditionArticles,
+            eq(
+              publicStarterEditionArticles.id,
+              learningLoopPublicArticles.publicArticleId,
+            ),
+          )
+          .innerJoin(
+            publicStarterEditions,
+            eq(
+              publicStarterEditions.id,
+              publicStarterEditionArticles.editionId,
+            ),
+          )
+          .where(
+            and(
+              eq(learningLoopPublicArticles.loopId, learningLoop.id),
+              eq(learningLoopPublicArticles.userId, record.job.userId),
+              inArray(publicStarterEditions.status, ["published", "archived"]),
+              lte(publicStarterEditions.publishedAt, new Date()),
+            ),
+          )
+          .orderBy(asc(learningLoopPublicArticles.position))
+          .limit(3)
+      : Promise.resolve([]),
+  ]);
+  const previousLoopArticles = [
+    ...previousPrivateLoopArticles,
+    ...previousPublicLoopArticles.map((row) => {
+      const snapshot = sharedArticleSnapshotSchema.parse(row.snapshot);
+      return {
+        topic: snapshot.topic,
+        title: snapshot.title,
+        summary: snapshot.summary,
+      };
+    }),
+  ].slice(0, 3);
+
   const parsedRequestedCategory = articleCategorySchema.safeParse(input.category);
   if (input.category !== undefined && !parsedRequestedCategory.success) {
     throw new FatalError("Generation job contains an invalid article category");
@@ -759,12 +1084,17 @@ async function generateAndPublish(jobId: string, workflowRunId: string) {
   }
   const generationContext = persistedGenerationContextSchema.parse({
     userId: record.job.userId,
-    requestedTopic: input.topic,
+    requestedTopic: input.topic ?? learningLoop?.originalCuriosity,
     requestedCategory,
     currentDate: direction.editionDate,
     articleModel: getArticleModel(),
     allowedCategories,
-    editorialDirections: direction.instructions,
+    editorialDirections: [
+      ...direction.instructions,
+      ...(learningLoop?.direction
+        ? [{ scope: "loop" as const, text: learningLoop.direction }]
+        : []),
+    ],
     goals: record.preferences.editorialBrief
       ? [record.preferences.editorialBrief]
       : [],
@@ -776,6 +1106,13 @@ async function generateAndPublish(jobId: string, workflowRunId: string) {
       .map((interest) => interest.topic),
     knowledgeState: record.preferences.knowledgeState,
     recentTitles: recentArticles.map((article) => article.title),
+    learningLoop: learningLoop
+      ? {
+          title: learningLoop.title,
+          originalCuriosity: learningLoop.originalCuriosity,
+          previousArticles: previousLoopArticles,
+        }
+      : undefined,
     preferredLength: record.preferences.articleLength,
     depth: record.preferences.depth,
     novelty: record.preferences.novelty,
@@ -785,6 +1122,7 @@ async function generateAndPublish(jobId: string, workflowRunId: string) {
     jobId,
     workflowRunId,
     direction,
+    learningLoop ?? null,
     generationContext,
   );
   if (persistedRequest.outcome === "completed") {
@@ -793,6 +1131,15 @@ async function generateAndPublish(jobId: string, workflowRunId: string) {
   if (persistedRequest.outcome === "direction_changed") {
     throw new RetryableError(
       "Editorial direction changed before the provider request was captured.",
+      { retryAfter: "1s" },
+    );
+  }
+  if (persistedRequest.outcome === "learning_loop_unavailable") {
+    return cancelUnavailableLearningLoopJob(jobId, workflowRunId);
+  }
+  if (persistedRequest.outcome === "learning_loop_changed") {
+    throw new RetryableError(
+      "Learning-loop direction changed before the provider request was captured.",
       { retryAfter: "1s" },
     );
   }
@@ -815,7 +1162,8 @@ async function generateAndPublish(jobId: string, workflowRunId: string) {
         webSearchCostMicrousd,
       );
       // Reusing the key would replay the same observed invalid response. Treat
-      // it as terminal; only a newer editorial revision creates a new request.
+      // it as terminal; only a newer editorial or loop revision creates a new
+      // request.
       throw new FatalError("The model response was not safe to publish");
     }
     // A transport failure is ambiguous: the step may retry, but the durable
@@ -872,7 +1220,11 @@ async function generateAndPublish(jobId: string, workflowRunId: string) {
   } as const;
 
   let publishedArticleId = articleId;
-  let discardedForStaleDirection = false;
+  let discardedContext:
+    | "editorial_direction_changed"
+    | "learning_loop_changed"
+    | "learning_loop_unavailable"
+    | null = null;
   await database.transaction(async (transaction) => {
     const [current] = await transaction
       .select({
@@ -911,22 +1263,65 @@ async function generateAndPublish(jobId: string, workflowRunId: string) {
       )
       .for("share")
       .limit(1);
-    if (!newsDirectionSnapshotIsCurrent(direction, currentDirection)) {
+    const [currentLearningLoop] = learningLoop
+      ? await transaction
+          .select({
+            id: learningThreads.id,
+            revision: learningThreads.revision,
+            direction: learningThreads.direction,
+            status: learningThreads.status,
+          })
+          .from(learningThreads)
+          .where(
+            and(
+              eq(learningThreads.id, learningLoop.id),
+              eq(learningThreads.userId, record.job.userId),
+            ),
+          )
+          .for("share")
+          .limit(1)
+      : [];
+    const directionIsCurrent = newsDirectionSnapshotIsCurrent(
+      direction,
+      currentDirection,
+    );
+    const loopIsCurrent = learningLoopSnapshotIsCurrent(
+      learningLoop ?? null,
+      currentLearningLoop,
+    );
+    if (!directionIsCurrent || !loopIsCurrent) {
+      discardedContext = !directionIsCurrent
+        ? "editorial_direction_changed"
+        : currentLearningLoop?.status !== "active"
+          ? "learning_loop_unavailable"
+          : "learning_loop_changed";
       await transaction
         .insert(usageLedger)
         .values({
           ...usage,
-          operation: "article_generation_discarded_stale_direction",
+          operation:
+            discardedContext === "editorial_direction_changed"
+              ? "article_generation_discarded_stale_direction"
+              : discardedContext === "learning_loop_unavailable"
+                ? "article_generation_discarded_inactive_loop"
+                : "article_generation_discarded_stale_loop_direction",
         })
         .onConflictDoNothing();
       await transaction
         .update(generationJobs)
         .set({
+          ...(discardedContext === "learning_loop_unavailable"
+            ? { status: "cancelled" as const, finishedAt: new Date() }
+            : {}),
           providerResponseId: result.providerResponseId,
           model: result.model,
-          failureCode: "editorial_direction_changed",
+          failureCode: discardedContext,
           error:
-            "Editorial direction changed during generation; retrying with the current revision.",
+            discardedContext === "editorial_direction_changed"
+              ? "Editorial direction changed during generation; retrying with the current revision."
+              : discardedContext === "learning_loop_unavailable"
+                ? "The learning loop became inactive during generation."
+                : "Learning-loop direction changed during generation; retrying with the current revision.",
         })
         .where(
           and(
@@ -935,13 +1330,13 @@ async function generateAndPublish(jobId: string, workflowRunId: string) {
             eq(generationJobs.workflowRunId, workflowRunId),
           ),
         );
-      discardedForStaleDirection = true;
       return;
     }
 
     await transaction.insert(articles).values({
       id: articleId,
       ownerId: record.job.userId,
+      learningThreadId: learningLoop?.id ?? null,
       slug,
       status: "published",
       category: result.article.category,
@@ -1004,9 +1399,14 @@ async function generateAndPublish(jobId: string, workflowRunId: string) {
       .where(eq(generationJobs.id, jobId));
   });
 
-  if (discardedForStaleDirection) {
+  if (discardedContext === "learning_loop_unavailable") {
+    return { articleId: null, cancelled: true as const };
+  }
+  if (discardedContext) {
     throw new RetryableError(
-      "Editorial direction changed while the News article was being generated.",
+      discardedContext === "editorial_direction_changed"
+        ? "Editorial direction changed while the News article was being generated."
+        : "Learning-loop direction changed while the News article was being generated.",
       { retryAfter: "1s" },
     );
   }

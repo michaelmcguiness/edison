@@ -62,6 +62,9 @@ export function LibraryView({
   back,
   open,
   openArticle,
+  deviceSaved = false,
+  loops,
+  openLoop,
 }: {
   dataMode: "prototype" | "guest" | "live";
   library: LibraryResponse | null;
@@ -71,6 +74,9 @@ export function LibraryView({
   back: () => void;
   open: (story: ArticleCard) => Promise<void>;
   openArticle: (articleId: string) => void;
+  deviceSaved?: boolean;
+  loops?: { id: string; title: string; direction: string }[];
+  openLoop?: (loopId: string) => void;
 }) {
   const saved = dataMode === "prototype" ? fallbackSaved : library?.saved ?? [];
   const completed = library?.completed ?? [];
@@ -87,6 +93,8 @@ export function LibraryView({
         <h1>Library</h1>
         <p>{dataMode === "prototype"
           ? "Demo saves work while this page is open and reset on reload."
+            : dataMode === "guest" && deviceSaved
+              ? "Public stories saved on this device. These saves do not sync to an account."
             : dataMode === "guest"
               ? "Sign in when you want to keep stories and reading progress. Public reading remains open."
             : "Saved and completed stories, plus the article conversations you’re following."}</p>
@@ -100,7 +108,7 @@ export function LibraryView({
         <DataStatus icon={<AlertCircle />} tone="error">{error}</DataStatus>
       ) : (
         <>
-          <section>
+          {loops ? <section><h2>Your loops</h2>{loops.map((loop) => <button className="library-story" type="button" key={loop.id} onClick={() => openLoop?.(loop.id)}><Library aria-hidden="true" /><span><b>{loop.title}</b><small>{loop.direction || "No standing direction set"}</small></span></button>)}{!loops.length && <p className="quiet-empty">Add a subject from the feed when you want to keep exploring it.</p>}</section> : <section>
             <h2>Learning threads</h2>
             <div className="thread-grid">
               {threads.map((thread) => (
@@ -118,9 +126,11 @@ export function LibraryView({
                 </p>
               )}
             </div>
-          </section>
+          </section>}
 
-          <section>
+          {deviceSaved && <section><h2>Saved on this device</h2><p className="quiet-empty">Public collection articles are saved here separately from your private account library.</p>{fallbackSaved.map((story) => <button type="button" className="library-story" key={story.id} onClick={() => void open(story)}><Library aria-hidden="true" /><span><b>{story.title}</b><small>{story.kicker} · {story.readingMinutes} min</small></span></button>)}{!fallbackSaved.length && <p className="quiet-empty">No public stories saved on this device yet.</p>}</section>}
+
+          {dataMode !== "guest" && <section>
             <h2>Saved stories</h2>
             {saved.map((story) => (
               <button
@@ -138,7 +148,7 @@ export function LibraryView({
             {!saved.length && (
               <p className="quiet-empty">Stories you save will live here.</p>
             )}
-          </section>
+          </section>}
 
           {dataMode === "live" && (
             <section>
@@ -205,6 +215,7 @@ export function ProfileView({
   deleteInterest,
   manageCategories,
   reviewDirection,
+  deviceSettings,
 }: {
   dataMode: "prototype" | "guest" | "live";
   reader: { name: string; email: string };
@@ -224,6 +235,7 @@ export function ProfileView({
   deleteInterest: (interestId: string) => Promise<void>;
   manageCategories: () => void;
   reviewDirection: () => void;
+  deviceSettings?: React.ReactNode;
 }) {
   const [newInterest, setNewInterest] = useState("");
   const inferred = profile?.preferences.inferredPreferences ?? [];
@@ -443,6 +455,8 @@ export function ProfileView({
           )}
         </div>
       </section>
+
+      {deviceSettings}
 
       {dataMode === "live" && (
         <form action="/auth/signout" method="post">

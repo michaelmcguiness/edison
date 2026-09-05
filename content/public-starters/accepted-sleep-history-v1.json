@@ -1,0 +1,485 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "accepted-sleep-history-v1",
+  "edition": {
+    "editionDate": "2026-09-05",
+    "label": "A place to begin",
+    "idempotencyKey": "public-starter.accepted-sleep-history-v1",
+    "requestFingerprint": "a3f2f9e5bee9882891a7be35505b371088580e65d978a086a9889bb3519d3371"
+  },
+  "approval": {
+    "handoffPath": "docs/brand/APPROVED_PULSE_LOOPS_CTO_HANDOFF_2026-09-05.md",
+    "prohibitedArticleFingerprint": "aa26d2258cb391ad552466f39bee01ae4d1596d480fef59381dfeb9b184d8c50",
+    "prohibitedFingerprintKind": "lost-request-json"
+  },
+  "subjects": [
+    {
+      "id": "sleep",
+      "label": "Sleep",
+      "direction": "Understand sleep, attention and recovery.",
+      "articleContentIds": [
+        "sleep-attention"
+      ]
+    },
+    {
+      "id": "history",
+      "label": "History",
+      "direction": "Explore how ideas and inventions changed everyday life.",
+      "articleContentIds": [
+        "longitude"
+      ]
+    }
+  ],
+  "items": [
+    {
+      "contentId": "sleep-attention",
+      "subjectId": "sleep",
+      "reason": "A closer look at sleep, attention, and the hours in between.",
+      "sourceDocument": {
+        "path": "docs/editorial/audience-research-2026-09-05/HEALTH_ARTICLE.md",
+        "sha256": "9ced5cc067151e4f31406b6fa5bcf078d386af11969b85605b64583a0643e8f1",
+        "bytes": 4309
+      },
+      "snapshotSha256": "38050ea2a01b61f8345a6bb14aaf463ae7475b98a1b6d774ec7d2f55a936f3b5",
+      "article": {
+        "version": 1,
+        "category": "tech-science",
+        "kicker": "Attention",
+        "topic": "Sleep, attention and recovery",
+        "title": "Six-Hour Nights Can Feel Fine. That’s the Problem.",
+        "deck": "Getting accustomed to short nights can conceal a loss of attention. A long recovery night may help without finishing the job.",
+        "body": [
+          {
+            "type": "paragraph",
+            "text": "After two weeks with only four or six hours in bed each night, volunteers in a sleep laboratory were reporting only slight sleepiness. Their average test performance, meanwhile, was at its worst.",
+            "citations": [
+              {
+                "sourceId": "520979dc-9eca-55d3-ab7c-6bae28dc8b7d",
+                "label": "1"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "text": "The finding makes I’m used to it a less reassuring verdict on a sleep schedule. In the 2003 experiment led by Hans Van Dongen, healthy adults received four, six or eight hours in bed nightly. In the shorter-night groups, sleepiness ratings rose early and then changed relatively little, while performance continued to deteriorate.",
+            "citations": [
+              {
+                "sourceId": "520979dc-9eca-55d3-ab7c-6bae28dc8b7d",
+                "label": "1"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "text": "One test made that deterioration unusually easy to see. Watch a screen. When the signal appears, press a button. Keep doing it for ten minutes, with the next signal arriving at an unpredictable interval. The challenge is sustaining attention across the whole session; a few quick responses do not cancel out the slow ones. Researchers call this a psychomotor vigilance test.",
+            "citations": [
+              {
+                "sourceId": "75ad4272-fa43-5f98-8f40-fa3c0611c5f2",
+                "label": "2"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "text": "By the end of the experiment, attention lapses in the six-hour group were comparable to those measured after one night without sleep. That comparison applies to the test, not every ability a person uses in a day. But the mismatch matters: feeling accustomed to a routine was not evidence that attention had recovered.",
+            "citations": [
+              {
+                "sourceId": "520979dc-9eca-55d3-ab7c-6bae28dc8b7d",
+                "label": "1"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "text": "There is an obvious next hope: make up for it with a long night. Does that restore what the short nights took away?",
+            "citations": [
+              {
+                "sourceId": "b6bc9351-3129-5d93-879f-b796e0758c27",
+                "label": "3"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "text": "Sleep researcher Siobhan Banks and colleagues tested recovery in 2010. After five nights with only four hours in bed, adults were assigned different lengths of recovery opportunity. More time helped. Yet even after ten hours in bed, the group’s vigilance performance had not returned fully to its earlier level. This was a severe restriction schedule, not a prediction of what happens after every busy week. Improvement after one recovery night did not necessarily mean recovery was complete.",
+            "citations": [
+              {
+                "sourceId": "b6bc9351-3129-5d93-879f-b796e0758c27",
+                "label": "3"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "text": "The two studies challenge different versions of the same reassurance. Becoming familiar with short nights does not establish that they are enough; doing better after extra sleep does not establish that the effects are gone. Neither experiment supplies a personal sleep requirement or a rule for repaying each missed hour.",
+            "citations": [
+              {
+                "sourceId": "520979dc-9eca-55d3-ab7c-6bae28dc8b7d",
+                "label": "1"
+              },
+              {
+                "sourceId": "b6bc9351-3129-5d93-879f-b796e0758c27",
+                "label": "3"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "text": "For healthy adults aged 18–60, the American Academy of Sleep Medicine and Sleep Research Society recommend regularly getting at least seven hours of sleep. Individual needs vary, and seven is not a guarantee of optimal performance for everyone. Crucially, the experiments allocated time in bed. That is the opportunity to sleep, not a guarantee of being asleep for the whole interval.",
+            "citations": [
+              {
+                "sourceId": "520979dc-9eca-55d3-ab7c-6bae28dc8b7d",
+                "label": "1"
+              },
+              {
+                "sourceId": "b6bc9351-3129-5d93-879f-b796e0758c27",
+                "label": "3"
+              },
+              {
+                "sourceId": "bae26da7-67d3-575e-9fcd-dd953d5236e7",
+                "label": "4"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "text": "That distinction turns an abstract sleep goal into a practical question: how much room does the calendar leave? Count from when you can realistically settle down to when you must get up. A quiet, cool, dark bedroom can support sleep; it cannot create hours missing from the schedule. The National Heart, Lung, and Blood Institute’s guidance begins with making enough time for sleep and keeping regular bed and wake times.",
+            "citations": [
+              {
+                "sourceId": "650bf95c-fe96-58ef-bd71-ebc4719968d6",
+                "label": "5"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "text": "If poor sleep affects daily life, discuss it with a clinician. A one- to two-week record of sleep times, naps and daytime sleepiness can make the pattern clearer. Mention frequent loud snoring or waking gasping too. The record supports a conversation; it does not diagnose the cause.",
+            "citations": [
+              {
+                "sourceId": "f3a9d4ff-f94b-5992-98e9-323a7583efc7",
+                "label": "6"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "text": "The point is not to distrust every good morning. It is to give I’m used to it its proper meaning: a description of how a routine feels, not proof that it is giving you enough rest.",
+            "citations": [
+              {
+                "sourceId": "520979dc-9eca-55d3-ab7c-6bae28dc8b7d",
+                "label": "1"
+              }
+            ]
+          }
+        ],
+        "summary": [
+          "Neither experiment supplies a personal sleep requirement or a rule for repaying each missed hour.",
+          "Improvement after one recovery night did not necessarily mean recovery was complete.",
+          "Individual needs vary, and seven is not a guarantee of optimal performance for everyone."
+        ],
+        "readingMinutes": 3,
+        "sourceCount": 6,
+        "researchedAt": "2026-09-05T18:39:00.000Z",
+        "publishedAt": null,
+        "sources": [
+          {
+            "id": "520979dc-9eca-55d3-ab7c-6bae28dc8b7d",
+            "title": "Original experiment",
+            "publisher": "University of Pennsylvania",
+            "url": "https://www.med.upenn.edu/uep/assets/user-content/documents/VanDongen2003CumulativeCost.pdf",
+            "publishedAt": null,
+            "accessedAt": "2026-09-05T18:39:00.000Z"
+          },
+          {
+            "id": "75ad4272-fa43-5f98-8f40-fa3c0611c5f2",
+            "title": "Test method",
+            "publisher": "McGill University",
+            "url": "https://jhanley.biostat.mcgill.ca/bios601/Surveys/Belenky2003.pdf",
+            "publishedAt": null,
+            "accessedAt": "2026-09-05T18:39:00.000Z"
+          },
+          {
+            "id": "b6bc9351-3129-5d93-879f-b796e0758c27",
+            "title": "Recovery experiment",
+            "publisher": "Oxford Academic",
+            "url": "https://academic.oup.com/sleep/article-pdf/33/8/1013/13665045/sleep-33-8-1013.pdf",
+            "publishedAt": null,
+            "accessedAt": "2026-09-05T18:39:00.000Z"
+          },
+          {
+            "id": "bae26da7-67d3-575e-9fcd-dd953d5236e7",
+            "title": "Consensus recommendation",
+            "publisher": "American Academy of Sleep Medicine",
+            "url": "https://www.aasm.org/resources/pdf/adultsleepdurationconsensus.pdf",
+            "publishedAt": null,
+            "accessedAt": "2026-09-05T18:39:00.000Z"
+          },
+          {
+            "id": "650bf95c-fe96-58ef-bd71-ebc4719968d6",
+            "title": "Healthy sleep guidance",
+            "publisher": "National Heart, Lung, and Blood Institute",
+            "url": "https://www.nhlbi.nih.gov/health/sleep-deprivation/healthy-sleep-habits",
+            "publishedAt": "2022-03-24T00:00:00.000Z",
+            "accessedAt": "2026-09-05T18:39:00.000Z"
+          },
+          {
+            "id": "f3a9d4ff-f94b-5992-98e9-323a7583efc7",
+            "title": "Sleep evaluation",
+            "publisher": "National Heart, Lung, and Blood Institute",
+            "url": "https://www.nhlbi.nih.gov/health/insomnia/diagnosis",
+            "publishedAt": "2022-03-24T00:00:00.000Z",
+            "accessedAt": "2026-09-05T18:39:00.000Z"
+          }
+        ]
+      }
+    },
+    {
+      "contentId": "longitude",
+      "subjectId": "history",
+      "reason": "The ideas and inventions that changed how we see the world.",
+      "sourceDocument": {
+        "path": "docs/editorial/starter/ARTICLE.md",
+        "sha256": "b7a8b5674625f2d694998b4497d9c1049f6d4387721f12a09896c8a6ed42dbae",
+        "bytes": 8905
+      },
+      "snapshotSha256": "724b751c18776faa6d9009ee65e189881466d4d6235852eecc2190bd0b50495c",
+      "article": {
+        "version": 1,
+        "category": "arts-culture",
+        "kicker": "Navigation",
+        "topic": "Longitude and time",
+        "title": "Why longitude became a problem of time",
+        "deck": "Finding a ship’s east-west position required comparing two times. Keeping the distant reference available at sea was the hard part.",
+        "body": [
+          {
+            "type": "paragraph",
+            "text": "Imagine a ship whose navigator can announce that it is noon, yet still cannot give the vessel's east-west position. There is no contradiction. Observing the Sun can tell the navigator something about the time here. Finding longitude requires another piece of information: the time somewhere else, at that same moment.",
+            "citations": [
+              {
+                "sourceId": "2acd23e3-6f79-5d62-94dc-d5c90bae4530",
+                "label": "1"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "text": "Latitude and longitude ask different questions. Latitude locates a place north or south of the equator. A navigator could estimate it from the Sun's height at noon, together with tables accounting for the date. Longitude measures east or west from a chosen reference meridian, a line running north to south. The challenge was to connect an observation made aboard a moving ship with that distant reference.",
+            "citations": [
+              {
+                "sourceId": "2acd23e3-6f79-5d62-94dc-d5c90bae4530",
+                "label": "1"
+              },
+              {
+                "sourceId": "adcc3ec2-1696-5274-b02e-1e7bdbaf0ac4",
+                "label": "2"
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "level": 2,
+            "text": "Two hours become thirty degrees"
+          },
+          {
+            "type": "paragraph",
+            "text": "The connection is time. In mean solar time, 24 hours correspond to a full 360-degree circuit of longitude. Divide 360 by 24 and each hour of difference between two meridians represents 15 degrees. Four minutes represent one degree. This turns a geographical question into a comparison that can be expressed on a clock face.",
+            "citations": [
+              {
+                "sourceId": "2acd23e3-6f79-5d62-94dc-d5c90bae4530",
+                "label": "1"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "text": "Take an illustrative ship, using Greenwich as its reference. Suppose the navigator's observations, after the necessary corrections, put local mean solar time at 12 noon. A reliable timekeeper set to Greenwich mean time reads 2 p.m. Greenwich's day is two hours further along. The ship is therefore 30 degrees west of Greenwich: two hours multiplied by 15 degrees per hour. If the reference time were 10 a.m. instead, the ship would be 30 degrees east. These are invented readings to show the calculation, not a record of a voyage.",
+            "citations": [
+              {
+                "sourceId": "2acd23e3-6f79-5d62-94dc-d5c90bae4530",
+                "label": "1"
+              },
+              {
+                "sourceId": "adcc3ec2-1696-5274-b02e-1e7bdbaf0ac4",
+                "label": "2"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "text": "The same arithmetic exposes the cost of an unreliable timekeeper. An uncorrected error of one minute becomes a quarter of a degree of longitude. Imagine a clock that gains two seconds each day, with no allowance made for that gain. After 30 days, its accumulated one-minute error introduces that quarter-degree error into the calculation. Those numbers are a worked example, not a claim about any particular Harrison clock. An error in time has become an error in position.",
+            "citations": [
+              {
+                "sourceId": "2acd23e3-6f79-5d62-94dc-d5c90bae4530",
+                "label": "1"
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "level": 2,
+            "text": "The Sun needs a correction too"
+          },
+          {
+            "type": "paragraph",
+            "text": "There is a catch in the convenient phrase 'local time'. A sundial follows the actual Sun, giving apparent solar time. A uniform clock follows a steadier scale. The Sun's apparent daily motion varies through the year, so those two readings do not always agree. Mean solar time smooths out that variation; the difference between apparent and mean solar time is called the equation of time.",
+            "citations": [
+              {
+                "sourceId": "adcc3ec2-1696-5274-b02e-1e7bdbaf0ac4",
+                "label": "2"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "text": "For the ship's calculation, the two times have to be expressed on a consistent basis. Otherwise, a predictable difference between Sun time and mean time can be mistaken for part of the east-west separation. That is why the numerical example begins after the observations have been corrected. The neat multiplication describes the principle, while the correction is part of making that principle useful.",
+            "citations": [
+              {
+                "sourceId": "adcc3ec2-1696-5274-b02e-1e7bdbaf0ac4",
+                "label": "2"
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "level": 2,
+            "text": "A reference that could survive the journey"
+          },
+          {
+            "type": "paragraph",
+            "text": "Keeping reference time at sea was an engineering problem. John Harrison's early marine timekeeper H1 used interconnected balances to address the motion of a ship. He brought it to London in 1735; a sea trial followed in 1736. Later attempts did not proceed smoothly. H2 never went to trial after Harrison identified a flaw, and he spent 19 years working on H3. The short equation concealed a long struggle to make an instrument behave.",
+            "citations": [
+              {
+                "sourceId": "e4bd2753-1b84-5971-8d55-05ba3a2da22b",
+                "label": "4"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "text": "The decisive change in form emerged from work on watches. Royal Museums Greenwich dates Harrison's H4 to 1759. Its collection record describes a watch made to Harrison's design by John Jefferys in 1753, whose performance helped point Harrison toward a smaller instrument rather than the much larger H3. H4 used a stable, high-frequency balance. In the museum's account, improving the watch became a route to the longitude solution.",
+            "citations": [
+              {
+                "sourceId": "ca580842-14c9-5f6a-84b6-e37d84ddc30a",
+                "label": "3"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "text": "A successful instrument still had to become something others could make. Following H4's trials, the Board of Longitude confirmed that it had met the strictest accuracy limits of the 1714 Act. But part of the remaining reward depended on demonstrating that other makers could produce similar timekeepers. The distinction matters: showing that one extraordinary device works is different from establishing a repeatable means of navigation.",
+            "citations": [
+              {
+                "sourceId": "e4bd2753-1b84-5971-8d55-05ba3a2da22b",
+                "label": "4"
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "level": 2,
+            "text": "The alternative clock was in the sky"
+          },
+          {
+            "type": "paragraph",
+            "text": "A mechanical timekeeper was not the only way to obtain reference time. The lunar-distance method compared the observed angle between the Moon and a particular star with predicted angles in an almanac. The Moon's changing position could supply the missing time reference. Measuring that angle accurately from a moving ship was difficult, but the method pursued the same objective through astronomy rather than a carried clock.",
+            "citations": [
+              {
+                "sourceId": "2acd23e3-6f79-5d62-94dc-d5c90bae4530",
+                "label": "1"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "text": "Making such astronomy usable required work ashore. Nevil Maskelyne organized the Nautical Almanac, with data for 1767 ready for printing by the end of 1766. Precomputed information reduced the burden of lengthy calculations at sea. Behind the printed tables were people processing observations into usable data. The apparent simplicity of consulting a book depended on a continuing organization of mathematical work.",
+            "citations": [
+              {
+                "sourceId": "e846ee71-8cfe-5744-823d-ac5ac91281c7",
+                "label": "5"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "text": "Nor did a successful trial instantly replace existing navigation. Royal Museums Greenwich describes the need for further trials, training and better charts, while timekeepers remained rare and expensive. Navigators could combine older methods with the new ones. The practical solution therefore involved more than selecting the winning invention: instruments, observations, calculations and people had to work together.",
+            "citations": [
+              {
+                "sourceId": "e846ee71-8cfe-5744-823d-ac5ac91281c7",
+                "label": "5"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "text": "Seen this way, longitude offers a particular lesson about invention. The useful object is easiest to appreciate once its job is clear. A sea clock did not read a ship's position directly. It preserved a reference that made another observation interpretable. A lunar table could provide that reference by a different route. The achievement was to make a comparison possible, and then reliable enough to use far from the people and places that had established it.",
+            "citations": [
+              {
+                "sourceId": "2acd23e3-6f79-5d62-94dc-d5c90bae4530",
+                "label": "1"
+              },
+              {
+                "sourceId": "ca580842-14c9-5f6a-84b6-e37d84ddc30a",
+                "label": "3"
+              },
+              {
+                "sourceId": "e846ee71-8cfe-5744-823d-ac5ac91281c7",
+                "label": "5"
+              }
+            ]
+          }
+        ],
+        "summary": [
+          "Longitude can be calculated from a difference in mean solar time: one hour corresponds to 15 degrees.",
+          "A carried timekeeper and astronomical observations offered different ways to obtain the same missing reference.",
+          "Reliable navigation required usable instruments, tables and trained people, beyond a successful invention."
+        ],
+        "readingMinutes": 5,
+        "sourceCount": 5,
+        "researchedAt": "2026-09-05T00:00:00.000Z",
+        "publishedAt": null,
+        "sources": [
+          {
+            "id": "2acd23e3-6f79-5d62-94dc-d5c90bae4530",
+            "title": "Everyday Time and Atomic Time: Part 4",
+            "publisher": "National Institute of Standards and Technology",
+            "url": "https://www.nist.gov/blogs/taking-measure/everyday-time-and-atomic-time-part-4",
+            "publishedAt": null,
+            "accessedAt": "2026-09-05T00:00:00.000Z"
+          },
+          {
+            "id": "adcc3ec2-1696-5274-b02e-1e7bdbaf0ac4",
+            "title": "The Equation of Time",
+            "publisher": "U.S. Naval Observatory",
+            "url": "https://aa.usno.navy.mil/faq/eqtime",
+            "publishedAt": null,
+            "accessedAt": "2026-09-05T00:00:00.000Z"
+          },
+          {
+            "id": "ca580842-14c9-5f6a-84b6-e37d84ddc30a",
+            "title": "H4",
+            "publisher": "Royal Museums Greenwich",
+            "url": "https://www.rmg.co.uk/collections/objects/rmgc-object-79142",
+            "publishedAt": null,
+            "accessedAt": "2026-09-05T00:00:00.000Z"
+          },
+          {
+            "id": "e4bd2753-1b84-5971-8d55-05ba3a2da22b",
+            "title": "Longitude found - the story of Harrison's timekeepers",
+            "publisher": "Royal Museums Greenwich",
+            "url": "https://www.rmg.co.uk/stories/time/harrisons-clocks-longitude-problem",
+            "publishedAt": null,
+            "accessedAt": "2026-09-05T00:00:00.000Z"
+          },
+          {
+            "id": "e846ee71-8cfe-5744-823d-ac5ac91281c7",
+            "title": "Longitude found: Nevil Maskelyne and the lunar method",
+            "publisher": "Royal Museums Greenwich",
+            "url": "https://www.rmg.co.uk/stories/time/longitude-found-nevil-maskelyne-lunar-method",
+            "publishedAt": null,
+            "accessedAt": "2026-09-05T00:00:00.000Z"
+          }
+        ]
+      }
+    }
+  ]
+}

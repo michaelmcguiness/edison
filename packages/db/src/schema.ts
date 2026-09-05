@@ -459,15 +459,176 @@ export const learningThreads = pgTable(
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
+    normalizedTitle: text("normalized_title").notNull(),
+    originalCuriosity: text("original_curiosity").notNull(),
+    direction: text("direction").notNull().default(""),
+    revision: integer("revision").notNull().default(0),
+    creationIdempotencyKey: text("creation_idempotency_key").notNull(),
+    creationRequestFingerprint: text("creation_request_fingerprint").notNull(),
     slug: text("slug").notNull(),
     summary: text("summary").notNull().default(""),
     status: text("status").notNull().default("active"),
-    currentLevel: text("current_level").notNull().default("beginner"),
+    currentLevel: text("current_level").notNull().default("unspecified"),
     ...timestamps,
   },
   (table) => [
+    uniqueIndex("learning_threads_id_user_unique").on(table.id, table.userId),
     uniqueIndex("learning_threads_user_slug_unique").on(table.userId, table.slug),
+    uniqueIndex("learning_threads_user_normalized_title_unique").on(
+      table.userId,
+      table.normalizedTitle,
+    ),
+    uniqueIndex("learning_threads_user_creation_key_unique").on(
+      table.userId,
+      table.creationIdempotencyKey,
+    ),
     index("learning_threads_user_status_idx").on(table.userId, table.status),
+    check(
+      "learning_threads_title_length",
+      sql`char_length(btrim(${table.title})) between 1 and 120`,
+    ),
+    check(
+      "learning_threads_normalized_title_valid",
+      sql`char_length(${table.normalizedTitle}) between 1 and 120 and ${table.normalizedTitle} = lower(regexp_replace(btrim(${table.normalizedTitle}), '[[:space:]]+', ' ', 'g'))`,
+    ),
+    check(
+      "learning_threads_original_curiosity_length",
+      sql`char_length(btrim(${table.originalCuriosity})) between 1 and 500`,
+    ),
+    check(
+      "learning_threads_direction_length",
+      sql`${table.direction} = btrim(${table.direction}) and char_length(${table.direction}) <= 1000`,
+    ),
+    check(
+      "learning_threads_revision_nonnegative",
+      sql`${table.revision} >= 0`,
+    ),
+    check(
+      "learning_threads_status_valid",
+      sql`${table.status} in ('active', 'paused', 'archived')`,
+    ),
+    check(
+      "learning_threads_creation_key_valid",
+      sql`char_length(${table.creationIdempotencyKey}) between 8 and 128 and ${table.creationIdempotencyKey} ~ '^[A-Za-z0-9._:-]+$'`,
+    ),
+    check(
+      "learning_threads_creation_fingerprint_length",
+      sql`char_length(${table.creationRequestFingerprint}) = 64`,
+    ),
+  ],
+);
+
+export const learningLoopDirectionMutations = pgTable(
+  "learning_loop_direction_mutations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    loopId: uuid("loop_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    operation: text("operation").notNull(),
+    baseRevision: integer("base_revision").notNull(),
+    resultingRevision: integer("resulting_revision").notNull(),
+    beforeDirection: text("before_direction").notNull(),
+    afterDirection: text("after_direction").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    requestFingerprint: text("request_fingerprint").notNull(),
+    undoOfMutationId: uuid("undo_of_mutation_id").references(
+      (): AnyPgColumn => learningLoopDirectionMutations.id,
+      { onDelete: "cascade" },
+    ),
+    revertedByMutationId: uuid("reverted_by_mutation_id").references(
+      (): AnyPgColumn => learningLoopDirectionMutations.id,
+      { onDelete: "cascade" },
+    ),
+    ...timestamps,
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.loopId, table.userId],
+      foreignColumns: [learningThreads.id, learningThreads.userId],
+      name: "learning_loop_direction_mutations_loop_owner_fk",
+    }).onDelete("cascade"),
+    uniqueIndex("learning_loop_direction_mutations_user_key_unique").on(
+      table.userId,
+      table.idempotencyKey,
+    ),
+    uniqueIndex("learning_loop_direction_mutations_undo_once_unique").on(
+      table.undoOfMutationId,
+    ),
+    index("learning_loop_direction_mutations_reverted_by_idx").on(
+      table.revertedByMutationId,
+    ),
+    uniqueIndex("learning_loop_direction_mutations_loop_revision_unique").on(
+      table.loopId,
+      table.resultingRevision,
+    ),
+    check(
+      "learning_loop_direction_mutations_operation_valid",
+      sql`${table.operation} in ('set', 'undo')`,
+    ),
+    check(
+      "learning_loop_direction_mutations_revision_step",
+      sql`${table.baseRevision} >= 0 and ${table.resultingRevision} = ${table.baseRevision} + 1`,
+    ),
+    check(
+      "learning_loop_direction_mutations_direction_length",
+      sql`${table.beforeDirection} = btrim(${table.beforeDirection}) and ${table.afterDirection} = btrim(${table.afterDirection}) and char_length(${table.beforeDirection}) <= 1000 and char_length(${table.afterDirection}) <= 1000`,
+    ),
+    check(
+      "learning_loop_direction_mutations_key_valid",
+      sql`char_length(${table.idempotencyKey}) between 8 and 128 and ${table.idempotencyKey} ~ '^[A-Za-z0-9._:-]+$'`,
+    ),
+    check(
+      "learning_loop_direction_mutations_fingerprint_length",
+      sql`char_length(${table.requestFingerprint}) = 64`,
+    ),
+    check(
+      "learning_loop_direction_mutations_undo_consistent",
+      sql`(${table.operation} = 'undo') = (${table.undoOfMutationId} is not null)`,
+    ),
+  ],
+);
+
+export const learningLoopPublicArticles = pgTable(
+  "learning_loop_public_articles",
+  {
+    loopId: uuid("loop_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    publicArticleId: uuid("public_article_id")
+      .notNull()
+      .references(() => publicStarterEditionArticles.id, {
+        onDelete: "restrict",
+      }),
+    position: smallint("position").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.loopId, table.publicArticleId] }),
+    foreignKey({
+      columns: [table.loopId, table.userId],
+      foreignColumns: [learningThreads.id, learningThreads.userId],
+      name: "learning_loop_public_articles_loop_owner_fk",
+    }).onDelete("cascade"),
+    uniqueIndex("learning_loop_public_articles_position_unique").on(
+      table.loopId,
+      table.position,
+    ),
+    index("learning_loop_public_articles_user_idx").on(
+      table.userId,
+      table.loopId,
+    ),
+    index("learning_loop_public_articles_article_idx").on(
+      table.publicArticleId,
+    ),
+    check(
+      "learning_loop_public_articles_position_bounded",
+      sql`${table.position} between 1 and 30`,
+    ),
   ],
 );
 
@@ -499,7 +660,13 @@ export const articles = pgTable(
     ...timestamps,
   },
   (table) => [
+    foreignKey({
+      columns: [table.learningThreadId, table.ownerId],
+      foreignColumns: [learningThreads.id, learningThreads.userId],
+      name: "articles_learning_loop_owner_fk",
+    }),
     uniqueIndex("articles_owner_slug_unique").on(table.ownerId, table.slug),
+    index("articles_learning_thread_idx").on(table.learningThreadId),
     index("articles_owner_status_created_idx").on(
       table.ownerId,
       table.status,

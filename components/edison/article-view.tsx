@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import type { Article, ConversationMessage } from "@edison/contracts";
+import type { Article, ArticleCard, ConversationMessage } from "@edison/contracts";
 import {
   Bookmark,
   Check,
   ChevronLeft,
+  ArrowRight,
+  MessageCircle,
   Link2Off,
   LoaderCircle,
   Share2,
@@ -36,6 +38,12 @@ export function ArticleView({
   onError,
   onCompleted,
   onShared,
+  backLabel = "Back to edition",
+  nextArticle,
+  onNext,
+  onAsk,
+  deviceSave = false,
+  pulse = false,
 }: {
   article: Article;
   conversationMessages: ConversationMessage[];
@@ -47,6 +55,12 @@ export function ArticleView({
   onError: (error: unknown) => void;
   onCompleted: (currentStreak: number) => void;
   onShared: (shareId: string | null) => void;
+  backLabel?: string;
+  nextArticle?: ArticleCard | null;
+  onNext?: () => void;
+  onAsk?: () => void;
+  deviceSave?: boolean;
+  pulse?: boolean;
 }) {
   const [worth, setWorth] = useState<boolean | null>(null);
   const [completed, setCompleted] = useState(article.completed);
@@ -103,7 +117,8 @@ export function ArticleView({
     setBusy(true);
     let newlyCreatedShare = false;
     try {
-      let url = window.location.href;
+      // Public links share only article identity, never a private loop or draft.
+      let url = `${window.location.origin}/?view=article&article=${encodeURIComponent(article.id)}`;
       if (dataMode === "live") {
         const response = await edisonApi<{
           shareId: string;
@@ -169,21 +184,21 @@ export function ArticleView({
   }
 
   return (
-    <main className="article-reader">
+    <main className={`article-reader${pulse ? " pulse-article-reader" : ""}`}>
       <div className="article-toolbar">
         <button onClick={back}>
-          <ChevronLeft />Back to edition
+          <ChevronLeft />{backLabel}
         </button>
         <div>
           <button
             onClick={save}
-            aria-label={dataMode === "guest"
+            aria-label={deviceSave ? article.saved ? "Remove from this device’s saved reading" : "Save on this device" : dataMode === "guest"
               ? "Sign in to save this story"
               : dataMode === "public"
                 ? "Public starter stories cannot be saved to your private library"
                 : article.saved ? "Remove from library" : "Save to library"}
-            aria-pressed={publicStarter ? undefined : article.saved}
-            disabled={publicStarter}
+            aria-pressed={publicStarter && !deviceSave ? undefined : article.saved}
+            disabled={publicStarter && !deviceSave}
             title={dataMode === "guest"
               ? "Sign in to save stories"
               : dataMode === "public"
@@ -192,6 +207,7 @@ export function ArticleView({
           >
             <Bookmark fill={article.saved ? "currentColor" : "none"} />
           </button>
+          {onAsk && <button type="button" onClick={onAsk} aria-label="Ask about this article"><MessageCircle aria-hidden="true" /><span>Ask</span></button>}
           <button
             onClick={() => void share()}
             aria-label={publicStarter ? "Share public article" : dataMode === "live" ? "Share article" : "Article sharing is unavailable in this demo"}
@@ -236,6 +252,10 @@ export function ArticleView({
             </small>
           </span>
         </div>
+        {article.correction && <aside className="article-correction" aria-label="Editorial correction">
+          <b>Editorial correction · <time dateTime={article.correction.correctedAt}>{new Date(article.correction.correctedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}</time></b>
+          <p>{article.correction.note}</p>
+        </aside>}
       </header>
 
       <aside className="why">
@@ -249,11 +269,11 @@ export function ArticleView({
       <div className="article-body">
         {article.body.map((block, index) => {
           if (block.type === "heading") {
-            return <h2 key={`${block.text}-${index}`}>{block.text}</h2>;
+            return <h2 id={`article-block-${index}`} data-reader-block key={`${block.text}-${index}`}>{block.text}</h2>;
           }
           if (block.type === "quote") {
             return (
-              <blockquote key={`${block.text}-${index}`}>
+              <blockquote id={`article-block-${index}`} data-reader-block key={`${block.text}-${index}`}>
                 {block.text}
                 {block.attribution && <cite>— {block.attribution}</cite>}
                 <Citations citations={block.citations} sources={sourceById} />
@@ -261,7 +281,7 @@ export function ArticleView({
             );
           }
           return (
-            <p key={`${block.text}-${index}`}>
+            <p id={`article-block-${index}`} data-reader-block key={`${block.text}-${index}`}>
               {block.text}
               <Citations citations={block.citations} sources={sourceById} />
             </p>
@@ -289,7 +309,15 @@ export function ArticleView({
         </ol>
       </section>
 
-      {(conversationLoading || conversationError || conversationMessages.length > 0) && (
+      {pulse && <nav className="pulse-reading-next" aria-label="Continue reading">
+        {nextArticle && onNext ? <>
+          <p>Next article</p>
+          <button type="button" className="pulse-next-article" onClick={() => { void complete(); onNext(); }}><span>{nextArticle.title}</span><ArrowRight aria-hidden="true" /></button>
+          <button type="button" className="pulse-back-to-feed" onClick={() => { void complete(); back(); }}>{backLabel}</button>
+        </> : <button type="button" className="pulse-next-article" onClick={() => { void complete(); back(); }}>{backLabel}<ArrowRight aria-hidden="true" /></button>}
+      </nav>}
+
+      {!pulse && (conversationLoading || conversationError || conversationMessages.length > 0) && (
         <section className="conversation-answer" aria-live="polite">
           <span className="eyebrow">Article conversation</span>
           <h2>Your follow-ups</h2>
@@ -313,7 +341,7 @@ export function ArticleView({
         </section>
       )}
 
-      <section className="worth">
+      {(!pulse || !publicStarter) && <section className="worth">
         <h2>Was this worth your time?</h2>
         {dataMode === "guest" ? (
           <p><a href="/login">Sign in</a> to save feedback and shape future editions. Reading remains open without an account.</p>
@@ -329,9 +357,9 @@ export function ArticleView({
             ? "Demo feedback only. This response is not stored or used for personalization."
             : "Thanks. This will shape what Edison writes next."}</p>
         )}
-      </section>
+      </section>}
 
-      <button
+      {!pulse && <button
         className={`complete ${completed ? "is-complete" : ""}`}
         onClick={() => void complete()}
         disabled={completed || busy || publicStarter}
@@ -349,7 +377,7 @@ export function ArticleView({
             : dataMode === "public"
               ? "Available in your personal edition"
               : "Mark as read"}
-      </button>
+      </button>}
     </main>
   );
 }

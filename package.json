@@ -22,6 +22,8 @@
     "lint": "eslint . --ignore-pattern .next --ignore-pattern apps/api/.next",
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build:all",
     "invite": "node --env-file-if-exists=.env.local --import tsx scripts/invite-reader.ts",
+    "article-correction": "node --import tsx scripts/article-correction.ts",
+    "public-starter": "node --import tsx scripts/public-starter.ts",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
     "supabase:start": "supabase start",
