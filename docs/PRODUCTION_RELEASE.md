@@ -6,11 +6,13 @@ launching; they can change without a code release.
 
 ## Decision and current status
 
-**Current input gate:** the saved API connection still fails the transaction
-pooler port check. The only remaining owner input is to privately supply the
-correct `6543` endpoint with TLS. Responses-only key scope and the single owner
+**Current input gate:** the build-successful API still fails database readiness
+because the saved hostname cannot resolve. The only remaining owner input is to
+privately re-copy the complete actual Supabase Shared Transaction pooler URI, including
+its `.pooler.supabase.com` hostname, port `6543`, and TLS parameters. Changing
+only the port is insufficient. Responses-only key scope and the single owner
 invitation are already explicitly approved; the key restriction is saved and
-verified. No invitation was sent because the API is unavailable.
+verified. No invitation was sent because the API is unhealthy.
 
 **Current authorization, September 5:** the owner has authorized completing
 the production release autonomously, including secure CLI access, reviewed
@@ -20,32 +22,40 @@ step-by-step permission stops recorded below; they are historical, not current
 blockers. Preserve the apex demo and website domains, do not add paid services
 or other readers, and never reveal saved credentials or request secrets in chat.
 
-**Current release checkpoint:** candidate `c731fe2` is committed and pushed on
+**Current release checkpoint:** candidate `dbac750` is committed and pushed on
 `codex/production-release-candidate` in draft PR #1; `main` is unmerged and
-unprotected. [CI run 33976398848](https://github.com/michaelmcguiness/edison/actions/runs/33976398848)
-passed lint, both typechecks, 164 application tests, both production builds, all
+unprotected. [CI run 33981403943](https://github.com/michaelmcguiness/edison/actions/runs/33981403943)
+passed lint, both typechecks, 171 application tests, both production builds, all
 107 pgTAP assertions, and strict application-schema lint on Node 22/pnpm
-10.28.0. The reviewed dry run and backup checkpoint preceded successful
+10.28.0. The preceding `d463d44` checkpoint passed 165 application tests and
+the same database/build gates in
+[CI run 33980690732](https://github.com/michaelmcguiness/edison/actions/runs/33980690732).
+The reviewed dry run and backup checkpoint preceded successful
 application of all 13 migrations to Supabase project
 `bcxxnntastmnormcmxbq`. A separate read-only production audit confirmed 24/24
 expected tables, 21/21 expected RLS settings, 45 policies, 20 triggers, zero
 invalid constraints, the expected Storage bucket, and the intended role/grant
 boundaries. Auth still has zero users. Restore testing remains outstanding.
 
-The temporary web deployment is live: Vercel deployment
-`dpl_Cdi68WU5m2K5kYDFNqjjWKi3EY4p` serves `c731fe2` at
-`https://project-qlqve.vercel.app` with HTTP 200 and the expected CSP. Vercel
-treated the candidate-branch push as Production in both new projects despite
-their saved production branch remaining `main`. The apex
-`edisonreader.com` remains the older isolated sample-data demo and returns HTTP
-200. The API is not live. Its first attempt failed for missing database TLS;
-after replacement, uncached retry `dpl_EcLwNMETMBjV3QY9ytq1aJqc5MJ8` reached
-preflight and showed that the saved URL uses the wrong port. Production Secret
-metadata confirms a later update, but fresh uncached Production deployment
-`dpl_CCZ7T5S4XTHztzB5m3chZjSzMtcZ` of `c731fe2` at 13:00 EDT still failed the
-exact port-`6543` guard. The owner must privately replace the connection
-endpoint with the Supabase Transaction pooler URI on port `6543` with TLS;
-never copy that URI into chat.
+Release-branch pushes now correctly target Preview; the current live-project
+deployments were explicit Production rebuilds. Web deployment
+`dpl_Eqed7bwPxcNaEACSj2Nxx8WtzRwZ` of `d463d44` was Ready at 13:34:56 EDT and
+served `https://project-qlqve.vercel.app` with HTTP 200 and the expected
+nonce-based CSP at 17:38:44Z. The apex `edisonreader.com` remained the older
+isolated sample-data demo and returned HTTP 200 at 17:38:46Z.
+
+API deployment `dpl_7XE2sbPZhn2jYKhq3Wcbfmz3aia4` of `d463d44` was the first
+build-successful Production deployment, Ready at 13:25:48 EDT, but health was
+`503`: configuration and Supabase Auth passed while the database failed.
+Diagnostic deployment `dpl_9o5CcKke4k1kF71Ap7LYjkFrpikz` of `dbac750` was
+Ready at 13:38:31 EDT and returned the same database-only `503` at 17:39:13Z.
+Private logs exposed only fixed safe metadata `category=network`,
+`code=ENOTFOUND`, establishing that the configured hostname cannot resolve;
+password validity remains unproven. The owner must privately re-copy the full
+actual Shared Transaction pooler URI rather than change a Direct URL's port. On
+`d463d44`, unauthenticated `/v1/me`, allowed and denied CORS preflights, and all
+six missing/wrong-token checks across the three cron routes behaved as intended.
+No valid cron or provider request was made.
 
 Dedicated OpenAI project `edison-production`
 (`proj_EFKsL4Yfs6pDFOzI4aGWThSf`) has an enforced $50 monthly cap and permits
@@ -60,13 +70,13 @@ provider request. The original default-project key remains unread and unrevoked.
 
 The hosted invitation template is saved and fresh-reload verified with exactly
 one Dashboard-compatible `.SiteURL` `/auth/confirm` token-hash link. The
-matching repository fix and release-boundary regression are in the working
-tree; its five focused tests and the API typecheck pass with the existing local
-Node 24.19 runtime, distinct from the full candidate CI on Node 22. The source
-change is included in this local release checkpoint; it is not yet pushed or
-deployed as application code.
-The explicitly authorized owner invitation remains unsent while the API is
-unavailable. Editorial has accepted unpublished starter candidate v2 with exact
+matching repository fix and release-boundary regression are included in pushed
+checkpoint `d463d44` and its green CI run. Candidate `dbac750` adds a bounded,
+cycle-safe database-error classifier that returns only fixed allowlisted
+categories/codes to health logging; all six focused tests and the full
+candidate gate pass.
+The explicitly authorized owner invitation remains unsent while API database
+readiness is failing. Editorial has accepted unpublished starter candidate v2 with exact
 SHA-256 `aa26d2258cb391ad552466f39bee01ae4d1596d480fef59381dfeb9b184d8c50`
 in an isolated worktree.
 
@@ -80,10 +90,11 @@ paid product without a rewrite or premature microservices.
 
 The repository and hosted services are **partially deployed for an owner-only
 production release, not yet usable as a connected alpha or verified ready for
-external readers**. The temporary web and production schema are live; the API,
+external readers**. The temporary web, production schema, and API code are live,
+but API database readiness fails on an unresolvable configured hostname. The
 owner invitation, authenticated journey, provider request, and email-delivery
-test are not. The existing `edisonreader.com` deployment remains an isolated
-credential-free sample-data demo.
+test have not run. The existing `edisonreader.com` deployment remains an
+isolated credential-free sample-data demo.
 
 ### Historical preparation record
 
@@ -398,11 +409,11 @@ Command is:
 if [ "$VERCEL_ENV" = production ]; then node scripts/check-production-env.mjs web || exit 1; fi; pnpm build:web
 ```
 
-Deployment `dpl_Cdi68WU5m2K5kYDFNqjjWKi3EY4p` currently serves candidate
-`c731fe2` at the assigned Production domain and passed HTTP/CSP smoke checks.
-This occurred from the candidate branch even though the project's saved
-production branch is `main`; do not assume the branch setting alone prevented
-Production targeting.
+Explicit Production deployment `dpl_Eqed7bwPxcNaEACSj2Nxx8WtzRwZ` currently
+serves `d463d44` at the assigned domain. It was Ready at 13:34:56 EDT and passed
+HTTP plus nonce-based CSP smoke checks at 17:38:44Z. The saved production branch
+remains `main`, and release-branch pushes now correctly create Preview
+deployments.
 
 ### Live API project (`edison-api`)
 
@@ -424,7 +435,7 @@ Production-only environment:
 | Name | Purpose / launch value |
 | --- | --- |
 | `ENABLE_EXPERIMENTAL_COREPACK` | `1` |
-| `DATABASE_URL` | Owner-saved Production Secret; current value fails preflight because it uses the wrong port. Replace privately with the Supabase Transaction pooler URI on port `6543`, with TLS required; never the direct connection |
+| `DATABASE_URL` | Owner-saved Production Secret; privately re-copy the complete actual Supabase Shared Transaction pooler URI, including its provider-issued hostname, port `6543`, and TLS parameters; never the Direct or Dedicated endpoint |
 | `SUPABASE_URL` | Saved as `https://bcxxnntastmnormcmxbq.supabase.co` |
 | `SUPABASE_PUBLISHABLE_KEY` | Saved matching publishable key used for Auth health; literal value omitted; not an admin key |
 | `SUPABASE_JWT_AUDIENCE` | `authenticated` |
@@ -464,16 +475,17 @@ values. The saved API Build Command is:
 if [ "$VERCEL_ENV" = production ]; then node ../../scripts/check-production-env.mjs api || exit 1; fi; pnpm build
 ```
 
-No API deployment has passed. The initial candidate deployment
-`dpl_B4RDxaiAqgLvzZWskVYJyC7h9Vzz` failed the preflight for missing TLS. A later
-install-only failure did not expose a useful error; uncached retry
-`dpl_EcLwNMETMBjV3QY9ytq1aJqc5MJ8` reached the preflight and identified the
-wrong database port. Correcting `DATABASE_URL` privately is the next deployment
-gate. A later metadata-confirmed Secret update did not clear the guard: fresh
-uncached Production deployment `dpl_CCZ7T5S4XTHztzB5m3chZjSzMtcZ` of
-`c731fe2` at 13:00 EDT also failed exact port `6543`. Vercel CLI 59.11.7 was
-available only through an ephemeral invocation;
-login did not complete and the pending attempt was canceled.
+The API build now passes, but runtime database readiness does not. Explicit
+Production deployment `dpl_7XE2sbPZhn2jYKhq3Wcbfmz3aia4` of `d463d44` was
+Ready at 13:25:48 EDT; health returned `503` with configuration and Supabase
+Auth `ok` and database failed. It was replaced by diagnostic deployment
+`dpl_9o5CcKke4k1kF71Ap7LYjkFrpikz` of `dbac750`, Ready at 13:38:31 EDT. Health
+at 17:39:13Z returned the same database-only `503`; the private log safely
+reported only `category=network`, `code=ENOTFOUND`. Re-copying the complete
+actual Shared Transaction pooler URI privately is the next gate; changing only a
+Direct URL's port is insufficient, and password validity is unproven. Vercel
+CLI 59.11.7 was available only through an ephemeral invocation; login did not
+complete and the pending attempt was canceled.
 
 ### Credential-safe preflight
 
@@ -483,10 +495,11 @@ private-alpha lists, and safe scheduling ranges. It never loads a file
 automatically and never prints secret, database, or email values.
 
 On September 5, a local audit of the exact saved public web configuration passed
-with zero warnings. No hosted secrets were loaded. The hosted API preflight has
-now failed safely twice: first for missing TLS and then, after replacement, for
-the wrong pooler port. It has not passed. Provider connectivity remains
-unverified.
+with zero warnings. No hosted secrets were loaded. The latest hosted API build
+preflight passes. Runtime health then fails only its database check with the
+allowlisted DNS diagnostic `category=network`, `code=ENOTFOUND`; no host,
+credential, query, stack, or raw cause is logged. Provider connectivity and
+database password validity remain unverified.
 
 Run it against one project's environment at a time before production promotion:
 
@@ -612,8 +625,8 @@ web origin:
   `redirectTo`, the rendered CTA is exactly
   `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=invite`;
   confirm-email is enabled, and no invitation was sent. The matching repository
-  correction and regression test are included in this local release checkpoint,
-  not yet pushed or deployed as application code. The dashboard preview has an
+  correction and regression test are included in pushed checkpoint `d463d44`
+  and its green CI run. The dashboard preview has an
   unresolved logo; actual delivery and asset loading still require verification.
 - Custom SMTP is saved on the Edison mail domain. Disable provider click
   tracking/link rewriting, then use the current owner-only release authorization
@@ -808,19 +821,21 @@ a cost stop and a product outage.
 
 ## Release sequence
 
-1. Preserve the completed source, CI, migration, production metadata-audit, and
-   temporary-web evidence for candidate `c731fe2`; push the local
-   invite-template regression checkpoint and require fresh CI without rerunning
-   applied migrations as though production were still empty.
-2. The owner privately replaces API Production `DATABASE_URL` with the Supabase
-   Transaction pooler URI on port `6543` with TLS. Nobody sends or copies the
-   URI through chat, source, logs, or documentation.
+1. Preserve the completed source, CI, migration, production metadata audit,
+   temporary-web deployment, and negative auth/CORS/cron evidence through
+   candidate `dbac750`; do not rerun applied migrations as though production
+   were still empty.
+2. The owner privately re-copies API Production `DATABASE_URL` from the actual
+   Supabase Shared Transaction pooler connection, including its provider-issued
+   `.pooler.supabase.com` hostname, port `6543`, and TLS parameters. Nobody sends
+   or copies the URI through chat, source, logs, or documentation. Changing only
+   a Direct or Dedicated endpoint's port will not resolve `ENOTFOUND`.
 3. Redeploy `edison-api` to its temporary Production URL. Require the production
    environment preflight and `/v1/health` to pass while keeping the apex demo
    untouched.
-4. Before any valid cron call, verify unauthenticated `/v1/me`, disallowed CORS,
-   and all three cron routes with missing/wrong Bearer tokens fail closed; verify
-   the configured web origin preflight succeeds.
+4. Preserve the already-passing unauthenticated `/v1/me`, allowed/denied CORS,
+   and six missing/wrong Bearer checks across all three cron routes. Recheck them
+   on the final deployment before any valid cron call.
 5. Make one bounded OpenAI acceptance request, confirm the saved Responses-only
    permission and usage/cost accounting, and reconcile it with the dedicated
    project dashboard.
@@ -854,9 +869,10 @@ a cost stop and a product outage.
 
 ## Ownership for remaining release work
 
-The owner's only immediate secret-handling action is to save the correct
-Transaction pooler URI on port `6543` with TLS in the existing Vercel Secret
-field. Do not request, display, or read it. The owner also retains decisions on:
+The owner's only immediate secret-handling action is to re-copy the complete
+actual Supabase Shared Transaction pooler URI—including the provider-issued
+hostname, port `6543`, and TLS parameters—into the existing Vercel Secret field.
+Do not request, display, or read it. The owner also retains decisions on:
 
 - future plan upgrades or higher billing/spend ceilings;
 - privacy/support wording and acceptable alpha risk;

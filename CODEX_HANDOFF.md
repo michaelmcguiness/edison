@@ -28,12 +28,14 @@ Never reveal existing secrets or ask for them in chat. No extra paid services,
 broader invitations, or website-domain changes are part of this first release;
 the apex demo remains isolated while the owner-only live alpha is validated.
 
-Candidate `c731fe2` is committed and pushed on
+Candidate `dbac750` is committed and pushed on
 `codex/production-release-candidate` in draft PR #1; `main` is neither merged
-nor protected. [CI run 33976398848](https://github.com/michaelmcguiness/edison/actions/runs/33976398848)
-passed on Node 22/pnpm 10.28.0 with lint, both typechecks, 164 application tests,
+nor protected. [CI run 33981403943](https://github.com/michaelmcguiness/edison/actions/runs/33981403943)
+passed on Node 22/pnpm 10.28.0 with lint, both typechecks, 171 application tests,
 both production builds, all 107 pgTAP assertions, and strict application-schema
-lint.
+lint. The preceding `d463d44` checkpoint also passed 165 application tests and
+the same database/build gates in
+[CI run 33980690732](https://github.com/michaelmcguiness/edison/actions/runs/33980690732).
 
 The reviewed linked dry run and backup checkpoint preceded a successful
 production push of all 13 migrations to Supabase project
@@ -43,21 +45,28 @@ triggers, zero invalid constraints, the expected Storage bucket, and the
 intended role/grant boundaries. There are still zero Auth users. Recovery from
 backup remains untested; do not describe the checkpoint as a restore rehearsal.
 
-Vercel unexpectedly treated the release-branch push as Production in the two
-new projects even though their saved production branch is `main`. Web deployment
-`dpl_Cdi68WU5m2K5kYDFNqjjWKi3EY4p` serves candidate `c731fe2` at
-`https://project-qlqve.vercel.app` with HTTP 200 and the expected CSP. The apex
-`edisonreader.com` continues to serve the older isolated sample-data demo with
-HTTP 200. The API has no successful deployment: the first attempt failed the
-TLS preflight; a later uncached attempt
-`dpl_EcLwNMETMBjV3QY9ytq1aJqc5MJ8` proved the saved database URL uses the wrong
-pooler port. Production Secret metadata confirms a recent `DATABASE_URL` update,
-but fresh uncached Production deployment
-`dpl_CCZ7T5S4XTHztzB5m3chZjSzMtcZ` of `c731fe2` at 13:00 EDT still failed the
-exact port-`6543` preflight. The remaining owner input is to privately replace
-the connection endpoint with the Supabase Transaction pooler URI on port `6543`
-with TLS, without exposing the URI in chat; then the API must be redeployed and
-smoke-tested.
+Release-branch pushes now correctly target Preview; the current live-project
+deployments were explicit Production rebuilds. Web deployment
+`dpl_Eqed7bwPxcNaEACSj2Nxx8WtzRwZ` of `d463d44` was Ready at 13:34:56 EDT and
+served `https://project-qlqve.vercel.app` with HTTP 200 and the expected
+nonce-based CSP at 17:38:44Z. The apex `edisonreader.com` continued to serve the
+older isolated sample-data demo with HTTP 200 at 17:38:46Z.
+
+API deployment `dpl_7XE2sbPZhn2jYKhq3Wcbfmz3aia4` of `d463d44` was the first
+build-successful Production deployment, Ready at 13:25:48 EDT, but health was
+`503`: configuration and Supabase Auth passed while the database failed. It was
+replaced by diagnostic deployment `dpl_9o5CcKke4k1kF71Ap7LYjkFrpikz` of
+`dbac750`, Ready at 13:38:31 EDT. Its 17:39:13Z health check remained `503` with
+the same database-only failure; private Vercel logs exposed only the fixed safe
+metadata `category=network`, `code=ENOTFOUND`. This establishes that the saved
+hostname cannot resolve, not that the password is valid or invalid. The only
+remaining owner input is to privately re-copy the complete actual Supabase
+Shared Transaction pooler URI, including its `.pooler.supabase.com` hostname, port
+`6543`, and TLS parameters, without exposing it in chat. Then redeploy and
+require healthy readiness. On `d463d44`, unauthenticated `/v1/me`, allowed and
+denied CORS preflights, and all six missing/wrong-token checks across the three
+cron routes already failed or passed exactly as intended; no valid cron or
+provider request was made.
 
 Vercel CLI 59.11.7 was available only through an ephemeral `pnpm dlx` run. Its
 login could not be completed and the pending attempt was canceled, so there is
@@ -79,14 +88,14 @@ pending. The new key has not made a provider request. The original
 default-project key remains unread and unrevoked.
 
 The owner also explicitly authorized the single owner invitation, but none has
-been sent because the API is unavailable. The hosted invite template is saved
+been sent because the API is unhealthy. The hosted invite template is saved
 and fresh-reload verified with exactly one invitation link using the
-Dashboard-compatible `.SiteURL` `/auth/confirm` token-hash callback.
-The matching repository correction and focused release-boundary regression are
-in the working tree: all five tests in that file and the API typecheck pass with
-the existing local Node 24.19 runtime, distinct from the prior full Node 22 CI
-gate. The change is included in this local release checkpoint; it is not yet
-pushed or deployed as application code.
+Dashboard-compatible `.SiteURL` `/auth/confirm` token-hash callback. The
+matching repository correction and focused release-boundary regression were
+included in pushed checkpoint `d463d44` and its green CI run. Candidate
+`dbac750` additionally limits database-health diagnostics to fixed allowlisted
+categories and codes; its six focused tests, full suite, typechecks, lint, and
+builds pass. Neither an owner invitation nor an OpenAI request has been sent.
 
 Head of Editorial accepted starter candidate v2 with exact SHA-256
 `aa26d2258cb391ad552466f39bee01ae4d1596d480fef59381dfeb9b184d8c50`
@@ -196,17 +205,19 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   is proven.
 - The public GitHub source is
   [michaelmcguiness/edison](https://github.com/michaelmcguiness/edison). The
-  current candidate is `c731fe2`, pushed on
+  current candidate is `dbac750`, pushed on
   `codex/production-release-candidate` in
   [draft PR #1](https://github.com/michaelmcguiness/edison/pull/1). `main` is
   unmerged and unprotected.
 - Separate `edison-app` and `edison-api` Vercel projects exist with the intended
-  Next.js/Node 22/build settings and saved production branch `main`. The
-  release-branch push nevertheless targeted Production in both projects. Web
-  deployment `dpl_Cdi68WU5m2K5kYDFNqjjWKi3EY4p` is live at
-  `project-qlqve.vercel.app`; API deployment remains failed and
-  `project-fjr95.vercel.app` has no serving deployment. Neither project has a
-  custom domain.
+  Next.js/Node 22/build settings and saved production branch `main`.
+  Release-branch pushes now target Preview; the current deployments were
+  explicit Production rebuilds. Web deployment
+  `dpl_Eqed7bwPxcNaEACSj2Nxx8WtzRwZ` (`d463d44`) is live at
+  `project-qlqve.vercel.app`. API deployment
+  `dpl_9o5CcKke4k1kF71Ap7LYjkFrpikz` (`dbac750`) is Ready at
+  `project-fjr95.vercel.app`, but readiness is `503` on its database check.
+  Neither project has a custom domain.
 - `edison-app` has five Production Config values: Corepack, explicit live mode,
   the temporary API `/v1` URL, and the production Supabase URL/publishable key.
   Preview has only Corepack plus explicit demo mode. `edison-api` has 17
@@ -250,10 +261,11 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   All 13 repository migrations are applied. Read-only hosted checks confirm the
   expected schema, RLS, policies, triggers, Storage bucket, functions, and
   constrained grants. Backup contents and recovery have not been verified. The
-  API's current database URL still fails preflight because its endpoint is not
-  on pooler port `6543`, including after the latest metadata-confirmed update and
-  fresh uncached deployment. The owner must replace it privately with the
-  Transaction pooler URI on port `6543` with TLS.
+  API build preflight now passes, but the live database check reports only safe
+  fixed metadata `category=network`, `code=ENOTFOUND`: the configured hostname
+  does not resolve. Password validity is unproven. The owner must privately
+  re-copy the complete actual Shared Transaction pooler URI, including its
+  `.pooler.supabase.com` hostname, port `6543`, and TLS parameters.
 - Hosted Supabase Auth has global signup and anonymous sign-in disabled, the
   email provider enabled for invitations, the temporary web Site URL, and only
   its exact `/auth/callback` and `/auth/confirm` redirects. Its current signing
@@ -263,20 +275,22 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=invite`
   because Dashboard invitations cannot supply a callback override. No
   invitation or delivery test was sent. The matching repository template
-  correction and focused regression are included in this local release
-  checkpoint, not yet pushed or deployed as application code.
+  correction and focused regression are included in pushed checkpoint
+  `d463d44` and its green CI run.
   In local `supabase/config.toml`, `[auth].enable_signup=false` is the
   signup denial; `[auth.email].enable_signup=true` correctly keeps the email
   provider available and maps to `GOTRUE_EXTERNAL_EMAIL_ENABLED`. Confirm-email
   remains enabled. The dashboard template preview has an unresolved logo and
   no invitation or delivery test has run; real delivery and asset loading remain
   release gates.
-- Candidate `c731fe2` is live in the temporary web project and its schema is live
-  in Supabase, but the API is not deployed successfully. No owner account or
+- Candidate `dbac750` is pushed and its diagnostic API deployment is Ready, but
+  database readiness remains failed because the configured hostname cannot
+  resolve. The temporary web and Supabase schema are live. No owner account or
   invitation exists yet, so no authenticated or provider-backed journey has run.
-- CI run `33976398848` is green for all 164 application tests, 107 pgTAP
-  assertions, strict schema lint, and both production builds. Hosted API health,
-  OpenAI access, email delivery, end-to-end owner acceptance, and a
+- CI run `33981403943` is green for all 171 application tests, 107 pgTAP
+  assertions, strict schema lint, and both production builds. The prior
+  `d463d44` CI run `33980690732` is also green for 165 application tests. Hosted
+  API health, OpenAI access, email delivery, end-to-end owner acceptance, and a
   backup/restore rehearsal remain release gates.
 
 ## Production topology
@@ -409,16 +423,20 @@ The latter specifications supersede the old category-tab/infinite-feed design.
 
 ## Required release gates
 
-The source, disposable-database, CI, production migration, and temporary-web
-deployment gates are complete for `c731fe2`. Before the owner-only alpha is
-usable:
+The source, disposable-database, CI, production migration, temporary-web
+deployment, and negative auth/CORS/cron gates are complete through `dbac750`.
+Before the owner-only alpha is usable:
 
-1. The owner privately saves the correct Supabase Transaction pooler URI on
-   port `6543` with TLS as API Production `DATABASE_URL`; never request or copy
-   the URI into chat or documentation.
-2. Redeploy the API, require `/v1/health` to return `200` with every check `ok`,
-   and verify unauthenticated, CORS, and wrong/missing cron-secret denial before
-   any valid cron request.
+1. The owner privately re-copies the complete actual Supabase Transaction
+   pooler URI as API Production `DATABASE_URL`, including the provider-issued
+   `.pooler.supabase.com` hostname, port `6543`, and TLS parameters; never
+   request or copy the URI into chat or documentation. The current safe runtime
+   diagnostic is `category=network`, `code=ENOTFOUND`, so changing only a port
+   is insufficient and password validity remains unproven.
+2. Redeploy the API and require `/v1/health` to return `200` with every check
+   `ok`. Preserve the already-passing unauthenticated, CORS, and six
+   wrong/missing cron-secret checks and recheck them on the final deployment
+   before any valid cron request.
 3. Make one bounded provider acceptance request through the successfully
    deployed API and reconcile its usage record against the saved Responses-only
    key, dedicated project, model allowlist, and $50 cap.
@@ -472,18 +490,20 @@ framework changes; this repository’s Next version differs from remembered APIs
 > separate Vercel web/API + Supabase architecture described here; the hosted
 > apex remains an isolated credential-free demo. Preserve the exact finite News,
 > three-section sidebar/mobile-nav, inline Ask Edison, one-off commissioning,
-> and guest-reconciliation behavior. Candidate `c731fe2`, CI run `33976398848`,
-> all 13 hosted migrations, the read-only schema/grant audit, and the temporary
-> web deployment are complete; do not redo them. The apex demo is still isolated.
-> The API is blocked because even the latest uncached deployment rejects its
-> saved database connection endpoint as non-`6543`. Continue from the owner's
-> private replacement with the Supabase Transaction pooler URI on port `6543`
-> with TLS, then redeploy and require a fully healthy API plus negative
-> auth/CORS/cron smokes. The dedicated OpenAI service-account key is already
+> and guest-reconciliation behavior. Candidate `dbac750`, CI run `33981403943`,
+> all 13 hosted migrations, the read-only schema/grant audit, the temporary web
+> deployment, and the negative auth/CORS/cron smokes are complete; do not redo
+> them. The apex demo is still isolated. The diagnostic API deployment is Ready,
+> but health fails only its database check; fixed safe metadata reports
+> `category=network`, `code=ENOTFOUND`. Continue from the owner's private
+> replacement with the complete actual Supabase Shared Transaction pooler URI,
+> including its `.pooler.supabase.com` hostname, port `6543`, and TLS parameters,
+> then redeploy and require a fully healthy API. The dedicated OpenAI
+> service-account key is already
 > Restricted to Responses Write with every other leaf None; no further scope
 > approval is needed, but the unused key still needs one bounded acceptance
-> request. The hosted invite callback is corrected, while the matching repo fix
-> and five-test regression are uncommitted. Then invite and test only the owner.
+> request. The hosted invite callback and matching pushed repository regression
+> are corrected. Then invite and test only the owner.
 > The September 5
 > full-release authorization at the top supersedes historical stops. Never ask
 > for or expose secrets, buy additional services, invite other readers, or
