@@ -28,45 +28,49 @@ Never reveal existing secrets or ask for them in chat. No extra paid services,
 broader invitations, or website-domain changes are part of this first release;
 the apex demo remains isolated while the owner-only live alpha is validated.
 
-Candidate `dbac750` is committed and pushed on
+Candidate `df3e712` is committed and pushed on
 `codex/production-release-candidate` in draft PR #1; `main` is neither merged
-nor protected. [CI run 33981403943](https://github.com/michaelmcguiness/edison/actions/runs/33981403943)
-passed on Node 22/pnpm 10.28.0 with lint, both typechecks, 171 application tests,
+nor protected. [CI run 33985642189](https://github.com/michaelmcguiness/edison/actions/runs/33985642189)
+passed on Node 22/pnpm 10.28.0 with lint, both typechecks, 180 application tests,
 both production builds, all 107 pgTAP assertions, and strict application-schema
-lint. The preceding `d463d44` checkpoint also passed 165 application tests and
-the same database/build gates in
-[CI run 33980690732](https://github.com/michaelmcguiness/edison/actions/runs/33980690732).
+lint. The application total is 107 web plus 73 API tests, with zero failures.
 
 The reviewed linked dry run and backup checkpoint preceded a successful
 production push of all 13 migrations to Supabase project
 `bcxxnntastmnormcmxbq`. A separate read-only metadata check on PostgreSQL 17.6
 found all 24 expected tables, all 21 expected RLS settings, 45 policies, 20
 triggers, zero invalid constraints, the expected Storage bucket, and the
-intended role/grant boundaries. There are still zero Auth users. Recovery from
-backup remains untested; do not describe the checkpoint as a restore rehearsal.
+intended role/grant boundaries. Auth was empty during that audit; it now has
+exactly the single invited owner described below. Recovery from backup remains
+untested; do not describe the checkpoint as a restore rehearsal.
 
 Release-branch pushes now correctly target Preview; the current live-project
 deployments were explicit Production rebuilds. Web deployment
-`dpl_Eqed7bwPxcNaEACSj2Nxx8WtzRwZ` of `d463d44` was Ready at 13:34:56 EDT and
-served `https://project-qlqve.vercel.app` with HTTP 200 and the expected
-nonce-based CSP at 17:38:44Z. The apex `edisonreader.com` continued to serve the
-older isolated sample-data demo with HTTP 200 at 17:38:46Z.
+`dpl_Eqed7bwPxcNaEACSj2Nxx8WtzRwZ` of `d463d44` is live at
+`https://project-qlqve.vercel.app`; it returned HTTP 200 with the expected
+nonce-based CSP at 19:12:56Z. The apex `edisonreader.com` continued to serve the
+older isolated sample-data demo with HTTP 200 at 19:12:58Z.
 
-API deployment `dpl_7XE2sbPZhn2jYKhq3Wcbfmz3aia4` of `d463d44` was the first
-build-successful Production deployment, Ready at 13:25:48 EDT, but health was
-`503`: configuration and Supabase Auth passed while the database failed. It was
-replaced by diagnostic deployment `dpl_9o5CcKke4k1kF71Ap7LYjkFrpikz` of
-`dbac750`, Ready at 13:38:31 EDT. Its 17:39:13Z health check remained `503` with
-the same database-only failure; private Vercel logs exposed only the fixed safe
-metadata `category=network`, `code=ENOTFOUND`. This establishes that the saved
-hostname cannot resolve, not that the password is valid or invalid. The only
-remaining owner input is to privately re-copy the complete actual Supabase
-Shared Transaction pooler URI, including its `.pooler.supabase.com` hostname, port
-`6543`, and TLS parameters, without exposing it in chat. Then redeploy and
-require healthy readiness. On `d463d44`, unauthenticated `/v1/me`, allowed and
-denied CORS preflights, and all six missing/wrong-token checks across the three
-cron routes already failed or passed exactly as intended; no valid cron or
-provider request was made.
+The owner privately saved the actual Supabase Shared Transaction pooler URI; no
+secret was read or exposed. Candidate `df3e712` now shares one production TLS
+policy between runtime and preflight: a URI without a TLS query option receives
+explicit Postgres.js `ssl=require`, certificate-verifying requests remain at
+least as strong, and insecure, duplicate, or ambiguous URL controls fail closed.
+Explicit constructor precedence also prevents `PGSSL` or URI aliases from
+turning TLS off. Focused tests, independent security review, and a local TCP
+mock confirm TLS is attempted and a server refusing SSL is rejected without a
+plaintext startup fallback.
+
+Production API deployment `dpl_GVJFA1vDQks3eBya4ArrXGpCHzFU` of `df3e712` was
+Ready at 19:11:12Z (15:11:12 EDT). At 19:11:46Z, `/v1/health` returned HTTP 200
+with configuration, database, and Supabase Auth all `ok` (request
+`d641ae5d-26df-4974-b2cc-c1fcff4309ab`). Independent live checks then confirmed
+unauthenticated `/v1/me` is `401`, the configured web-origin preflight is `204`
+with exact origin reflection, an unapproved origin is `403` without reflection,
+and all six missing/wrong-token checks across the three GET cron routes are
+`401 invalid_cron_secret`. The unauthenticated public-starter read reached the
+real public SQL role and returned the expected `404 starter_edition_unavailable`
+because no starter is published. No valid cron or provider request was made.
 
 Vercel CLI 59.11.7 was available only through an ephemeral `pnpm dlx` run. Its
 login could not be completed and the pending attempt was canceled, so there is
@@ -87,15 +91,21 @@ leaf remained None; the retry then succeeded. No further key-scope approval is
 pending. The new key has not made a provider request. The original
 default-project key remains unread and unrevoked.
 
-The owner also explicitly authorized the single owner invitation, but none has
-been sent because the API is unhealthy. The hosted invite template is saved
-and fresh-reload verified with exactly one invitation link using the
+The single authorized owner invitation was sent once through the Supabase
+Dashboard at approximately 19:15Z after health and all ten safe live checks
+passed. Auth now contains exactly owner
+`5611f8fa-e0dd-460c-ae4d-5fb7dd7bfe83`, with
+`invited_at=2026-09-05 19:15:11.951927+00`, `email_confirmed_at=NULL`, and
+`last_sign_in_at=NULL`; Resend metadata shows message
+`4fecf81e-099f-4144-acf6-4f26bf85ef51`, subject “Your Edison Reader
+invitation,” as Delivered. No email body, callback token, or secret was read.
+The owner must now click **Accept invitation**. The hosted template is saved and
+fresh-reload verified with exactly one invitation link using the
 Dashboard-compatible `.SiteURL` `/auth/confirm` token-hash callback. The
 matching repository correction and focused release-boundary regression were
-included in pushed checkpoint `d463d44` and its green CI run. Candidate
-`dbac750` additionally limits database-health diagnostics to fixed allowlisted
-categories and codes; its six focused tests, full suite, typechecks, lint, and
-builds pass. Neither an owner invitation nor an OpenAI request has been sent.
+included in pushed checkpoint `d463d44`. Candidate `df3e712` includes the safe
+database diagnostic and enforced TLS policy with the full green release gate.
+No OpenAI request has been sent.
 
 Head of Editorial accepted starter candidate v2 with exact SHA-256
 `aa26d2258cb391ad552466f39bee01ae4d1596d480fef59381dfeb9b184d8c50`
@@ -205,7 +215,7 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   is proven.
 - The public GitHub source is
   [michaelmcguiness/edison](https://github.com/michaelmcguiness/edison). The
-  current candidate is `dbac750`, pushed on
+  current candidate is `df3e712`, pushed on
   `codex/production-release-candidate` in
   [draft PR #1](https://github.com/michaelmcguiness/edison/pull/1). `main` is
   unmerged and unprotected.
@@ -215,8 +225,8 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   explicit Production rebuilds. Web deployment
   `dpl_Eqed7bwPxcNaEACSj2Nxx8WtzRwZ` (`d463d44`) is live at
   `project-qlqve.vercel.app`. API deployment
-  `dpl_9o5CcKke4k1kF71Ap7LYjkFrpikz` (`dbac750`) is Ready at
-  `project-fjr95.vercel.app`, but readiness is `503` on its database check.
+  `dpl_GVJFA1vDQks3eBya4ArrXGpCHzFU` (`df3e712`) is Ready at
+  `project-fjr95.vercel.app`, and readiness is fully healthy.
   Neither project has a custom domain.
 - `edison-app` has five Production Config values: Corepack, explicit live mode,
   the temporary API `/v1` URL, and the production Supabase URL/publishable key.
@@ -261,11 +271,11 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   All 13 repository migrations are applied. Read-only hosted checks confirm the
   expected schema, RLS, policies, triggers, Storage bucket, functions, and
   constrained grants. Backup contents and recovery have not been verified. The
-  API build preflight now passes, but the live database check reports only safe
-  fixed metadata `category=network`, `code=ENOTFOUND`: the configured hostname
-  does not resolve. Password validity is unproven. The owner must privately
-  re-copy the complete actual Shared Transaction pooler URI, including its
-  `.pooler.supabase.com` hostname, port `6543`, and TLS parameters.
+  owner privately saved the actual Shared Transaction pooler URI. Runtime
+  and preflight now share the `df3e712` TLS policy, which explicitly defaults a
+  missing TLS query option to `ssl=require` and rejects insecure or ambiguous
+  overrides. Production database health passes; no further owner database edit
+  is pending.
 - Hosted Supabase Auth has global signup and anonymous sign-in disabled, the
   email provider enabled for invitations, the temporary web Site URL, and only
   its exact `/auth/callback` and `/auth/confirm` redirects. Its current signing
@@ -273,25 +283,25 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   “Your Edison Reader invitation” are saved and fresh-reload verified; its
   single CTA uses
   `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=invite`
-  because Dashboard invitations cannot supply a callback override. No
-  invitation or delivery test was sent. The matching repository template
+  because Dashboard invitations cannot supply a callback override. One owner
+  invitation was sent and provider metadata reports Delivered; its body and
+  token were not read. The matching repository template
   correction and focused regression are included in pushed checkpoint
   `d463d44` and its green CI run.
   In local `supabase/config.toml`, `[auth].enable_signup=false` is the
   signup denial; `[auth.email].enable_signup=true` correctly keeps the email
   provider available and maps to `GOTRUE_EXTERNAL_EMAIL_ENABLED`. Confirm-email
   remains enabled. The dashboard template preview has an unresolved logo and
-  no invitation or delivery test has run; real delivery and asset loading remain
-  release gates.
-- Candidate `dbac750` is pushed and its diagnostic API deployment is Ready, but
-  database readiness remains failed because the configured hostname cannot
-  resolve. The temporary web and Supabase schema are live. No owner account or
-  invitation exists yet, so no authenticated or provider-backed journey has run.
-- CI run `33981403943` is green for all 171 application tests, 107 pgTAP
-  assertions, strict schema lint, and both production builds. The prior
-  `d463d44` CI run `33980690732` is also green for 165 application tests. Hosted
-  API health, OpenAI access, email delivery, end-to-end owner acceptance, and a
-  backup/restore rehearsal remain release gates.
+  the owner has not yet redeemed the invitation; callback and asset loading
+  remain release gates.
+- Candidate `df3e712` is pushed and its API deployment is Ready with
+  configuration, database, and Auth health all `ok`. The temporary web and
+  Supabase schema are live. The one delivered owner invitation awaits redemption;
+  no authenticated or provider-backed journey has run.
+- CI run `33985642189` is green for all 180 application tests, 107 pgTAP
+  assertions, strict schema lint, and both production builds. Hosted OpenAI
+  access, owner-side email rendering/callback, end-to-end owner acceptance, and
+  a backup/restore rehearsal remain release gates.
 
 ## Production topology
 
@@ -413,8 +423,9 @@ The latter specifications supersede the old category-tab/infinite-feed design.
   publish sourced, reviewed snapshots; the anonymous endpoint correctly returns
   unavailable until then.
 - Resend's sending domain is verified and Supabase custom SMTP is configured,
-  including the corrected username, but email delivery testing remains pending.
-  Broad-launch edge policy, monitoring vendor,
+  including the corrected username. Provider metadata confirms the owner invite
+  was Delivered, but owner-side rendering and callback acceptance remain
+  unverified. Broad-launch edge policy, monitoring vendor,
   privacy/support copy, and on-call owner still require operational decisions.
 - There is no paid staging environment. Add one when multiple developers,
   frequent migrations, hosted CI, or meaningful production traffic justify it.
@@ -423,32 +434,24 @@ The latter specifications supersede the old category-tab/infinite-feed design.
 
 ## Required release gates
 
-The source, disposable-database, CI, production migration, temporary-web
-deployment, and negative auth/CORS/cron gates are complete through `dbac750`.
+The source, disposable-database, CI, production migration, temporary-web/API
+deployment, health, public-role, and negative auth/CORS/cron gates are complete
+through `df3e712`.
 Before the owner-only alpha is usable:
 
-1. The owner privately re-copies the complete actual Supabase Transaction
-   pooler URI as API Production `DATABASE_URL`, including the provider-issued
-   `.pooler.supabase.com` hostname, port `6543`, and TLS parameters; never
-   request or copy the URI into chat or documentation. The current safe runtime
-   diagnostic is `category=network`, `code=ENOTFOUND`, so changing only a port
-   is insufficient and password validity remains unproven.
-2. Redeploy the API and require `/v1/health` to return `200` with every check
-   `ok`. Preserve the already-passing unauthenticated, CORS, and six
-   wrong/missing cron-secret checks and recheck them on the final deployment
-   before any valid cron request.
-3. Make one bounded provider acceptance request through the successfully
+1. The owner clicks **Accept invitation** in the single delivered email; then
+   verify the `/auth/confirm` callback, active membership, authenticated
+   `/v1/me`, and first-visit timezone persistence.
+2. Make one bounded provider acceptance request through the successfully
    deployed API and reconcile its usage record against the saved Responses-only
    key, dedicated project, model allowlist, and $50 cap.
-4. Invite only `mike@michaelmcguiness.com` using the corrected hosted template;
-   verify email delivery, Auth callback,
-   `/v1/me`, first-visit timezone persistence, and one complete real
-   article/citation/save/share/Q&A/direction/retry/cost-ledger flow.
-5. Verify cron/Workflow logs, add the planned WAF controls, publish and review
+3. Complete one real article/citation/save/share/Q&A/direction/retry/cost-ledger
+   flow for the owner.
+4. Verify cron/Workflow logs, add the planned WAF controls, publish and review
    only the accepted starter v2 artifact with SHA-256
    `aa26d2258cb391ad552466f39bee01ae4d1596d480fef59381dfeb9b184d8c50`,
    and complete a backup/restore rehearsal before broader external readers.
-6. Merge the reviewed candidate and protect `main` when the temporary alpha is
+5. Merge the reviewed candidate and protect `main` when the temporary alpha is
    accepted. Obtain a separate owner decision before attaching
    `app.edisonreader.com`/`api.edisonreader.com` or replacing the apex demo.
 
@@ -490,20 +493,21 @@ framework changes; this repository’s Next version differs from remembered APIs
 > separate Vercel web/API + Supabase architecture described here; the hosted
 > apex remains an isolated credential-free demo. Preserve the exact finite News,
 > three-section sidebar/mobile-nav, inline Ask Edison, one-off commissioning,
-> and guest-reconciliation behavior. Candidate `dbac750`, CI run `33981403943`,
+> and guest-reconciliation behavior. Candidate `df3e712`, CI run `33985642189`,
 > all 13 hosted migrations, the read-only schema/grant audit, the temporary web
 > deployment, and the negative auth/CORS/cron smokes are complete; do not redo
-> them. The apex demo is still isolated. The diagnostic API deployment is Ready,
-> but health fails only its database check; fixed safe metadata reports
-> `category=network`, `code=ENOTFOUND`. Continue from the owner's private
-> replacement with the complete actual Supabase Shared Transaction pooler URI,
-> including its `.pooler.supabase.com` hostname, port `6543`, and TLS parameters,
-> then redeploy and require a fully healthy API. The dedicated OpenAI
-> service-account key is already
+> them. The apex demo is still isolated. The Production API is Ready and health
+> passes configuration, database, and Auth; the shared runtime/preflight policy
+> enforces TLS even when the provider URI omits a query option. No further owner
+> database edit is pending. Continue with redemption of the already-delivered
+> owner invitation and authenticated acceptance. The dedicated OpenAI service-account
+> key is already
 > Restricted to Responses Write with every other leaf None; no further scope
 > approval is needed, but the unused key still needs one bounded acceptance
 > request. The hosted invite callback and matching pushed repository regression
-> are corrected. Then invite and test only the owner.
+> are corrected. The single owner invitation was sent once and provider metadata
+> reports Delivered without its body or token being read. Continue when the
+> owner clicks **Accept invitation**, then test only that owner.
 > The September 5
 > full-release authorization at the top supersedes historical stops. Never ask
 > for or expose secrets, buy additional services, invite other readers, or

@@ -2,13 +2,10 @@
 
 ## Current release authorization — September 5, 2026
 
-One current owner input remains: privately re-copy the complete actual Supabase
-Shared Transaction pooler URI as `DATABASE_URL`, including its
-`.pooler.supabase.com` hostname, port `6543`, and TLS parameters. The current
-hostname does not resolve; changing only the port is insufficient. The owner
-has already approved the Responses-only key restriction and the single owner
-invitation. The key scope is saved and verified; no invitation has been sent
-because the API is unhealthy.
+The database connection is working. The next owner input is to click **Accept
+invitation** in the single delivered invitation to `mike@michaelmcguiness.com`.
+No further database setting or key-scope approval is pending. Authenticated
+reader and provider acceptance still require that first sign-in.
 
 The owner has authorized completing the production release autonomously. This
 supersedes the earlier preparation-only stops below: secure CLI access,
@@ -17,41 +14,41 @@ deployment, and the single approved owner's invitation/acceptance testing are
 authorized. Keep the existing apex demo and website domains unchanged. No
 additional paid services, other readers, or disclosure of saved secrets.
 
-Candidate `dbac750` is committed and pushed on
+Candidate `df3e712` is committed and pushed on
 `codex/production-release-candidate`; draft PR #1 remains open and `main` is
-unmerged and unprotected. [CI run 33981403943](https://github.com/michaelmcguiness/edison/actions/runs/33981403943)
-passed lint, both typechecks, 171 application tests, both production builds, all
-107 pgTAP assertions, and strict schema lint on Node 22/pnpm 10.28.0. The
-preceding `d463d44` checkpoint passed 165 application tests and the same
-database/build gates in
-[CI run 33980690732](https://github.com/michaelmcguiness/edison/actions/runs/33980690732).
+unmerged and unprotected. [CI run 33985642189](https://github.com/michaelmcguiness/edison/actions/runs/33985642189)
+passed lint, both typechecks, 180 application tests (107 web, 73 API), both
+production builds, all 107 pgTAP assertions, and strict schema lint on Node
+22/pnpm 10.28.0.
 
 The reviewed dry run and backup checkpoint preceded successful application of
 all 13 migrations to Supabase project `bcxxnntastmnormcmxbq`. A separate
 read-only hosted audit found 24/24 expected tables, RLS on all 21 expected
 tables, 45 policies, 20 triggers, zero invalid constraints, the expected
-Storage bucket, and the intended role and grant boundaries. Auth still has zero
-users. Recovery is not rehearsed.
+Storage bucket, and the intended role and grant boundaries. Auth was empty at
+that audit and now contains the single invited owner. Recovery is not rehearsed.
 
 Release-branch pushes now correctly target Preview; the current live-project
 deployments were explicit Production rebuilds. Web deployment
-`dpl_Eqed7bwPxcNaEACSj2Nxx8WtzRwZ` of `d463d44` was Ready at 13:34:56 EDT and
-served `https://project-qlqve.vercel.app` with HTTP 200 and the expected
-nonce-based CSP at 17:38:44Z. The apex demo remained the older isolated sample
-deployment and returned HTTP 200 at 17:38:46Z.
+`dpl_Eqed7bwPxcNaEACSj2Nxx8WtzRwZ` of `d463d44` served
+`https://project-qlqve.vercel.app` with HTTP 200 and the expected nonce-based CSP
+at 19:12:56Z. The apex demo remained the older isolated sample deployment and
+returned HTTP 200 at 19:12:58Z.
 
-API deployment `dpl_7XE2sbPZhn2jYKhq3Wcbfmz3aia4` of `d463d44` was the first
-build-successful Production deployment, Ready at 13:25:48 EDT, but returned
-health `503`: configuration and Supabase Auth passed while the database failed.
-Diagnostic deployment `dpl_9o5CcKke4k1kF71Ap7LYjkFrpikz` of `dbac750` was
-Ready at 13:38:31 EDT and returned the same database-only `503` at 17:39:13Z.
-Its private log contains only the fixed safe metadata `category=network`,
-`code=ENOTFOUND`, proving the configured hostname cannot resolve; it does not
-prove password validity. The owner must privately re-copy the complete actual
-Shared Transaction pooler URI, not merely change a Direct URL's port. On `d463d44`,
-unauthenticated `/v1/me`, allowed and denied CORS preflights, and all six
-missing/wrong-token checks across the three cron routes behaved as intended.
-No valid cron, owner invitation, or provider request has been sent.
+Production API deployment `dpl_GVJFA1vDQks3eBya4ArrXGpCHzFU` of `df3e712` was
+Ready at 19:11:12Z (15:11:12 EDT). Health at 19:11:46Z returned HTTP 200 with
+configuration, database, and Auth all `ok`. The owner privately corrected the
+Shared Pooler URI; the client now enforces TLS even when that URI has no TLS
+query suffix. Runtime and preflight share the same policy, retain stronger
+certificate verification, and reject insecure or ambiguous overrides. No saved
+secret was read or altered by the agent.
+
+Root and independent hosted checks passed: no-auth `/v1/me` is 401, allowed
+CORS preflight is 204 with exact origin reflection, denied CORS is 403 without
+reflection, and all six missing/wrong-token GET cron checks are 401. The public
+starter read reaches its real SQL role and returns the expected
+`404 starter_edition_unavailable`; no starter is published. No valid cron or
+provider request was made.
 
 Dedicated OpenAI project `edison-production`
 (`proj_EFKsL4Yfs6pDFOzI4aGWThSf`) has an enforced $50 monthly project cap and
@@ -70,10 +67,13 @@ session exists.
 The hosted invitation template is saved and fresh-reload verified with exactly
 one Dashboard-compatible `.SiteURL` `/auth/confirm` token-hash link. The
 matching repository fix and release-boundary regression are included in pushed
-checkpoint `d463d44` and its green CI run. Candidate `dbac750` adds only fixed,
-allowlisted database-health metadata and has six focused classifier tests plus
-the green full candidate gate.
-The owner invitation is authorized but unsent. Editorial accepted unpublished
+checkpoint `d463d44`. The single owner invitation was sent at
+`2026-09-05 19:15:11.951927+00`; Resend message
+`4fecf81e-099f-4144-acf6-4f26bf85ef51` reports Delivered with subject
+“Your Edison Reader invitation.” No email body or callback token was read.
+The latest metadata check has `email_confirmed_at` and `last_sign_in_at` null;
+owner redemption, email rendering, and the authenticated journey remain
+unverified. Editorial accepted unpublished
 starter candidate v2 with exact SHA-256
 `aa26d2258cb391ad552466f39bee01ae4d1596d480fef59381dfeb9b184d8c50`
 in an isolated worktree.
@@ -249,9 +249,9 @@ preview of the release branch; that did not change the apex deployment.
 
 The apex website has not been converted: `edisonreader.com` remains a
 sample-data demo with **no live-service credentials**. The separate live web
-project now serves `d463d44` at its temporary Vercel URL. The `dbac750` API
-deployment is build-successful but unhealthy because its configured database
-hostname cannot resolve. The demo's isolation remains intentional.
+project now serves `d463d44` at its temporary Vercel URL. The `df3e712` API
+deployment is healthy; its owner invitation has been delivered and awaits
+redemption. The demo's isolation remains intentional.
 
 The explicit server-only flag `EDISON_DEMO_MODE=true` makes the sample UI
 available in a production build. Without it, an unconfigured production app
@@ -395,16 +395,13 @@ schema, temporary web deployment, public connection metadata, owner-only
 allowlists, cron secret, dedicated OpenAI project/model access, and its $50 cap
 are in place. Current gates are:
 
-1. The owner privately re-copies the complete actual Supabase Shared Transaction
-   pooler URI as API Production `DATABASE_URL`, including the provider-issued
-   `.pooler.supabase.com` hostname, port `6543`, and TLS parameters. The current
-   safe diagnostic is `category=network`, `code=ENOTFOUND`; changing only the
-   port is insufficient and password validity remains unproven.
-2. Redeploy the API, require healthy readiness and negative auth/CORS/cron
-   smokes, then make one bounded provider acceptance call.
-3. Invite only the owner with the corrected hosted callback and complete email,
-   Auth, reader, Workflow, cost-ledger,
-   and responsive-browser acceptance tests.
+1. The owner redeems the single delivered invitation. Database, Auth readiness,
+   and negative auth/CORS/cron checks are complete; no database edit is pending.
+2. Verify the Auth callback, active membership, `/v1/me`, and timezone capture.
+3. Run the first bounded provider request through that authenticated owner,
+   then finish reader, Workflow, cost-ledger, email rendering, and responsive
+   browser acceptance. No provider smoke exists without an authenticated owner
+   or the valid cron secret; never retrieve a secret or bypass that boundary.
 4. Publish only the accepted starter v2 artifact with SHA-256
    `aa26d2258cb391ad552466f39bee01ae4d1596d480fef59381dfeb9b184d8c50`;
    it remains an unpublished draft in an isolated worktree.
@@ -437,10 +434,13 @@ RLS, and constrained privileges.
    `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=invite` saved.
    Its matching repository correction and focused release-boundary test are in
    pushed checkpoint `d463d44` and its green CI run.
-8. Custom SMTP is configured; validate delivery with the already-authorized
-   owner invitation only after the API passes readiness.
-9. Use the transaction-pooler URL for `DATABASE_URL`; keep the direct URL only
-   for migrations and administrative backup/restore work.
+8. Custom SMTP delivered the single authorized owner invitation; verify its
+   rendering and callback when the owner redeems it. Do not send another by
+   default.
+9. Use **Direct → Transaction pooler → Use IPv4 connection** in Connect to
+   obtain the Shared Pooler URI. Copy it in full; both hostname and username
+   differ from the Dedicated endpoint. The production client enforces TLS even
+   without a query suffix. Keep direct access for migration/backup tooling.
 
 ### Live Vercel projects
 
@@ -473,11 +473,11 @@ preview deployments credential-free.
   `if [ "$VERCEL_ENV" = production ]; then node ../../scripts/check-production-env.mjs api || exit 1; fi; pnpm build`
 - Production environment:
   - `ENABLE_EXPERIMENTAL_COREPACK=1`
-  - `DATABASE_URL` — owner-saved Production Secret; build preflight passes, but
-    runtime health reports the fixed safe diagnostic `category=network`,
-    `code=ENOTFOUND`. Privately re-copy the complete actual Shared Transaction pooler
-    URI, including its `.pooler.supabase.com` hostname, port `6543`, and TLS
-    parameters; do not infer password validity from the DNS failure.
+  - `DATABASE_URL` — owner-saved Production Secret; the actual Shared
+    Transaction pooler URI is now connected and healthy. The shared runtime /
+    preflight policy enforces explicit TLS, defaults a missing query option to
+    `require`, preserves stronger verification, and rejects insecure or
+    ambiguous controls. The secret remains unread.
   - `SUPABASE_URL=https://bcxxnntastmnormcmxbq.supabase.co`
   - `SUPABASE_PUBLISHABLE_KEY` matching that project; do not copy it into docs
   - `SUPABASE_JWT_AUDIENCE=authenticated`
@@ -503,13 +503,9 @@ The API has 17 persisted Production Config values and three Production Secrets:
 `DATABASE_URL`, `CRON_SECRET`, and `OPENAI_API_KEY`. API Preview contains only
 `ENABLE_EXPERIMENTAL_COREPACK=1`; every live URL and credential stays out.
 
-The API has a build-successful but unhealthy Production deployment.
-`dpl_9o5CcKke4k1kF71Ap7LYjkFrpikz` of `dbac750` was Ready at 13:38:31 EDT;
-health at 17:39:13Z returned `503` with configuration and Supabase Auth `ok`
-but database failed. Its safe log metadata is `category=network`,
-`code=ENOTFOUND`. After the complete pooler URI is privately corrected and the
-API redeployed, readiness must return `200` with configuration, Postgres, and
-Supabase Auth all `ok`.
+Production deployment `dpl_GVJFA1vDQks3eBya4ArrXGpCHzFU` of `df3e712` was
+Ready at 15:11:12 EDT. Health at 19:11:46Z returned `200` with configuration,
+Postgres, and Supabase Auth all `ok`; negative access-control checks also pass.
 
 `OPENAI_WEB_SEARCH_COST_MICROUSD` is an accounting estimate, not a billing
 control. Recheck it against OpenAI's current tool pricing before launch and
@@ -521,19 +517,18 @@ missing price to a zero-cost call.
 
 ### Live private launch sequence
 
-1. Keep the live web deployment at its temporary URL and the apex demo isolated.
-   Privately re-copy the complete actual Shared Transaction pooler URI, then redeploy
-   the API.
-2. Confirm `/v1/health` returns `200` and all readiness checks are `ok`. Preserve
-   the already-passing unauthorized `/v1/me`, CORS allow/deny, and six
-   missing/wrong Bearer checks across all three cron routes; recheck them on the
-   final deployment before a valid cron request.
-3. Run one bounded provider test against the already-Restricted Responses-only
-   service-account key and dedicated project.
-4. Invite only the owner through the Dashboard with the corrected hosted
-   `.SiteURL` callback, then complete sign-in/onboarding.
-5. With the freshly issued owner session, confirm `/v1/me` succeeds; this proves
-   the deployed API can resolve the token's `kid` through Supabase Auth JWKS.
+1. Keep the healthy API and live web at their temporary URLs, with the apex
+   demo isolated. Preserve the recorded passing readiness/public-role and
+   negative auth/CORS/cron evidence for `df3e712`.
+2. The single authorized invitation is already delivered. Have the owner redeem
+   its corrected `.SiteURL` callback; do not retrieve its token or send a
+   duplicate invitation by default.
+3. With the freshly issued owner session, confirm `/v1/me` succeeds and the
+   browser persists its timezone. This checks the real JWKS/active-member path.
+4. Run one bounded provider test through the owner using the already-Restricted
+   Responses-only service-account key and dedicated project.
+5. Verify the invite rendering and callback, including its logo asset. Delivery
+   metadata alone does not prove the owner's complete email/sign-in experience.
 6. Generate an article, verify citations, save it, share it, and inspect the
    generation job in `/admin/jobs`.
 7. Verify the daily scheduler plus generation-job and feed-command reconciler
