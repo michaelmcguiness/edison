@@ -2,6 +2,23 @@
 
 ## Current release authorization — September 5, 2026
 
+The approved Pulse + loops release and subsequent owner-requested apex cutover
+are complete. Live web is `https://edisonreader.com`, with
+`https://project-qlqve.vercel.app` retained and www redirecting 308 to apex.
+Both serve verified web `a08c6a1`, deployment
+`dpl_3pzB3bKXiX7qFUVpits8QxP3CFpt`. API `a681331` deployment
+`dpl_JCoE2yh9oxwA56wcjJu1JULq4hC6` was rebuilt with the exact two web origins
+and apex `WEB_APP_URL`, Ready at 23:10:44 UTC. It remains at
+`https://project-fjr95.vercel.app/v1`. Supabase Site URL is apex with exactly
+callback/confirm redirects on both web origins. All 15 migrations, accepted
+Sleep/History publication, and audited private correction are complete.
+Independent HTTPS, CORS, auth/cron denial, redirect and unchanged-mail-DNS
+checks pass. See `docs/PULSE_RELEASE_2026-09-05.md` for controlling evidence,
+rollback points and remaining owner/operational acceptance. Do not repeat
+historical setup, invitations, provider requests or publication operators below.
+
+### Historical setup checkpoints (superseded by current release above)
+
 The database connection and owner sign-in are working. Authenticated API reads
 and first-visit New York timezone persistence pass. The provider schema fix is
 live, and one real article with a priced usage record has been produced. Full
@@ -12,7 +29,8 @@ The owner has authorized completing the production release autonomously. This
 supersedes the earlier preparation-only stops below: secure CLI access,
 reviewed migrations, candidate commit/push/promotion, existing live-project
 deployment, and the single approved owner's invitation/acceptance testing are
-authorized. Keep the existing apex demo and website domains unchanged. No
+authorized. Apex preservation was the boundary at this historical checkpoint;
+the later explicit apex cutover is now complete as recorded above. No
 additional paid services, other readers, or disclosure of saved secrets.
 
 Candidate `4f774eb` is committed and pushed on
@@ -217,7 +235,8 @@ state. Public publishable-key values are deliberately not copied into this file.
   `https://bcxxnntastmnormcmxbq.supabase.co`, and the matching Supabase
   publishable key. Preview has exactly Corepack `1` and demo mode `true`, with
   no live URLs or credentials. Development was left unchanged.
-- `edison-api` Production has 17 Config values: Corepack `1`; the same Supabase
+- At this historical setup checkpoint, `edison-api` Production had 17 Config
+  values: Corepack `1`; the same Supabase
   URL and publishable key; JWT audience `authenticated`; article model
   `gpt-5.6-terra`; utility model `gpt-5.6-luna`; rolling per-reader quotas of 4
   generations, 20 article questions, and 10 feed commands; web-search cost
@@ -225,7 +244,8 @@ state. Public publishable-key values are deliberately not copied into this file.
   origin set to `https://project-qlqve.vercel.app`; initial edition settings
   hour `5`, target `3`, batch `25`; and both allowed-reader and admin lists set
   to the owner-provided `mike@michaelmcguiness.com`. The existing Production
-  OpenAI Secret was preserved unread. Subsequent authorized entry added
+  OpenAI Secret was preserved unread. The later apex cutover replaced only
+  those two non-secret origin values as recorded at the top. Subsequent authorized entry added
   `DATABASE_URL` and `CRON_SECRET` as Production-only Secrets, for three Secrets
   total; their saved values were not revealed or connection-tested.
 - `edison-api` Preview now has exactly one Config value,
@@ -274,9 +294,9 @@ connection-status update is intentionally local until publishing is intended.
 The existing demo's Git integration independently built a credential-free
 preview of the release branch; that did not change the apex deployment.
 
-## Current apex phase: isolated sample-data demo
+## Historical apex phase: isolated sample-data demo
 
-The apex website has not been converted: `edisonreader.com` remains a
+At this historical checkpoint, the apex had not been converted: it was a
 sample-data demo with **no live-service credentials**. The separate live web
 project now serves `d463d44` at its temporary Vercel URL. The `df3e712` API
 deployment is healthy; its owner invitation has been delivered and awaits
@@ -295,7 +315,7 @@ The word “demo” does not create an
 exception for commercial use; reassess before commercial use or a product
 launch. See [Vercel Hobby policy](https://vercel.com/docs/plans/hobby).
 
-### Current authorization and access
+### Historical demo authorization and access
 
 1. GitHub authorization was completed for the selected source repository:
    [michaelmcguiness/edison](https://github.com/michaelmcguiness/edison).
@@ -404,13 +424,13 @@ Local Supabase/Docker and database tests were not blockers for this sample-data
 web deployment. The production database requirements have since passed in CI
 and the hosted migration audit. No staging environment is needed for the demo.
 
-## Production private-alpha release (partially deployed)
+## Production private-alpha release
 
 The production client/server implementation is now live in the separate web
 project and its schema is live in Supabase. Finishing the owner-only alpha is
-an API credential/deployment and acceptance-test sequence, not an architecture
-rewrite. Keep the apex demo isolated and previews credential-free in explicit
-demo mode.
+an owner acceptance and operational verification sequence, not an architecture
+rewrite or another credential setup. The authorized apex now serves the live
+app; keep the retained old demo and previews credential-free in explicit demo mode.
 
 The live alpha uses one production Supabase project and two Vercel projects.
 There is no paid staging environment initially. Local Supabase is the database
@@ -424,18 +444,19 @@ schema, temporary web deployment, public connection metadata, owner-only
 allowlists, cron secret, dedicated OpenAI project/model access, and its $50 cap
 are in place. Current gates are:
 
-1. The owner redeems the single delivered invitation. Database, Auth readiness,
-   and negative auth/CORS/cron checks are complete; no database edit is pending.
-2. Verify the Auth callback, active membership, `/v1/me`, and timezone capture.
-3. Run the first bounded provider request through that authenticated owner,
-   then finish reader, Workflow, cost-ledger, email rendering, and responsive
-   browser acceptance. No provider smoke exists without an authenticated owner
-   or the valid cron secret; never retrieve a secret or bypass that boundary.
-4. Publish only the accepted starter v2 artifact with SHA-256
-   `aa26d2258cb391ad552466f39bee01ae4d1596d480fef59381dfeb9b184d8c50`;
-   it remains an unpublished draft in an isolated worktree.
-5. Merge the reviewed candidate and protect `main` after acceptance. Domain
-   attachment remains a separate owner decision.
+1. Invitation redemption, active membership, `/v1/me`, timezone capture, database
+   readiness and negative access checks pass. No database edit is pending.
+2. Finish authenticated owner reading and correction-note rendering, including
+   bounded account persistence and Q&A/share acceptance. The controlled browser
+   remains signed out; actual guest checks are not account acceptance.
+3. Reconcile the existing successful provider request's $0.062654 ledger row
+   with its dedicated project dashboard. Do not reset quotas or generate a new
+   article just to verify the cutover.
+4. Accepted Sleep/History publication and the audited private correction are
+   complete. The older v2 draft/operator is obsolete and must not be published.
+5. Complete backup restoration and broader-reader operational decisions before
+   expanding access. Merge the reviewed candidate and protect `main` after
+   acceptance. Apex attachment is complete; additional domains remain unapproved.
 
 Enter every credential directly in the relevant dashboard or local
 `.env.local`; do not paste credentials into chat, commits, tickets, or docs.
@@ -443,7 +464,7 @@ Enter every credential directly in the relevant dashboard or local
 ### Supabase setup
 
 The candidate and production project both use PostgreSQL 17. CLI linking,
-disposable database tests, the linked dry run, and all 13 production migrations
+disposable database tests, the linked dry run, and all 15 production migrations
 are complete. The read-only post-migration audit confirms the expected schema,
 RLS, and constrained privileges.
 
@@ -454,22 +475,21 @@ RLS, and constrained privileges.
    owner-only alpha.
 4. Keep global self-service signup and anonymous sign-in disabled; keep the
    email provider enabled so administrator-issued invitations can be redeemed.
-5. In Auth > JWT Signing Keys, make an asymmetric key (preferably ES256) the
-   active signing key. The API intentionally verifies user tokens through the
+5. Preserve the already active ECC P-256 asymmetric signing key. The API
+   intentionally verifies user tokens through the
    project's public JWKS endpoint rather than sharing a JWT secret.
-6. Keep the temporary Production Site URL and its two exact Auth redirects until
-   the coordinated custom-domain cutover.
+6. Keep Production Site URL `https://edisonreader.com` and exactly four redirects:
+   `/auth/callback` and `/auth/confirm` on apex and retained temporary web origin.
 7. Keep the verified invite subject and Dashboard-compatible hosted CTA
    `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=invite` saved.
    Its matching repository correction and focused release-boundary test are in
    pushed checkpoint `d463d44` and its green CI run.
-8. Custom SMTP delivered the single authorized owner invitation; verify its
-   rendering and callback when the owner redeems it. Do not send another by
-   default.
-9. Use **Direct → Transaction pooler → Use IPv4 connection** in Connect to
-   obtain the Shared Pooler URI. Copy it in full; both hostname and username
-   differ from the Dedicated endpoint. The production client enforces TLS even
-   without a query suffix. Keep direct access for migration/backup tooling.
+8. Custom SMTP delivered the single authorized invitation and its redemption
+   passed. Owner-side asset rendering remains unverified. Do not send another
+   invitation for a domain change.
+9. Preserve the healthy owner-saved Shared Transaction Pooler URI. The production
+   client enforces TLS even without a query suffix. Do not inspect credentials;
+   keep direct access for migration/backup tooling.
 
 ### Live Vercel projects
 
@@ -512,15 +532,15 @@ preview deployments credential-free.
   - `SUPABASE_JWT_AUDIENCE=authenticated`
   - `OPENAI_API_KEY` — privately transferred service-account key for project
     `proj_EFKsL4Yfs6pDFOzI4aGWThSf`; saved Restricted to Responses Write only,
-    value unread, and provider access untested
+    value unread; one successful priced generation is recorded
   - `OPENAI_ARTICLE_MODEL=gpt-5.6-terra`
   - `OPENAI_UTILITY_MODEL=gpt-5.6-luna`
   - `OPENAI_MAX_DAILY_GENERATIONS=4`
   - `OPENAI_MAX_DAILY_ARTICLE_QUESTIONS=20`
   - `OPENAI_MAX_DAILY_FEED_COMMANDS=10`
   - `OPENAI_WEB_SEARCH_COST_MICROUSD=10000`
-  - `WEB_APP_URL=https://project-qlqve.vercel.app`
-  - `CORS_ALLOWED_ORIGINS=https://project-qlqve.vercel.app`
+  - `WEB_APP_URL=https://edisonreader.com`
+  - `CORS_ALLOWED_ORIGINS=https://edisonreader.com,https://project-qlqve.vercel.app`
   - `CRON_SECRET` — verified saved Production Secret; generated on explicit request, no value printed or read back
   - `EDISON_ADMIN_EMAILS=mike@michaelmcguiness.com`
   - `EDISON_ALLOWED_EMAILS=mike@michaelmcguiness.com`
@@ -532,9 +552,9 @@ The API has 17 persisted Production Config values and three Production Secrets:
 `DATABASE_URL`, `CRON_SECRET`, and `OPENAI_API_KEY`. API Preview contains only
 `ENABLE_EXPERIMENTAL_COREPACK=1`; every live URL and credential stays out.
 
-Production deployment `dpl_GVJFA1vDQks3eBya4ArrXGpCHzFU` of `df3e712` was
-Ready at 15:11:12 EDT. Health at 19:11:46Z returned `200` with configuration,
-Postgres, and Supabase Auth all `ok`; negative access-control checks also pass.
+Current API Production deployment `dpl_JCoE2yh9oxwA56wcjJu1JULq4hC6` of
+`a681331` was Ready at 23:10:44 UTC. Health, dual-origin CORS and negative
+access-control checks pass as recorded in the controlling Pulse release record.
 
 `OPENAI_WEB_SEARCH_COST_MICROUSD` is an accounting estimate, not a billing
 control. Recheck it against OpenAI's current tool pricing before launch and
@@ -546,20 +566,22 @@ missing price to a zero-cost call.
 
 ### Live private launch sequence
 
-1. Keep the healthy API and live web at their temporary URLs, with the apex
-   demo isolated. Preserve the recorded passing readiness/public-role and
-   negative auth/CORS/cron evidence for `df3e712`.
-2. The single authorized invitation is already delivered. Have the owner redeem
-   its corrected `.SiteURL` callback; do not retrieve its token or send a
-   duplicate invitation by default.
-3. With the freshly issued owner session, confirm `/v1/me` succeeds and the
-   browser persists its timezone. This checks the real JWKS/active-member path.
-4. Run one bounded provider test through the owner using the already-Restricted
-   Responses-only service-account key and dedicated project.
+1. Keep the healthy apex and retained temporary web/API URLs. Preserve the
+   completed Pulse/cutover readiness, public-reading and negative access evidence.
+2. The single invitation is delivered and redeemed, and owner membership,
+   `/v1/me` and timezone persistence passed. Do not retrieve tokens or send a
+   duplicate invitation. Sessions are origin-local; ordinary new sign-in on
+   apex is distinct from another invitation.
+3. Finish authenticated rendered acceptance when the owner session is available;
+   do not infer it from guest reading or database metadata.
+4. One real provider request and priced ledger row succeeded. Preserve the four
+   consumed daily job slots and existing spend; do not rerun generation merely
+   because deployment documentation lists this historical step.
 5. Verify the invite rendering and callback, including its logo asset. Delivery
    metadata alone does not prove the owner's complete email/sign-in experience.
-6. Generate an article, verify citations, save it, share it, and inspect the
-   generation job in `/admin/jobs`.
+6. Use the existing owner article for bounded reading/citation/save/share checks
+   and inspect its generation job in `/admin/jobs`. The accepted manual correction
+   is applied; its owner-only rendered disclosure remains to be checked.
 7. Verify the daily scheduler plus generation-job and feed-command reconciler
    logs once.
 8. Add Vercel Firewall rate limits around generation, article Q&A, and feed
@@ -568,8 +590,8 @@ missing price to a zero-cost call.
 9. Complete a database backup/restore rehearsal.
 10. Merge the reviewed candidate and protect `main` after the temporary alpha
    passes acceptance.
-11. Attach `app.edisonreader.com` and `api.edisonreader.com` only after explicit
-   owner approval, then update Auth URLs, CORS, and the web/API origins together.
+11. The named apex/www cutover is complete. Do not attach additional app/API
+    subdomains without a separate explicit owner decision.
 
 ## When to add staging
 

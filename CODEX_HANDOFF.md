@@ -15,14 +15,42 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
+### September 5 apex cutover — completed and verified
+
+Michael explicitly requested, “can we deploy it at edisonreader.com too plese,”
+in Chief of Staff's task (user message `01a073c8-52bc-7f90-adc8-0447fa602586`).
+CTO verified that original user message. This supersedes the older apex-demo
+preservation restriction for the named existing domain only. The cutover is
+complete: the `edison-app` Production deployment serves both
+`https://edisonreader.com` and `https://project-qlqve.vercel.app`, while
+`https://www.edisonreader.com` preserves its path/query-aware `308` redirect to
+the apex. Vercel reports all three domain assignments Valid. The apex DOM was
+verified against web deployment `dpl_3pzB3bKXiX7qFUVpits8QxP3CFpt` and shows
+the approved Sleep/History Pulse application, not the former sample demo.
+
+The API intentionally remains at the temporary
+`https://project-fjr95.vercel.app/v1` URL. Its cache-free Production rebuild of
+`a681331` is `dpl_JCoE2yh9oxwA56wcjJu1JULq4hC6`, Ready at 23:10:44 UTC and
+confirmed after reload. `WEB_APP_URL` is the apex and
+`CORS_ALLOWED_ORIGINS` contains exactly the apex plus the retained temporary
+web origin. Supabase Auth now uses the apex Site URL and exactly four redirect
+entries: `/auth/callback` and `/auth/confirm` on each of those two web origins.
+No wildcard, `www` callback, new invitation, provider call, generation run,
+content write, paid service or secret inspection was part of the cutover.
+Owner-only access, budgets and rollback points remain unchanged. Detailed
+cutover and post-deploy evidence belongs in
+`docs/PULSE_RELEASE_2026-09-05.md`; do not duplicate or rerun it.
+
 ### September 5 Pulse + loops release — latest implementation checkpoint
 
 Michael approved the selected Pulse + loops v5 and explicitly asked the CTO to
 get it live in Production. The controlling product scope is
 `docs/brand/APPROVED_PULSE_LOOPS_CTO_HANDOFF_2026-09-05.md` and its linked v5
 implementation details. This supersedes older interface descriptions below;
-it does not authorize a domain change, merge into `main`, new readers or paid
-services. The older setup checkpoints are historical, not pending instructions.
+this approval did not itself authorize a domain change, merge into `main`, new
+readers or paid services. The later apex authorization above supersedes only
+that named domain restriction. The older setup checkpoints are historical, not
+pending instructions.
 
 Release `f6b7bb1cb49244c28f37f70519b97184510708a9` passed full Node 22 CI
 `33995500057` including 165 pgTAP assertions and actual disposable publication/
@@ -36,9 +64,10 @@ correction rehearsals. Explicit cache-free Production rebuilds are Ready:
 The final web-only follow-up `a08c6a1a346f281182f23214500bc93e72075243`
 passed full Node 22 CI `33996724371` with 236 application tests and 165 pgTAP
 assertions. Production web `dpl_3pzB3bKXiX7qFUVpits8QxP3CFpt` was Ready at
-22:49:02 UTC on the same stable web URL. API remains f6; the follow-up changed
-only web files, focused tests and documentation. Do not redeploy API or rerun
-migrations for a documentation-only closeout.
+22:49:02 UTC on the same stable web URL. At that pre-cutover checkpoint the API
+remained f6; the follow-up changed only web files, focused tests and
+documentation. The later API rebuild is recorded in the cutover section above.
+Do not redeploy API or rerun migrations for a documentation-only closeout.
 
 All 15 migrations are applied. The accepted Sleep/History public edition is
 published and its real UUIDs/artwork are bound in the client; complete hosted
@@ -62,25 +91,30 @@ the correction note, provider-dashboard reconciliation and backup restoration
 remain unverified. Do not extract credentials or resend invitations.
 
 The live release record is `docs/PULSE_RELEASE_2026-09-05.md`. Preserve rollback
-deployments and the isolated apex demo. `main` remains unmerged at `e559a6b`.
+deployments and the former demo deployment, but do not describe the apex as an
+isolated demo after the cutover. `main` remains unmerged at `e559a6b`.
 
-### September 5 full-release authorization — security and release authority
+### September 5 full-release authorization — pre-cutover release authority
 
-The owner's latest instruction is: “I trust you - let's just do everything to
-get this fully deployed and ready for production. Only ask me if you need me
-if you really think it's necessary.” This supersedes the step-by-step stop
+At that checkpoint, the owner's instruction was: “I trust you - let's just do
+everything to get this fully deployed and ready for production. Only ask me if
+you need me if you really think it's necessary.” This superseded the step-by-step stop
 boundaries in the historical setup record below. It authorizes secure release
 access, reviewed migrations, committing/pushing the candidate, deploying the
 existing live projects, and inviting/testing only the previously approved owner,
 `mike@michaelmcguiness.com`. Do not request another generic release approval.
-Never reveal existing secrets or ask for them in chat. No extra paid services,
-broader invitations, or website-domain changes are part of this first release;
-the apex demo remains isolated while the owner-only live alpha is validated.
+Never reveal existing secrets or ask for them in chat. At that checkpoint, no
+extra paid services, broader invitations, or website-domain changes were part
+of the first release. The separately verified decision above later authorized
+and completed the existing apex/`www` cutover only; it did not broaden reader
+access or authorize any additional domain.
 
 #### Historical pre-Pulse setup chronology
 
 The following checkpoint is retained as history and is superseded by the
-latest Pulse release above.
+latest Pulse release and apex cutover above. Statements about the apex demo,
+single-origin configuration, or a missing starter describe their timestamped
+pre-cutover state and are not current instructions.
 
 Candidate `4f774eb` was committed and pushed on
 `codex/production-release-candidate` in draft PR #1; `main` is neither merged
@@ -218,6 +252,10 @@ published Sleep/History fixture. Do not integrate or publish the obsolete v2.
 
 ### Historical setup and approval record
 
+This section preserves dated setup authority and evidence only. Its stop
+boundaries were subsequently superseded by the scoped full-release and apex
+decisions above; do not treat them as the current deployment state.
+
 The owner has asked to build the actual production version and wants as much as
 possible completed autonomously. The approved technical direction is Vercel
 Pro + Supabase Pro + an Edison-specific OpenAI API project when the private
@@ -239,7 +277,8 @@ production release candidate and creating separate temporary Vercel web/API
 projects plus a Supabase production project. This authorization stops before
 paid upgrades, secret entry, live migrations, invitations, or domain changes.
 Publish the candidate on `codex/production-release-candidate` and review it in a
-draft pull request; `main` still automatically deploys the existing apex demo.
+draft pull request; at that time, `main` still automatically deployed the
+existing apex demo.
 Project creation does not authorize merging the release or activating live
 services.
 
@@ -311,38 +350,41 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
 
 ## Hosted state versus working-tree state
 
-- [edisonreader.com](https://edisonreader.com/) and its `www` redirect still
-  serve the credential-free sample demo from the existing Vercel project,
-  now in the upgraded Pro team.
-- The demo is explicit `EDISON_DEMO_MODE=true`; it has no production Supabase,
-  API, OpenAI, SMTP, or cron credentials. It must stay isolated while the alpha
-  is proven.
+- [edisonreader.com](https://edisonreader.com/) now serves the approved live
+  Pulse application from `edison-app`; the retained
+  [temporary web URL](https://project-qlqve.vercel.app/) serves the same
+  Production deployment. `www` redirects to the apex with `308`, preserving
+  path and query. All three assignments were fresh-reload verified as Valid.
+- The former credential-free sample deployment remains a separate rollback/
+  historical deployment and has not received production Supabase, API, OpenAI,
+  SMTP, or cron credentials. It is no longer attached to the apex.
 - The public GitHub source is
   [michaelmcguiness/edison](https://github.com/michaelmcguiness/edison). The
-  deployed Pulse candidates are `a08c6a1` (web) and `f6b7bb1` (API), pushed on
-  `codex/production-release-candidate` in
+  deployed checkpoints are `a08c6a1` (web) and `a681331` (API, with the same
+  f6 runtime source). They are on `codex/production-release-candidate` in
   [draft PR #1](https://github.com/michaelmcguiness/edison/pull/1). `main` is
   unmerged and unprotected.
 - Separate `edison-app` and `edison-api` Vercel projects exist with the intended
   Next.js/Node 22/build settings and saved production branch `main`.
   Release-branch pushes now target Preview; the current deployments were
   explicit Production rebuilds. Web deployment
-  `dpl_3pzB3bKXiX7qFUVpits8QxP3CFpt` (`a08c6a1`) is live at
-  `project-qlqve.vercel.app`. API deployment
-  `dpl_4SBpQxDpes2wrnpGFpJ1z2AWEyHf` (`f6b7bb1`) is Ready at
-  `project-fjr95.vercel.app`, and readiness is fully healthy.
-  Neither project has a custom domain.
+  `dpl_3pzB3bKXiX7qFUVpits8QxP3CFpt` (`a08c6a1`) is live at both
+  `edisonreader.com` and `project-qlqve.vercel.app`. API deployment
+  `dpl_JCoE2yh9oxwA56wcjJu1JULq4hC6` (`a681331`, with unchanged f6 API
+  application source) is Ready at `project-fjr95.vercel.app`, and readiness is
+  fully healthy. The web project has the apex custom domain; the API still uses
+  its temporary Vercel URL.
 - `edison-app` has five Production Config values: Corepack, explicit live mode,
   the temporary API `/v1` URL, and the production Supabase URL/publishable key.
   Preview has only Corepack plus explicit demo mode. `edison-api` has 17
   Production Config values for Corepack, Supabase public Auth metadata, JWT
-  audience, reviewed models and quotas, temporary web/CORS origin, initial
+  audience, reviewed models and quotas, exact web/CORS origins, initial
   edition scheduling, and the owner-only reader/admin allowlists. The existing
   Production-only OpenAI Secret now contains the privately transferred
   `edison-api-production` service-account key for the dedicated Edison project;
   it was never printed or read back. Its saved Restricted policy grants only
   Responses Write and leaves every other permission leaf at None; the key is
-  has returned one successful, priced article-generation response.
+  known to have returned one successful, priced article-generation response.
   `DATABASE_URL` and `CRON_SECRET` are also verified Production-only Secrets;
   the API has 17 Production Config values and three Production Secrets total.
   API Preview had no variables
@@ -351,9 +393,10 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   trigger builds;
   do not push merely to update setup notes before deployment is intended.
   See `docs/DEPLOYMENT.md` for IDs and setup status.
-- Exact temporary wiring is web → `https://project-fjr95.vercel.app/v1`, both
+- Exact current wiring is web → `https://project-fjr95.vercel.app/v1`, both
   projects → `https://bcxxnntastmnormcmxbq.supabase.co` with the matching public
-  key, and API web/CORS → only `https://project-qlqve.vercel.app`. API models
+  key, API `WEB_APP_URL` → `https://edisonreader.com`, and API CORS → exactly
+  `https://edisonreader.com` plus `https://project-qlqve.vercel.app`. API models
   are `gpt-5.6-terra`/`gpt-5.6-luna`; per-reader quotas are 4 generations,
   20 article questions, and 10 commands; search accounting is 10000 microdollars
   per call; edition settings are hour 5, target 3, batch 25. Both API email lists
@@ -381,9 +424,11 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   overrides. Production database health passes; no further owner database edit
   is pending.
 - Hosted Supabase Auth has global signup and anonymous sign-in disabled, the
-  email provider enabled for invitations, the temporary web Site URL, and only
-  its exact `/auth/callback` and `/auth/confirm` redirects. Its current signing
-  key is already ECC P-256. The hosted invitation template and subject
+  email provider enabled for invitations, apex Site URL, and exactly four
+  redirects: `/auth/callback` and `/auth/confirm` on both
+  `https://edisonreader.com` and `https://project-qlqve.vercel.app`. There is no
+  wildcard or `www` callback. Its current signing key is already ECC P-256. The
+  hosted invitation template and subject
   “Your Edison Reader invitation” are saved and fresh-reload verified; its
   single CTA uses
   `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=invite`
@@ -398,10 +443,11 @@ migration access and a reviewed dry run, not another Vercel secret-entry form.
   remains enabled. The dashboard template preview has an unresolved logo and
   the owner has redeemed the invitation successfully. Owner-side email asset
   rendering remains unverified, but the callback/authenticated API gate passes.
-- API candidate `f6b7bb1` is deployed and Ready with
-  configuration, database, and Auth health all `ok`. The temporary web and
-  Supabase schema are live. Owner authentication and timezone persistence pass;
-  one real article and its usage ledger now exist after the provider-schema fix.
+- The cache-free API rebuild of `a681331` is deployed and Ready with
+  configuration, database, and Auth health all `ok`. The apex and temporary
+  web origins and Supabase schema are live. Owner authentication and timezone
+  persistence pass; one real article and its usage ledger now exist after the
+  provider-schema fix.
   Accepted public articles and the audited manual correction are live. Guest
   rendered acceptance passes; authenticated owner acceptance remains incomplete.
 - CI run `33996724371` is green for web follow-up `a08c6a1`: 236 application
@@ -416,9 +462,10 @@ Edison is an API-first modular monolith and a real client/server application:
 
 | Surface | Target | Responsibility |
 | --- | --- | --- |
-| Existing demo/landing | `edisonreader.com` | Credential-free sample UI |
-| Live web (`edison-app`) | `app.edisonreader.com` | Next.js UI + Supabase Auth session |
-| Live API (`edison-api`) | `api.edisonreader.com/v1` | Authz, Postgres, OpenAI, Workflow, cron |
+| Live web (`edison-app`) | `edisonreader.com`; retained alias `project-qlqve.vercel.app` | Next.js UI + Supabase Auth session |
+| Web redirect | `www.edisonreader.com` → `edisonreader.com` | Path/query-preserving `308` |
+| Live API (`edison-api`) | `project-fjr95.vercel.app/v1` | Authz, Postgres, OpenAI, Workflow, cron |
+| Former demo | Separate retained Vercel deployment | Credential-free rollback/history only |
 | Data/Auth | Supabase Pro | Canonical Postgres, Auth, reserved Storage |
 
 Web and future native clients authenticate through Supabase, then call the same
@@ -429,9 +476,10 @@ relies on enabled RLS policies that are enforced for that non-owner role. The
 migrations do not use `FORCE ROW LEVEL SECURITY`; browser/mobile Supabase roles
 also have no core table grants.
 
-Use one region: API/Workflow in US East and a nearby Supabase project. Keep the
-existing apex demo project separate because all aliases on one Vercel project
-share one production build and environment.
+Use one region: API/Workflow in US East and a nearby Supabase project. The apex
+and temporary web alias intentionally share the same `edison-app` Production
+build and environment. Keep the former credential-free demo project separate;
+do not attach production credentials to it.
 
 ## Locked product and design decisions
 
@@ -440,21 +488,25 @@ The current canonical sources, newest last, are:
 1. `docs/brand/WHITE_EDITION_HANDOFF.md`
 2. `docs/brand/PERSONAL_PUBLICATION_HANDOFF.md`
 3. `docs/brand/SIDEBAR_CHAT_HANDOFF.md`
+4. `docs/brand/APPROVED_PULSE_LOOPS_CTO_HANDOFF_2026-09-05.md`
+5. `docs/brand/PULSE_LOOPS_V5_IMPLEMENTATION_DETAILS.md`
 
-The latter specifications supersede the old category-tab/infinite-feed design.
+The Pulse v5 sources supersede conflicting legacy shell, rail, dock, category
+tab and infinite-feed instructions for the current News experience.
 
-- Desktop: a 184px left rail with exactly News, Books, Podcasts; centered Edison
-  masthead; library/streak/profile tools at upper right.
-- Below 960px available shell width: fixed bottom navigation with those same
-  three destinations.
-- A contextual `+` exists only on the three section homes and commissions one
-  new piece; it never edits ongoing direction.
-- “Ask Edison” sits inline immediately after the folio as a chat-style control.
-  Exact placeholders:
-  - News: “More economic history, less startup news…”
-  - Books: “Short books on history and architecture…”
-  - Podcasts: “More science. Episodes under 30 minutes…”
-- News is one finite daily edition with a clear end, not an infinite feed.
+- The feed uses the normal page viewport, a white canvas, the existing Edison
+  bulb/wordmark, visible For You/loop navigation and Library/Profile controls.
+  It is two columns on desktop and one on phones, with no fixed-height or nested
+  scrolling prototype shell.
+- The finite feed ends honestly. For You deduplicates real articles across
+  loops; subject creation and empty states never fabricate or pad inventory.
+- One feed-only Curate control edits future direction. For You requires an
+  explicit target loop, and save/clear/undo reflect actual passed backend or
+  device-local state.
+- Article Ask is a separate article-scoped sheet. It never silently changes
+  loop direction or promises live answers when that capability is unavailable.
+- Article Next and Back use the actual frozen readable sequence, origin label
+  and return position; there is no forced Finish step or auto-advance.
 - Useful public reading appears before authentication. There is no blocking
   onboarding/account gate before the reader can see a real public edition.
 - Books is a cover-led library and Podcasts is a listening queue only when real
@@ -526,9 +578,12 @@ The latter specifications supersede the old category-tab/infinite-feed design.
 
 - Books and Podcasts do not yet have production catalog/recommendation,
   generation, object-storage, reader, playback, or progress services.
-- No genuine public starter content is checked in or seeded. An operator must
-  publish sourced, reviewed snapshots; the anonymous endpoint correctly returns
-  unavailable until then.
+- Exactly two genuine public starter articles, Sleep and History, are reviewed,
+  published and bound to their hosted UUIDs/artwork. Five prototype concepts
+  remain deliberately unwritten and must not be shown as readable inventory.
+  Future public editions still require sourced editorial acceptance and the
+  guarded operator; do not infer a recurring daily cadence from this prepared
+  pair or rerun the publisher for the domain cutover.
 - Resend's sending domain is verified and Supabase custom SMTP is configured,
   including the corrected username. Provider metadata confirms the owner invite
   was Delivered, and invitation redemption/authenticated API access pass.
@@ -541,26 +596,33 @@ The latter specifications supersede the old category-tab/infinite-feed design.
 
 ## Required release gates
 
-The source, disposable-database, CI, production migration, temporary-web/API
+The source, disposable-database, CI, production migration, live-web/API
 deployment, health, public-role, and negative auth/CORS/cron gates are complete
 through the latest Pulse checkpoint at the top, not just the historical
 `df3e712` setup release.
-Before the owner-only alpha is usable:
+The guest release is live at both approved web origins. Before the owner-only
+alpha is accepted as end-to-end verified:
 
 1. Owner invitation redemption, active membership, authenticated `/v1/me`, and
    first-visit timezone persistence passed at 19:23Z. Do not resend an invitation.
 2. The provider output-schema fix is live and one bounded article generation
    and priced ledger row pass. Complete provider-dashboard reconciliation;
    preserve the saved Responses-only key, model allowlist, and $50 cap.
-3. Complete one real article/citation/save/share/Q&A/direction/retry/cost-ledger
-   flow for the owner.
-4. Verify cron/Workflow logs, add the planned WAF controls and complete a
+3. Complete rendered owner acceptance for private reading, save/share, Q&A,
+   direction and the correction disclosure. Existing authenticated API reads
+   and the real article/citation/retry/cost-ledger path already pass; do not
+   create another owner, invitation or generation merely to test the cutover.
+4. Existing cron/Workflow logs and all negative cron checks pass. Do not invoke
+   a valid cron, generation or publication operator again for domain
+   verification. Add the planned WAF controls and complete a
    backup/restore rehearsal before broader external readers. The accepted
    Sleep/History starter publication is complete; older starter v2 instructions
    are obsolete and must not be run.
-5. Merge the reviewed candidate and protect `main` when the temporary alpha is
-   accepted. Obtain a separate owner decision before attaching
-   `app.edisonreader.com`/`api.edisonreader.com` or replacing the apex demo.
+5. The authorized apex/`www` cutover is complete and the temporary web origin
+   must remain working. Merge the reviewed candidate and protect `main` when
+   the alpha is accepted. The API URL remains temporary; any API custom domain,
+   additional website domain or broader reader invitation requires a new owner
+   decision.
 
 The detailed runbook is `docs/PRODUCTION_RELEASE.md`; the shorter overview is
 `docs/DEPLOYMENT.md`. `docs/PRODUCTION_GAPS.md` must remain current with the
@@ -596,37 +658,47 @@ framework changes; this repository’s Next version differs from remembered APIs
 
 > Continue building Edison Reader from this repository. Read
 > `CODEX_HANDOFF.md` completely, then inspect the working tree and current Git
-> state before editing. The target is the production private alpha using the
-> separate Vercel web/API + Supabase architecture described here; the hosted
-> apex remains an isolated credential-free demo. Preserve the exact finite News,
-> approved Pulse + loops v5, article-scoped Ask, truthful guest/device boundaries
-> and non-overwriting explicit import. Use the latest checkpoint and
+> state before editing. The target is the owner-only production alpha using the
+> separate Vercel web/API + Supabase architecture described here. The approved
+> Pulse application is live at both `https://edisonreader.com` and
+> `https://project-qlqve.vercel.app`; `www` redirects to the apex. The apex is no
+> longer the isolated sample demo. The API intentionally remains at
+> `https://project-fjr95.vercel.app/v1`. Preserve exact finite News, Pulse +
+> loops v5, article-scoped Ask, truthful guest/device boundaries and
+> non-overwriting explicit import. Use the latest checkpoint and
 > `docs/PULSE_RELEASE_2026-09-05.md`; older setup records are historical.
+>
+> The current web deployment is the verified a08 Production build and the API's
+> cache-free `a681331` Production rebuild is Ready. API `WEB_APP_URL` is the
+> apex; CORS contains exactly the apex and retained temporary web origin.
+> Supabase Auth uses the apex Site URL and exactly four callback/confirm URLs
+> across those two origins. Preserve those allowlists—no wildcard or `www`
+> callback.
+> `main` is still unmerged and unprotected.
+>
 > All 15 hosted migrations, the accepted Sleep/History publication, audited
 > owner-article correction, real UUID/artwork binding and Production deployment
-> are complete; do not repeat live writes or execute obsolete prepared SQL.
-> The apex demo is still isolated. The Production API is Ready and health
-> passes configuration, database, and Auth; the shared runtime/preflight policy
-> enforces TLS even when the provider URI omits a query option. No further owner
-> database edit is pending. Owner invitation redemption, authenticated API reads,
-> and timezone/onboarding persistence are now verified. Continue with the
-> remaining owner reading checks. The provider output-schema fix is live and
-> one retry succeeded with a priced $0.062654 ledger row. The three original
-> failed jobs remain intact and all four daily slots are consumed; do not reset
-> quotas. Editorial initially withheld the first real output; the accepted
-> manual correction is now applied with a protected audit, not a new provider
-> generation. Authenticated rendered correction-note acceptance remains open.
-> Route editorial
-> review to Chief of Staff, not archived tasks. The dedicated OpenAI service-account
-> key is already
-> Restricted to Responses Write with every other leaf None; no further scope
-> approval is needed. Provider usage-dashboard reconciliation remains pending.
-> The hosted invite callback and matching pushed repository regression
-> are corrected. The single owner invitation was sent once and provider metadata
-> reports Delivered without its body or token being read. Test only that owner;
-> the already completed sign-in does not need repeating.
-> The September 5
-> full-release authorization at the top supersedes historical stops. Never ask
-> for or expose secrets, buy additional services, invite other readers, or
-> change website domains. Report genuine blockers and distinguish an owner-only
-> live alpha from broader-reader readiness.
+> are complete. Do not repeat migrations, publication/correction operators,
+> valid cron invocations, generation, quota resets or obsolete prepared SQL for
+> release verification. Generation jobs remain four, usage rows one, and known
+> cost $0.062654. The three original failed jobs remain intact and all four
+> daily slots are consumed.
+>
+> Production API health, exact dual-origin CORS, private-route rejection, public
+> reads and negative cron checks pass. Owner invitation redemption,
+> authenticated API reads, and timezone/onboarding persistence are verified.
+> The controlled browser still has no owner session, so authenticated rendered
+> reading/save/share/Q&A/direction and correction-note acceptance remain open.
+> Test only the existing owner; do not extract credentials or resend an
+> invitation. Provider usage-dashboard reconciliation and a backup restoration
+> rehearsal also remain pending.
+>
+> The dedicated OpenAI service-account key is already Restricted to Responses
+> Write with every other leaf None; do not inspect it or request another scope
+> approval. Route editorial review to Chief of Staff, not archived tasks. The
+> September 5 full-release and exact apex-cutover authorizations at the top
+> supersede historical stops only within their stated scope. Never ask for or
+> expose secrets, buy additional services, invite other readers, alter current
+> domains/origin allowlists, or broaden owner-only access without a new owner
+> decision. Report genuine blockers and distinguish an owner-only live alpha
+> from broader-reader readiness.

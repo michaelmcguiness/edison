@@ -3,8 +3,9 @@
 ## Scope and current gate
 
 Michael approved implementing the selected v5 and releasing it to the existing
-production web/API projects. See the approved brand handoff. The apex demo and
-domain configuration remain unchanged. No additional reader, paid service,
+production web/API projects. See the approved brand handoff. Michael subsequently
+authorized putting the live app at `edisonreader.com` too; the completed
+configuration-only cutover is recorded below. No additional reader, paid service,
 provider batch, or quota reset belongs to this release.
 
 The initial API/content/web release is
@@ -23,7 +24,96 @@ passed at 22:46:24 UTC: 236 application tests (153 web + 83 API), both
 typechecks/builds, lint, 165 pgTAP assertions in 7 files, real publication/
 correction apply/replay/history guards and strict schema lint. Only web code,
 focused web tests and documentation changed from f6; no API or database source
-changed. The API remains on its verified f6 Production build.
+changed. The later API rebuild uses the same runtime source with the approved
+domain configuration; it does not require another migration or publication.
+
+## Completed apex cutover
+
+Michael's explicit request, “can we deploy it at edisonreader.com too plese,”
+was verified in Chief of Staff's original user message
+`01a073c8-52bc-7f90-adc8-0447fa602586`. This superseded apex-demo preservation
+for the existing named domain and its existing www redirect. No new service,
+purchase, source-code change, invitation, provider call or database write was
+needed. `main` remains unmerged; both temporary service URLs remain available.
+
+- Live web: `https://edisonreader.com` and
+  `https://project-qlqve.vercel.app`, both the already verified a08 Production
+  deployment `dpl_3pzB3bKXiX7qFUVpits8QxP3CFpt`.
+- `www.edisonreader.com` retains its 308 redirect to the apex. Vercel's **Move
+  2 domains** moved the apex and its redirect together from `edison` to
+  `edison-app`. A fresh settings reload confirms all three domains Valid
+  Configuration, apex/temporary alias connected to Production, www redirecting.
+  The old credential-free demo is retained on `edison-lake-phi.vercel.app`;
+  no demo environment or DNS/mail record was edited.
+- API: `https://project-fjr95.vercel.app`, explicit cache-free Production
+  rebuild of `a681331673b416d1267cd27a263222399b5285f1`,
+  `dpl_JCoE2yh9oxwA56wcjJu1JULq4hC6`, Ready **23:10:44 UTC**.
+  Deployment URL: `edison-aoo0v1irc-mike-michaelmcguis-projects.vercel.app`.
+  The source is the docs-only closeout after a08; its full CI
+  [33997300441](https://github.com/michaelmcguiness/edison/actions/runs/33997300441)
+  is green. This rebuild was necessary to activate changed Production Config,
+  not to release the documentation. It was not a Preview promotion.
+- API `WEB_APP_URL=https://edisonreader.com` and
+  `CORS_ALLOWED_ORIGINS=https://edisonreader.com,https://project-qlqve.vercel.app`.
+  Web API URL remains `https://project-fjr95.vercel.app/v1`. All credentials,
+  owner-only email allowlists, models, quotas and budgets are unchanged.
+- Supabase Site URL is `https://edisonreader.com`; fresh-reload verification
+  shows exactly four allowed URLs: `/auth/callback` and `/auth/confirm` on
+  each of the apex and temporary web origins. No wildcard, additional user,
+  email-template change, invitation or sign-in email was added.
+
+Independent API smoke window **23:10:58–23:11:21 UTC**:
+
+- Health 200: `0b6c1cc7-4907-458d-8f4e-5b7aa43004c6`.
+- Apex preflight 204 with exact reflection:
+  `38908204-24b4-49c7-87f6-6466238d2250`; temporary web preflight 204:
+  `a0ffac35-a5e0-4e74-8537-490eadb1bddd`.
+- Unapproved origin 403 without reflection:
+  `21b94026-d9e5-4a3f-8b60-26f0d6fa2cbd`.
+- Unauthenticated loops and private owner article 401:
+  `3205cc32-a970-475f-bcc1-61cd061fd453` and
+  `a2879b80-63a8-40f6-bef2-4b112766655b`.
+- All six missing/deliberately fake-secret checks across the three cron routes
+  return 401. No valid cron invocation was made. Requests:
+  `00a00f96-bbc6-4af7-9ee2-d8aaabb64be7`,
+  `2652fd4c-f36d-4f64-8ef8-3610276e8d54`,
+  `de125ac8-91d3-4d8d-b026-d19e37a806d4`,
+  `d509fa33-bf47-4a9a-bbcf-735bc7cf0ee7`,
+  `3f9b7864-6d9a-4ea1-bee3-25b1aac6ab55`,
+  `ccf5e3a4-4c08-45f5-8ddf-2de0bff77818`.
+
+Independent DNS/TLS/HTTP smoke window **23:14:28–23:15:54 UTC**:
+
+- Apex and retained temporary web return HTTPS 200, private/no-store and
+  nonce CSP, with the exact a08 deployment marker and Pulse shell, not the
+  sample/demo. HTTP redirects to HTTPS. Normal TLS verification passes on
+  all tested surfaces (`ssl_verify_result=0`, no bypass).
+- www 308 preserves `/reader/path-check?cutover=1&retain=yes` through both
+  HTTPS and HTTP-to-HTTPS chains to the apex. The deliberately nonexistent
+  test path ends in the expected 404; it is not an application failure.
+- Missing-code `/auth/callback` returns 307 to `/login?error=missing_code`;
+  missing-token `/auth/confirm` returns 307 to `/login?error=invalid_invite`.
+  Each stays on its requested origin, for both apex and temporary web.
+- API HTTP redirects to HTTPS health 200 with configuration/database/Auth
+  all ok. Its public root exposes the exact new API deployment marker.
+- Mail SPF, MX and public DKIM match on system resolver and 1.1.1.1;
+  nameservers remain ns1/ns2.vercel-dns.com. Vercel edge A records rotate;
+  do not pin the observed edge IPs or edit mail DNS for this cutover.
+
+Root's actual HTTPS browser shows the two accepted artwork cards on the apex,
+opens the complete Sleep article and its six sources, and follows Next to
+History with the correct finite ending. Script URLs carry the exact a08 web
+deployment marker. Profile still reports this controlled browser signed out;
+no authenticated rendered acceptance is inferred. Guest storage and existing
+sessions are origin-local, so using the apex may require ordinary fresh sign-in
+without a repeat invitation. No guest-data migration was attempted.
+
+Rollback remains available by moving the two domain bindings back to `edison`
+and restoring the prior exact non-secret origin configuration if a genuine
+incident requires it. Preserve all prior deployments and accepted data; domain
+rollback does not authorize undoing schema/content or exposing credentials.
+
+## Initial release build history
 
 The prior candidate `c354092` passed the application builds and migration/pgTAP
 checks. Its new public-publication rehearsal failed before writing: the native
@@ -159,8 +249,9 @@ controlled browser: Sleep/History loops, the restored-empty Sleep direction,
 and Design's clearly named long-label QA loop. No account loop was created by
 these guest checks.
 
-The existing production targets remain `https://project-qlqve.vercel.app`
-(web) and `https://project-fjr95.vercel.app` (API). Explicit Production rebuilds
+The production targets are `https://edisonreader.com` and retained
+`https://project-qlqve.vercel.app` (web), plus `https://project-fjr95.vercel.app`
+(API). Explicit Production rebuilds
 with existing Production variables are required; never promote the
 credential-free Preview build.
 
@@ -176,7 +267,8 @@ Both explicit cache-free Production rebuilds of exact f6 were Ready:
 Final web-only a08 Production rebuild was Ready at **22:49:02 UTC**:
 `dpl_3pzB3bKXiX7qFUVpits8QxP3CFpt`,
 `edison-6k95wqcyc-mike-michaelmcguis-projects.vercel.app`.
-The stable web URL remains `https://project-qlqve.vercel.app`. It was rebuilt
+At that checkpoint the stable web URL was `https://project-qlqve.vercel.app`;
+the later cutover retained it alongside the apex. It was rebuilt
 explicitly with saved Production variables and build cache unchecked, not
 promoted from credential-free Preview. Root observed this exact deployment
 marker in the actual site's script URLs.
@@ -207,4 +299,6 @@ Curate or new artwork paths. The subsequent a08 rebuild affected only edison-app
 Retain prior web `dpl_Eqed7bwPxcNaEACSj2Nxx8WtzRwZ` and API
 `dpl_12vWp1rShga96hTQ1yJzu8VTiRYh`, plus both f6 deployments, as rollback
 checkpoints. Do not roll back additive schema or accepted immutable content as
-part of a UI rollback. No domain configuration or `main` change occurred.
+part of a UI rollback. No `main` change occurred. Domain configuration was
+unchanged during this initial release; the later authorized cutover above
+supersedes that routing state.

@@ -5,13 +5,34 @@ Last updated: September 5, 2026
 This file describes the production backend currently implemented in the
 working tree and the work that still blocks a real launch. Nothing described
 here should be inferred from an earlier audit alone. All 15 migrations and the
-separate temporary live web/API projects are now deployed; API readiness,
+separate live web/API projects are now deployed; API readiness,
 negative auth/CORS/cron checks, owner invitation redemption, authenticated API
-reads, and first-visit timezone activation pass. The apex remains an isolated
-demo. The approved Pulse + learning-loops interface and the two accepted public
-articles are deployed. See `docs/PULSE_RELEASE_2026-09-05.md` for the latest
-candidate, publication, correction and hosted evidence; older setup evidence is
+reads, and first-visit timezone activation pass. The approved Pulse +
+learning-loops interface and two accepted public articles now serve from both
+`https://edisonreader.com` and the retained
+`https://project-qlqve.vercel.app` web origin; the apex is no longer the sample
+demo. See `docs/PULSE_RELEASE_2026-09-05.md` for the latest candidate,
+publication, correction, cutover and hosted evidence; older setup evidence is
 retained in `docs/PRODUCTION_RELEASE.md`.
+
+## Current live topology and cutover boundary
+
+- `edison-app` serves one Production build at the apex and retained temporary
+  web origin. `www` returns a path/query-preserving `308` to the apex; all three
+  domain assignments are Valid.
+- The web still calls `https://project-fjr95.vercel.app/v1`; the API does not
+  yet have a custom domain. API `WEB_APP_URL` is the apex and its CORS allowlist
+  contains exactly the apex plus the retained temporary web origin.
+- Supabase Auth uses the apex Site URL and exactly four redirects:
+  `/auth/callback` and `/auth/confirm` on each approved web origin. There is no
+  wildcard or `www` callback.
+- Private access and both API email allowlists remain limited to the single
+  owner. The cutover did not send an invitation, inspect a secret, invoke a
+  valid cron, run generation, republish content, reset quotas or add a paid
+  service. The former sample deployment remains separate and credential-free.
+- `main` remains unmerged and unprotected. The exact web/API deployments and
+  post-cutover read-only checks are recorded in
+  `docs/PULSE_RELEASE_2026-09-05.md` rather than duplicated here.
 
 ## Implemented in this slice
 
@@ -236,9 +257,12 @@ Required API configuration includes:
    pass on the new deployed interface. The controlled browser has no owner
    session: authenticated rendered save/share/Q&A/direction and correction-note
    acceptance remain unverified. Do not extract tokens or resend invitations.
-   Final web `a08c6a1` and API `f6b7bb1` passed full Node 22 CI gates, including
-   236 application tests for the final follow-up and 165 pgTAP assertions,
-   strict schema lint, both builds and hosted readiness. Full owner acceptance,
+   Final web application source `a08c6a1` and the unchanged f6 API application
+   source passed the full Node 22 CI gates, including 236 application tests for
+   the final follow-up and 165 pgTAP assertions, strict schema lint and both
+   builds. The current cache-free API deployment was rebuilt from documentation
+   checkpoint `a681331`; deployment identity and hosted readiness are recorded
+   in the Pulse release record. Full owner rendered acceptance,
    provider-dashboard reconciliation and backup recovery testing remain open.
 4. **Production operations and reader-trust materials remain external setup.**
    Approved provider projects/plans, exact origins/owner allowlists, custom SMTP,
@@ -281,8 +305,10 @@ The configured Supabase, Vercel, SMTP, dedicated billed OpenAI API project, and
 exact origins/allowlists are no longer setup blockers. Remaining operations
 include the restore drill, health/job/cost alerts, credential-rotation procedure,
 editorial provenance review, and acceptance. Existing release deployment is
-authorized; any domain cutover or broader invitation requires a separate owner
-decision. Credentials stay server-only.
+authorized, and the named apex/`www` cutover is complete. Keep both approved web
+origins working. Any API custom domain, additional website domain, origin/
+redirect expansion, or broader invitation requires a separate owner decision.
+Credentials stay server-only.
 
 ## One-off generation boundary
 
