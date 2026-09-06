@@ -14,11 +14,13 @@ import {
   generateSelectedArticle,
   interpretLoopFeedback,
   onDemandAnswerOutputSchema,
+  onDemandArticleCheckProviderSchema,
   onDemandCheckOutputSchema,
   onDemandFeedbackOutputSchema,
   onDemandIdeaChecksSchema,
   onDemandResearchOutputSchema,
   onDemandWriterOutputSchema,
+  onDemandWriterProviderOutputSchema,
   repairOnDemandArticle,
   researchOnDemandIdeas,
   writeOnDemandArticle,
@@ -33,6 +35,7 @@ import {
   type OnDemandWriterOutput,
 } from "../packages/ai/src/on-demand";
 import { ProviderResponseValidationError } from "../packages/ai/src/provider-response-error";
+import { providerFixtureOutput } from "./helpers/on-demand-provider-fixture";
 
 const requireFromAiPackage = createRequire(new URL("../packages/ai/package.json", import.meta.url));
 const { zodTextFormat } = requireFromAiPackage("openai/helpers/zod") as {
@@ -76,11 +79,11 @@ function draft(): OnDemandWriterOutput {
     title: idea.headline, deck: idea.deck,
     summary: ["The experiment tested laboratory behavior.", "A second strain showed a response.", "Neither experiment tested clinical efficacy."],
     whyWritten: "This develops the difference between a mechanism and an application.", readingMinutes: 3,
-    body: Array.from({ length: 6 }, (_, index) => ({ type: "paragraph" as const, text: `Constructed explanation ${index + 1}: a laboratory response is not a clinical trial.`, citations: [{ sourceKey: index % 2 ? "source-2" : "source-1", label: "Example Institute" }] })),
+    body: Array.from({ length: 6 }, (_, index) => ({ type: "paragraph" as const, text: `Constructed explanation ${index + 1}: a laboratory response is not a clinical trial.`, citations: [{ sourceKey: index % 2 ? "source-2" : "source-1", label: "example.org" }] })),
     sources: evidence.sources.map((source) => ({ key: source.id, title: source.title, publisher: source.publisher, url: source.url, publishedAt: source.datePrecision === "day" ? `${source.publishedDate}T00:00:00.000Z` : null })),
   };
   const locations = ["title", "deck", "summary.0", "summary.1", "summary.2", ...article.body.map((_, index) => `body.${index}`)];
-  return { status: "written", article, reason: null, claims: locations.map((location, index) => ({ id: `claim-${index}`, text: "A laboratory response does not establish clinical efficacy.", locations: [location], passageIds: ["passage-1", "passage-2"] })) };
+  return { status: "written", article, reason: null, claims: locations.map((location, index) => ({ id: `c${index + 1}`, text: "A laboratory response does not establish clinical efficacy.", locations: [location], passageIds: ["passage-1", "passage-2"] })) };
 }
 function passed(value = draft()): OnDemandCheckOutput {
   return { verdict: "pass", promiseFulfilled: true, readerFit: true, continuity: true, privacyPassed: true, sourceMetadataPassed: true,
@@ -95,14 +98,14 @@ const usage = { providerResponseId: "response-1", model: "injected-test-model", 
 function options(output: unknown, key = "request-1", capture?: OnDemandProviderRequest[]): OnDemandStageOptions {
   const provider: OnDemandProvider = async (request) => {
     capture?.push(request);
-    return { output, usage, researchedUrls: evidence.sources.map((source) => source.url) };
+    return { output: providerFixtureOutput(request, output), usage, researchedUrls: evidence.sources.map((source) => source.url) };
   };
   return { provider, model: "injected-test-model", idempotencyKey: key, safetyIdentifier: "test-reader" };
 }
 const selected = { context, idea, evidence };
 
 test("all on-demand provider schemas convert using the installed Structured Outputs helper", () => {
-  for (const schema of [onDemandResearchOutputSchema, onDemandIdeaChecksSchema, onDemandWriterOutputSchema, onDemandCheckOutputSchema, onDemandAnswerOutputSchema, onDemandFeedbackOutputSchema]) {
+  for (const schema of [onDemandResearchOutputSchema, onDemandIdeaChecksSchema, onDemandWriterOutputSchema, onDemandWriterProviderOutputSchema, onDemandArticleCheckProviderSchema(["title", "deck", "body.0"]), onDemandCheckOutputSchema, onDemandAnswerOutputSchema, onDemandFeedbackOutputSchema]) {
     const format = zodTextFormat(schema, "test");
     assert.equal(format.type, "json_schema");
     assert.equal(format.strict, true);
@@ -186,7 +189,7 @@ test("structural checks reject selected-headline replacement and fabricated date
   const replacement = draft(); replacement.article!.title = "Gene circuits cure disease";
   await assert.rejects(writeOnDemandArticle(selected, options(replacement)), ProviderResponseValidationError);
   const date = draft(); date.article!.sources[0].publishedAt = "2025-01-01T00:00:00.000Z";
-  await assert.rejects(writeOnDemandArticle(selected, options(date)), ProviderResponseValidationError);
+  assert.throws(() => assertOnDemandDraft(selected, date), /source date/);
 });
 
 test("fetched metadata mismatch, missing claim coverage and headings-only articles fail", () => {
@@ -199,7 +202,7 @@ test("fetched metadata mismatch, missing claim coverage and headings-only articl
 });
 
 test("fabricated quote blocks fail before semantic checking", () => {
-  const value = draft(); value.article!.body[0] = { type: "quote", text: "This treatment cures every disease.", attribution: "Example Institute", citations: [{ sourceKey: "source-1", label: "Example" }] };
+  const value = draft(); value.article!.body[0] = { type: "quote", text: "This treatment cures every disease.", attribution: "Example Institute", citations: [{ sourceKey: "source-1", label: "example.org" }] };
   assert.throws(() => assertOnDemandDraft(selected, value));
 });
 
@@ -243,7 +246,7 @@ test("extra displayed citations need checked block support without requiring exa
   const value = draft();
   const block = value.article!.body[0];
   assert.equal(block.type, "paragraph");
-  block.citations.push({ sourceKey: "source-2", label: "Example Institute" });
+  block.citations.push({ sourceKey: "source-2", label: "example.org" });
   const bodyClaim = value.claims.find((claim) => claim.locations.includes("body.0"))!;
   const partial = passed(value);
   partial.claims.find((claim) => claim.claimId === bodyClaim.id)!.passageIds = ["passage-1"];
@@ -298,7 +301,7 @@ test("bounded repair is followed by a complete recheck and cannot loop", async (
 });
 
 test("convenience composition shares the sole repair for an initial deterministic draft failure", async () => {
-  const invalid = draft(); invalid.article!.sources.push({ ...invalid.article!.sources[0] });
+  const invalid = draft(); invalid.article!.title = "A different unselected headline";
   const stages = { write: writeOnDemandArticle, check: checkOnDemandArticle, repair: repairOnDemandArticle };
   const result = await generateSelectedArticle(selected, stages, { write: options(invalid, "w"), check: options(passed(), "c"), repair: options(draft(), "r"), recheck: options(passed(), "rc") });
   assert.equal(result.status, "accepted");

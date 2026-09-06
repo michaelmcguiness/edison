@@ -4,6 +4,7 @@ import { ProviderResponseValidationError, type ObservedProviderUsage } from "./p
 import { ON_DEMAND_PROMPTS, ON_DEMAND_PROMPT_VERSION } from "./on-demand-prompts";
 import {
   onDemandAnswerOutputSchema,
+  onDemandArticleCheckProviderSchema,
   onDemandCheckOutputSchema,
   onDemandContextSchema,
   onDemandDraftValidationFindingsSchema,
@@ -11,6 +12,7 @@ import {
   onDemandIdeaChecksSchema,
   onDemandResearchOutputSchema,
   onDemandWriterOutputSchema,
+  onDemandWriterProviderOutputSchema,
   type OnDemandAnswerOutput,
   type OnDemandCheckOutput,
   type OnDemandContext,
@@ -19,6 +21,7 @@ import {
   type OnDemandIdea,
   type OnDemandResearchOutput,
   type OnDemandWriterOutput,
+  type OnDemandWriterProviderOutput,
 } from "./on-demand-schemas";
 
 export * from "./on-demand-schemas";
@@ -234,6 +237,79 @@ function assertClaimMap(claims: OnDemandWriterOutput["claims"], locations: strin
   if (locations.some((location) => !mapped.has(location))) invalid("A prose surface is missing its material-claim map");
 }
 
+function retainedSourceDate(source: OnDemandEvidence["sources"][number]) {
+  return source.datePrecision === "day" ? `${source.publishedDate}T00:00:00.000Z` : null;
+}
+
+function retainedSourceLabel(sourceId: string, evidence: OnDemandEvidence) {
+  const index = evidence.sources.findIndex((source) => source.id === sourceId);
+  if (index < 0) invalid("Unknown citation source");
+  const host = new URL(evidence.sources[index].url).hostname.replace(/^www\./, "");
+  // Never truncate an identity into a dangling reference. A full hostname or
+  // complete numbered label links to the full retained identity in Sources.
+  return host.length <= 24 ? host : `Source ${index + 1}`;
+}
+
+/** Normalize only after the provider wrapper has retained its raw output/usage.
+ * This does not establish factual support: every generated claim still needs
+ * the independent full-article check against these exact retained passages. */
+export function assembleOnDemandWriterOutput(input: SelectedOnDemandInput, raw: OnDemandWriterProviderOutput): OnDemandWriterOutput {
+  const output = onDemandWriterProviderOutputSchema.parse(raw);
+  assertOnDemandEvidence(input.evidence);
+  if (output.status === "insufficient_evidence") {
+    if (output.article || !output.reason) invalid("Inconsistent insufficient-evidence result");
+    return { ...output, article: null, claims: [] };
+  }
+  if (!output.article || output.reason !== null) invalid("Inconsistent written result");
+  const authored = output.article;
+  const claims: OnDemandWriterOutput["claims"] = [];
+  const sourceIds = new Set<string>();
+  const append = (location: string, local: Array<{ text: string; passageIds: string[] }>) => {
+    const localSources = new Set<string>();
+    for (const claim of local) {
+      if (claims.length >= 100) invalid("The complete article exceeds the 100-claim bound");
+      assertRetrievedPassages(claim.passageIds, input.evidence);
+      claims.push({ id: `c${claims.length + 1}`, text: claim.text, locations: [location], passageIds: [...claim.passageIds] });
+      for (const id of claim.passageIds) {
+        const sourceId = input.evidence.passages.find((passage) => passage.id === id)!.sourceId;
+        localSources.add(sourceId);
+        sourceIds.add(sourceId);
+      }
+    }
+    return [...localSources].map((sourceKey) => ({ sourceKey, label: retainedSourceLabel(sourceKey, input.evidence) }));
+  };
+  append("title", authored.title.claims);
+  append("deck", authored.deck.claims);
+  authored.summary.forEach((surface, index) => append(`summary.${index}`, surface.claims));
+  const body = authored.body.map((block, index) => {
+    if (block.type === "heading") {
+      append(`body.${index}`, block.evidence.claims);
+      return { type: block.type, level: block.level, text: block.text };
+    }
+    const citations = append(`body.${index}`, block.claims);
+    return block.type === "quote"
+      ? { type: block.type, text: block.text, attribution: block.attribution, citations }
+      : { type: block.type, text: block.text, citations };
+  });
+  const sources = [...sourceIds].map((id) => {
+    const source = input.evidence.sources.find((candidate) => candidate.id === id)!;
+    return { key: source.id, url: source.url, title: source.title, publisher: source.publisher, publishedAt: retainedSourceDate(source) };
+  });
+  return onDemandWriterOutputSchema.parse({
+    status: "written", reason: null, claims,
+    article: { category: authored.category, kicker: authored.kicker, topic: authored.topic,
+      whyWritten: authored.whyWritten, readingMinutes: authored.readingMinutes,
+      title: authored.title.text, deck: authored.deck.text,
+      summary: authored.summary.map((surface) => surface.text), body, sources },
+  });
+}
+
+async function runWriterStage(stage: "write" | "repair", input: SelectedOnDemandInput, options: OnDemandStageOptions) {
+  const result = await runStage(stage, input, onDemandWriterProviderOutputSchema, options);
+  try { return { ...result, output: assembleOnDemandWriterOutput(input, result.output) }; }
+  catch { throw new ProviderResponseValidationError(`The ${stage} response failed on-demand assembly`, result.usage); }
+}
+
 export function assertOnDemandDraft(input: SelectedOnDemandInput, output: OnDemandWriterOutput) {
   onDemandWriterOutputSchema.parse(output);
   if (output.status === "insufficient_evidence") {
@@ -250,7 +326,7 @@ export function assertOnDemandDraft(input: SelectedOnDemandInput, output: OnDema
   for (const source of article.sources) {
     const evidenceSource = input.evidence.sources.find((candidate) => candidate.id === source.key);
     if (!evidenceSource || source.url !== evidenceSource.url || source.title !== evidenceSource.title || source.publisher !== evidenceSource.publisher) invalid("Article source metadata does not match retained evidence");
-    if (source.publishedAt && (evidenceSource.datePrecision !== "day" || source.publishedAt.slice(0, 10) !== evidenceSource.publishedDate)) invalid("Article fabricated source date precision");
+    if (source.publishedAt !== retainedSourceDate(evidenceSource)) invalid("Article source date does not match retained evidence precision");
   }
   const includedSourceIds = new Set(article.sources.map((source) => source.key));
   for (const claim of output.claims) {
@@ -261,6 +337,7 @@ export function assertOnDemandDraft(input: SelectedOnDemandInput, output: OnDema
   }
   article.body.forEach((block, index) => {
     if (block.type === "heading") return;
+    if (block.citations.some((citation) => citation.label !== retainedSourceLabel(citation.sourceKey, input.evidence))) invalid("Article citation label does not match canonical retained source identity");
     if (block.citations.some((citation) => malformedCitationLabel(citation.label))) invalid("A citation label contains an unfinished reference fragment");
     if (block.type === "paragraph" && hasInlineCitationDebris(block.text, block.citations.map((citation) => citation.label))) invalid("Citation references belong only in structured citation fields, not inline prose");
     const claims = output.claims.filter((claim) => claim.locations.includes(`body.${index}`));
@@ -309,7 +386,7 @@ function initialDraftFindings(output: OnDemandWriterOutput, error: unknown): OnD
 
 export function writeOnDemandArticle(input: SelectedOnDemandInput, options: OnDemandStageOptions) {
   assertSelection(input);
-  return runStage("write", input, onDemandWriterOutputSchema, options).then((result) => {
+  return runWriterStage("write", input, options).then((result) => {
     try { assertOnDemandDraft(input, result.output); }
     catch (error) {
       // Unparseable output never reaches this point; inconsistent insufficiency
@@ -383,11 +460,16 @@ export async function checkOnDemandArticle(input: SelectedOnDemandInput & { draf
   assertSelection(input);
   assertOnDemandDraft(input, input.draft);
   if (input.draft.status !== "written") invalid("Cannot check an unavailable article");
-  const result = await runStage("check", input, onDemandCheckOutputSchema, options, (output) => {
-    assertCheckCoverage(output, input.draft.claims, input.evidence);
-    if (onDemandCheckAccepted(output)) assertAcceptedOnDemandArticleCheck(input, input.draft, output);
+  const locations = articleLocations(input.draft, true) as [string, ...string[]];
+  const result = await runStage("check", input, onDemandArticleCheckProviderSchema(locations), options, (output) => {
+    const check = { ...output, sourceMetadataPassed: true };
+    assertCheckCoverage(check, input.draft.claims, input.evidence);
+    if (onDemandCheckAccepted(check)) assertAcceptedOnDemandArticleCheck(input, input.draft, check);
   });
-  return { ...result, accepted: onDemandCheckAccepted(result.output) };
+  // This flag certifies only exact server-owned metadata, already validated
+  // above. No factual verdict, finding, missing claim or prose flag is changed.
+  const output = { ...result.output, sourceMetadataPassed: true };
+  return { ...result, output, accepted: onDemandCheckAccepted(output) };
 }
 
 export type OnDemandArticleRepairInput = SelectedOnDemandInput & { draft: OnDemandWriterOutput } & (
@@ -404,7 +486,11 @@ export function repairOnDemandArticle(input: OnDemandArticleRepairInput, options
     onDemandCheckOutputSchema.parse(input.check);
     if (input.check.verdict === "insufficient_evidence" || onDemandCheckAccepted(input.check)) invalid("Repair requires a repairable failed check");
   }
-  return runStage("repair", input, onDemandWriterOutputSchema, options, (output) => assertOnDemandDraft(input, output));
+  return runWriterStage("repair", input, options).then((result) => {
+    try { assertOnDemandDraft(input, result.output); }
+    catch { throw new ProviderResponseValidationError("The repair response failed on-demand validation", result.usage); }
+    return result;
+  });
 }
 
 // Convenience composition for local/evaluation callers. Durable production

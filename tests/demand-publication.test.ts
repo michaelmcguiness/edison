@@ -24,7 +24,7 @@ const draft: OnDemandWriterOutput = {
     category: "tech-science", kicker: "Test", topic: "Test subject", title: "A test headline", deck: "A test deck",
     summary: ["First test point", "Second test point", "Third test point"], whyWritten: "A useful test explanation", readingMinutes: 3,
     body: Array.from({ length: 6 }, () => ({ type: "paragraph" as const, text: "This is synthetic test prose with one supported test assertion.",
-      citations: [{ sourceKey: "a", label: "Incorrect model label" }, { sourceKey: "b", label: "Another label" }] })),
+      citations: [{ sourceKey: "a", label: "example.org" }, { sourceKey: "b", label: "example.org" }] })),
     sources: selected.evidence.sources.map((source) => ({ key: source.id, title: source.title, publisher: source.publisher, url: source.url, publishedAt: null })),
   },
   claims: [{ id: "claim", text: "The test assertion", locations: ["title", "deck", "summary.0", "summary.1", "summary.2", ...Array.from({ length: 6 }, (_, index) => `body.${index}`)], passageIds: ["p1", "p2"] }],
@@ -56,6 +56,17 @@ test("a failed editorial check never materializes a ready article", () => {
   assert.throws(() => publishableDemandArticle({ ...input, check: { ...check, missedMaterialClaims: [{ location: "deck", text: "Unmapped claim" }] } }), /editorial_withheld/);
   assert.throws(() => publishableDemandArticle({ ...input, check: { ...check, claims: [] } }), /editorial_withheld/);
   assert.throws(() => publishableDemandArticle({ ...input, check: { ...check, claims: [{ claimId: "invented", verdict: "supported", passageIds: ["p1"], reason: "Not this writer's claim" }] } }), /editorial_withheld/);
+});
+
+test("publication rejects tampered canonical labels and invented source dates", () => {
+  const wrongLabel = structuredClone(draft);
+  const block = wrongLabel.article!.body[0];
+  assert.equal(block.type, "paragraph");
+  block.citations[0].label = "Incorrect model label";
+  assert.throws(() => publishableDemandArticle({ ...input, draft: wrongLabel }), /canonical retained source identity/);
+  const inventedDate = structuredClone(draft);
+  inventedDate.article!.sources[0].publishedAt = "2026-09-06T00:00:00.000Z";
+  assert.throws(() => publishableDemandArticle({ ...input, draft: inventedDate }), /retained evidence precision/);
 });
 
 test("model-reported passage text cannot become a source just through publication", () => {

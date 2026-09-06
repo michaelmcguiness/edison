@@ -98,6 +98,29 @@ export const onDemandWriterOutputSchema = z.object({
   reason: z.string().max(1500).nullable(),
 }).strict();
 
+// Provider-only authoring contract. Evidence lives beside its prose surface;
+// locations, claim IDs, citations and source presentation are server-owned.
+const localClaimSchema = z.object({ text, passageIds: z.array(key).min(1).max(12) }).strict();
+const localClaimsSchema = z.array(localClaimSchema).min(1).max(100);
+const surfaceSchema = (prose: z.ZodString) => z.object({ text: prose, claims: localClaimsSchema }).strict();
+export const onDemandWriterProviderOutputSchema = z.object({
+  status: z.enum(["written", "insufficient_evidence"]),
+  article: onDemandArticleFormatSchema.omit({ title: true, deck: true, summary: true, body: true, sources: true }).extend({
+    title: surfaceSchema(onDemandArticleFormatSchema.shape.title),
+    deck: surfaceSchema(onDemandArticleFormatSchema.shape.deck),
+    summary: z.array(surfaceSchema(z.string().min(1).max(280))).length(3),
+    body: z.array(z.discriminatedUnion("type", [
+      z.object({ type: z.literal("paragraph"), text: z.string().min(1), claims: localClaimsSchema }).strict(),
+      z.object({ type: z.literal("quote"), text: z.string().min(1), attribution: z.string().max(240).nullable(), claims: localClaimsSchema }).strict(),
+      z.object({ type: z.literal("heading"), level: z.literal(2), text: z.string().min(1), evidence: z.discriminatedUnion("kind", [
+        z.object({ kind: z.literal("neutral"), claims: z.array(localClaimSchema).length(0) }).strict(),
+        z.object({ kind: z.literal("material"), claims: localClaimsSchema }).strict(),
+      ]) }).strict(),
+    ])).min(6).max(40),
+  }).strict().nullable(),
+  reason: z.string().max(1500).nullable(),
+}).strict();
+
 // These are server-produced structural findings, not a model's factual verdict.
 export const onDemandDraftValidationFindingsSchema = z.array(z.object({
   location: z.string().min(1).max(80),
@@ -130,6 +153,17 @@ export const onDemandCheckOutputSchema = z.object({
   }).strict()).max(40),
 }).strict();
 
+// Article metadata is assembled and checked by the server, not guessed by a
+// model. Question checks retain their existing contract. Prose dates remain
+// material claims even when optional source metadata dates are unknown.
+export function onDemandArticleCheckProviderSchema(locations: [string, ...string[]]) {
+  const location = z.enum(locations);
+  return onDemandCheckOutputSchema.omit({ sourceMetadataPassed: true }).extend({
+    missedMaterialClaims: z.array(onDemandCheckOutputSchema.shape.missedMaterialClaims.element.extend({ location })).max(40),
+    findings: z.array(onDemandCheckOutputSchema.shape.findings.element.extend({ location })).max(40),
+  }).strict();
+}
+
 export const onDemandAnswerOutputSchema = z.object({
   status: z.enum(["answered", "insufficient_evidence"]),
   answer: z.string().min(1).max(8000),
@@ -143,6 +177,7 @@ export type OnDemandSource = z.infer<typeof onDemandSourceSchema>;
 export type OnDemandPassage = z.infer<typeof onDemandPassageSchema>;
 export type OnDemandResearchOutput = z.infer<typeof onDemandResearchOutputSchema>;
 export type OnDemandWriterOutput = z.infer<typeof onDemandWriterOutputSchema>;
+export type OnDemandWriterProviderOutput = z.infer<typeof onDemandWriterProviderOutputSchema>;
 export type OnDemandCheckOutput = z.infer<typeof onDemandCheckOutputSchema>;
 export type OnDemandAnswerOutput = z.infer<typeof onDemandAnswerOutputSchema>;
 export type OnDemandIdea = z.infer<typeof ideaCandidateSchema> & {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   answerOnDemandQuestion,
+  assertOnDemandDraft,
   checkOnDemandArticle,
   OnDemandDraftValidationError,
   repairOnDemandArticle,
@@ -19,6 +20,7 @@ import {
   onDemandArticleFormatSchema,
   onDemandArticleSchema,
 } from "../packages/ai/src/schemas";
+import { providerFixtureOutput, writerProviderFixture } from "./helpers/on-demand-provider-fixture";
 
 // Entirely constructed text and injected responses: no captured reader prose,
 // remote evidence retrieval, provider calls, or semantic-quality claims.
@@ -56,20 +58,19 @@ function draft(): OnDemandWriterOutput {
     body: Array.from({ length: 9 }, (_, index) => index === 0 || index === 3 || index === 6
       ? { type: "heading" as const, level: 2 as const, text: `Observation ${index + 1}` }
       : { type: "paragraph" as const, text: `Explanation ${index + 1}: the test did not establish future performance.`,
-        citations: [{ sourceKey: source.id, label: "Constructed record" }] }),
+        citations: [{ sourceKey: source.id, label: "example.org" }] }),
     sources: [{ key: source.id, title: source.title, publisher: source.publisher, url: source.url, publishedAt: null }],
   };
   const locations = ["title", "deck", "summary.0", "summary.1", "summary.2",
     ...article.body.flatMap((block, index) => block.type === "heading" ? [] : [`body.${index}`])];
   return { status: "written", article, reason: null, claims: locations.map((location, index) => ({
-    id: `c${index}`, text: "The observation does not establish future performance.", locations: [location], passageIds: ["p1"],
+    id: `c${index + 1}`, text: "The observation does not establish future performance.", locations: [location], passageIds: ["p1"],
   })) };
 }
 
 function damagedDraft(): OnDemandWriterOutput {
   const value = draft();
-  value.article!.sources.push(structuredClone(value.article!.sources[0]));
-  value.claims = value.claims.filter((claim) => !claim.locations.some((location) => ["body.7", "body.8"].includes(location)));
+  value.article!.body[8].text += " [source 1]";
   return value;
 }
 
@@ -78,7 +79,7 @@ const usage = { providerResponseId: "constructed-response", model: "injected-mod
 function options(output: unknown, requests: OnDemandProviderRequest[] = []): OnDemandStageOptions {
   return {
     model: usage.model, idempotencyKey: "constructed-request", safetyIdentifier: "constructed-reader",
-    provider: async (request) => { requests.push(request); return { output, usage }; },
+    provider: async (request) => { requests.push(request); return { output: providerFixtureOutput(request, output), usage }; },
   };
 }
 
@@ -133,7 +134,7 @@ test("a one-source on-demand article remains valid input to its scoped answer", 
   assert.equal(requests[0].research, false);
 });
 
-test("duplicate sources and uncovered ending paragraphs retain the initial draft, findings and observed usage", async () => {
+test("initial citation debris retains the assembled draft, findings and observed usage", async () => {
   const value = damagedDraft();
   const original = structuredClone(value);
   const error = await captureRepairable(value);
@@ -142,10 +143,8 @@ test("duplicate sources and uncovered ending paragraphs retain the initial draft
   assert.deepEqual(error.draft, original);
   assert.deepEqual(value, original, "Validation must not silently rewrite the response.");
   assert.ok(error.findings.length > 0 && error.findings.length <= 24);
-  for (const location of ["body.7", "body.8"]) {
-    assert.ok(error.findings.some((finding) => finding.location.includes(location)), `Missing finding for ${location}`);
-  }
-  assert.ok(error.findings.some((finding) => /source/i.test(`${finding.location} ${finding.reason}`)));
+  assert.ok(error.findings.some((finding) => finding.location === "body.8"));
+  assert.ok(error.findings.some((finding) => /citation|reference/i.test(`${finding.location} ${finding.reason}`)));
   for (const finding of error.findings) {
     assert.equal(typeof finding.location, "string");
     assert.equal(typeof finding.reason, "string");
@@ -153,11 +152,13 @@ test("duplicate sources and uncovered ending paragraphs retain the initial draft
   }
 });
 
-test("repair findings remain bounded when many prose surfaces lack claim coverage", async () => {
+test("repair findings remain bounded when many prose surfaces contain citation debris", async () => {
   const value = draft();
-  value.article!.body = Array.from({ length: 40 }, () => ({ type: "paragraph", text: "The lamp lit during the test.",
-    citations: [{ sourceKey: "s1", label: "Constructed record" }] }));
-  value.claims = [];
+  value.article!.body = Array.from({ length: 40 }, () => ({ type: "paragraph", text: "The lamp lit during the test. [source 1]",
+    citations: [{ sourceKey: "s1", label: "example.org" }] }));
+  value.claims = [...value.claims.filter((claim) => !claim.locations.some((location) => location.startsWith("body."))),
+    ...value.article!.body.map((_, index) => ({ id: `c${index + 6}`, text: "The lamp lit during the test.",
+      locations: [`body.${index}`], passageIds: ["p1"] }))];
   const error = await captureRepairable(value);
   assert.ok(error.findings.length > 0 && error.findings.length <= 24);
 });
@@ -218,7 +219,7 @@ test("an invalid repaired response remains terminal instead of receiving another
 });
 
 test("complete and unfinished copies of actual citation labels in prose enter the initial repair path", async () => {
-  for (const fragment of [" [Constructed record]", " [Constructed record", " [Constructed record (p"]) {
+  for (const fragment of [" [example.org]", " [example.org", " [example.org (p"]) {
     const value = draft();
     const block = value.article!.body[1];
     assert.equal(block.type, "paragraph");
@@ -229,20 +230,18 @@ test("complete and unfinished copies of actual citation labels in prose enter th
   }
 });
 
-test("unfinished citation-label parentheses fail while mathematical notation and balanced labels remain valid", async () => {
+test("tampered citation labels fail final validation while mathematical notation and canonical labels remain valid", async () => {
   for (const label of ["Example Lab (", "Example Lab (test"]) {
     const value = draft();
     const block = value.article!.body[1];
     assert.equal(block.type, "paragraph");
     block.citations[0].label = label;
-    const error = await captureRepairable(value);
-    assert.ok(error.findings.some((finding) => finding.location === "body.1" && /label|unfinished/i.test(finding.reason)));
+    assert.throws(() => assertOnDemandDraft(selection, value));
   }
   const value = draft();
   const block = value.article!.body[1];
   assert.equal(block.type, "paragraph");
   block.text = "The notation [0, 1] and (x + y) does not extend the constructed test's evidence.";
-  block.citations[0].label = "Example Lab (test)";
   const written = await writeOnDemandArticle(selection, options(value));
   assert.deepEqual(written.output.article!.body[1], block);
 });
@@ -258,8 +257,18 @@ test("one-source eligibility retains source-key and source-URL uniqueness and re
   block.citations[0].sourceKey = "absent-source";
   for (const value of [duplicateUrl, duplicateKey, danglingCitation]) {
     assert.equal(onDemandArticleSchema.safeParse(value.article).success, false);
-    const error = await captureRepairable(value);
-    assert.deepEqual(error.observedUsage, usage);
-    assert.ok(error.findings.some((finding) => /source|citation/i.test(`${finding.location} ${finding.reason}`)));
+    assert.throws(() => assertOnDemandDraft(selection, value));
   }
+});
+
+test("nested writer output prevents missing ending claim maps before the deterministic repair path", async () => {
+  const value = draft();
+  value.claims = value.claims.filter((claim) => !claim.locations.some((location) => ["body.7", "body.8"].includes(location)));
+  const raw = writerProviderFixture(value);
+  await assert.rejects(writeOnDemandArticle(selection, options(raw)), (error: unknown) => {
+    assert.ok(error instanceof ProviderResponseValidationError);
+    assert.equal(error instanceof OnDemandDraftValidationError, false);
+    assert.deepEqual(error.observedUsage, usage);
+    return true;
+  });
 });

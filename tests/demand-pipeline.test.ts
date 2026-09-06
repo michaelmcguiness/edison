@@ -13,6 +13,7 @@ import {
 } from "../packages/ai/src/on-demand";
 import { ProviderResponseValidationError } from "../packages/ai/src/provider-response-error";
 import { createEmptyLoopPrincipleState } from "../packages/domain/src/loop-principles";
+import { providerFixtureOutput, writerProviderFixture } from "./helpers/on-demand-provider-fixture";
 
 // All passages/responses below are constructed. These are pipeline/state tests,
 // not real provider research, editorial-quality, or daily-value acceptance.
@@ -42,11 +43,11 @@ function idea(): OnDemandIdea {
 function draft(packet = evidence()): OnDemandWriterOutput {
   const article = { category: "tech-science" as const, kicker: "Biology", topic: "Engineered cells", title: idea().headline, deck: idea().deck,
     summary: ["Responses were measured in a laboratory.", "Clinical efficacy was not tested.", "Evidence scope matters."], whyWritten: "The article explains evidence limits.", readingMinutes: 3,
-    body: Array.from({ length: 6 }, (_, index) => ({ type: "paragraph" as const, text: `Constructed explanation ${index}: laboratory behavior is not clinical evidence.`, citations: [{ sourceKey: packet.sources[index % packet.sources.length].id, label: "example.org" }] })),
+    body: Array.from({ length: 6 }, (_, index) => ({ type: "paragraph" as const, text: `Constructed explanation ${index}: laboratory behavior is not clinical evidence.`, citations: packet.sources.map((source) => ({ sourceKey: source.id, label: "example.org" })) })),
     sources: packet.sources.map((source) => ({ key: source.id, title: source.title, publisher: source.publisher, url: source.url, publishedAt: null })),
   };
   const locations = ["title", "deck", "summary.0", "summary.1", "summary.2", ...article.body.map((_, index) => `body.${index}`)];
-  return { status: "written", article, reason: null, claims: locations.map((location, index) => ({ id: `c${index}`, text: "The experiment did not establish clinical efficacy.", locations: [location], passageIds: packet.passages.map((passage) => passage.id) })) };
+  return { status: "written", article, reason: null, claims: locations.map((location, index) => ({ id: `c${index + 1}`, text: "The experiment did not establish clinical efficacy.", locations: [location], passageIds: packet.passages.map((passage) => passage.id) })) };
 }
 function check(value = draft(), verdict: OnDemandCheckOutput["verdict"] = "pass"): OnDemandCheckOutput {
   return { verdict, promiseFulfilled: verdict === "pass", readerFit: true, continuity: true, privacyPassed: true, sourceMetadataPassed: true,
@@ -69,7 +70,7 @@ function initial(request: DemandRequestRow): DemandPipelineState {
 function fakeProvider(output: (request: OnDemandProviderRequest) => unknown, calls: OnDemandProviderRequest[] = []): OnDemandProvider {
   return async (request) => {
     calls.push(request);
-    return { output: output(request), usage: { providerResponseId: `response-${calls.length}`, model: request.model, inputTokens: 100, cachedInputTokens: 0, outputTokens: 100 }, researchedUrls: research(16).sources.map((source) => source.url) };
+    return { output: providerFixtureOutput(request, output(request)), usage: { providerResponseId: `response-${calls.length}`, model: request.model, inputTokens: 100, cachedInputTokens: 0, outputTokens: 100 }, researchedUrls: research(16).sources.map((source) => source.url) };
   };
 }
 const retrieve: typeof retrieveEvidencePage = async (url) => ({ url, title: "Actual fetched page title", text: `Document introduction. ${support} Interpretation and methodological limitations follow this evidence.`, retrievedAt: "2026-09-06T12:00:00.000Z" });
@@ -173,7 +174,7 @@ test("a packet over 40KB fails before a writer call without trimming instruction
 
 test("article is unavailable after writing and ready only after its separate successful check", async () => {
   const request = articleRequest(); const calls: OnDemandProviderRequest[] = [];
-  const provider = fakeProvider((call) => call.stage === "write" ? draft() : check(), calls);
+  const provider = fakeProvider((call) => call.stage === "write" ? draft() : check((call.input as { draft: OnDemandWriterOutput }).draft), calls);
   const written = await advanceDemandPipeline({ request, state: initial(request) }, { provider });
   assert.equal(written.state.phase, "check"); assert.equal(written.outcome, undefined);
   const checked = await advanceDemandPipeline({ request, state: written.state }, { provider });
@@ -184,7 +185,7 @@ test("article is unavailable after writing and ready only after its separate suc
 
 test("failed article check permits one repair and one full recheck, then withholds", async () => {
   const request = articleRequest(); const calls: OnDemandProviderRequest[] = [];
-  const provider = fakeProvider((call) => call.stage === "write" || call.stage === "repair" ? draft() : check(draft(), "repair"), calls);
+  const provider = fakeProvider((call) => call.stage === "write" || call.stage === "repair" ? draft() : check((call.input as { draft: OnDemandWriterOutput }).draft, "repair"), calls);
   let state = initial(request);
   const phases: string[] = [];
   for (let index = 0; index < 4; index++) {
@@ -206,30 +207,34 @@ function initialValidationFixture() {
   fixed.article!.body.push({ type: "heading", level: 2, text: "The limit" },
     { type: "paragraph", text: "The experiment does not establish clinical efficacy.", citations: [{ sourceKey: "s0", label: "example.org" }] },
     { type: "paragraph", text: "A separate clinical study would answer a different question.", citations: [{ sourceKey: "s0", label: "example.org" }] });
-  for (const index of [7, 8]) fixed.claims.push({ id: `ending-${index}`, text: "Clinical efficacy remains untested.", locations: [`body.${index}`], passageIds: ["lead-0"] });
+  for (const index of [7, 8]) fixed.claims.push({ id: `c${fixed.claims.length + 1}`, text: "Clinical efficacy remains untested.", locations: [`body.${index}`], passageIds: ["lead-0"] });
   const invalid = structuredClone(fixed);
-  invalid.article!.sources.push({ ...invalid.article!.sources[0] });
-  invalid.claims = invalid.claims.filter((claim) => !claim.id.startsWith("ending-"));
+  // The provider can no longer author source metadata or disconnected location
+  // maps. A parseable wrong selected title still exercises deterministic repair.
+  invalid.article!.title = "An unrelated title that does not preserve the selected idea";
   return { request, fixed, invalid };
 }
 
-test("a parseable initial duplicate-source/ending-map failure gets one deterministic repair then full checking", async () => {
+test("a parseable initial selected-title failure gets one deterministic repair then full checking", async () => {
   const { request, fixed, invalid } = initialValidationFixture(); const calls: OnDemandProviderRequest[] = [];
   const provider = fakeProvider((call) => {
     if (call.stage === "write") return invalid;
     if (call.stage === "repair") {
-      const input = call.input as { check?: unknown; validationFindings: Array<{ location: string }> };
+      const input = call.input as { check?: unknown; validationFindings: Array<{ location: string; reason: string }> };
       assert.equal(input.check, undefined, "deterministic findings are not a fabricated checker verdict");
-      assert.ok(input.validationFindings.some((finding) => finding.location === "body.7"));
-      assert.ok(input.validationFindings.some((finding) => finding.location === "body.8"));
+      assert.ok(input.validationFindings.some((finding) => finding.reason === "Selected headline changed"));
       return fixed;
     }
-    assert.deepEqual((call.input as { draft: unknown }).draft, fixed);
-    return check(fixed);
+    const assembled = (call.input as { draft: OnDemandWriterOutput }).draft;
+    assert.equal(assembled.article!.title, fixed.article!.title);
+    assert.equal(assembled.article!.sources.length, 1);
+    for (const location of ["body.7", "body.8"]) assert.ok(assembled.claims.some((claim) => claim.locations.includes(location)));
+    return check(assembled);
   }, calls);
   const first = await advanceDemandPipeline({ request, state: initial(request) }, { provider });
   assert.equal(first.state.phase, "repair"); assert.equal(first.outcome, undefined);
-  assert.deepEqual(first.state.draft, invalid); assert.equal(first.state.check, undefined);
+  assert.equal(first.state.draft!.article!.title, invalid.article!.title); assert.equal(first.state.check, undefined);
+  assert.equal(first.state.draft!.article!.sources.length, 1);
   const second = await advanceDemandPipeline({ request, state: first.state }, { provider });
   assert.equal(second.state.phase, "recheck"); assert.equal(second.outcome, undefined); assert.equal(second.state.repairAttempted, true);
   const final = await advanceDemandPipeline({ request, state: second.state }, { provider });
@@ -237,7 +242,7 @@ test("a parseable initial duplicate-source/ending-map failure gets one determini
   assert.deepEqual(calls.map((call) => call.stage), ["write", "repair", "check"]);
   assert.deepEqual(calls.map((call) => call.idempotencyKey), [`${requestId}:write`, `${requestId}:repair`, `${requestId}:recheck`]);
   assert.deepEqual(calls.map((call) => call.model), ["gpt-5.6-terra", "gpt-5.6-terra", "gpt-5.6-luna"]);
-  assert.ok(calls.every((call) => call.promptVersion === "edison-demand-v1.3"));
+  assert.ok(calls.every((call) => call.promptVersion === "edison-demand-v1.4"));
 });
 
 test("initial structural repair is terminal if its draft remains invalid or its full recheck fails", async () => {
@@ -245,7 +250,7 @@ test("initial structural repair is terminal if its draft remains invalid or its 
     const { request, fixed, invalid } = initialValidationFixture(); const calls: OnDemandProviderRequest[] = [];
     const provider = fakeProvider((call) => call.stage === "write" ? invalid
       : call.stage === "repair" ? failure === "repair" ? invalid : failure === "insufficient" ? { status: "insufficient_evidence", article: null, claims: [], reason: "The evidence cannot sustain the promise." } : fixed
-        : check(fixed, "repair"), calls);
+        : check((call.input as { draft: OnDemandWriterOutput }).draft, "repair"), calls);
     let state = initial(request);
     for (let index = 0; index < 4; index++) {
       const result = await advanceDemandPipeline({ request, state }, { provider }); state = result.state;
@@ -279,8 +284,10 @@ test("resuming initial-validation and repair phases reuses retained stages witho
 });
 
 test("unparseable or uncertain initial responses never enter deterministic repair", async () => {
-  const { request } = initialValidationFixture();
-  for (const provider of [fakeProvider(() => ({ status: "written", article: {} })), async () => { throw new Error("provider_uncertain"); }]) {
+  const { request, fixed } = initialValidationFixture();
+  const missingLocalClaims = structuredClone(writerProviderFixture(fixed)) as { article: { title: { claims?: unknown } } };
+  delete missingLocalClaims.article.title.claims;
+  for (const provider of [fakeProvider(() => ({ status: "written", article: {} })), fakeProvider(() => missingLocalClaims), async () => { throw new Error("provider_uncertain"); }]) {
     const result = await advanceDemandPipeline({ request, state: initial(request) }, { provider });
     assert.equal(result.state.phase, "failed"); assert.equal(result.state.draftValidationFindings, undefined);
     assert.equal(result.state.draft, undefined); assert.equal(result.outcome, undefined);

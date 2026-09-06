@@ -4,6 +4,105 @@ Owner: CTO. Scope: D26 on-demand reading, protected real-output calibration,
 connected/browser acceptance, then the authorized existing apex rollout.
 This is an execution record, not a claim that the new experience is live.
 
+## v1.4 integration after actual second failure — current checkpoint
+
+Exact committed/pushed `eeab414927f900950aff9e4428a0313534c4567a` passed
+[CI 34053531026](https://github.com/michaelmcguiness/edison/actions/runs/34053531026)
+(324 web/143 API tests, both builds/types/lint and 234 database assertions).
+The clean isolated deployment copy is `/private/tmp/edison-release-v13.QGxtsl/candidate`.
+All three Preview deployments are Ready; protected Production candidates are:
+
+- API `dpl_DqLUVom3BZEHPtGBTKi5jGphpXHL`,
+  `edison-gq5rllvgp-mike-michaelmcguis-projects.vercel.app`.
+- Web `dpl_9Shr37tEZc2JJQn1o2U7gju8KsAM`,
+  `edison-g8ws98v9b-mike-michaelmcguis-projects.vercel.app`.
+  Stable protected alias `edison-calibration-mike-michaelmcguis-projects.vercel.app`
+  resolves to this exact deployment. It was verified unused before assignment,
+  and anonymous requests receive protection302. The same stable alias must move
+  to later candidates; no cookie/token transfer or another principal is allowed.
+
+The approved replacement guest was created at 19:10:37 UTC in the normal browser.
+Ideas request `6ddf74ef-1896-4ffd-aa3f-71917c615ebc` completed at 19:12:54 with
+four supported cards. Workflow `wrun_01M1W25F3E0YKGSM6X5NHR5Z9H` independently
+completed on the exact API above. Two actual Luna stages cost **$0.017791**.
+
+The first selected card was *Can a Synthetic Cell Make the Machinery That Makes
+It?*, selected before body generation. Article request
+`aeaeb6ee-0bfe-4805-b6e3-546725e2cd69` ran 19:14:31–19:15:37 and ended
+`editorial_withheld`. Writer → sole deterministic repair → full check cost
+**$0.091272**. Workflow `wrun_01M1W29HM440P84PTGCQ98TVSF` independently reports
+completed on exact `dpl_DqLUVom3BZEHPtGBTKi5jGphpXHL`, completedAt
+`2026-09-06T19:15:37.754Z`, no Workflow error. This is handled application failure,
+not article acceptance. Total actual on-demand calibration ledger estimates are
+**$0.162535**, not an invoice reconciliation. Original records/charges are intact.
+
+The initial writer omitted ending body claim mappings and consumed the sole repair.
+The repaired draft had clipped labels `Nature Communications: “`; the shared
+24-character limit made this a repeated structural failure. The final checker
+supported all seven listed claims and passed promise/fit/continuity/privacy, but
+reported incomplete labels, a missing factual-heading map and a required exact
+publication date where retained authoritative metadata was null/unknown. CoS and
+independent source review confirmed the failure; no manual rescue or extra round
+followed. Exact private packets were supplied to CoS, outside the repository.
+
+### Approved bounded v1.4 correction
+
+Provider writer/repair claims now sit beside their actual title/deck/summary/body
+surfaces. Server assembly assigns IDs and positions in traversal order, without
+claim trimming/merging; aggregate over 100 fails explicitly. Heading output marks
+neutral labels or material claims, and the independent checker still searches all
+headings/prose for omissions. Retained source metadata and complete hostname/numbered
+labels are server-owned. Article checker wire output no longer supplies a metadata
+flag; exact canonical metadata is validated before checking and again at the final
+publication gate. No factual verdict, finding or missed claim is overridden.
+Unknown optional dates remain null; asserted dates in prose still need support.
+Raw durable provider snapshots/usage, sole repair, model/prices/budgets, replay
+guards, pipeline/runner contracts, database and public article shape remain intact.
+
+Final local checks pass: **338 web + 143 API tests**, both typechecks, repository
+lint/diff checks and both production builds (13 API steps/three workflows).
+Actual SDK wire-schema checks confirm strict writer/checker shapes; CoS's separate
+bounded source review and prompt review close with no concrete residual. This is
+source/test/build evidence, not v1.4 hosted or real factual/prose acceptance.
+After source checks, green CI and stable-host deployment, choose the next previously
+unselected current card, *Before Rewriting Life’s Code, Can We Prototype a New One?*,
+before seeing its body. It is a replacement baseline, not a pass for the failed
+PURE article. Then apply the exact loop feedback: “Focus on medicine. I know the
+basics of DNA. Keep future articles concise and include concrete examples.”
+Only after persisted feedback request the final adapted batch and one article.
+**Remaining aggregate window: one ideas batch/two articles**, same replacement
+guest, unchanged other ceilings. No more principal creation, quota reset, ad hoc
+extra article or historical rescue. Architecture/Health/History/Crypto remain
+unrun follow-up benchmarks.
+
+### Real UI and operational limits
+
+The protected eeab414 root renders the demand homepage. Guest Profile → existing
+account Profile → Back to edition performs full navigation and restores the same
+workspace; this is guest-route evidence, not authenticated account verification.
+Saving the failed PURE idea, opening Library and reloading preserves the saved
+card, failure status and Library view. No provider request was made by these checks.
+Successful article/Sources/Ask/reading-position/adaptation acceptance remains open.
+Actual desktop captures are 1280×720. The documented 390×844 viewport override did
+not affect actual DOM/image dimensions; mobile rendering is **unverified**, not
+a pass. Do not spend further calibration time on alternate rendering workarounds.
+
+API staging again rebound cron hosts, so the established clean old-source recovery
+was repeated as `dpl_9F3rBqaDqrvzxqKbo8tkyzZnnn7A`,
+`edison-6zx1qtvwi-mike-michaelmcguis-projects.vercel.app`, exact a681331 and demand=false.
+Fresh safe read-back confirms all three original schedules enabled there, original
+enabledAt `1788629148557`, disabledAt=null, public target still dpl_JCo. No demand
+reconciler is active during calibration; direct Workflow pinning is verified,
+scheduled demand recovery is not. Public web/API and trust/protection remain intact.
+
+Final rollout must verify API aliases **and cron binding** after promotion; official
+promotion documentation does not guarantee cron reassignment. If necessary use the
+supported corrected-source Production deploy path, not an undocumented cron patch.
+The final public web build needs `NEXT_PUBLIC_API_URL=https://project-fjr95.vercel.app/v1`
+and the normal public connection, not the protected calibration web configuration:
+legacy account calls are direct browser API requests. Verify that final configuration
+separately; do not claim it was established by the protected calibration.
+
 ## Real calibration failure and bounded correction — 18:55 UTC
 
 Latest committed source before this correction is `343b474f4bb0adc2ad9e29118409e4630c5a35f6`;

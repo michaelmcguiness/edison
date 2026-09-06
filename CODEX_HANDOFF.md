@@ -15,6 +15,43 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
+### September 6 v1.4 integration — second failure retained, private correction only
+
+Exact `eeab414927f900950aff9e4428a0313534c4567a` passed CI `34053531026` and
+was deployed as a protected web/API pair. The approved one replacement guest now
+uses stable `edison-calibration-mike-michaelmcguis-projects.vercel.app`; preserve
+that origin and principal for subsequent candidate revisions. The real corrected
+ideas run offered four supported cards. Its selected PURE article was withheld
+after its sole repair: the checker supported all seven listed claims, but clipped
+24-character labels, missing factual-heading mapping and a contradictory demand
+for an unknown optional date prevented delivery. No article was published or
+rescued. Total on-demand calibration ledger estimates are **$0.162535**.
+
+The approved v1.4 fix now binds claims beside actual prose surfaces; the server
+derives IDs/locations, sources and complete labels from retained evidence. Source
+metadata is validated deterministically, with null unknown dates preserved. Full
+independent factual/payoff checking, material-heading review, sole repair,
+immutable raw output/usage and replay/version stops remain. All 338 web/143 API
+tests, both typechecks, lint and both production builds pass. CoS independently
+closed the exact source/prompt review. No v1.4 hosted or article acceptance is
+yet established; commit/CI and protected deployment are next.
+
+After final source checks/CI and a corrected protected deployment, select the next
+previously unselected card, **Before Rewriting Life’s Code, Can We Prototype a New
+One?**, as the new baseline. Then save the exact medicine/DNA/concise feedback and
+perform the final adapted ideas/article sequence. Aggregate remaining allowance is
+**one ideas batch and two article requests**, same replacement guest; no extra
+principal, quota reset or additional rounds. The two failed records stay charged
+and unpublished. The wider topic matrix and narrow-viewport rendering remain
+explicitly unverified; the supported viewport override did not take effect.
+
+The public September 5 deployment is unchanged. Latest old-source cron recovery is
+`dpl_9F3rBqaDqrvzxqKbo8tkyzZnnn7A`; all three original schedules remain enabled.
+Final API promotion must verify cron binding. Do not promote the protected web
+configuration unchanged: the final public web build must use the normal public
+API URL so existing account Profile calls do not target a protected unique host.
+See the technical release record for exact identities and verification limits.
+
 ### September 6 real calibration — failure retained, bounded correction underway
 
 Current source checkpoint `343b474` is committed/pushed with green CI `34051930097`;
