@@ -1,5 +1,38 @@
 DO $$
 BEGIN
+  -- Supabase's migration role can create restricted roles but is not a
+  -- superuser. PostgreSQL 17 therefore rejects even a redundant ALTER ROLE
+  -- statement that mentions NOSUPERUSER. Validate an existing role instead
+  -- of attempting to repair a role-name collision with elevated privileges.
+  IF EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_roles
+    WHERE rolname IN ('edison_demand_api', 'edison_demand_worker')
+      AND (
+        rolcanlogin
+        OR rolinherit
+        OR rolsuper
+        OR rolcreatedb
+        OR rolcreaterole
+        OR rolreplication
+        OR rolbypassrls
+      )
+  ) THEN
+    RAISE EXCEPTION 'existing Edison demand role has unsafe attributes'
+      USING ERRCODE = '55000';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_auth_members AS membership
+    INNER JOIN pg_catalog.pg_roles AS member_role
+      ON member_role.oid = membership.member
+    WHERE member_role.rolname IN ('edison_demand_api', 'edison_demand_worker')
+  ) THEN
+    RAISE EXCEPTION 'existing Edison demand role has unsafe inherited membership'
+      USING ERRCODE = '55000';
+  END IF;
+
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'edison_demand_api') THEN
     CREATE ROLE edison_demand_api
       NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE
@@ -12,13 +45,6 @@ BEGIN
   END IF;
 END
 $$;
-
-ALTER ROLE edison_demand_api
-  NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE
-  NOREPLICATION NOBYPASSRLS;
-ALTER ROLE edison_demand_worker
-  NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE
-  NOREPLICATION NOBYPASSRLS;
 
 GRANT edison_demand_api, edison_demand_worker TO postgres;
 

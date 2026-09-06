@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(68);
+select plan(69);
 
 select has_table('private', 'demand_principals', 'demand principals are private');
 select has_table('private', 'demand_loops', 'demand loops are private');
@@ -39,19 +39,34 @@ select is(
 
 select is(
   (
-    select count(*)::integer
-    from pg_catalog.pg_roles
-    where rolname in ('edison_demand_api', 'edison_demand_worker')
-      and not rolcanlogin
+    select not rolcanlogin
       and not rolinherit
       and not rolsuper
       and not rolcreatedb
       and not rolcreaterole
       and not rolreplication
       and not rolbypassrls
+    from pg_catalog.pg_roles
+    where rolname = 'edison_demand_api'
   ),
-  2,
-  'demand roles are non-login, non-inheriting, and cannot bypass RLS'
+  true,
+  'the demand API role is non-login, non-inheriting, and cannot bypass RLS'
+);
+
+select is(
+  (
+    select not rolcanlogin
+      and not rolinherit
+      and not rolsuper
+      and not rolcreatedb
+      and not rolcreaterole
+      and not rolreplication
+      and not rolbypassrls
+    from pg_catalog.pg_roles
+    where rolname = 'edison_demand_worker'
+  ),
+  true,
+  'the demand worker role is non-login, non-inheriting, and cannot bypass RLS'
 );
 
 select is(
