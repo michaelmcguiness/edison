@@ -87,7 +87,9 @@ export function readerFirstQuestion(request: DemandRequestRow, evidence?: OnDema
   if (draft.status !== "written" || !draft.article) stop("pipeline_snapshot_invalid");
   const savedEvidence = boundedReaderFirstEvidence(question.evidence);
   assertReaderFirstPreviousMessages(question.previousMessages, savedEvidence);
-  const retained = evidence ?? savedEvidence;
+  // Parse both packets into the same schema order: JSONB may reorder persisted
+  // fields without changing a passage's exact values.
+  const retained = evidence ? boundedReaderFirstEvidence(evidence) : savedEvidence;
   // A refresh may replace the prior answer's exact historical passages. Keep
   // its display identity/time, but never pretend a new passage supports that
   // old answer. This projection is frozen into each subsequent exact check.
@@ -105,7 +107,7 @@ export function readerFirstQuestion(request: DemandRequestRow, evidence?: OnDema
   }));
   assertReaderFirstPreviousMessages(previousMessages, retained);
   return { context, articleVersion: question.articleVersion, draft,
-    evidence: boundedReaderFirstEvidence(retained), question: question.question, previousMessages };
+    evidence: retained, question: question.question, previousMessages };
 }
 
 function consultedUrls(response: Pick<OnDemandProviderResponse, "researchProvenance">) {

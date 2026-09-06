@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  type OnDemandContext, type OnDemandProvider, type OnDemandProviderRequest,
+  type OnDemandContext, type OnDemandEvidence, type OnDemandProvider, type OnDemandProviderRequest,
   type ReaderFirstWriterOutput,
 } from "../packages/ai/src/index";
 import { initialDemandState } from "../apps/api/src/services/demand-runner";
-import { advanceReaderFirstPipeline, type ReaderFirstPipelineState } from "../apps/api/src/services/reader-first-pipeline";
+import { advanceReaderFirstPipeline, readerFirstQuestion, type ReaderFirstPipelineState } from "../apps/api/src/services/reader-first-pipeline";
 import type { DemandRequestRow } from "../apps/api/src/services/demand-reading";
 import type { retrieveEvidencePage } from "../apps/api/src/services/evidence-retrieval";
 
@@ -219,6 +219,30 @@ test("a failed source refresh cannot resurrect stale article evidence during rep
   assert.deepEqual(result.state.evidence, empty);
   assert.deepEqual(request.snapshot.question, { articleVersion: ideaId, question: "What does the current source say?",
     draft: savedArticle(), evidence: old, previousMessages: [] });
+});
+
+test("persisted JSON field order does not erase unchanged chained Ask support", () => {
+  const oldTime = "2025-01-01T00:00:00.000Z";
+  const old: OnDemandEvidence = { sources: [{ ...source, title: "Old title", publishedDate: null, datePrecision: "unknown" }],
+    passages: [{ id: "old", sourceId: "s1", text: "An older constructed description.", locator: "Old page",
+      provenance: "retrieved", retrievedAt: oldTime }] };
+  const reference = { label: "1", sourceId: "00000000-0000-4000-8000-000000000705", title: "Old title",
+    url: source.url, accessedAt: oldTime, evidenceSourceKey: "s1", passageIds: ["old"] };
+  const request = row("question", { question: { articleVersion: ideaId, question: "What does source 1 mean?",
+    draft: savedArticle(), evidence: old, previousMessages: [
+      { role: "assistant", text: "The saved older explanation.", references: [reference] },
+    ] } });
+  const before = structuredClone(request.snapshot);
+  function reordered<T extends object>(value: T): T {
+    return Object.fromEntries(Object.entries(value).reverse()) as T;
+  }
+  const persisted = { passages: old.passages.map(reordered), sources: old.sources.map(reordered) };
+  assert.notEqual(JSON.stringify(old.passages[0]), JSON.stringify(persisted.passages[0]));
+  assert.deepEqual(readerFirstQuestion(request, persisted), readerFirstQuestion(request, old));
+  const prior = readerFirstQuestion(request, persisted).previousMessages[0];
+  assert.equal(prior.role, "assistant");
+  assert.deepEqual(prior.role === "assistant" ? prior.references : null, [reference]);
+  assert.deepEqual(request.snapshot, before);
 });
 
 test("refreshing a chained Ask source preserves its historical reference but never rebinds old prose to new passages", async () => {

@@ -106,7 +106,7 @@ pass (API 13 steps/three workflows). The history helper passes 15 regressions;
 pipeline 14 and the focused AI suite 105. These remain constructed/injected tests,
 not semantic provider or rendered UI acceptance. Commit/CI follows separately.
 
-Frozen correction source hashes:
+Frozen correction source hashes (commit `2beaea99a1525d219d6dcd7ab8023746c3304e5a`):
 
 | Source | SHA-256 |
 | --- | --- |
@@ -118,6 +118,17 @@ Frozen correction source hashes:
 | `tests/demand-question-history.test.ts` | `d5833b49536141f8ddba3361254cdc696e5ce173439f6ffb7f44ab327ce7e485` |
 | `tests/reader-first-pipeline.test.ts` | `32faf6d6cf030d07f42ff06d7ec714425c8df685802b27df00f3cc43ff6ee30f` |
 | `tests/reader-first-ai.test.ts` | `97bf1d73400d2a0b729eb536366502522b5b235a5f95fa91d3caaa6a12fbe5f2` |
+
+Final independent review reproduced a JSONB persistence edge case: field-order
+changes could mark identical historical passages unavailable. The retained packet
+now passes the same existing bounded schema as the saved packet before exact
+comparison. The reordered-field regression failed before the fix and passes
+afterward; actual refreshed passages still remove support without rebinding the
+historical reference. All **450 web tests**, both standalone typechecks and
+focused warning-free lint pass. Exact final CI remains pending; no deployment
+has occurred. Updated pipeline hash is
+`7d3006e17d1783478cc86e5f65a271b974c827f46631abb5bfb1bdcf24c61e50`;
+pipeline-test hash `c857a72aa3c8b1d211d3e02a4a17384a31d7ca0df5cfe71be44513549e4d0285`.
 
 CoS's successor sample is authorized in
 `operations/LOOP_VALUE_ACCEPTANCE_2026-09-06.md`: at most two idea batches, two

@@ -54,8 +54,12 @@ limits remain. All **449 web/163 API tests**, both final standalone typechecks,
 warning-free full lint and both production builds pass on the corrected source.
 The history helper has 15 regressions and the pipeline 14, including refreshed
 support becoming unavailable without changing historical reference identity.
-The correction's commit/CI and protected/rendered/real quality still need
-completion; the earlier green CI does not cover these subsequent edits.
+The correction was committed/pushed as `2beaea99a1525d219d6dcd7ab8023746c3304e5a`.
+A final independent review reproduced a persisted JSON field-order edge case;
+both evidence packets now normalize through the existing bounded schema before
+exact comparison. Its regression failed before the fix and passes afterward.
+All **450 web tests**, both standalone typechecks and focused lint pass on this
+tiny follow-up. Exact final CI and protected/rendered/real quality remain pending.
 
 CoS authorized the bounded successor sample in
 `docs/operations/LOOP_VALUE_ACCEPTANCE_2026-09-06.md`: at most two ideas batches,
