@@ -4,6 +4,7 @@ import { publicApiHandler, json } from "../../../src/http/api-handler";
 import { safeDatabaseErrorMetadata } from "../../../src/observability/safe-database-error";
 import { safeCaughtErrorMetadata } from "../../../src/observability/safe-error";
 import { productionRuntimeConfigurationIssues } from "../../../src/services/runtime-configuration";
+import { demandEnabled } from "../../../src/services/demand-configuration";
 
 export const dynamic = "force-dynamic";
 
@@ -308,7 +309,34 @@ async function databaseIsReady() {
             )
         ) as ready
     `);
-    return result[0]?.ready === true;
+    if (result[0]?.ready !== true) return false;
+    if (!demandEnabled()) return true;
+    const demand = await getDb().execute<{ ready: boolean }>(sql`
+      select
+        (select count(*) from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid=c.relnamespace
+          where n.nspname='private' and c.relname in ('demand_principals','demand_loops','demand_requests',
+            'demand_ideas','demand_stages','demand_mutations','demand_events','demand_usage')
+          and c.relrowsecurity and c.relforcerowsecurity) = 8
+        and (select count(*) from pg_catalog.pg_roles where rolname in ('edison_demand_api','edison_demand_worker')
+          and not rolcanlogin and not rolinherit and not rolbypassrls and not rolsuper) = 2
+        and (select count(*) from pg_catalog.pg_proc p where p.oid in (
+          to_regprocedure('private.demand_principal_is_active(uuid)'),
+          to_regprocedure('private.demand_legacy_budget()'),
+          to_regprocedure('private.demand_reader_preferences(uuid)'),
+          to_regprocedure('private.demand_legacy_daily_counts(uuid)'))
+          and p.prosecdef and p.proconfig @> array['search_path=pg_catalog']::text[]
+          and has_function_privilege('edison_demand_worker',p.oid,'execute')) = 4
+        and to_regprocedure('private.current_active_demand_principal_id()') is not null
+        and exists (select 1 from pg_catalog.pg_attribute where attrelid=to_regclass('private.demand_requests') and attname='progress' and not attisdropped)
+        and exists (select 1 from pg_catalog.pg_attribute where attrelid=to_regclass('private.demand_ideas') and attname='rank' and not attisdropped)
+        and to_regclass('private.demand_usage_response_unique') is not null
+        and to_regclass('private.demand_requests_article_idea_unique') is not null
+        and to_regclass('private.demand_stages_provider_response_unique') is not null
+        and (select count(*) from pg_catalog.pg_trigger where tgname in ('demand_requests_identity_immutable','demand_stages_identity_immutable')
+          and tgrelid in (to_regclass('private.demand_requests'),to_regclass('private.demand_stages')) and not tgisinternal) = 2
+        as ready
+    `);
+    return demand[0]?.ready === true;
   } catch (error) {
     console.error(
       "Edison readiness database check failed",

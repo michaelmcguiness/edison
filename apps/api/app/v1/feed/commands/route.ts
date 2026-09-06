@@ -17,6 +17,7 @@ import { snapshotPreferenceCommand } from "../../../../src/services/ai-request-s
 import { dispatchFeedCommand } from "../../../../src/services/feed-commands";
 import { withActiveMember } from "../../../../src/services/members";
 import { fingerprintRequest } from "../../../../src/services/request-fingerprint";
+import { requireLegacyAiEnabled } from "../../../../src/services/demand-configuration";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +57,7 @@ function presentCommand(command: FeedCommandRow, status = 200) {
 
 export async function POST(request: Request) {
   return apiHandler(request, async ({ claims }) => {
+    requireLegacyAiEnabled();
     const input = feedCommandRequestSchema.parse(await request.json());
     if (!process.env.OPENAI_API_KEY) {
       throw new HttpError(

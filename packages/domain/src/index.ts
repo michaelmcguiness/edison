@@ -244,3 +244,5 @@ export function resolveActiveInterestRemoval(
 
   return { ids: [...ids], topics: [...topics.values()] };
 }
+
+export * from "./loop-principles";

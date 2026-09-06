@@ -1,3 +1,5 @@
+import { demandLimits } from "./demand-configuration";
+
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PRICED_CONFIGURED_MODELS = new Set([
   "gpt-5.6-luna",
@@ -74,6 +76,11 @@ export function productionRuntimeConfigurationIssues(
   environment: Readonly<Record<string, string | undefined>> = process.env,
 ) {
   const issues = new Set<string>();
+  const demandFlag = environment.EDISON_ON_DEMAND_ENABLED;
+  if (demandFlag !== undefined && demandFlag !== "true" && demandFlag !== "false") issues.add("EDISON_ON_DEMAND_ENABLED");
+  if (demandFlag === "true") {
+    try { demandLimits(environment); } catch { issues.add("on_demand_limits"); }
+  }
   for (const name of requiredRuntimeConfiguration) {
     if (!value(environment, name)) issues.add(name);
   }
@@ -91,7 +98,10 @@ export function productionRuntimeConfigurationIssues(
     ["OPENAI_MAX_DAILY_GENERATIONS", 1, 100],
     ["OPENAI_MAX_DAILY_ARTICLE_QUESTIONS", 1, 1_000],
     ["OPENAI_MAX_DAILY_FEED_COMMANDS", 1, 1_000],
-    ["OPENAI_WEB_SEARCH_COST_MICROUSD", 0, 1_000_000_000],
+    // Keep readiness identical to the provider-stage fail-closed boundary.
+    // Per-request reservations still decide whether an otherwise valid price
+    // can be afforded; they are never raised or silently clamped here.
+    ["OPENAI_WEB_SEARCH_COST_MICROUSD", 0, 1_000_000],
     ["EDISON_DAILY_EDITION_LOCAL_HOUR", 0, 23],
     ["EDISON_DAILY_EDITION_TARGET", 1, 10],
     ["EDISON_DAILY_EDITION_BATCH_SIZE", 1, 100],

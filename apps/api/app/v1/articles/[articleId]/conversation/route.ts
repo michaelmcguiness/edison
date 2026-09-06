@@ -45,6 +45,7 @@ import {
 } from "../../../../../src/services/ai-request-snapshots";
 import { withActiveMember } from "../../../../../src/services/members";
 import { fingerprintRequest } from "../../../../../src/services/request-fingerprint";
+import { requireLegacyAiEnabled } from "../../../../../src/services/demand-configuration";
 
 export const dynamic = "force-dynamic";
 
@@ -193,6 +194,7 @@ export async function GET(request: Request, context: RouteContext) {
 
 export async function POST(request: Request, context: RouteContext) {
   return apiHandler(request, async ({ claims }) => {
+    requireLegacyAiEnabled();
     const { articleId: rawArticleId } = await context.params;
     const articleId = uuidSchema.parse(rawArticleId);
     const input = conversationRequestSchema.parse(await request.json());

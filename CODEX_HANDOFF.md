@@ -15,6 +15,47 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
+### September 6 approved on-demand v8 — local implementation, not released
+
+Michael approved the exact v8 in Chief of Staff and requested CTO handoff (D26).
+The earlier pause for CoS/Design is resolved. Read
+`docs/brand/APPROVED_ON_DEMAND_LOOPS_CTO_HANDOFF_2026-09-06.md` and
+`docs/ON_DEMAND_IMPLEMENTATION_2026-09-06.md` before adopting older implementation
+gaps or approval holds below. The new general-topic guest/account reading flow,
+durable ideas → selected article → automated checks/one repair, scoped additive
+principles/Undo and questions are implemented locally on base `d084df4`, with
+prompt candidate v1.2. CoS owns editorial/value acceptance and Design reviews
+the built interface. Full real-provider/hosted acceptance is still incomplete.
+
+The combined history/continuity freeze passes 279 web tests, 125 API tests, both typechecks,
+repository lint and both production builds. The exact additive migration passed
+68 disposable pgTAP assertions plus bounded separate-process PostgreSQL 18.6
+admission/provider-stage/checkpoint-contention and owner-isolation checks. All 16
+migrations also passed a native clean-chain rehearsal with Supabase-owned
+prerequisites. A separate 420-row SQL history case passed. Final UI changes cover
+ordered responses, draft/Undo safety, half-read leave/reopen/reload, combined For
+You, scoped Ask, existing account Profile access and bounded 60-card older/saved
+history with exact status recovery beyond recent workspace caps (44 focused tests).
+Exact hashes and limits are in the implementation checkpoint; earlier rendered
+fixture checks do not establish browser acceptance of the corrected UI.
+
+This record accompanies the scoped feature-off checkpoint for existing PR #1;
+the commit containing it identifies the source. The candidate remains off behind
+`EDISON_ON_DEMAND_ENABLED`; its reader is isolated at `/demand`. No hosted
+migration or explicit deployment has occurred for this assignment. Release-branch
+pushes may trigger Preview/CI only. The new additive migration has disposable
+PostgreSQL checks, not hosted acceptance. A linked read-only dry run reports only
+that migration pending. Vercel's one-time CLI device authorization expired; a
+fresh code is needed when Michael is ready. Do not reuse it, bypass the disabled
+control, expose saved credentials or substitute the old live generation pipeline.
+The implementation record describes the protected aliasless calibration path and
+the remaining history indexing/immutability hardening; it has not been executed.
+The existing September 5 deployment and domain/origin configuration remain
+unchanged. Preserve existing authority, funded capacity, private account
+membership and unrelated shared-checkout work. No fresh generic approval is
+needed for the selected implementation; do not claim it is production-ready
+from local tests or synthetic UI content.
+
 ### September 5 apex cutover — completed and verified
 
 Michael explicitly requested, “can we deploy it at edisonreader.com too plese,”
@@ -655,6 +696,11 @@ local Next 16 documentation under `node_modules/next/dist/docs/` before making
 framework changes; this repository’s Next version differs from remembered APIs.
 
 ## First prompt to give Codex
+
+For the current on-demand assignment, the September 6 checkpoint above and its
+approved v8 handoff supersede the older v5-only development scope in the retained
+first prompt below. Continue from the dirty candidate, not from scratch; read
+the technical checkpoint's remaining acceptance and coordinate with CoS/Design.
 
 > Continue building Edison Reader from this repository. Read
 > `CODEX_HANDOFF.md` completely, then inspect the working tree and current Git

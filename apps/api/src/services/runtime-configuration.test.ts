@@ -46,3 +46,25 @@ test("runtime readiness rejects missing, unpriced, and out-of-range settings", (
   assert.ok(issues.includes("OPENAI_MAX_DAILY_ARTICLE_QUESTIONS"));
   assert.ok(issues.includes("EDISON_DAILY_EDITION_LOCAL_HOUR"));
 });
+
+test("runtime readiness shares the provider's web-search price ceiling", () => {
+  const environment = {
+    ...validEnvironment(),
+    EDISON_ON_DEMAND_ENABLED: "true",
+    OPENAI_MAX_DAILY_GENERATIONS: "4",
+    OPENAI_WEB_SEARCH_COST_MICROUSD: "1000001",
+  };
+  assert.ok(
+    productionRuntimeConfigurationIssues(environment).includes(
+      "OPENAI_WEB_SEARCH_COST_MICROUSD",
+    ),
+  );
+
+  environment.OPENAI_WEB_SEARCH_COST_MICROUSD = "1000000";
+  assert.equal(
+    productionRuntimeConfigurationIssues(environment).includes(
+      "OPENAI_WEB_SEARCH_COST_MICROUSD",
+    ),
+    false,
+  );
+});

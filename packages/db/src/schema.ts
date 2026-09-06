@@ -1117,3 +1117,559 @@ export const webhookEvents = privateSchema.table(
   },
   (table) => [index("webhook_events_unprocessed_idx").on(table.processedAt)],
 );
+
+/**
+ * A demand principal is deliberately separate from Supabase Auth. Account
+ * readers bind to an existing profile; guests authenticate with a high-entropy
+ * opaque token whose lowercase SHA-256 digest is the only credential retained
+ * in the database.
+ */
+export const demandPrincipals = privateSchema.table(
+  "demand_principals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    accountUserId: uuid("account_user_id").references(() => profiles.id, {
+      onDelete: "cascade",
+    }),
+    guestTokenHash: text("guest_token_hash"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("demand_principals_account_user_unique")
+      .on(table.accountUserId)
+      .where(sql`${table.accountUserId} is not null`),
+    uniqueIndex("demand_principals_guest_token_hash_unique")
+      .on(table.guestTokenHash)
+      .where(sql`${table.guestTokenHash} is not null`),
+    check(
+      "demand_principals_exactly_one_binding",
+      sql`num_nonnulls(${table.accountUserId}, ${table.guestTokenHash}) = 1`,
+    ),
+    check(
+      "demand_principals_guest_token_hash_valid",
+      sql`${table.guestTokenHash} is null or ${table.guestTokenHash} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "demand_principals_expiry_consistent",
+      sql`(
+        (${table.accountUserId} is not null and ${table.expiresAt} is null)
+        or
+        (${table.guestTokenHash} is not null and ${table.expiresAt} is not null and ${table.expiresAt} > ${table.createdAt})
+      )`,
+    ),
+    check(
+      "demand_principals_revocation_time_valid",
+      sql`${table.revokedAt} is null or ${table.revokedAt} >= ${table.createdAt}`,
+    ),
+  ],
+);
+
+export const demandLoops = privateSchema.table(
+  "demand_loops",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    principalId: uuid("principal_id")
+      .notNull()
+      .references(() => demandPrincipals.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    originalCuriosity: text("original_curiosity").notNull(),
+    revision: integer("revision").notNull().default(0),
+    principles: jsonb("principles")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("demand_loops_principal_id_unique").on(
+      table.principalId,
+      table.id,
+    ),
+    index("demand_loops_principal_created_idx").on(
+      table.principalId,
+      table.createdAt,
+    ),
+    check(
+      "demand_loops_title_length",
+      sql`${table.title} = btrim(${table.title}) and char_length(${table.title}) between 1 and 120`,
+    ),
+    check(
+      "demand_loops_curiosity_length",
+      sql`${table.originalCuriosity} = btrim(${table.originalCuriosity}) and char_length(${table.originalCuriosity}) between 1 and 500`,
+    ),
+    check("demand_loops_revision_nonnegative", sql`${table.revision} >= 0`),
+    check(
+      "demand_loops_principles_valid",
+      sql`jsonb_typeof(${table.principles}) = 'object' and pg_column_size(${table.principles}) <= 65536`,
+    ),
+  ],
+);
+
+export const demandRequests = privateSchema.table(
+  "demand_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    principalId: uuid("principal_id")
+      .notNull()
+      .references(() => demandPrincipals.id, { onDelete: "cascade" }),
+    loopId: uuid("loop_id").notNull(),
+    ideaId: uuid("idea_id"),
+    kind: text("kind")
+      .$type<"ideas" | "article" | "feedback" | "question">()
+      .notNull(),
+    status: text("status")
+      .$type<"queued" | "running" | "succeeded" | "failed">()
+      .notNull()
+      .default("queued"),
+    stage: text("stage").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    requestFingerprint: text("request_fingerprint").notNull(),
+    snapshot: jsonb("snapshot")
+      .$type<Record<string, unknown>>()
+      .notNull(),
+    result: jsonb("result").$type<Record<string, unknown>>(),
+    progress: jsonb("progress").$type<Record<string, unknown>>(),
+    failureCode: text("failure_code"),
+    workflowRunId: text("workflow_run_id"),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    attempts: integer("attempts").notNull().default(0),
+    reservedMicrousd: integer("reserved_microusd").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("demand_requests_principal_key_unique").on(
+      table.principalId,
+      table.idempotencyKey,
+    ),
+    uniqueIndex("demand_requests_principal_id_unique").on(
+      table.principalId,
+      table.id,
+    ),
+    uniqueIndex("demand_requests_principal_loop_id_unique").on(
+      table.principalId,
+      table.loopId,
+      table.id,
+    ),
+    uniqueIndex("demand_requests_article_idea_unique")
+      .on(table.principalId, table.ideaId)
+      .where(sql`${table.kind} = 'article' and ${table.ideaId} is not null`),
+    index("demand_requests_claim_idx").on(
+      table.status,
+      table.nextAttemptAt,
+      table.leaseExpiresAt,
+    ),
+    index("demand_requests_principal_created_idx").on(
+      table.principalId,
+      table.createdAt,
+    ),
+    index("demand_requests_created_idx").on(table.createdAt),
+    foreignKey({
+      columns: [table.principalId, table.loopId],
+      foreignColumns: [demandLoops.principalId, demandLoops.id],
+      name: "demand_requests_loop_owner_fk",
+    }).onDelete("cascade"),
+    // The reverse composite idea-owner FK is installed by the SQL migration
+    // after both sides of this intentionally circular relationship exist.
+    check(
+      "demand_requests_kind_valid",
+      sql`${table.kind} in ('ideas', 'article', 'feedback', 'question')`,
+    ),
+    check(
+      "demand_requests_status_valid",
+      sql`${table.status} in ('queued', 'running', 'succeeded', 'failed')`,
+    ),
+    check(
+      "demand_requests_stage_valid",
+      sql`${table.stage} = btrim(${table.stage}) and char_length(${table.stage}) between 1 and 80`,
+    ),
+    check(
+      "demand_requests_key_valid",
+      sql`char_length(${table.idempotencyKey}) between 8 and 128 and ${table.idempotencyKey} ~ '^[A-Za-z0-9._:-]+$'`,
+    ),
+    check(
+      "demand_requests_fingerprint_valid",
+      sql`${table.requestFingerprint} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "demand_requests_snapshot_valid",
+      sql`jsonb_typeof(${table.snapshot}) = 'object' and pg_column_size(${table.snapshot}) <= 1048576`,
+    ),
+    check(
+      "demand_requests_result_valid",
+      sql`${table.result} is null or (jsonb_typeof(${table.result}) = 'object' and pg_column_size(${table.result}) <= 4194304)`,
+    ),
+    check(
+      "demand_requests_progress_valid",
+      sql`${table.progress} is null or (jsonb_typeof(${table.progress}) = 'object' and pg_column_size(${table.progress}) <= 4194304)`,
+    ),
+    check(
+      "demand_requests_failure_code_valid",
+      sql`${table.failureCode} is null or (${table.failureCode} = btrim(${table.failureCode}) and char_length(${table.failureCode}) between 1 and 100)`,
+    ),
+    check(
+      "demand_requests_workflow_run_valid",
+      sql`${table.workflowRunId} is null or char_length(${table.workflowRunId}) between 1 and 200`,
+    ),
+    check("demand_requests_attempts_nonnegative", sql`${table.attempts} >= 0`),
+    check(
+      "demand_requests_reservation_nonnegative",
+      sql`${table.reservedMicrousd} >= 0`,
+    ),
+    check(
+      "demand_requests_article_has_idea",
+      sql`${table.kind} <> 'article' or ${table.ideaId} is not null`,
+    ),
+  ],
+);
+
+export const demandIdeas = privateSchema.table(
+  "demand_ideas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    principalId: uuid("principal_id")
+      .notNull()
+      .references(() => demandPrincipals.id, { onDelete: "cascade" }),
+    loopId: uuid("loop_id").notNull(),
+    batchRequestId: uuid("batch_request_id").notNull(),
+    batchRevision: integer("batch_revision").notNull(),
+    rank: smallint("rank").notNull().default(1),
+    title: text("title").notNull(),
+    deck: text("deck").notNull(),
+    brief: jsonb("brief").$type<Record<string, unknown>>().notNull(),
+    evidence: jsonb("evidence").$type<Record<string, unknown>>().notNull(),
+    articleRequestId: uuid("article_request_id"),
+    saved: boolean("saved").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("demand_ideas_principal_id_unique").on(
+      table.principalId,
+      table.id,
+    ),
+    uniqueIndex("demand_ideas_principal_loop_id_unique").on(
+      table.principalId,
+      table.loopId,
+      table.id,
+    ),
+    uniqueIndex("demand_ideas_article_request_unique")
+      .on(table.articleRequestId)
+      .where(sql`${table.articleRequestId} is not null`),
+    index("demand_ideas_loop_batch_idx").on(
+      table.principalId,
+      table.loopId,
+      table.batchRequestId,
+    ),
+    foreignKey({
+      columns: [table.principalId, table.loopId],
+      foreignColumns: [demandLoops.principalId, demandLoops.id],
+      name: "demand_ideas_loop_owner_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.principalId, table.loopId, table.batchRequestId],
+      foreignColumns: [
+        demandRequests.principalId,
+        demandRequests.loopId,
+        demandRequests.id,
+      ],
+      name: "demand_ideas_batch_request_owner_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.principalId, table.loopId, table.articleRequestId],
+      foreignColumns: [
+        demandRequests.principalId,
+        demandRequests.loopId,
+        demandRequests.id,
+      ],
+      name: "demand_ideas_article_request_owner_fk",
+    }).onDelete("cascade"),
+    check("demand_ideas_batch_revision_nonnegative", sql`${table.batchRevision} >= 0`),
+    check("demand_ideas_rank_valid", sql`${table.rank} between 1 and 6`),
+    check(
+      "demand_ideas_title_length",
+      sql`${table.title} = btrim(${table.title}) and char_length(${table.title}) between 1 and 180`,
+    ),
+    check(
+      "demand_ideas_deck_length",
+      sql`${table.deck} = btrim(${table.deck}) and char_length(${table.deck}) between 1 and 500`,
+    ),
+    check(
+      "demand_ideas_brief_valid",
+      sql`jsonb_typeof(${table.brief}) = 'object' and pg_column_size(${table.brief}) <= 262144`,
+    ),
+    check(
+      "demand_ideas_evidence_valid",
+      sql`jsonb_typeof(${table.evidence}) = 'object' and pg_column_size(${table.evidence}) <= 1048576`,
+    ),
+  ],
+);
+
+export const demandStages = privateSchema.table(
+  "demand_stages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    principalId: uuid("principal_id")
+      .notNull()
+      .references(() => demandPrincipals.id, { onDelete: "cascade" }),
+    requestId: uuid("request_id").notNull(),
+    stageKey: text("stage_key").notNull(),
+    requestFingerprint: text("request_fingerprint").notNull(),
+    snapshot: jsonb("snapshot")
+      .$type<Record<string, unknown>>()
+      .notNull(),
+    status: text("status")
+      .$type<"reserved" | "succeeded" | "failed" | "uncertain">()
+      .notNull()
+      .default("reserved"),
+    providerResponseId: text("provider_response_id"),
+    output: jsonb("output").$type<Record<string, unknown>>(),
+    usage: jsonb("usage").$type<Record<string, unknown>>(),
+    costMicrousd: integer("cost_microusd"),
+    pricingStatus: text("pricing_status").$type<"priced" | "unpriced">(),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("demand_stages_request_key_unique").on(
+      table.requestId,
+      table.stageKey,
+    ),
+    uniqueIndex("demand_stages_principal_request_id_unique").on(
+      table.principalId,
+      table.requestId,
+      table.id,
+    ),
+    uniqueIndex("demand_stages_provider_response_unique")
+      .on(table.providerResponseId)
+      .where(sql`${table.providerResponseId} is not null`),
+    index("demand_stages_lease_idx").on(table.status, table.leaseExpiresAt),
+    foreignKey({
+      columns: [table.principalId, table.requestId],
+      foreignColumns: [demandRequests.principalId, demandRequests.id],
+      name: "demand_stages_request_owner_fk",
+    }).onDelete("cascade"),
+    check(
+      "demand_stages_key_valid",
+      sql`${table.stageKey} = btrim(${table.stageKey}) and char_length(${table.stageKey}) between 1 and 80`,
+    ),
+    check(
+      "demand_stages_fingerprint_valid",
+      sql`${table.requestFingerprint} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "demand_stages_snapshot_valid",
+      sql`jsonb_typeof(${table.snapshot}) = 'object' and pg_column_size(${table.snapshot}) <= 1048576`,
+    ),
+    check(
+      "demand_stages_status_valid",
+      sql`${table.status} in ('reserved', 'succeeded', 'failed', 'uncertain')`,
+    ),
+    check(
+      "demand_stages_success_complete",
+      sql`${table.status} <> 'succeeded' or (${table.providerResponseId} is not null and ${table.output} is not null and ${table.pricingStatus} is not null)`,
+    ),
+    check(
+      "demand_stages_response_id_valid",
+      sql`${table.providerResponseId} is null or (${table.providerResponseId} = btrim(${table.providerResponseId}) and char_length(${table.providerResponseId}) between 1 and 200)`,
+    ),
+    check(
+      "demand_stages_output_valid",
+      sql`${table.output} is null or (jsonb_typeof(${table.output}) = 'object' and pg_column_size(${table.output}) <= 4194304)`,
+    ),
+    check(
+      "demand_stages_usage_valid",
+      sql`${table.usage} is null or (jsonb_typeof(${table.usage}) = 'object' and pg_column_size(${table.usage}) <= 65536)`,
+    ),
+    check(
+      "demand_stages_cost_nonnegative",
+      sql`${table.costMicrousd} is null or ${table.costMicrousd} >= 0`,
+    ),
+    check(
+      "demand_stages_pricing_valid",
+      sql`(
+        (${table.pricingStatus} is null and ${table.costMicrousd} is null)
+        or
+        (${table.pricingStatus} = 'priced' and ${table.costMicrousd} is not null)
+        or
+        (${table.pricingStatus} = 'unpriced' and ${table.costMicrousd} is null)
+      )`,
+    ),
+  ],
+);
+
+export const demandMutations = privateSchema.table(
+  "demand_mutations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    principalId: uuid("principal_id")
+      .notNull()
+      .references(() => demandPrincipals.id, { onDelete: "cascade" }),
+    loopId: uuid("loop_id").notNull(),
+    requestId: uuid("request_id").notNull(),
+    receipt: jsonb("receipt").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("demand_mutations_request_unique").on(table.requestId),
+    index("demand_mutations_loop_created_idx").on(
+      table.principalId,
+      table.loopId,
+      table.createdAt,
+    ),
+    foreignKey({
+      columns: [table.principalId, table.loopId],
+      foreignColumns: [demandLoops.principalId, demandLoops.id],
+      name: "demand_mutations_loop_owner_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.principalId, table.loopId, table.requestId],
+      foreignColumns: [
+        demandRequests.principalId,
+        demandRequests.loopId,
+        demandRequests.id,
+      ],
+      name: "demand_mutations_request_owner_fk",
+    }).onDelete("cascade"),
+    check(
+      "demand_mutations_receipt_valid",
+      sql`jsonb_typeof(${table.receipt}) = 'object' and pg_column_size(${table.receipt}) <= 262144`,
+    ),
+  ],
+);
+
+export const demandEvents = privateSchema.table(
+  "demand_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    principalId: uuid("principal_id")
+      .notNull()
+      .references(() => demandPrincipals.id, { onDelete: "cascade" }),
+    loopId: uuid("loop_id").notNull(),
+    ideaId: uuid("idea_id"),
+    type: text("type").$type<"opened" | "saved" | "progress">().notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    data: jsonb("data").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("demand_events_principal_key_unique").on(
+      table.principalId,
+      table.idempotencyKey,
+    ),
+    index("demand_events_loop_created_idx").on(
+      table.principalId,
+      table.loopId,
+      table.createdAt,
+    ),
+    foreignKey({
+      columns: [table.principalId, table.loopId],
+      foreignColumns: [demandLoops.principalId, demandLoops.id],
+      name: "demand_events_loop_owner_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.principalId, table.loopId, table.ideaId],
+      foreignColumns: [
+        demandIdeas.principalId,
+        demandIdeas.loopId,
+        demandIdeas.id,
+      ],
+      name: "demand_events_idea_owner_fk",
+    }).onDelete("cascade"),
+    check(
+      "demand_events_type_valid",
+      sql`${table.type} in ('opened', 'saved', 'progress')`,
+    ),
+    check(
+      "demand_events_key_valid",
+      sql`char_length(${table.idempotencyKey}) between 8 and 128 and ${table.idempotencyKey} ~ '^[A-Za-z0-9._:-]+$'`,
+    ),
+    check(
+      "demand_events_data_valid",
+      sql`jsonb_typeof(${table.data}) = 'object' and pg_column_size(${table.data}) <= 262144`,
+    ),
+  ],
+);
+
+/** Append-only provider accounting; one provider response can be billed once. */
+export const demandUsage = privateSchema.table(
+  "demand_usage",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    principalId: uuid("principal_id")
+      .notNull()
+      .references(() => demandPrincipals.id, { onDelete: "cascade" }),
+    requestId: uuid("request_id").notNull(),
+    stageId: uuid("stage_id").notNull(),
+    responseId: text("response_id").notNull(),
+    model: text("model").notNull(),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    cachedInputTokens: integer("cached_input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    searchCalls: integer("search_calls").notNull().default(0),
+    costMicrousd: integer("cost_microusd"),
+    pricingStatus: text("pricing_status")
+      .$type<"priced" | "unpriced">()
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("demand_usage_response_unique").on(table.responseId),
+    index("demand_usage_principal_created_idx").on(
+      table.principalId,
+      table.createdAt,
+    ),
+    index("demand_usage_created_idx").on(table.createdAt),
+    index("demand_usage_request_idx").on(table.requestId),
+    foreignKey({
+      columns: [table.principalId, table.requestId],
+      foreignColumns: [demandRequests.principalId, demandRequests.id],
+      name: "demand_usage_request_owner_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.principalId, table.requestId, table.stageId],
+      foreignColumns: [
+        demandStages.principalId,
+        demandStages.requestId,
+        demandStages.id,
+      ],
+      name: "demand_usage_stage_owner_fk",
+    }).onDelete("cascade"),
+    check(
+      "demand_usage_response_id_valid",
+      sql`${table.responseId} = btrim(${table.responseId}) and char_length(${table.responseId}) between 1 and 200`,
+    ),
+    check(
+      "demand_usage_model_valid",
+      sql`${table.model} = btrim(${table.model}) and char_length(${table.model}) between 1 and 200`,
+    ),
+    check(
+      "demand_usage_pricing_valid",
+      sql`(
+        (${table.pricingStatus} = 'priced' and ${table.costMicrousd} is not null)
+        or
+        (${table.pricingStatus} = 'unpriced' and ${table.costMicrousd} is null)
+      )`,
+    ),
+    check("demand_usage_values_nonnegative", sql`
+      ${table.inputTokens} >= 0 and
+      ${table.cachedInputTokens} >= 0 and
+      ${table.outputTokens} >= 0 and
+      ${table.searchCalls} >= 0 and
+      (${table.costMicrousd} is null or ${table.costMicrousd} >= 0)
+    `),
+  ],
+);
