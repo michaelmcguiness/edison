@@ -15,7 +15,49 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
-### September 6 execution update — protected access approval pending
+### September 6 execution update — trust/migration applied, protected testing underway
+
+This supersedes the historical preparation holds below. Michael directly answered
+Yes in the CTO task to the exact `edison-app` Production → `edison-api` Production
+Trusted Sources rule. It is applied and independently verified; Standard Protection,
+reader permissions and spending limits remain intact. Do not request that approval again.
+
+Source `f5776ad3b610b959ed1549277ed8dd7417c2e87b` is committed/pushed with exact
+green CI `34050221734` (417 application tests, 234 Supabase PG17 assertions,
+types/lint/builds). The reviewed new001 migration is now applied to hosted PG17.6;
+ledger16, eight forced-RLS tables, policies/roles/indexes/constraints passed independent
+verification. Do not replay it or historical operators. The encrypted backup/recovery
+checkpoint below is complete within its documented logical limits.
+
+Protected API candidate: `dpl_6KwD5JV9CZv8uiNHNTQJaeJyEu5x`,
+`https://edison-l9i8daac3-mike-michaelmcguis-projects.vercel.app`.
+Protected web candidate: `dpl_5QAFAsqG5Ch1o2NsMtzxy2E9xwCM`,
+`https://edison-3ole3xlb9-mike-michaelmcguis-projects.vercel.app/demand`.
+Both build from clean f5776ad, use per-deployment flags and the approved short-lived
+OIDC connection with an exact pinned upstream. Anonymous requests get protection302.
+The actual web `/demand` opened in the normal browser and reached the new-loop dialog
+after its session request; the guest must be retained for the bounded real calibration.
+Raw API-page browser navigation returned `ERR_BLOCKED_BY_CLIENT`; do not bypass it,
+extract cookies or create a CLI guest. The actual web UI is permitted and functional.
+
+**Observed platform caution:** `--prod --skip-domain` preserved the public API alias
+and production target, but rebound all three cron hosts and the automatic system alias
+to the staged build. A clean old `a681331` redeploy with on-demand=false restored the
+original scheduled behavior on new recovery `dpl_2ipCwaY1wcg1d14V3GVZQT4zKXsY`
+(`edison-1496kct6u-mike-michaelmcguis-projects.vercel.app`). Crons remain enabled;
+no manual job invocation or domain promotion occurred. Public API remains dpl_JCo,
+and public web remains dpl_3pz, both healthy. The recovery host has no demand reconciler;
+verify direct Workflow pinning during calibration and intended cron binding at rollout.
+
+Full details: `docs/ON_DEMAND_RELEASE_2026-09-06.md`. Real article/editorial/connected
+acceptance and final apex rollout are not complete. A minimal flag-aware root mapping
+is separately prepared locally in `app/page.tsx` with seven new branch tests; 299 web
+tests, types, focused lint and web production build passed. This follow-up checkpoint
+includes the mapping, but neither protected f5776ad candidate contains it and it has
+not been deployed to the public site. Preserve unrelated team work. No new design or
+length selector.
+
+### Earlier September 6 preparation — superseded by execution above
 
 Read `docs/ON_DEMAND_RELEASE_2026-09-06.md` for current execution evidence.
 Exact committed/pushed `81ac136` passed full CI `34047355450`, including all

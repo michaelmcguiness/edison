@@ -4,6 +4,87 @@ Owner: CTO. Scope: D26 on-demand reading, protected real-output calibration,
 connected/browser acceptance, then the authorized existing apex rollout.
 This is an execution record, not a claim that the new experience is live.
 
+## Execution update — 18:23 UTC
+
+The earlier preparation/approval holds below are historical. Michael directly
+answered **Yes** in the CTO task to the exact Production website-to-API trust
+question. The single `edison-api` Trusted Sources PATCH succeeded; independent
+read-back confirms only `edison-app` Production → `edison-api` Production, with
+Standard Protection (`all_except_custom_domains`) and team OIDC unchanged.
+
+The clean, committed/pushed candidate is now
+`f5776ad3b610b959ed1549277ed8dd7417c2e87b`. Exact
+[CI 34050221734](https://github.com/michaelmcguiness/edison/actions/runs/34050221734)
+passed: 292 web + 125 API tests, both typechecks/builds, lint, all 16 migrations,
+234 pgTAP assertions and strict schema lint. All three feature-off Vercel Preview
+statuses passed. The detached deployment copy remains porcelain-clean at f5776ad.
+
+After another dry run listing only the reviewed new migration, normal linked
+Supabase CLI applied `20260906000100_on_demand_reading.sql`; no seeds or role
+files were applied. Independent hosted PostgreSQL 17.6 verification found exactly
+16 ledger entries, all eight demand tables with enabled/forced RLS, 20 expected
+policies, 27 expected valid indexes and 73 validated constraints. The two demand
+roles remain NOLOGIN/NOINHERIT with no elevated attributes or unsafe inherited
+memberships; all seven security-definer helpers retain `search_path=pg_catalog`.
+The previously verified encrypted backup and restore rehearsal remain the
+recovery checkpoint. No historical publication/correction operator was rerun.
+
+The protected API candidate built successfully in the existing project:
+`dpl_6KwD5JV9CZv8uiNHNTQJaeJyEu5x`,
+`https://edison-l9i8daac3-mike-michaelmcguis-projects.vercel.app`.
+It carries exact source metadata f5776ad, Production identity and the per-deployment
+on-demand flag. Its build registered 13 steps/three workflows. Anonymous health
+receives the protection redirect (HTTP 302), not application health.
+
+### Observed staged-deployment side effect and recovery
+
+**`--prod --skip-domain` is not cron-isolated.** It preserved the public API alias
+`project-fjr95.vercel.app` and `targets.production` on old `dpl_JCoE2yh9oxwA56wcjJu1JULq4hC6`,
+but moved the automatic API system alias and all three cron hosts to the staged
+candidate. Execution paused before any guest/provider request. Feature-on cron
+code intentionally skips legacy daily-edition creation and adds demand recovery,
+so this was a real operational difference, not merely cosmetic metadata.
+
+The inspected public API/CLI offers no supported direct setter for the cron
+deployment ID; documented Instant Rollback does not update active crons. Recovery
+therefore used a separate clean copy of exact already-live `a681331673b416d1267cd27a263222399b5285f1`,
+deployed with `--prod --skip-domain` and explicit on-demand=false. Successful
+recovery deployment `dpl_2ipCwaY1wcg1d14V3GVZQT4zKXsY` uses
+`https://edison-1496kct6u-mike-michaelmcguis-projects.vercel.app`.
+Fresh read-back confirms all three original schedules enabled on that old-code
+deployment, with original enabledAt and disabledAt=null. This restores the old
+behavior on a new deployment ID; it does not claim the original cron ID was restored.
+No job was manually invoked or disabled, and public domains were not promoted.
+
+The f5776ad API candidate remains retained and uniquely pinned for testing. The
+recovery cron host does not contain its on-demand reconciler; connected calibration
+must distinguish direct deployment-pinned Workflow success from scheduled recovery.
+Final API rollout must explicitly verify the intended cron binding/behavior.
+Public web still returns HTTP 200 and the unchanged public API reports configuration,
+database and Auth `ok` after the hosted migration/recovery.
+
+The normal browser attempt to open the staged API health URL returned
+`net::ERR_BLOCKED_BY_CLIENT` and left about:blank. No authenticated health check,
+browser bypass, credential extraction or provider execution followed. The actual
+web candidate is separately building in existing `edison-app`, with no public-domain
+promotion and its protected upstream pinned to the exact f5776ad API URL.
+Web `dpl_5QAFAsqG5Ch1o2NsMtzxy2E9xwCM` subsequently completed successfully at
+`https://edison-3ole3xlb9-mike-michaelmcguis-projects.vercel.app/demand`, exact
+f5776ad; anonymous requests receive protection302. Its actual browser UI opened
+and reached the first-loop dialog after the normal session request. This verifies
+the real workspace connection, not article generation. A raw workspace JSON-page
+navigation was also blocked by the browser; it was not retried or bypassed.
+The same normal UI guest is retained for calibration. Full connected/rendered/provider
+acceptance and final homepage rollout remain unverified.
+
+The follow-up source checkpoint adds only a live-mode/exact-server-flag branch in
+`app/page.tsx` and seven actual-page branch tests in `tests/home-page.test.ts`.
+When enabled in live mode, `/` renders the unchanged DemandReader; otherwise the
+existing setup/demo/Pulse guest/auth branches are preserved. `/demand` and its
+scoped CSS are unchanged. Independent local checks passed: 299 web tests, root
+TypeScript, focused lint, diff checks and production web build. This root mapping
+is not in either staged f5776ad deployment; publication still awaits real acceptance.
+
 ## Candidate and access
 
 - Source `81ac1362d685114bf7c93a1628cc50b566e687bd` is committed and pushed

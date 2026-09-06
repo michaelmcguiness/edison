@@ -2,11 +2,17 @@ import { EdisonApp } from "./reader";
 import { getWebAppMode } from "@/lib/app-mode";
 import { createClient } from "@/lib/supabase/server";
 import { EdisonMark } from "@/components/edison/brand";
+import { DemandReader } from "@/components/edison/demand-reader";
+import "./demand.css";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const mode = getWebAppMode();
+  if (mode === "live" && process.env.EDISON_ON_DEMAND_ENABLED === "true") {
+    return <DemandReader />;
+  }
+
   if (mode !== "live") {
     if (mode === "setup") {
       return (
