@@ -128,7 +128,18 @@ export const onDemandDraftValidationFindingsSchema = z.array(z.object({
 }).strict()).min(1).max(24);
 export type OnDemandDraftValidationFinding = z.infer<typeof onDemandDraftValidationFindingsSchema>[number];
 
-export const onDemandCheckOutputSchema = z.object({
+const surfaceVerdictSchema = z.object({
+  verdict: z.enum(["supported", "contradicted", "missing", "nonfactual"]),
+  passageIds: z.array(key).max(12),
+  reason: z.string().min(1).max(160),
+}).strict();
+export const onDemandSurfaceChecksSchema = z.object({
+  fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+  surfaces: z.array(surfaceVerdictSchema.extend({ location: z.string().min(1).max(80) })).min(1).max(45),
+}).strict();
+
+// Question checks deliberately retain their previous provider format.
+export const onDemandAnswerCheckProviderSchema = z.object({
   verdict: z.enum(["pass", "repair", "insufficient_evidence"]),
   promiseFulfilled: z.boolean(),
   readerFit: z.boolean(),
@@ -153,14 +164,26 @@ export const onDemandCheckOutputSchema = z.object({
   }).strict()).max(40),
 }).strict();
 
+// Historical/question checks can be read without an article audit. Article
+// acceptance explicitly requires it; absence never manufactures a passing audit.
+export const onDemandCheckOutputSchema = onDemandAnswerCheckProviderSchema.extend({
+  surfaceChecks: onDemandSurfaceChecksSchema.optional(),
+});
+
 // Article metadata is assembled and checked by the server, not guessed by a
 // model. Question checks retain their existing contract. Prose dates remain
 // material claims even when optional source metadata dates are unknown.
-export function onDemandArticleCheckProviderSchema(locations: [string, ...string[]]) {
+export function onDemandArticleCheckProviderSchema(locations: [string, ...string[]], fingerprint: string) {
   const location = z.enum(locations);
-  return onDemandCheckOutputSchema.omit({ sourceMetadataPassed: true }).extend({
+  const findingLocation = z.enum([...locations, "whyWritten"] as [string, ...string[]]);
+  return onDemandAnswerCheckProviderSchema.omit({ sourceMetadataPassed: true }).extend({
     missedMaterialClaims: z.array(onDemandCheckOutputSchema.shape.missedMaterialClaims.element.extend({ location })).max(40),
-    findings: z.array(onDemandCheckOutputSchema.shape.findings.element.extend({ location })).max(40),
+    findings: z.array(onDemandCheckOutputSchema.shape.findings.element.extend({ location: findingLocation })).max(40),
+    surfaceChecks: z.object({
+      // Supplied by the server. A literal copy, never model-computed hashing.
+      fingerprint: z.literal(fingerprint),
+      surfaces: z.object(Object.fromEntries(locations.map((key) => [key, surfaceVerdictSchema]))).strict(),
+    }).strict(),
   }).strict();
 }
 
@@ -179,6 +202,7 @@ export type OnDemandResearchOutput = z.infer<typeof onDemandResearchOutputSchema
 export type OnDemandWriterOutput = z.infer<typeof onDemandWriterOutputSchema>;
 export type OnDemandWriterProviderOutput = z.infer<typeof onDemandWriterProviderOutputSchema>;
 export type OnDemandCheckOutput = z.infer<typeof onDemandCheckOutputSchema>;
+export type OnDemandSurfaceChecks = z.infer<typeof onDemandSurfaceChecksSchema>;
 export type OnDemandAnswerOutput = z.infer<typeof onDemandAnswerOutputSchema>;
 export type OnDemandIdea = z.infer<typeof ideaCandidateSchema> & {
   id: string;

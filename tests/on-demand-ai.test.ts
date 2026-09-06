@@ -15,7 +15,7 @@ import {
   interpretLoopFeedback,
   onDemandAnswerOutputSchema,
   onDemandArticleCheckProviderSchema,
-  onDemandCheckOutputSchema,
+  onDemandAnswerCheckProviderSchema,
   onDemandFeedbackOutputSchema,
   onDemandIdeaChecksSchema,
   onDemandResearchOutputSchema,
@@ -35,7 +35,7 @@ import {
   type OnDemandWriterOutput,
 } from "../packages/ai/src/on-demand";
 import { ProviderResponseValidationError } from "../packages/ai/src/provider-response-error";
-import { providerFixtureOutput } from "./helpers/on-demand-provider-fixture";
+import { providerFixtureOutput, surfaceCheckFixture } from "./helpers/on-demand-provider-fixture";
 
 const requireFromAiPackage = createRequire(new URL("../packages/ai/package.json", import.meta.url));
 const { zodTextFormat } = requireFromAiPackage("openai/helpers/zod") as {
@@ -79,7 +79,7 @@ function draft(): OnDemandWriterOutput {
     title: idea.headline, deck: idea.deck,
     summary: ["The experiment tested laboratory behavior.", "A second strain showed a response.", "Neither experiment tested clinical efficacy."],
     whyWritten: "This develops the difference between a mechanism and an application.", readingMinutes: 3,
-    body: Array.from({ length: 6 }, (_, index) => ({ type: "paragraph" as const, text: `Constructed explanation ${index + 1}: a laboratory response is not a clinical trial.`, citations: [{ sourceKey: index % 2 ? "source-2" : "source-1", label: "example.org" }] })),
+    body: Array.from({ length: 6 }, (_, index) => ({ type: "paragraph" as const, text: `Constructed explanation ${index + 1}: a laboratory response is not a clinical trial.`, citations: [{ sourceKey: "source-1", label: "example.org" }, { sourceKey: "source-2", label: "example.org" }] })),
     sources: evidence.sources.map((source) => ({ key: source.id, title: source.title, publisher: source.publisher, url: source.url, publishedAt: source.datePrecision === "day" ? `${source.publishedDate}T00:00:00.000Z` : null })),
   };
   const locations = ["title", "deck", "summary.0", "summary.1", "summary.2", ...article.body.map((_, index) => `body.${index}`)];
@@ -88,8 +88,9 @@ function draft(): OnDemandWriterOutput {
 function passed(value = draft()): OnDemandCheckOutput {
   return { verdict: "pass", promiseFulfilled: true, readerFit: true, continuity: true, privacyPassed: true, sourceMetadataPassed: true,
     claims: value.claims.map((claim) => ({ claimId: claim.id, verdict: "supported", passageIds: claim.passageIds, reason: "The constructed source explicitly distinguishes the evidence limits." })),
-    missedMaterialClaims: [], findings: [] };
+    missedMaterialClaims: [], findings: [], surfaceChecks: surfaceCheckFixture(value) };
 }
+function answerPassed() { const result = passed(); delete result.surfaceChecks; return result; }
 function research(): OnDemandResearchOutput {
   const candidate = { key: idea.key, headline: idea.headline, deck: idea.deck, readerQuestion: idea.readerQuestion, payoff: idea.payoff, advanceBeyondPrevious: idea.advanceBeyondPrevious, qualifications: idea.qualifications, passageIds: idea.passageIds };
   return structuredClone({ ideas: [candidate], sources: evidence.sources, passages: evidence.passages.map((passage) => ({ id: passage.id, sourceId: passage.sourceId, text: passage.text, locator: passage.locator })), insufficiencyReason: null });
@@ -105,7 +106,7 @@ function options(output: unknown, key = "request-1", capture?: OnDemandProviderR
 const selected = { context, idea, evidence };
 
 test("all on-demand provider schemas convert using the installed Structured Outputs helper", () => {
-  for (const schema of [onDemandResearchOutputSchema, onDemandIdeaChecksSchema, onDemandWriterOutputSchema, onDemandWriterProviderOutputSchema, onDemandArticleCheckProviderSchema(["title", "deck", "body.0"]), onDemandCheckOutputSchema, onDemandAnswerOutputSchema, onDemandFeedbackOutputSchema]) {
+  for (const schema of [onDemandResearchOutputSchema, onDemandIdeaChecksSchema, onDemandWriterOutputSchema, onDemandWriterProviderOutputSchema, onDemandArticleCheckProviderSchema(["title", "deck", "body.0"], "a".repeat(64)), onDemandAnswerCheckProviderSchema, onDemandAnswerOutputSchema, onDemandFeedbackOutputSchema]) {
     const format = zodTextFormat(schema, "test");
     assert.equal(format.type, "json_schema");
     assert.equal(format.strict, true);
@@ -232,12 +233,15 @@ test("checked support must appear in the article source list and relevant displa
   anotherSource.evidence.passages.push({ ...evidence.passages[0], id: "passage-3", sourceId: "source-3" });
   const omitted = passed(); omitted.claims[0].passageIds = ["passage-3"];
   assert.throws(() => assertAcceptedOnDemandArticleCheck(anotherSource, draft(), omitted), /absent from article sources/);
-  const uncited = passed();
-  const bodyClaim = draft().claims.find((claim) => claim.locations.includes("body.0"))!;
+  const value = draft();
+  const block = value.article!.body[0]; assert.equal(block.type, "paragraph"); block.citations = [block.citations[0]];
+  const uncited = passed(value);
+  uncited.surfaceChecks!.surfaces.find((surface) => surface.location === "body.0")!.passageIds = ["passage-1"];
+  const bodyClaim = value.claims.find((claim) => claim.locations.includes("body.0"))!;
   uncited.claims.find((claim) => claim.claimId === bodyClaim.id)!.passageIds = ["passage-2"];
   // Source 2 exists in the overall article list, but this body block cites only source 1.
-  assert.throws(() => assertAcceptedOnDemandArticleCheck(selected, draft(), uncited), /displayed body citation/);
-  await assert.rejects(checkOnDemandArticle({ ...selected, draft: draft() }, options(uncited)),
+  assert.throws(() => assertAcceptedOnDemandArticleCheck(selected, value, uncited), /displayed body citation/);
+  await assert.rejects(checkOnDemandArticle({ ...selected, draft: value }, options(uncited)),
     (error: unknown) => error instanceof ProviderResponseValidationError && error.observedUsage.providerResponseId === usage.providerResponseId);
   assert.doesNotThrow(() => assertAcceptedOnDemandArticleCheck(selected, draft(), passed()));
 });
@@ -246,7 +250,6 @@ test("extra displayed citations need checked block support without requiring exa
   const value = draft();
   const block = value.article!.body[0];
   assert.equal(block.type, "paragraph");
-  block.citations.push({ sourceKey: "source-2", label: "example.org" });
   const bodyClaim = value.claims.find((claim) => claim.locations.includes("body.0"))!;
   const partial = passed(value);
   partial.claims.find((claim) => claim.claimId === bodyClaim.id)!.passageIds = ["passage-1"];
@@ -256,7 +259,10 @@ test("extra displayed citations need checked block support without requiring exa
   sameSource.evidence.passages.push({ ...evidence.passages[0], id: "another-passage-1" });
   const alternate = passed();
   alternate.claims.find((claim) => claim.claimId === bodyClaim.id)!.passageIds = ["another-passage-1"];
-  assert.doesNotThrow(() => assertAcceptedOnDemandArticleCheck(sameSource, draft(), alternate));
+  const single = draft(); const singleBlock = single.article!.body[0]; assert.equal(singleBlock.type, "paragraph"); singleBlock.citations = [singleBlock.citations[0]];
+  alternate.surfaceChecks = surfaceCheckFixture(single);
+  alternate.surfaceChecks.surfaces.find((surface) => surface.location === "body.0")!.passageIds = ["another-passage-1"];
+  assert.doesNotThrow(() => assertAcceptedOnDemandArticleCheck(sameSource, single, alternate));
 });
 
 test("factual heading claims can be mapped and must be checked; neutral headings need no invented claim", () => {
@@ -334,7 +340,7 @@ test("article questions use exact version/evidence and produce no persistent mut
   const result = await answerOnDemandQuestion(input, options(answer, "answer", requests));
   assert.equal((requests[0].input as typeof input).articleVersion, 4);
   assert.equal("operations" in result.output, false);
-  const checked = await checkOnDemandAnswer({ ...input, answer }, options({ ...passed(), claims: [{ claimId: "answer-1", verdict: "supported", passageIds: ["passage-1"], reason: "The evidence explicitly excludes clinical efficacy." }] }));
+  const checked = await checkOnDemandAnswer({ ...input, answer }, options({ ...answerPassed(), claims: [{ claimId: "answer-1", verdict: "supported", passageIds: ["passage-1"], reason: "The evidence explicitly excludes clinical efficacy." }] }));
   assert.equal(checked.accepted, true);
 });
 
@@ -343,7 +349,7 @@ test("answer publication gate rejects missing coverage, invented passages, and i
     question: "Was clinical efficacy tested?", conversation: [] };
   const answer = { status: "answered" as const, answer: "Clinical efficacy was not studied.",
     claims: [{ id: "answer-1", text: "Clinical efficacy was not studied.", locations: ["answer"], passageIds: ["passage-1"] }], missingEvidence: null };
-  const check = { ...passed(), claims: [{ claimId: "answer-1", verdict: "supported" as const, passageIds: ["passage-1"], reason: "The passage states the limitation." }] };
+  const check = { ...answerPassed(), claims: [{ claimId: "answer-1", verdict: "supported" as const, passageIds: ["passage-1"], reason: "The passage states the limitation." }] };
   assert.doesNotThrow(() => assertAcceptedOnDemandAnswerCheck(question, answer, check));
   assert.throws(() => assertAcceptedOnDemandAnswerCheck(question, answer, { ...check, claims: [] }));
   assert.throws(() => assertAcceptedOnDemandAnswerCheck(question, answer, { ...check, claims: [{ ...check.claims[0], claimId: "other-answer" }] }));

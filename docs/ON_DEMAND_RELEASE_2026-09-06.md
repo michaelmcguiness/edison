@@ -4,6 +4,140 @@ Owner: CTO. Scope: D26 on-demand reading, protected real-output calibration,
 connected/browser acceptance, then the authorized existing apex rollout.
 This is an execution record, not a claim that the new experience is live.
 
+## Actual v1.4 acceptance false positive — latest finding
+
+Reviewed source `de8ce3d3c8e57635b38e2af87f78855f62881e64` is committed/pushed.
+[CI 34056080702](https://github.com/michaelmcguiness/edison/actions/runs/34056080702)
+passed at 19:52 UTC (338 web/143 API tests, builds/types/lint and database checks);
+all three Vercel Preview contexts succeeded. Independent review confirmed clean
+isolated `/private/tmp/edison-release-v14.QxIzWi/candidate` at that exact revision.
+
+Protected API `dpl_DSVxCEymev86fRbKZsLTNe3B2axn`,
+`edison-a0w1lvj4e-mike-michaelmcguis-projects.vercel.app`, and protected web
+`dpl_E2XatpaspFhY2nzqQP65pUy7i8jy`,
+`edison-n73sh3y90-mike-michaelmcguis-projects.vercel.app`, are Ready exact de8ce3d.
+The existing stable calibration alias moved to this web; independent anonymous
+checks still receive Vercel SSO302. Per-deployment web configuration pins the
+exact API via existing approved trust. Public apex/production web target remain
+dpl_3pz; public API alias/target remain dpl_JCo. Both protections and exact trust
+are unchanged. After staging, clean old a681331 recovery
+`dpl_7fJHWRo993aXNsy5i67SheKc1Umo`,
+`edison-t3we522si-mike-michaelmcguis-projects.vercel.app`, restored the three
+original enabled cron schedules; enabledAt unchanged, disabledAt=null. No manual
+cron invocation or public rollout occurred.
+
+The existing guest/loop/Library state survived alias movement and reload. The next
+previously unselected card was selected before body generation as agreed. Request
+`1c02f1c9-ce65-498a-94d2-89a1c0e6ac8f` ran 19:57:29–19:59:11 UTC and became
+`succeeded/ready`. Workflow `wrun_01M1W4R7A94V4V9PF3PVNVR6BN` was independently
+verified completed on the exact corrected API at 19:59:12.349 UTC with no Workflow
+error (a completed Workflow is not editorial acceptance). Four actual writer/check/repair/check
+stages cost **$0.127128** (54,564 + 5,732 + 62,398 + 4,434 microUSD). Total
+on-demand calibration ledger estimates are now **$0.289663**. This is not invoice
+reconciliation. Exact private packet `/private/tmp/edison-calibration-capture.iVqyFz`
+contains all retained stages, input/evidence and final output for CoS review.
+
+The first check correctly caught unsupported co-evolution framing in body.0; the
+sole repair replaced it and the final check marked 19 listed claims supported.
+However, **CoS rejected the actual accepted result at editorial scope**: summary.1
+says engineered tRNAs can be charged *provided* the ribosome–tRNA interface is
+redesigned. Retained evidence separately establishes aaRS-mediated charging and
+ribosome accommodation; charging is not conditional on ribosome redesign. The
+repaired c4 paraphrase changed to supported separate/AND statements while the
+summary's unsupported conditional remained. The final checker accepted that weaker
+paraphrase. The three unchanged headings were also relabeled material→neutral,
+reducing the claim map from 22 to 19. CoS's exact heading review finds body.5
+and body.13 factual/interpretive and requiring support; body.9 is reasonably
+rhetorical. The tag change is a coverage regression, not proof of three false
+headings. Exact final-check hash is
+`ccb21a391ba0d061b0760a32a5546f8a0842952c95c8a0f1abc5ceb98a489886`.
+
+**Paid calibration and public rollout are paused** for the smallest systemic
+exact-surface/heading QA correction. No new provider request is in flight; no loop
+feedback or adapted ideas/article has been submitted. Do not manually rewrite,
+rescue or erase the private accepted record or its raw responses/charges. This
+sample proves connected delivery, not acceptable factual quality. Current aggregate
+remainder was one ideas batch/one article. CoS subsequently clarified that the
+aggregate cap was its own sampling limit, not Michael's budget, and revised it
+by **one article within the same replacement guest's existing server allowance**.
+The current remainder is **one ideas batch/two articles**, total across both
+existing guests at most three ideas/five articles; existing server/dollar/model
+limits and both principals remain unchanged. This is not a quota reset or new
+budget. After source/regression review and corrected hosted deployment, select
+the next unselected *When Does a Bag of Reactions Become a Cell?* card before
+body generation as baseline. Require useful accepted exact prose, then the agreed
+feedback and one adapted batch/article. Stop on a material failure; do not
+automatically consume the second article. No extra repair/critique round or
+additional paid work beyond that sequence is authorized by this adjustment.
+
+### Bounded v1.5 correction — local verification and source review complete
+
+The checker now receives a deterministic manifest of the actual title, deck,
+summaries and all body blocks, including heading text and quote attribution,
+plus their authored mappings/citations. A single server-computed fingerprint
+binds that manifest and exact why-written copy; the provider echoes it rather
+than computing a hash. The strict wire contract requires an assessment keyed to
+every material surface. Canonical persisted audit rows accompany the existing
+claim checks; final acceptance/publication/replay recompute the fingerprint and
+require complete exact-surface coverage. A weaker paraphrase cannot substitute
+for that explicit surface assessment. This still relies on actual model judgment;
+structural tests alone cannot prove recognition of every semantic defect.
+
+Unknown/unretrieved evidence, stale fingerprints and missing/duplicate surfaces
+remain hard validation failures. A valid failed assessment with a missing authored
+heading map or a supporting source absent from current display remains repairable
+through the existing sole repair. Final acceptance requires all supporting sources
+displayed for the relevant surface. A checker-classified rhetorical heading can
+have an erroneous writer mapping removed by that repair; factual unchanged/moved
+headings cannot evade checking by losing their mappings. No factual verdict or
+source evidence is silently rewritten. Question-check wire format remains unchanged.
+Models, stages, eight-thousand-token checker cap, budget/usage/replay rules and
+database are unchanged. Maximal schema-shaped output is not guaranteed to fit
+the token cap; incomplete results fail honestly rather than omitting checks.
+
+CoS independently closed the bounded exact-surface source review, including the
+repair-routing and final paragraph/quote versus overall-source-list clarification.
+The why-written field is allowed as a privacy/fit finding location, but is not
+invented as an externally evidenced factual surface. A regression exercises that
+finding through the sole repair and a fresh complete check.
+
+Final local verification: **354/354 web tests, 143/143 API tests, both standalone
+typechecks, full lint and both production builds pass**. The initial standalone
+typecheck encountered duplicate generated API `.next` type artifacts; successful
+production builds regenerated the output, and both standalone checks then passed.
+Focused contract/pipeline/publication checks pass 102/102. Constructed assertions
+exercise coverage, binding and repair routing, not live semantic recognition.
+
+Reviewed SHA-256 identities:
+
+- Runtime `5b7983af85763a355f2dfb0e6c9a52ccd49446a89c49a23db21caad0aafbd11c`.
+- Schemas `baa5c66244cba5f47af42a289d7614a1fb7f5ffa0d94de8ba242f37927ee5a21`.
+- Prompt `6ccd2cf4718052dc864e0bae6db134a47cc33a5ec02d63e27c1a1e0562da60f0`.
+- Surface-audit tests `bf20c7e70a6e5f22ad0f5fbd42c9365307e8ee6910c70ac87719496a54bfc64a`.
+- Pipeline tests `3733e2892c74272041281e865312f665e1cc9da38a80eafed8af9343016c4db0`.
+- Publication tests `45b8b79775a16002d4c7fd6f5f8e636dd444171feeafea707a386679098a5fcd`.
+
+Commit, CI and protected deployment are next. This correction is not hosted or
+real-output accepted yet. No further paid call has occurred; the same guest and
+existing stable alias must be retained for the authorized next baseline.
+
+### Actual desktop evidence and limits
+
+Design directly viewed the accepted article top screenshot at 1280×720 and found
+no visible hierarchy/legibility/control-discovery blocker in that crop. The body
+and complete numbered Sources list render. At scrollY1440, Back returned focus to
+the correct card; reopening restored the same article at scrollY1111.5, and reload
+retained1111.5. Nonzero return/identity/reload are verified; exact-pixel continuity
+is not. The source link was clicked but no separate publisher tab was observed,
+so external source-opening remains unverified. Scrolling for QA is not a reader
+learning/mastery result. Screenshots remain private; none are mobile captures.
+
+The browser approval reviewer rejected checking **Save article** as a persistent
+mutation without explicit authority. No alternate route/retry followed; accepted
+article save is unverified and its state untouched. Earlier failed-idea
+save/Library/reload/unsave evidence is separate and remains valid. This is a
+verification limit, not proof that the implementation is broken.
+
 ## v1.4 integration after actual second failure — current checkpoint
 
 Exact committed/pushed `eeab414927f900950aff9e4428a0313534c4567a` passed
@@ -102,6 +236,11 @@ The final public web build needs `NEXT_PUBLIC_API_URL=https://project-fjr95.verc
 and the normal public connection, not the protected calibration web configuration:
 legacy account calls are direct browser API requests. Verify that final configuration
 separately; do not claim it was established by the protected calibration.
+At final rollout, persist the selected production flags in the existing projects
+and read them back by name/scope, without exposing secrets, so later normal Git
+deployments do not revert to the saved feature-off defaults. Saved configuration
+alone is not runtime verification; recheck the resulting deployment. No such
+production configuration change has been made during private calibration.
 
 ## Real calibration failure and bounded correction — 18:55 UTC
 
@@ -400,7 +539,7 @@ reversible code/tests and reviewable configuration proposal, but do not activate
 or work around the rejection. Chief of Staff coordinates the necessary owner
 approval. Existing unrelated release authority remains intact.
 
-## Remaining execution
+## Earlier preparation sequence — historical, superseded by current checkpoints
 
 1. Close/review the opt-in connector tests and exact scoped access decision.
 2. Recheck the single pending migration and apply under preserved release
@@ -420,5 +559,6 @@ approval. Existing unrelated release authority remains intact.
 5. Complete connected/rendered and real-output acceptance, then the requested
    apex rollout, post-deploy checks and documented application recovery path.
 
-No real on-demand provider call, hosted migration, explicit new deployment,
-domain change, invitation, purchase or quota change has occurred in this record.
+At that earlier preparation checkpoint, no real on-demand provider call, hosted
+migration, explicit new deployment, domain change, invitation, purchase or quota
+change had occurred. The current execution sections above supersede that status.

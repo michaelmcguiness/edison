@@ -10,9 +10,11 @@ import {
   type OnDemandStageOptions,
   type OnDemandWriterOutput,
   type OnDemandWriterProviderOutput,
+  type OnDemandSurfaceChecks,
   type SelectedOnDemandInput,
 } from "../packages/ai/src/on-demand";
 import { ProviderResponseValidationError } from "../packages/ai/src/provider-response-error";
+import { surfaceCheckFixture } from "./helpers/on-demand-provider-fixture";
 
 // Constructed observations only. These tests exercise structural contracts with
 // injected checker responses, not provider quality or factual acceptance.
@@ -83,12 +85,16 @@ function options(output: unknown, calls: OnDemandProviderRequest[] = []): OnDema
   return { model: usage.model, idempotencyKey: "constructed-check", safetyIdentifier: "constructed-reader",
     provider: async (request) => { calls.push(request); return { output, usage }; } };
 }
-function checker(value: OnDemandWriterOutput): Omit<OnDemandCheckOutput, "sourceMetadataPassed"> {
+function checker(value: OnDemandWriterOutput): Omit<OnDemandCheckOutput, "sourceMetadataPassed" | "surfaceChecks"> & {
+  surfaceChecks: { fingerprint: string; surfaces: Record<string, Omit<OnDemandSurfaceChecks["surfaces"][number], "location">> };
+} {
+  const audit = surfaceCheckFixture(value);
   return {
     verdict: "pass", promiseFulfilled: true, readerFit: true, continuity: true, privacyPassed: true,
     claims: value.claims.map((claim) => ({ claimId: claim.id, verdict: "supported", passageIds: claim.passageIds,
       reason: "The constructed evidence supports this bounded observation." })),
     missedMaterialClaims: [], findings: [],
+    surfaceChecks: { fingerprint: audit.fingerprint, surfaces: Object.fromEntries(audit.surfaces.map(({ location, ...checked }) => [location, checked])) },
   };
 }
 

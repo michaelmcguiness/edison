@@ -3,6 +3,7 @@ import test from "node:test";
 import { uuidSchema } from "@edison/contracts";
 import type { OnDemandCheckOutput, OnDemandWriterOutput, SelectedOnDemandInput } from "../packages/ai/src/on-demand";
 import { demandArtifactId, demandFeedbackOperations, publishableDemandArticle } from "../apps/api/src/services/demand-publication";
+import { surfaceCheckFixture } from "./helpers/on-demand-provider-fixture";
 
 const selected: SelectedOnDemandInput = {
   context: { loopId: "test-loop", revision: 1, originalCuriosity: "Test subject", directions: [],
@@ -32,6 +33,7 @@ const draft: OnDemandWriterOutput = {
 const check: OnDemandCheckOutput = {
   verdict: "pass", promiseFulfilled: true, readerFit: true, continuity: true, privacyPassed: true,
   sourceMetadataPassed: true, missedMaterialClaims: [], findings: [],
+  surfaceChecks: surfaceCheckFixture(draft),
   claims: [{ claimId: "claim", verdict: "supported", passageIds: ["p1", "p2"], reason: "Synthetic test acceptance" }],
 };
 const input = { requestId: "4c8c3c82-67c6-421e-a55b-76b8e0027c7d", selection: selected, draft, check, publishedAt: "2026-09-06T11:00:00.000Z" };
@@ -56,6 +58,24 @@ test("a failed editorial check never materializes a ready article", () => {
   assert.throws(() => publishableDemandArticle({ ...input, check: { ...check, missedMaterialClaims: [{ location: "deck", text: "Unmapped claim" }] } }), /editorial_withheld/);
   assert.throws(() => publishableDemandArticle({ ...input, check: { ...check, claims: [] } }), /editorial_withheld/);
   assert.throws(() => publishableDemandArticle({ ...input, check: { ...check, claims: [{ claimId: "invented", verdict: "supported", passageIds: ["p1"], reason: "Not this writer's claim" }] } }), /editorial_withheld/);
+});
+
+test("publication requires a complete surface audit bound to the actual article text", () => {
+  const missingAudit = structuredClone(check);
+  delete missingAudit.surfaceChecks;
+  assert.throws(() => publishableDemandArticle({ ...input, check: missingAudit }), /editorial_withheld/);
+
+  const changedProse = structuredClone(draft);
+  changedProse.article!.body[0].text += " This added consequential claim was not checked.";
+  assert.throws(() => publishableDemandArticle({ ...input, draft: changedProse }), /editorial_withheld/);
+
+  const missingSurface = structuredClone(check);
+  missingSurface.surfaceChecks!.surfaces = missingSurface.surfaceChecks!.surfaces.filter((surface) => surface.location !== "body.0");
+  assert.throws(() => publishableDemandArticle({ ...input, check: missingSurface }), /editorial_withheld/);
+
+  const addedHeading = structuredClone(draft);
+  addedHeading.article!.body.push({ type: "heading", level: 2, text: "An unchecked clinical conclusion" });
+  assert.throws(() => publishableDemandArticle({ ...input, draft: addedHeading }), /editorial_withheld/);
 });
 
 test("publication rejects tampered canonical labels and invented source dates", () => {

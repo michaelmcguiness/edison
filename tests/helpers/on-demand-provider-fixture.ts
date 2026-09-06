@@ -1,4 +1,13 @@
-import type { OnDemandProviderRequest, OnDemandWriterOutput, OnDemandWriterProviderOutput } from "../../packages/ai/src/on-demand";
+import { onDemandArticleSurfaceManifest, type OnDemandCheckOutput, type OnDemandProviderRequest, type OnDemandWriterOutput, type OnDemandWriterProviderOutput } from "../../packages/ai/src/on-demand";
+
+export function surfaceCheckFixture(draft: OnDemandWriterOutput): NonNullable<OnDemandCheckOutput["surfaceChecks"]> {
+  const manifest = onDemandArticleSurfaceManifest(draft);
+  return { fingerprint: manifest.fingerprint, surfaces: manifest.surfaces.map((surface) => ({
+    location: surface.location, verdict: surface.kind === "heading" && !surface.claims.length ? "nonfactual" : "supported",
+    passageIds: [...new Set(surface.claims.flatMap((claim) => claim.passageIds))],
+    reason: "Constructed full-surface assessment, not a semantic-quality claim.",
+  })) };
+}
 
 /** Test-only bridge for constructed canonical fixtures. Production deliberately
  * does not accept historical flat writer JSON as the new provider contract. */
@@ -31,6 +40,9 @@ export function providerFixtureOutput(request: OnDemandProviderRequest, output: 
   if (request.stage === "check" && (request.input as { mode?: string }).mode !== "article_question" && output && typeof output === "object" && "sourceMetadataPassed" in output) {
     const result = { ...output } as Record<string, unknown>;
     delete result.sourceMetadataPassed;
+    const audit = (output as OnDemandCheckOutput).surfaceChecks ?? surfaceCheckFixture((request.input as { draft: OnDemandWriterOutput }).draft);
+    result.surfaceChecks = { fingerprint: audit.fingerprint,
+      surfaces: Object.fromEntries(audit.surfaces.map(({ location, ...checked }) => [location, checked])) };
     return result;
   }
   return output;

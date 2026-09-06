@@ -13,7 +13,7 @@ import {
 } from "../packages/ai/src/on-demand";
 import { ProviderResponseValidationError } from "../packages/ai/src/provider-response-error";
 import { createEmptyLoopPrincipleState } from "../packages/domain/src/loop-principles";
-import { providerFixtureOutput, writerProviderFixture } from "./helpers/on-demand-provider-fixture";
+import { providerFixtureOutput, surfaceCheckFixture, writerProviderFixture } from "./helpers/on-demand-provider-fixture";
 
 // All passages/responses below are constructed. These are pipeline/state tests,
 // not real provider research, editorial-quality, or daily-value acceptance.
@@ -51,9 +51,15 @@ function draft(packet = evidence()): OnDemandWriterOutput {
 }
 function check(value = draft(), verdict: OnDemandCheckOutput["verdict"] = "pass"): OnDemandCheckOutput {
   return { verdict, promiseFulfilled: verdict === "pass", readerFit: true, continuity: true, privacyPassed: true, sourceMetadataPassed: true,
+    surfaceChecks: surfaceCheckFixture(value),
     claims: value.claims.map((claim) => ({ claimId: claim.id, verdict: "supported", passageIds: claim.passageIds, reason: "The constructed passage states the limitation." })),
     missedMaterialClaims: [], findings: verdict === "pass" ? [] : [{ location: "deck", severity: "material", reason: "The explanation does not fulfill the headline.", repair: "Explain the material evidence boundary." }],
   };
+}
+function questionCheck(value = draft(), verdict: OnDemandCheckOutput["verdict"] = "pass"): OnDemandCheckOutput {
+  const result = check(value, verdict);
+  delete result.surfaceChecks;
+  return result;
 }
 function row(kind: DemandRequestRow["kind"], snapshot: Record<string, unknown> = {}): DemandRequestRow {
   const at = new Date("2026-09-06T12:00:00.000Z");
@@ -242,7 +248,7 @@ test("a parseable initial selected-title failure gets one deterministic repair t
   assert.deepEqual(calls.map((call) => call.stage), ["write", "repair", "check"]);
   assert.deepEqual(calls.map((call) => call.idempotencyKey), [`${requestId}:write`, `${requestId}:repair`, `${requestId}:recheck`]);
   assert.deepEqual(calls.map((call) => call.model), ["gpt-5.6-terra", "gpt-5.6-terra", "gpt-5.6-luna"]);
-  assert.ok(calls.every((call) => call.promptVersion === "edison-demand-v1.4"));
+  assert.ok(calls.every((call) => call.promptVersion === "edison-demand-v1.5"));
 });
 
 test("initial structural repair is terminal if its draft remains invalid or its full recheck fails", async () => {
@@ -340,7 +346,7 @@ test("contextual question uses its immutable article identity and is checked wit
   const request = row("question", { question: { question: "Was clinical efficacy tested?", articleVersion: immutableArticleId, draft: draft(), evidence: evidence(), previousMessages: [{ role: "user", text: "What kind of experiment was this?" }, { role: "assistant", text: "A laboratory experiment." }] } });
   const answer = { status: "answered", answer: "No. The experiment did not test clinical efficacy.", claims: [{ id: "answer-claim", text: "Clinical efficacy was not tested.", locations: ["answer"], passageIds: ["lead-0"] }], missingEvidence: null };
   const calls: OnDemandProviderRequest[] = [];
-  const provider = fakeProvider((call) => call.stage === "answer" ? answer : { ...check(), claims: [{ claimId: "answer-claim", verdict: "supported", passageIds: ["lead-0"], reason: "The source explicitly excludes clinical tests." }] }, calls);
+  const provider = fakeProvider((call) => call.stage === "answer" ? answer : { ...questionCheck(), claims: [{ claimId: "answer-claim", verdict: "supported", passageIds: ["lead-0"], reason: "The source explicitly excludes clinical tests." }] }, calls);
   const first = await advanceDemandPipeline({ request, state: initial(request) }, { provider });
   assert.equal(first.state.phase, "answer_check"); assert.equal(first.outcome, undefined);
   const final = await advanceDemandPipeline({ request, state: first.state }, { provider });
@@ -352,7 +358,7 @@ test("contextual question uses its immutable article identity and is checked wit
 
 test("a failed question checker never exposes the unchecked answer as ready", async () => {
   const request = row("question", { question: { question: "Was clinical efficacy tested?", articleVersion: "immutable-article-1", draft: draft(), evidence: evidence(), previousMessages: [] } });
-  const result = await advanceDemandPipeline({ request, state: { ...initial(request), phase: "answer_check", answer: { status: "answered", answer: "It cured patients.", claims: [{ id: "answer-claim", text: "It cured patients.", locations: ["answer"], passageIds: ["lead-0"] }], missingEvidence: null } } }, { provider: fakeProvider(() => ({ ...check(draft(), "insufficient_evidence"), claims: [{ claimId: "answer-claim", verdict: "contradicted", passageIds: ["lead-0"], reason: "No patients were studied." }] })) });
+  const result = await advanceDemandPipeline({ request, state: { ...initial(request), phase: "answer_check", answer: { status: "answered", answer: "It cured patients.", claims: [{ id: "answer-claim", text: "It cured patients.", locations: ["answer"], passageIds: ["lead-0"] }], missingEvidence: null } } }, { provider: fakeProvider(() => ({ ...questionCheck(draft(), "insufficient_evidence"), claims: [{ claimId: "answer-claim", verdict: "contradicted", passageIds: ["lead-0"], reason: "No patients were studied." }] })) });
   assert.equal(result.failureCode, "editorial_withheld"); assert.equal(result.outcome, undefined);
 });
 
@@ -380,10 +386,29 @@ test("ready replay rejects empty or mismatched article claim checks without call
   assert.equal(calls, 0);
 });
 
+test("ready article replay rejects a missing surface audit or changed actual prose without new provider work", async () => {
+  const request = articleRequest(); let calls = 0;
+  const original = draft();
+  const audited = check(original);
+  const missingAudit = structuredClone(audited);
+  delete missingAudit.surfaceChecks;
+  const changedProse = structuredClone(original);
+  changedProse.article!.body[0].text += " The circuit has already cured patients.";
+  const dependencies = { provider: fakeProvider(() => { calls++; return {}; }) };
+  const valid = await advanceDemandPipeline({ request, state: { ...initial(request), phase: "ready", draft: original, check: audited } }, dependencies);
+  assert.equal(valid.outcome, "article", "the unchanged fully audited snapshot remains publishable");
+  for (const snapshot of [{ draft: original, check: missingAudit }, { draft: changedProse, check: audited }]) {
+    const result = await advanceDemandPipeline({ request, state: { ...initial(request), phase: "ready", ...snapshot } }, dependencies);
+    assert.equal(result.failureCode, "editorial_withheld");
+    assert.equal(result.outcome, undefined);
+  }
+  assert.equal(calls, 0);
+});
+
 test("ready answer replay revalidates the exact saved answer and its evidence coverage", async () => {
   const request = row("question", { question: { question: "Was clinical efficacy tested?", articleVersion: "immutable-article-1", draft: draft(), evidence: evidence(), previousMessages: [] } });
   const answer = { status: "answered" as const, answer: "Clinical efficacy was not tested.", claims: [{ id: "answer-claim", text: "Clinical efficacy was not tested.", locations: ["answer"], passageIds: ["lead-0"] }], missingEvidence: null };
-  const accepted = { ...check(), claims: [{ claimId: "answer-claim", verdict: "supported" as const, passageIds: ["lead-0"], reason: "Explicit source limitation" }] };
+  const accepted = { ...questionCheck(), claims: [{ claimId: "answer-claim", verdict: "supported" as const, passageIds: ["lead-0"], reason: "Explicit source limitation" }] };
   let calls = 0;
   const deps = { provider: fakeProvider(() => { calls++; return {}; }) };
   const replay = await advanceDemandPipeline({ request, state: { ...initial(request), phase: "ready", answer, check: accepted } }, deps);

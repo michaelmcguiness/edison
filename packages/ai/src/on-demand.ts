@@ -1,9 +1,11 @@
 import { z } from "zod";
+import { createHash } from "node:crypto";
 import { onDemandArticleSchema } from "./schemas";
 import { ProviderResponseValidationError, type ObservedProviderUsage } from "./provider-response-error";
 import { ON_DEMAND_PROMPTS, ON_DEMAND_PROMPT_VERSION } from "./on-demand-prompts";
 import {
   onDemandAnswerOutputSchema,
+  onDemandAnswerCheckProviderSchema,
   onDemandArticleCheckProviderSchema,
   onDemandCheckOutputSchema,
   onDemandContextSchema,
@@ -13,6 +15,7 @@ import {
   onDemandResearchOutputSchema,
   onDemandWriterOutputSchema,
   onDemandWriterProviderOutputSchema,
+  onDemandSurfaceChecksSchema,
   type OnDemandAnswerOutput,
   type OnDemandCheckOutput,
   type OnDemandContext,
@@ -224,6 +227,28 @@ function articleLocations(output: OnDemandWriterOutput, includeHeadings = false)
   return ["title", "deck", ...output.article.summary.map((_, index) => `summary.${index}`), ...output.article.body.flatMap((block, index) => block.type === "heading" && !includeHeadings ? [] : [`body.${index}`])];
 }
 
+/** The exact text being assessed, not the writer's paraphrase of it. Include
+ * classification/claim bindings and citation presentation in the fingerprint
+ * so a check cannot be replayed against changed text or a weakened mapping. */
+export function onDemandArticleSurfaceManifest(draft: OnDemandWriterOutput) {
+  const output = onDemandWriterOutputSchema.parse(draft);
+  if (output.status !== "written" || !output.article) invalid("Cannot audit unavailable reading");
+  const article = output.article;
+  const surface = (location: string, kind: "title" | "deck" | "summary" | "paragraph" | "heading" | "quote", text: string,
+    attribution: string | null = null, citations: Array<{ sourceKey: string; label: string }> = []) => ({
+    location, kind, text, attribution, citations: citations.map(({ sourceKey, label }) => ({ sourceKey, label })),
+    claims: output.claims.filter((claim) => claim.locations.includes(location)).map(({ id, text, passageIds }) => ({ id, text, passageIds: [...passageIds] })),
+  });
+  const surfaces = [surface("title", "title", article.title), surface("deck", "deck", article.deck),
+    ...article.summary.map((text, index) => surface(`summary.${index}`, "summary", text)),
+    ...article.body.map((block, index) => surface(`body.${index}`, block.type, block.text,
+      block.type === "quote" ? block.attribution : null, block.type === "heading" ? [] : block.citations))];
+  // Context-copy remains subject to reader-fit/privacy checks, not fabricated
+  // external evidence for the reader's intent. Its exact words are still bound.
+  const manifest = { whyWritten: article.whyWritten, surfaces };
+  return { fingerprint: createHash("sha256").update(JSON.stringify(manifest)).digest("hex"), ...manifest };
+}
+
 function assertClaimMap(claims: OnDemandWriterOutput["claims"], locations: string[], evidence: OnDemandEvidence, allowedLocations = locations) {
   unique(claims.map((claim) => claim.id), "claim ID");
   const mapped = new Set<string>();
@@ -410,8 +435,41 @@ function assertCheckCoverage(check: OnDemandCheckOutput, claims: OnDemandWriterO
   }
 }
 
+function assertSurfaceCoverage(draft: OnDemandWriterOutput, check: OnDemandCheckOutput, evidence: OnDemandEvidence) {
+  const audit = onDemandSurfaceChecksSchema.parse(check.surfaceChecks);
+  const manifest = onDemandArticleSurfaceManifest(draft);
+  if (audit.fingerprint !== manifest.fingerprint) invalid("Surface check belongs to different reading");
+  unique(audit.surfaces.map((surface) => surface.location), "checked surface");
+  const expected = new Set(manifest.surfaces.map((surface) => surface.location));
+  if (audit.surfaces.length !== expected.size || audit.surfaces.some((surface) => !expected.has(surface.location))) invalid("Checker did not assess every exact surface once");
+  const sourceIds = new Set(draft.article!.sources.map((source) => source.key));
+  let accepted = true;
+  for (const checked of audit.surfaces) {
+    const surface = manifest.surfaces.find((candidate) => candidate.location === checked.location)!;
+    if (checked.verdict === "nonfactual") {
+      if (checked.passageIds.length) invalid("A nonfactual surface cannot claim factual support");
+      // A checker may legitimately identify an over-mapped rhetorical heading.
+      // It needs the same sole repair, not a fabricated factual verdict or pass.
+      if (surface.kind !== "heading" || surface.claims.length) accepted = false;
+    } else if (checked.verdict === "supported") {
+      assertRetrievedPassages(checked.passageIds, evidence);
+      const support = new Set(checked.passageIds.map((id) => evidence.passages.find((passage) => passage.id === id)!.sourceId));
+      if ([...support].some((id) => !sourceIds.has(id))) accepted = false;
+      if (surface.kind === "heading" && !surface.claims.length) accepted = false;
+      if (surface.kind === "paragraph" || surface.kind === "quote") {
+        const displayed = new Set(surface.citations.map((citation) => citation.sourceKey));
+        if ([...support].some((id) => !displayed.has(id))) accepted = false;
+      }
+    } else {
+      accepted = false;
+      if (checked.passageIds.length) assertRetrievedPassages(checked.passageIds, evidence);
+    }
+  }
+  return accepted;
+}
+
 export function onDemandCheckAccepted(check: OnDemandCheckOutput) {
-  return check.verdict === "pass" && check.promiseFulfilled && check.readerFit && check.continuity && check.privacyPassed && check.sourceMetadataPassed && check.missedMaterialClaims.length === 0 && check.findings.every((finding) => finding.severity !== "material") && check.claims.every((claim) => claim.verdict === "supported");
+  return check.verdict === "pass" && check.promiseFulfilled && check.readerFit && check.continuity && check.privacyPassed && check.sourceMetadataPassed && check.missedMaterialClaims.length === 0 && check.findings.every((finding) => finding.severity !== "material") && check.claims.every((claim) => claim.verdict === "supported") && (!check.surfaceChecks || check.surfaceChecks.surfaces.every((surface) => surface.verdict === "supported" || surface.verdict === "nonfactual"));
 }
 
 /** Publication/replay gate for the exact retained draft and evidence packet.
@@ -424,6 +482,7 @@ export function assertAcceptedOnDemandArticleCheck(
   onDemandCheckOutputSchema.parse(check);
   if (draft.status !== "written" || !draft.article) invalid("editorial_withheld");
   assertCheckCoverage(check, draft.claims, selection.evidence);
+  if (!assertSurfaceCoverage(draft, check, selection.evidence)) invalid("editorial_withheld");
   if (!onDemandCheckAccepted(check)) invalid("editorial_withheld");
   const displayedSources = new Set(draft.article.sources.map((source) => source.key));
   const supportedByBody = new Map<string, Set<string>>();
@@ -460,16 +519,23 @@ export async function checkOnDemandArticle(input: SelectedOnDemandInput & { draf
   assertSelection(input);
   assertOnDemandDraft(input, input.draft);
   if (input.draft.status !== "written") invalid("Cannot check an unavailable article");
-  const locations = articleLocations(input.draft, true) as [string, ...string[]];
-  const result = await runStage("check", input, onDemandArticleCheckProviderSchema(locations), options, (output) => {
-    const check = { ...output, sourceMetadataPassed: true };
+  const surfaceManifest = onDemandArticleSurfaceManifest(input.draft);
+  const locations = surfaceManifest.surfaces.map((surface) => surface.location) as [string, ...string[]];
+  const normalize = (output: z.infer<ReturnType<typeof onDemandArticleCheckProviderSchema>>): OnDemandCheckOutput => ({
+    ...output, sourceMetadataPassed: true,
+    surfaceChecks: { fingerprint: output.surfaceChecks.fingerprint,
+      surfaces: Object.entries(output.surfaceChecks.surfaces).map(([location, checked]) => ({ location, ...checked })) },
+  });
+  const result = await runStage("check", { ...input, surfaceManifest }, onDemandArticleCheckProviderSchema(locations, surfaceManifest.fingerprint), options, (output) => {
+    const check = normalize(output);
     assertCheckCoverage(check, input.draft.claims, input.evidence);
-    if (onDemandCheckAccepted(check)) assertAcceptedOnDemandArticleCheck(input, input.draft, check);
+    const surfacesAccepted = assertSurfaceCoverage(input.draft, check, input.evidence);
+    if (onDemandCheckAccepted(check) && surfacesAccepted) assertAcceptedOnDemandArticleCheck(input, input.draft, check);
   });
   // This flag certifies only exact server-owned metadata, already validated
   // above. No factual verdict, finding, missing claim or prose flag is changed.
-  const output = { ...result.output, sourceMetadataPassed: true };
-  return { ...result, output, accepted: onDemandCheckAccepted(output) };
+  const output = normalize(result.output);
+  return { ...result, output, accepted: onDemandCheckAccepted(output) && assertSurfaceCoverage(input.draft, output, input.evidence) };
 }
 
 export type OnDemandArticleRepairInput = SelectedOnDemandInput & { draft: OnDemandWriterOutput } & (
@@ -484,10 +550,24 @@ export function repairOnDemandArticle(input: OnDemandArticleRepairInput, options
   if (input.validationFindings !== undefined) onDemandDraftValidationFindingsSchema.parse(input.validationFindings);
   else {
     onDemandCheckOutputSchema.parse(input.check);
-    if (input.check.verdict === "insufficient_evidence" || onDemandCheckAccepted(input.check)) invalid("Repair requires a repairable failed check");
+    const surfacesAccepted = assertSurfaceCoverage(draft, input.check, input.evidence);
+    if (input.check.verdict === "insufficient_evidence" || (onDemandCheckAccepted(input.check) && surfacesAccepted)) invalid("Repair requires a repairable failed check");
   }
   return runWriterStage("repair", input, options).then((result) => {
-    try { assertOnDemandDraft(input, result.output); }
+    try {
+      assertOnDemandDraft(input, result.output);
+      if (result.output.article) {
+        const materialHeadings = new Set(draft.article!.body.flatMap((block, index) => {
+          if (block.type !== "heading") return [];
+          const verdict = input.check?.surfaceChecks?.surfaces.find((surface) => surface.location === `body.${index}`)?.verdict;
+          const material = verdict ? verdict !== "nonfactual" : draft.claims.some((claim) => claim.locations.includes(`body.${index}`));
+          return material ? [block.text] : [];
+        }));
+        result.output.article.body.forEach((block, index) => {
+          if (block.type === "heading" && materialHeadings.has(block.text) && !result.output.claims.some((claim) => claim.locations.includes(`body.${index}`))) invalid("An unchanged material heading lost its claim mapping during repair");
+        });
+      }
+    }
     catch { throw new ProviderResponseValidationError("The repair response failed on-demand validation", result.usage); }
     return result;
   });
@@ -581,7 +661,7 @@ export function answerOnDemandQuestion(input: OnDemandQuestionInput, options: On
 
 export async function checkOnDemandAnswer(input: OnDemandQuestionInput & { answer: OnDemandAnswerOutput }, options: OnDemandStageOptions) {
   assertOnDemandAnswer(input, input.answer);
-  const result = await runStage("check", { ...input, mode: "article_question", requiredProseLocation: "answer" }, onDemandCheckOutputSchema, options, (output) => {
+  const result = await runStage("check", { ...input, mode: "article_question", requiredProseLocation: "answer" }, onDemandAnswerCheckProviderSchema, options, (output) => {
     assertCheckCoverage(output, input.answer.claims, input.evidence);
     if (onDemandCheckAccepted(output)) assertAcceptedOnDemandAnswerCheck(input, input.answer, output);
   });

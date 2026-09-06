@@ -20,7 +20,7 @@ import {
   onDemandArticleFormatSchema,
   onDemandArticleSchema,
 } from "../packages/ai/src/schemas";
-import { providerFixtureOutput, writerProviderFixture } from "./helpers/on-demand-provider-fixture";
+import { providerFixtureOutput, surfaceCheckFixture, writerProviderFixture } from "./helpers/on-demand-provider-fixture";
 
 // Entirely constructed text and injected responses: no captured reader prose,
 // remote evidence retrieval, provider calls, or semantic-quality claims.
@@ -87,6 +87,7 @@ function check(value: OnDemandWriterOutput, accepted = true): OnDemandCheckOutpu
   return {
     verdict: accepted ? "pass" : "repair", promiseFulfilled: accepted, readerFit: true,
     continuity: true, privacyPassed: true, sourceMetadataPassed: true,
+    surfaceChecks: surfaceCheckFixture(value),
     claims: value.claims.map((claim) => ({ claimId: claim.id, verdict: "supported", passageIds: claim.passageIds,
       reason: "The constructed passage supports the stated limit." })),
     missedMaterialClaims: [], findings: accepted ? [] : [{ location: "deck", severity: "material",

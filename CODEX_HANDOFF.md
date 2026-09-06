@@ -15,6 +15,59 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
+### September 6 v1.5 — local verification complete, protected deployment next
+
+The bounded exact-text correction is implemented and independently source-reviewed
+by CoS. Every displayed factual surface, including headings, now requires its own
+fingerprint-bound assessment; article publication/replay reject absent or stale
+audits. Missing displayed support and heading mappings retain the same sole repair.
+The why-written explanation remains checked for privacy/fit without fabricated
+external evidence. Question format, models, caps, database and raw-stage records
+are unchanged. These checks enforce coverage; they do not prove model accuracy.
+
+All **354 web + 143 API tests**, both typechecks, lint and both production builds
+pass. A first typecheck encountered duplicate generated API type artifacts; both
+builds regenerated those artifacts and the final standalone typechecks passed.
+Final source hashes and review scope are in the technical release record. Commit,
+CI and protected deployment are next; public release remains unchanged. Resume
+only the already-authorized same-guest Bag of Reactions baseline, then feedback
+and one adapted batch/article if acceptable. The v1.4 false positive below remains
+preserved, not repaired or counted as editorial acceptance.
+
+### September 6 v1.4 real-output finding — paid calibration and rollout paused
+
+Exact `de8ce3d3c8e57635b38e2af87f78855f62881e64` is committed/pushed, green in
+CI `34056080702` and all Preview contexts, and deployed to the stable protected
+calibration origin. Article request `1c02f1c9-ce65-498a-94d2-89a1c0e6ac8f`
+completed writer/check/sole-repair/recheck and the app rendered it. **This is an
+automated acceptance false positive, not Editorial acceptance:** CoS found a
+material unsupported conditional in summary.1. The checker accepted the writer's
+weaker paraphrase rather than the actual summary's causal condition. All three
+unchanged headings were also relabeled neutral during repair, removing mappings.
+
+Do not commission further paid work or roll out publicly while the smallest
+exact-surface/complete-heading QA correction is resolved. No feedback or adapted
+batch has been submitted; no provider request is in flight. Preserve the accepted
+private record and its four raw stages/charges unchanged; do not manually rescue
+it. Baseline cost was $0.127128; total on-demand ledger estimates are $0.289663.
+CoS has clarified that the old aggregate article cap was its sampling limit, not
+a Michael-specified budget, and revised it by one article within this same guest's
+existing server allowance. Current remainder is **one ideas batch/two articles**
+(total across both existing guests at most three ideas/five articles). No server
+quota, dollar ceiling, model or principal change. After corrected source/review/
+deployment, use the next unselected **When Does a Bag of Reactions Become a Cell?**
+card as baseline; only if acceptable continue with the exact feedback and one
+adapted batch/article. Stop for diagnosis on a material failure.
+
+Actual desktop reading, same-origin Back/reopen and reload succeeded (retained
+nonzero position); exact-pixel return is not yet established. Source list renders;
+external source-opening behavior is unverified. Browser approval review rejected
+the accepted article's Save mutation; do not retry by another method or infer new
+permission. Prior failed-idea save/Library/reload/unsave evidence remains valid.
+Public September 5 release and protection remain unchanged. New legacy cron
+recovery is `dpl_7fJHWRo993aXNsy5i67SheKc1Umo`, exact a681331, all original
+schedules enabled. See the technical release record for precise hosted identities.
+
 ### September 6 v1.4 integration — second failure retained, private correction only
 
 Exact `eeab414927f900950aff9e4428a0313534c4567a` passed CI `34053531026` and
