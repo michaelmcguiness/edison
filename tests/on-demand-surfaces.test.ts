@@ -59,7 +59,7 @@ function rawDraft(): OnDemandWriterProviderOutput {
     article: {
       category: "tech-science", kicker: "A constructed test", topic: "A bounded observation",
       whyWritten: "Explain what the observation establishes.", readingMinutes: 3,
-      title: surface(input.idea.headline), deck: surface(input.idea.deck),
+      title: { text: input.idea.headline, evidence: { kind: "material", claims: [localClaim(input.idea.headline)] } }, deck: surface(input.idea.deck),
       summary: [surface("The lamp lit."), surface("The observation concerns one test."), surface("Future performance was not tested.")],
       body: [
         { type: "heading", level: 2, text: "The observation", evidence: { kind: "neutral", claims: [] } },
@@ -175,7 +175,7 @@ test("a 24-character hostname is complete and longer hosts use their stable evid
 
 test("unknown and model-reported passage references fail rather than acquire retrieved provenance", () => {
   const unknown = rawDraft();
-  unknown.article!.title.claims[0].passageIds = ["unknown-passage"];
+  unknown.article!.title.evidence.claims[0].passageIds = ["unknown-passage"];
   assert.throws(() => assembleOnDemandWriterOutput(selection(), unknown));
   const unverified = selection();
   unverified.evidence.passages[0].provenance = "model_reported";
@@ -198,13 +198,13 @@ test("more than 100 attached claims fail explicitly without truncating the final
 
 test("repeated local claims retain deterministic individual identities and each surface location", () => {
   const raw = rawDraft();
-  raw.article!.deck.claims = structuredClone(raw.article!.title.claims);
+  raw.article!.deck.claims = structuredClone(raw.article!.title.evidence.claims);
   const assembled = assembleOnDemandWriterOutput(selection(), raw);
   assert.deepEqual(assembled.claims.slice(0, 2).map(({ id, locations }) => ({ id, locations })),
     [{ id: "c1", locations: ["title"] }, { id: "c2", locations: ["deck"] }]);
 });
 
-test("v1.4 wire schema rejects the old canonical envelope and model-supplied presentation fields", () => {
+test("the provider wire schema rejects the old canonical envelope and model-supplied presentation fields", () => {
   const canonical = assembleOnDemandWriterOutput(selection(), rawDraft());
   assert.equal(onDemandWriterProviderOutputSchema.safeParse(canonical).success, false);
   const raw = rawDraft();

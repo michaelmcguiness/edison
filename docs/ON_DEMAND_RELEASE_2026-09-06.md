@@ -4,6 +4,143 @@ Owner: CTO. Scope: D26 on-demand reading, protected real-output calibration,
 connected/browser acceptance, then the authorized existing apex rollout.
 This is an execution record, not a claim that the new experience is live.
 
+## v1.5 hosted checkpoint — 20:41 UTC
+
+Exact `60da1482784152fc5a080ba328bf9b5c8cdbef94` is committed/pushed and
+[CI 34058363433](https://github.com/michaelmcguiness/edison/actions/runs/34058363433)
+is green (application completed 20:36:23 UTC; database 20:36:09 UTC). All three
+Vercel Preview contexts succeeded. Independent verification matched all six
+recorded hashes to current files, committed blobs and the clean isolated copy
+`/private/tmp/edison-release-v15.4zHdu1/candidate`.
+
+Ready protected Production deployments at that exact revision:
+
+- API `dpl_A4A124JPSe21wsA5D2qVqSnfNUpu`,
+  `edison-h475znjw7-mike-michaelmcguis-projects.vercel.app`.
+- Web `dpl_5qccEniYKV15SLJhZ86Lix2vthyS`,
+  `edison-waoucgkiv-mike-michaelmcguis-projects.vercel.app`.
+
+The existing stable calibration alias points to that web; its runtime/build
+configuration pins the exact API using the already-approved project trust.
+Independent checks confirmed anonymous SSO302 protection, both team OIDC settings,
+the exact Production-to-Production trust and unchanged public aliases/targets.
+Public health returned configuration/database/auth all OK. Both build preflights
+passed; the existing API TLS verification warning remains.
+
+Clean old-source a681331 cron recovery is Ready as
+`dpl_4vuYaoLhE9tc5sUwDkmf3evFdm6m`,
+`edison-4hz6i520c-mike-michaelmcguis-projects.vercel.app`, demand explicitly false.
+All three original schedules were independently verified enabled there, original
+enabledAt unchanged and disabledAt=null. No manual cron run or public rollout.
+
+Same-origin reload retained the existing guest, loop and all four cards. The next
+previously unselected Bag of Reactions card was selected at 20:41:51 UTC. Request
+`edfd42a4-ddb6-4716-a683-f01ecd54518c` / Workflow
+`wrun_01M1W79F84K0Y52Z3HH91RKT8F` ended `editorial_withheld` at 20:43:33.918466
+UTC. Independent Workflow metadata confirms completion at 20:43:34.344 UTC on the
+exact corrected API with no runtime error. **No article was published.**
+
+Four writer/check/sole-repair/check stages cost 42,948 + 6,286 + 54,468 + 6,159
+microUSD, **$0.109861**, cumulative on-demand ledger estimate **$0.399524**.
+Terminal private packet `/private/tmp/edison-calibration-capture.1JIKsv` preserves
+the exact request, evidence, both drafts, both checks and charges. The intermediate
+packet `.730XpS` was captured while the final check was running and is not terminal
+evidence. Neither packet nor hosted failure record has been rewritten.
+
+Both complete exact-surface checks ran within the existing cap. Initial check
+caught unsupported mutual-maintenance/dependency assertions and material heading
+mapping; the sole repair changed actual prose and replaced those headings with
+neutral labels. The final check still returned repair/promiseFulfilled=false,
+two missing claims, six missed assertions, and failed body.0/.2/.4/.6/summary.2
+surfaces. Objections include a universal threshold claim, a same-mixture qualifier,
+and claims about maintenance/growth/reproduction/evolution absent from the retained
+excerpts. CoS is reviewing which objections are substantive versus overly literal
+treatment of cautious limitations. Separately, both checks requested classifying
+the rhetorical title as nonfactual and removing its map, which conflicts with the
+current title contract. **That mismatch is not the sole final failure.**
+
+Further paid calls and public rollout are paused for diagnosis. No feedback or
+adapted batch has been submitted; remaining allowance is one ideas batch/one
+article, unchanged same guest and all other ceilings. Do not rescue the failed
+article, retry with another principal or automatically consume the remaining slot.
+
+### Unpaid v1.6 correction — locally verified and source-reviewed, not hosted
+
+CoS's exact review distinguishes real unsupported global threshold wording from
+some overly literal treatment of study-scope caveats. The full primary paper has
+substantive results and limitations absent from the retained three windows. Its
+reviewed content is diagnostic evidence, not text to inject into old records.
+
+The title contract is being aligned with headings: explicitly neutral/material
+authored evidence, independent exact-title judgment, no question-mark exemption
+for factual premises, and the same sole repair for mapping defects. Supported
+study-scope qualifications remain distinct from unsupported universal negatives.
+Prior reading remains continuity context, never a source of factual authority.
+The idea check must also assess the reader question, payoff and negative bounds
+against the actual retained passages before offering the idea.
+
+Unpaid retrieval diagnosis found concrete query starvation: two abstract-only
+discovery leads receive two of the three source windows; the third query truncates
+the concatenated brief at 64 distinct terms. This idea has 60 terms before its
+qualifications and 74 total, dropping seven of the second qualification's eleven
+terms, including reproduction/evolution bounds. A generic facet-balanced approach
+is being evaluated against the actual page and constructed diverse-topic cases,
+within unchanged three-window/per-source/whole-packet bounds. No selection-quality
+improvement is established merely by retaining more query terms.
+
+CoS revised its sampling sequence, not the server quotas or dollar ceiling: after
+unpaid source review/checks and protected deployment, use the remaining one ideas
+batch/one article for the **fresh adapted journey**, not another unadapted card.
+Submit the exact medicine/DNA/concise/examples feedback, verify stored principles,
+then the final ideas batch and one selected body; contextual Ask and return/reopen
+follow within existing caps. The prior ideas and read v1.4 body/history are the
+before-context, with its factual failure explicitly preserved. A fresh unadapted
+v1.6 body will be unrun, not manufactured through a new principal or quota reset.
+Stop new paid calls if the final output fails materially. Paid hold remains while
+the current source correction is in progress; no feedback has been submitted.
+
+Final integration is now complete. CoS closed the bounded title/prompt and retrieval
+source review with no concrete residual. The selector separates qualification
+facets, prefers substantive result/constraint context when present, rejects short
+misleading section lists and preserves same-family lexical fallback when cue words
+are absent. Sentence-start alignment avoids orphaned prefixes. Models, network
+transport, provider stages, source/packet caps, database and sole repair are unchanged.
+
+Root independently replayed the implementation against the safely fetched cached
+page: exact normalized ranges **1–2200, 27557–29705, 38034–40187**, **6,516 JSON
+text bytes**, three windows. The actual output retains complete abstract context,
+measured crosstalk results and the explicit limited lipid yield/no physical membrane
+expansion, together with heterogeneity explanations. No publisher prose is committed
+as a fixture. Private output `implemented.json` in
+`/private/tmp/edison-passage-diagnosis.eBya7c` has SHA-256
+`cb05304c73022c50b0f5b7cef5fba73602490aa1c271b685835456ffd6492002`;
+cached-page hash `2af1ee296011bab7c02a3c0e779ce805cc723bbdcae2e2d6271e95b19433e7cd`.
+This confirms improved discovery coverage for the inspected case, not model accuracy.
+
+All **367 web + 149 API tests**, both final standalone typechecks, full lint,
+diff check and both production builds pass. The API still builds 13 steps/three
+workflows. All 13 prior selector tests remain passing; six new regressions cover
+qualification starvation with/without cue words, non-paper/TOC/ordinary-explanation
+behavior and sentence boundaries. Private comparison confirms both qualification
+regressions fail the original selector and pass the corrected one. Constructed
+title/publication/replay tests require exact audits and preserve failed material
+assessments; they do not certify actual model classification.
+
+Final reviewed SHA-256 identities:
+
+- AI runtime `226698de08f066729d33d6b0b378c9ec9e9fe7f38e7b0701236dc54403ed29a4`.
+- Schemas `ed8af685ac11e825944101b02509f1e9871f0f6adc8f1b2e0b424aa49dbec0ec`.
+- Prompts `058ad061c2ae49f80cc255aec9722bd2b11fc4493180b4ca5c59d91b544b4140`.
+- Selector `7611ce2bc3d601ba16d1ee13120e0577ab49e85fcaa62983fba8bae21626d1d0`.
+- Selector tests `8ef1c69aa21f60275fcb8d8905e7ec7645c8cf7fcf7be3cd4ad75152ec7965eb`.
+- Title audit tests `319f168d91d864c3949156a299171cff5eb9d3e0aa4d87d0af4be4240a417fc6`.
+- Pipeline tests `671538036afae980f04b03f4a6323d65b11a6c8f0b789db4f5640d5347c5c572`.
+- Publication tests `7661b9dbaaf95bb631ae0d7111860c3d9287741f78ca5e2fbc53eec5d0eb1763`.
+
+Commit/CI and the same protected deployment sequence are next. No v1.6 provider
+call, feedback submission or public rollout has occurred. The final adapted journey
+above remains the selected next paid sequence only after that checkpoint.
+
 ## Actual v1.4 acceptance false positive — latest finding
 
 Reviewed source `de8ce3d3c8e57635b38e2af87f78855f62881e64` is committed/pushed.

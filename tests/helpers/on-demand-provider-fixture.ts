@@ -3,7 +3,7 @@ import { onDemandArticleSurfaceManifest, type OnDemandCheckOutput, type OnDemand
 export function surfaceCheckFixture(draft: OnDemandWriterOutput): NonNullable<OnDemandCheckOutput["surfaceChecks"]> {
   const manifest = onDemandArticleSurfaceManifest(draft);
   return { fingerprint: manifest.fingerprint, surfaces: manifest.surfaces.map((surface) => ({
-    location: surface.location, verdict: surface.kind === "heading" && !surface.claims.length ? "nonfactual" : "supported",
+    location: surface.location, verdict: (surface.kind === "heading" || surface.kind === "title") && !surface.claims.length ? "nonfactual" : "supported",
     passageIds: [...new Set(surface.claims.flatMap((claim) => claim.passageIds))],
     reason: "Constructed full-surface assessment, not a semantic-quality claim.",
   })) };
@@ -20,7 +20,8 @@ export function writerProviderFixture(value: OnDemandWriterOutput): OnDemandWrit
     article: article ? {
       category: article.category, kicker: article.kicker, topic: article.topic,
       whyWritten: article.whyWritten, readingMinutes: article.readingMinutes,
-      title: { text: article.title, claims: claims("title") },
+      title: { text: article.title, evidence: claims("title").length
+        ? { kind: "material", claims: claims("title") } : { kind: "neutral", claims: [] } },
       deck: { text: article.deck, claims: claims("deck") },
       summary: article.summary.map((text, index) => ({ text, claims: claims(`summary.${index}`) })),
       body: article.body.map((block, index) => {

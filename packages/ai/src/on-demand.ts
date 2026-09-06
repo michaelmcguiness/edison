@@ -222,9 +222,9 @@ function assertSelection(input: SelectedOnDemandInput) {
   assertRetrievedPassages(input.idea.passageIds, input.evidence);
 }
 
-function articleLocations(output: OnDemandWriterOutput, includeHeadings = false) {
+function articleLocations(output: OnDemandWriterOutput, includeClassifiedSurfaces = false) {
   if (!output.article) return [];
-  return ["title", "deck", ...output.article.summary.map((_, index) => `summary.${index}`), ...output.article.body.flatMap((block, index) => block.type === "heading" && !includeHeadings ? [] : [`body.${index}`])];
+  return [...(includeClassifiedSurfaces ? ["title"] : []), "deck", ...output.article.summary.map((_, index) => `summary.${index}`), ...output.article.body.flatMap((block, index) => block.type === "heading" && !includeClassifiedSurfaces ? [] : [`body.${index}`])];
 }
 
 /** The exact text being assessed, not the writer's paraphrase of it. Include
@@ -303,7 +303,7 @@ export function assembleOnDemandWriterOutput(input: SelectedOnDemandInput, raw: 
     }
     return [...localSources].map((sourceKey) => ({ sourceKey, label: retainedSourceLabel(sourceKey, input.evidence) }));
   };
-  append("title", authored.title.claims);
+  append("title", authored.title.evidence.claims);
   append("deck", authored.deck.claims);
   authored.summary.forEach((surface, index) => append(`summary.${index}`, surface.claims));
   const body = authored.body.map((block, index) => {
@@ -345,8 +345,8 @@ export function assertOnDemandDraft(input: SelectedOnDemandInput, output: OnDema
   const article = onDemandArticleSchema.parse(output.article);
   if (!article.body.some((block) => block.type === "paragraph")) invalid("An article must contain explanatory prose, not headings alone");
   if (article.title !== input.idea.headline) invalid("Selected headline changed");
-  // Every prose surface needs coverage. A factual heading can also carry a
-  // material claim, while a neutral section label need not invent one.
+  // Explanatory prose needs coverage. Titles and headings may be nonassertive;
+  // their independent full-surface check decides whether a material map is due.
   assertClaimMap(output.claims, articleLocations(output), input.evidence, articleLocations(output, true));
   for (const source of article.sources) {
     const evidenceSource = input.evidence.sources.find((candidate) => candidate.id === source.key);
@@ -448,14 +448,14 @@ function assertSurfaceCoverage(draft: OnDemandWriterOutput, check: OnDemandCheck
     const surface = manifest.surfaces.find((candidate) => candidate.location === checked.location)!;
     if (checked.verdict === "nonfactual") {
       if (checked.passageIds.length) invalid("A nonfactual surface cannot claim factual support");
-      // A checker may legitimately identify an over-mapped rhetorical heading.
+      // A checker may identify an over-mapped nonassertive title or heading.
       // It needs the same sole repair, not a fabricated factual verdict or pass.
-      if (surface.kind !== "heading" || surface.claims.length) accepted = false;
+      if ((surface.kind !== "heading" && surface.kind !== "title") || surface.claims.length) accepted = false;
     } else if (checked.verdict === "supported") {
       assertRetrievedPassages(checked.passageIds, evidence);
       const support = new Set(checked.passageIds.map((id) => evidence.passages.find((passage) => passage.id === id)!.sourceId));
       if ([...support].some((id) => !sourceIds.has(id))) accepted = false;
-      if (surface.kind === "heading" && !surface.claims.length) accepted = false;
+      if ((surface.kind === "heading" || surface.kind === "title") && !surface.claims.length) accepted = false;
       if (surface.kind === "paragraph" || surface.kind === "quote") {
         const displayed = new Set(surface.citations.map((citation) => citation.sourceKey));
         if ([...support].some((id) => !displayed.has(id))) accepted = false;
@@ -557,6 +557,9 @@ export function repairOnDemandArticle(input: OnDemandArticleRepairInput, options
     try {
       assertOnDemandDraft(input, result.output);
       if (result.output.article) {
+        const titleVerdict = input.check?.surfaceChecks?.surfaces.find((surface) => surface.location === "title")?.verdict;
+        const materialTitle = titleVerdict ? titleVerdict !== "nonfactual" : draft.claims.some((claim) => claim.locations.includes("title"));
+        if (draft.article!.title === result.output.article.title && materialTitle && !result.output.claims.some((claim) => claim.locations.includes("title"))) invalid("An unchanged material title lost its claim mapping during repair");
         const materialHeadings = new Set(draft.article!.body.flatMap((block, index) => {
           if (block.type !== "heading") return [];
           const verdict = input.check?.surfaceChecks?.surfaces.find((surface) => surface.location === `body.${index}`)?.verdict;

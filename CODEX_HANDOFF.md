@@ -15,6 +15,57 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
+### September 6 v1.6 — local verification complete, protected checkpoint next
+
+Title evidence now follows the independently checked neutral/material heading
+contract; question marks never exempt factual premises. The selected question,
+exact audit, all material checks and sole repair remain required. Prompts clarify
+evidence-bounded brief promises and study-scope qualifications versus global
+negatives; prior reading is continuity context, not factual authority. CoS closed
+the bounded title/prompt and retrieval source review. All **367 web/149 API tests**,
+both typechecks, full lint and both production builds pass; no source/code gate
+remains open. Commit/CI and the existing protected deployment sequence are next.
+
+Unpaid retrieval replay found two abstract leads exhausting two slots and a
+64-term concatenated query dropping important qualification terms. The bounded
+fix balances finding/payoff/qualification queries and substantive results/limits
+when present, retaining general-topic fallback and existing budgets. The real
+paper replay now retains measured results and the missing membrane-growth limit;
+All 19 selector tests pass, including the 13 prior cases and six new generic
+regressions. Actual replay retains three exact passages totaling 6,516 bytes,
+including measured results and the key limitation. This is retrieval evidence,
+not real generated quality acceptance. Final hashes are in the release record.
+
+After final source checks/CI/protected deployment, CoS selected the remaining
+**one ideas batch/one article for the adapted journey**, not another unadapted
+card. Save the agreed medicine/DNA/concise/examples feedback, verify persisted
+principles, then generate one fresh ideas batch and one selected article. Contextual
+Ask and return/reopen follow within existing caps. The pre-feedback ideas/body are
+before-context only; the v1.4 false positive is not trusted evidence. A fresh
+unadapted v1.6 body remains explicitly unrun. No new principal, reset, model,
+dollar-budget or historical-record change; stop paid work on a material failure.
+Public release remains September 5. The current paid hold has not been lifted.
+
+### September 6 v1.5 real baseline — withheld, diagnosis underway
+
+Exact `60da1482784152fc5a080ba328bf9b5c8cdbef94` is committed/pushed, green in
+CI `34058363433` and all Preview contexts, and deployed at the same protected
+calibration origin. The same guest selected the next Bag of Reactions card.
+Request `edfd42a4-ddb6-4716-a683-f01ecd54518c` completed all four stages but failed
+`editorial_withheld`; no article was published. Both exact-surface audits completed.
+The final check found remaining assertions beyond retained evidence, while both
+checks also requested an impossible nonfactual/unmapped rhetorical title. The title
+contract mismatch is not the sole failure; exact prose/evidence review is underway.
+
+Further paid requests/public rollout are paused. Preserve all failed/false-positive
+records and usage. This run cost $0.109861; cumulative on-demand ledger estimate
+is $0.399524. One ideas batch/one article remains, no feedback submitted, same
+guest and normal ceilings unchanged. Public September 5 release is untouched;
+all three original schedules are restored to old-source recovery
+`dpl_4vuYaoLhE9tc5sUwDkmf3evFdm6m`. Technical release record has exact hosted
+identities, terminal packet and verification limits. No new founder input is
+needed for the ongoing read-only diagnosis.
+
 ### September 6 v1.5 — local verification complete, protected deployment next
 
 The bounded exact-text correction is implemented and independently source-reviewed

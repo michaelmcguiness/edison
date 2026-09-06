@@ -4,6 +4,7 @@ import { normalizeEvidencePassage, type retrieveEvidencePage } from "./evidence-
 
 type Range = { start: number; end: number };
 type Candidate = Range & { text: string; terms: Set<string>; shingles: Set<string>; prose: number };
+type QueryRole = "finding" | "payoff" | "qualification";
 const STOP_WORDS = new Set("about above after again against also among another because been before being below between both could does doing during each from further have having here itself more most other ours over same should some such than that their them then there these they this those through under until very what when where which while whom with would your source paper study authors reports report presents describes explains".split(" "));
 const MAX_WINDOWS = 3;
 const MAX_WINDOW_CHARACTERS = 2_200;
@@ -53,11 +54,13 @@ export function actualDemandPassages(
   const leads = research.passages.filter((passage) => passage.sourceId === source.id);
   const leadIds = new Set(leads.map((lead) => lead.id));
   const ideas = research.ideas.filter((idea) => idea.passageIds.some((id) => leadIds.has(id)));
-  const queries = [
-    ...leads.map((lead) => lead.text),
-    ...ideas.map((idea) => [idea.headline, idea.deck, idea.readerQuestion, idea.payoff,
-      idea.advanceBeyondPrevious, ...idea.qualifications].join(" ")),
-  ].map((query) => terms(query).slice(0, 64));
+  // Qualifications are separate search facets: a long headline/deck must not
+  // truncate the limiting context from the tail of one combined query.
+  const findingQueries = leads.map((lead) => terms(lead.text).slice(0, 64));
+  const payoffQueries = ideas.map((idea) => terms([idea.headline, idea.deck, idea.readerQuestion,
+    idea.payoff, idea.advanceBeyondPrevious].join(" ")).slice(0, 64));
+  const qualificationQueries = ideas.flatMap((idea) => idea.qualifications.map((value) => terms(value).slice(0, 64)));
+  const queries = [...findingQueries, ...payoffQueries, ...qualificationQueries];
   if (!queries.length) queries.push(terms(source.title).slice(0, 64));
   const budget = demandPassageBudget(research.sources.length);
   const windowCharacters = Math.min(MAX_WINDOW_CHARACTERS, Math.floor(budget.bytes / budget.windows));
@@ -70,6 +73,14 @@ export function actualDemandPassages(
     // beginning in a navigation label or halfway through a contextual clause.
     const boundary = /[.!?] (?=[\p{Lu}\p{N}])/u.exec(actual.slice(start, start + 180));
     if (start > 0 && boundary) start += boundary.index + 2;
+    else if (start > 0) {
+      // If the next sentence is distant, keep the preceding complete start
+      // rather than inventing an orphan prefix in the middle of a word.
+      const lookbackStart = Math.max(0, start - 180);
+      const prior = [...actual.slice(lookbackStart, start).matchAll(/[.!?] (?=[\p{Lu}\p{N}])/gu)].at(-1);
+      if (prior) start = lookbackStart + prior.index! + 2;
+      else return;
+    }
     if (starts.has(start)) return;
     starts.add(start);
     let end = Math.min(actual.length, start + windowCharacters);
@@ -105,34 +116,94 @@ export function actualDemandPassages(
     if (at >= 0) add(Math.max(0, at - 300));
   }
 
+  const resultStart = actual.indexOf(" Results ");
+  const discussionStart = resultStart < 0 ? -1 : actual.indexOf(" Discussion ", resultStart + 9);
+  const methodStart = discussionStart < 0 ? -1 : actual.indexOf(" Methods ", discussionStart + 12);
+  const orderedStudy = resultStart >= 0 && discussionStart > resultStart && methodStart > discussionStart;
+  const outcome = /\b(?:found|observed|measured|showed|demonstrated|compared|increased|decreased|improved|reduced|yielded)\b/gi;
+  const limitation = /\b(?:limitations?|limited|cannot|could not|unable|insufficient|challenges?|bottlenecks?|not yet|not sufficient|not established|requires?|depends? on|remain unclear|remains unknown)\b/gi;
+  const substantive = (text: string, pattern: RegExp) => text.length >= 400
+    && (text.match(/[.!?](?=\s|$)/g) ?? []).length >= 2 && Boolean(text.match(pattern));
+  // Flattened navigation can contain the same headings. Use section roles only
+  // when their intervening text has substantive result/constraint prose; other
+  // sources retain the lexical fallback instead of requiring a paper skeleton.
+  const structuredStudy = orderedStudy && substantive(actual.slice(resultStart, discussionStart), outcome)
+    && substantive(actual.slice(discussionStart, methodStart), limitation);
+  const roleCounts = new WeakMap<Candidate, { payoff: number; qualification: number }>();
+  function roleCount(candidate: Candidate, role: QueryRole): number {
+    let counts = roleCounts.get(candidate);
+    if (!counts) {
+      counts = {
+        payoff: new Set((candidate.text.match(outcome) ?? []).map((value) => value.toLowerCase())).size,
+        qualification: new Set((candidate.text.match(limitation) ?? []).map((value) => value.toLowerCase())).size,
+      };
+      roleCounts.set(candidate, counts);
+    }
+    return role === "payoff" ? counts.payoff : counts.qualification;
+  }
   const selected: Candidate[] = [];
   const coveredTerms = new Set<string>();
-  function choose(query: string[]): Candidate | undefined {
+  function score(candidate: Candidate, query: string[], role: QueryRole): number {
+    const matched = query.filter((term) => candidate.terms.has(term));
+    const novel = matched.filter((term) => !coveredTerms.has(term)).length;
+    return (matched.length + novel * 0.35) / Math.max(1, query.length) * (0.35 + candidate.prose * 0.65)
+      * (role === "finding" ? 1 : 1 + Math.min(4, roleCount(candidate, role)) * 0.25);
+  }
+  function choose(query: string[], role: QueryRole = "finding"): Candidate | undefined {
     let best: Candidate | undefined;
     let bestScore = 0;
     for (const candidate of candidates) {
       if (selected.some((existing) => duplicate(existing, candidate))) continue;
       if (selected.length && candidate.prose < 0.2) continue;
-      const matched = query.filter((term) => candidate.terms.has(term));
-      if (!matched.length) continue;
-      const novel = matched.filter((term) => !coveredTerms.has(term)).length;
-      const score = (matched.length + novel * 0.35) / Math.max(1, query.length) * (0.35 + candidate.prose * 0.65);
-      if (score > bestScore || (score === bestScore && candidate.start < (best?.start ?? Infinity))) {
-        best = candidate; bestScore = score;
+      if (structuredStudy && role === "payoff" && (candidate.start < resultStart || candidate.start >= discussionStart)) continue;
+      if (structuredStudy && role === "qualification" && (candidate.start < discussionStart || candidate.start >= methodStart)) continue;
+      if (role !== "finding" && roleCount(candidate, role) === 0) continue;
+      const candidateScore = score(candidate, query, role);
+      if (!candidateScore) continue;
+      if (candidateScore > bestScore || (candidateScore === bestScore && candidate.start < (best?.start ?? Infinity))) {
+        best = candidate; bestScore = candidateScore;
       }
     }
     return best;
   }
 
-  // Give separate discovery leads a contextual window before a broad idea can
-  // consume the allowance. An exact lead match never suppresses other leads.
-  for (const query of queries) {
-    const candidate = choose(query);
+  function chooseFamily(family: string[][], role: QueryRole): Candidate | undefined {
+    let winner: Candidate | undefined;
+    let winningScore = 0;
+    for (const query of family) {
+      const candidate = choose(query, role);
+      if (!candidate) continue;
+      const uncovered = query.filter((term) => !coveredTerms.has(term)).length / Math.max(1, query.length);
+      const familyScore = uncovered * score(candidate, query, role);
+      if (familyScore > winningScore || (familyScore === winningScore && candidate.start < (winner?.start ?? Infinity))) {
+        winner = candidate; winningScore = familyScore;
+      }
+    }
+    return winner;
+  }
+  // Reserve discovery, observed payoff and qualification opportunities before
+  // repeated abstract leads can consume all slots. Within a family, prefer an
+  // uncovered facet over another qualification already satisfied by the lead.
+  for (const [family, role] of [[findingQueries, "finding"], [payoffQueries, "payoff"], [qualificationQueries, "qualification"]] as const) {
+    // Cue words guide ranking, not eligibility: keep this facet's lexical
+    // opportunity before returning unused slots to the discovery leads.
+    const candidate = chooseFamily(family, role) ?? chooseFamily(family, "finding");
     if (candidate) {
       selected.push(candidate);
       for (const term of candidate.terms) coveredTerms.add(term);
     }
     if (selected.length >= budget.windows) break;
+  }
+  // Missing role cues are not evidence insufficiency by themselves. Fill any
+  // unused slots with the original lexical search, including separate mechanism
+  // leads and sources that are not structured research papers.
+  for (const query of queries) {
+    if (selected.length >= budget.windows) break;
+    const candidate = choose(query);
+    if (candidate) {
+      selected.push(candidate);
+      for (const term of candidate.terms) coveredTerms.add(term);
+    }
   }
   // With no meaningful lexical match retain one honest actual-page context.
   // The downstream checker can withhold it; never substitute a model quote.

@@ -62,7 +62,7 @@ function draft(): OnDemandWriterOutput {
     article: {
       category: "tech-science", kicker: "A constructed test", topic: "Observed conditions",
       whyWritten: "Explain the conditions recorded in this constructed test.", readingMinutes: 3,
-      title: surface(input.idea.headline), deck: surface(input.idea.deck),
+      title: { text: input.idea.headline, evidence: { kind: "material", claims: [local(input.idea.headline)] } }, deck: surface(input.idea.deck),
       summary: [surface("The lamp lit in the constructed test."), surface("Both switches were closed."), surface("Other switch arrangements were not tested.")],
       body: [
         { type: "heading", level: 2, text: "The observation", evidence: { kind: "neutral", claims: [] } },
@@ -170,6 +170,34 @@ test("a weaker supported paraphrase cannot hide the wrong conditional on the act
   assert.equal(result.output.verdict, "pass", "The failed surface must veto, not rewrite, the model's global verdict.");
   assert.deepEqual(result.output.surfaceChecks, failed.surfaceChecks);
   assert.throws(() => assertAcceptedOnDemandArticleCheck(selection(), value, result.output));
+});
+
+test("a supported bounded future-goal paraphrase does not excuse an unsupported global negative", async () => {
+  const input = selection();
+  input.evidence.passages[0].text += " The team describes continuous operation as a goal for future work.";
+  const bounded = draft();
+  bounded.article!.body[1].text = "The record presents continuous operation as a future goal.";
+  bounded.claims.find((claim) => claim.locations.includes("body.1"))!.text = bounded.article!.body[1].text;
+  const accepted = await checkOnDemandArticle({ ...input, draft: bounded }, options(check(bounded)));
+  assert.equal(accepted.accepted, true);
+  assert.doesNotThrow(() => assertAcceptedOnDemandArticleCheck(input, bounded, accepted.output));
+
+  const overbroad = structuredClone(bounded);
+  overbroad.article!.body[1].text = "No experiment has ever demonstrated continuous operation.";
+  // Keep the weaker author claim supported: the exact surface, not its
+  // paraphrase, must veto this deliberately injected universal-negative defect.
+  const failed = check(overbroad);
+  Object.assign(row(failed, "body.1"), { verdict: "missing", passageIds: [],
+    reason: "A future goal for this team does not establish a negative claim about every experiment." });
+  failed.missedMaterialClaims = [{ location: "body.1", text: overbroad.article!.body[1].text }];
+  const retained = structuredClone(failed);
+  const calls: OnDemandProviderRequest[] = [];
+  const withheld = await checkOnDemandArticle({ ...input, draft: overbroad }, options(failed, calls));
+  assert.equal(withheld.accepted, false);
+  assert.deepEqual(withheld.output, retained, "All substantive findings and raw verdicts remain intact.");
+  assert.deepEqual(withheld.usage, usage);
+  assert.equal(calls.length, 1);
+  assert.throws(() => assertAcceptedOnDemandArticleCheck(input, overbroad, withheld.output));
 });
 
 test("a corrected surface cannot reuse the prior fingerprint even when claim IDs and all verdicts pass", () => {

@@ -89,6 +89,40 @@ test("publication rejects tampered canonical labels and invented source dates", 
   assert.throws(() => publishableDemandArticle({ ...input, draft: inventedDate }), /retained evidence precision/);
 });
 
+test("an independently nonfactual title can publish without invented claims but not without its exact audit", () => {
+  const selection = structuredClone(selected);
+  selection.idea.headline = "What does this test show?";
+  const value = structuredClone(draft);
+  value.article!.title = selection.idea.headline;
+  value.claims[0].locations = value.claims[0].locations.filter((location) => location !== "title");
+  const audited = { ...structuredClone(check), surfaceChecks: surfaceCheckFixture(value) };
+  const title = audited.surfaceChecks.surfaces.find((surface) => surface.location === "title")!;
+  Object.assign(title, { verdict: "nonfactual", passageIds: [], reason: "Constructed nonassertive question; no factual premise is asserted." });
+  const publication = { ...input, selection, draft: value, check: audited };
+  assert.equal(publishableDemandArticle(publication).title, selection.idea.headline);
+
+  const missingAudit = structuredClone(audited);
+  missingAudit.surfaceChecks.surfaces = missingAudit.surfaceChecks.surfaces.filter((surface) => surface.location !== "title");
+  assert.throws(() => publishableDemandArticle({ ...publication, check: missingAudit }), /editorial_withheld/);
+  const unmappedFactual = structuredClone(audited);
+  Object.assign(unmappedFactual.surfaceChecks.surfaces.find((surface) => surface.location === "title")!, {
+    verdict: "supported", passageIds: ["p1"], reason: "Constructed factual premise still needs an authored mapping.",
+  });
+  assert.throws(() => publishableDemandArticle({ ...publication, check: unmappedFactual }), /editorial_withheld/);
+});
+
+test("a question mark never overrides an independently failed factual title assessment", () => {
+  const selection = structuredClone(selected);
+  selection.idea.headline = "Why did the test prove a cure?";
+  const value = structuredClone(draft);
+  value.article!.title = selection.idea.headline;
+  const audited = { ...structuredClone(check), surfaceChecks: surfaceCheckFixture(value) };
+  Object.assign(audited.surfaceChecks.surfaces.find((surface) => surface.location === "title")!, {
+    verdict: "missing", passageIds: [], reason: "Injected verdict: the loaded question assumes an unestablished cure.",
+  });
+  assert.throws(() => publishableDemandArticle({ ...input, selection, draft: value, check: audited }), /editorial_withheld/);
+});
+
 test("model-reported passage text cannot become a source just through publication", () => {
   const selection = structuredClone(selected);
   selection.evidence.passages[0].provenance = "model_reported";

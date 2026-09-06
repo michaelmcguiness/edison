@@ -86,7 +86,8 @@ export const onDemandIdeaChecksSchema = z.object({
 export const onDemandClaimSchema = z.object({
   id: key,
   text: z.string().min(1).max(2000),
-  // e.g. title, deck, summary.0, body.2; mappings cover ALL prose surfaces.
+  // e.g. title, deck, summary.0, body.2; title/heading claims cover assertions,
+  // while every explanatory prose surface requires a material-claim mapping.
   locations: z.array(z.string().min(1).max(80)).min(1).max(48),
   passageIds: z.array(key).min(1).max(12),
 }).strict();
@@ -103,19 +104,20 @@ export const onDemandWriterOutputSchema = z.object({
 const localClaimSchema = z.object({ text, passageIds: z.array(key).min(1).max(12) }).strict();
 const localClaimsSchema = z.array(localClaimSchema).min(1).max(100);
 const surfaceSchema = (prose: z.ZodString) => z.object({ text: prose, claims: localClaimsSchema }).strict();
+const classifiedEvidenceSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("neutral"), claims: z.array(localClaimSchema).length(0) }).strict(),
+  z.object({ kind: z.literal("material"), claims: localClaimsSchema }).strict(),
+]);
 export const onDemandWriterProviderOutputSchema = z.object({
   status: z.enum(["written", "insufficient_evidence"]),
   article: onDemandArticleFormatSchema.omit({ title: true, deck: true, summary: true, body: true, sources: true }).extend({
-    title: surfaceSchema(onDemandArticleFormatSchema.shape.title),
+    title: z.object({ text: onDemandArticleFormatSchema.shape.title, evidence: classifiedEvidenceSchema }).strict(),
     deck: surfaceSchema(onDemandArticleFormatSchema.shape.deck),
     summary: z.array(surfaceSchema(z.string().min(1).max(280))).length(3),
     body: z.array(z.discriminatedUnion("type", [
       z.object({ type: z.literal("paragraph"), text: z.string().min(1), claims: localClaimsSchema }).strict(),
       z.object({ type: z.literal("quote"), text: z.string().min(1), attribution: z.string().max(240).nullable(), claims: localClaimsSchema }).strict(),
-      z.object({ type: z.literal("heading"), level: z.literal(2), text: z.string().min(1), evidence: z.discriminatedUnion("kind", [
-        z.object({ kind: z.literal("neutral"), claims: z.array(localClaimSchema).length(0) }).strict(),
-        z.object({ kind: z.literal("material"), claims: localClaimsSchema }).strict(),
-      ]) }).strict(),
+      z.object({ type: z.literal("heading"), level: z.literal(2), text: z.string().min(1), evidence: classifiedEvidenceSchema }).strict(),
     ])).min(6).max(40),
   }).strict().nullable(),
   reason: z.string().max(1500).nullable(),

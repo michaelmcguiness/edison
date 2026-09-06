@@ -248,7 +248,7 @@ test("a parseable initial selected-title failure gets one deterministic repair t
   assert.deepEqual(calls.map((call) => call.stage), ["write", "repair", "check"]);
   assert.deepEqual(calls.map((call) => call.idempotencyKey), [`${requestId}:write`, `${requestId}:repair`, `${requestId}:recheck`]);
   assert.deepEqual(calls.map((call) => call.model), ["gpt-5.6-terra", "gpt-5.6-terra", "gpt-5.6-luna"]);
-  assert.ok(calls.every((call) => call.promptVersion === "edison-demand-v1.5"));
+  assert.ok(calls.every((call) => call.promptVersion === "edison-demand-v1.6"));
 });
 
 test("initial structural repair is terminal if its draft remains invalid or its full recheck fails", async () => {
@@ -291,8 +291,8 @@ test("resuming initial-validation and repair phases reuses retained stages witho
 
 test("unparseable or uncertain initial responses never enter deterministic repair", async () => {
   const { request, fixed } = initialValidationFixture();
-  const missingLocalClaims = structuredClone(writerProviderFixture(fixed)) as { article: { title: { claims?: unknown } } };
-  delete missingLocalClaims.article.title.claims;
+  const missingLocalClaims = structuredClone(writerProviderFixture(fixed)) as { article: { title: { evidence?: unknown } } };
+  delete missingLocalClaims.article.title.evidence;
   for (const provider of [fakeProvider(() => ({ status: "written", article: {} })), fakeProvider(() => missingLocalClaims), async () => { throw new Error("provider_uncertain"); }]) {
     const result = await advanceDemandPipeline({ request, state: initial(request) }, { provider });
     assert.equal(result.state.phase, "failed"); assert.equal(result.state.draftValidationFindings, undefined);
@@ -402,6 +402,38 @@ test("ready article replay rejects a missing surface audit or changed actual pro
     assert.equal(result.failureCode, "editorial_withheld");
     assert.equal(result.outcome, undefined);
   }
+  assert.equal(calls, 0);
+});
+
+test("ready replay preserves a neutral title audit and refuses stale title assessments without another provider call", async () => {
+  const request = articleRequest();
+  const value = draft();
+  value.claims = value.claims.filter((claim) => !claim.locations.includes("title"));
+  const audited = check(value);
+  Object.assign(audited.surfaceChecks!.surfaces.find((surface) => surface.location === "title")!, {
+    verdict: "nonfactual", passageIds: [], reason: "Constructed nonassertive title with no factual premise.",
+  });
+  let calls = 0;
+  const dependencies = { provider: fakeProvider(() => { calls++; return {}; }) };
+  const retained = { ...initial(request), phase: "ready" as const, draft: value, check: audited };
+  const valid = await advanceDemandPipeline({ request, state: retained }, dependencies);
+  assert.equal(valid.outcome, "article");
+
+  const altered = structuredClone(value);
+  altered.article!.title = "Why did the laboratory result prove clinical efficacy?";
+  const changedRequest = row("article", { selection: {
+    idea: { ...idea(), headline: altered.article!.title }, evidence: evidence(),
+  } });
+  const stale = await advanceDemandPipeline({ request: changedRequest, state: { ...retained, draft: altered } }, dependencies);
+  assert.equal(stale.failureCode, "editorial_withheld");
+  assert.equal(stale.outcome, undefined);
+  const factualWithoutMapping = structuredClone(audited);
+  Object.assign(factualWithoutMapping.surfaceChecks!.surfaces.find((surface) => surface.location === "title")!, {
+    verdict: "supported", passageIds: ["lead-0"], reason: "Constructed factual classification requires repair of the missing map.",
+  });
+  const missingMap = await advanceDemandPipeline({ request, state: { ...retained, check: factualWithoutMapping } }, dependencies);
+  assert.equal(missingMap.failureCode, "editorial_withheld");
+  assert.equal(missingMap.outcome, undefined);
   assert.equal(calls, 0);
 });
 
