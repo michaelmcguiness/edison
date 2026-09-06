@@ -222,6 +222,24 @@ export async function recoverDemandContinuity(raw: string | null, workspace: Dem
   return { saved, recovered };
 }
 
+/** Restored selection and recovery errors belong only to the initiating navigation intent. */
+export async function restoreCurrentDemandContinuity(input: {
+  raw: string | null;
+  workspace: DemandWorkspace;
+  getIdea: (id: string) => Promise<DemandIdeaResult>;
+  isCurrent: () => boolean;
+  onRestored: (result: Awaited<ReturnType<typeof recoverDemandContinuity>>) => void;
+  onFailure: (error: unknown) => void;
+}) {
+  if (!input.isCurrent()) return;
+  try {
+    const result = await recoverDemandContinuity(input.raw, input.workspace, input.getIdea);
+    if (input.isCurrent()) input.onRestored(result);
+  } catch (error) {
+    if (input.isCurrent()) input.onFailure(error);
+  }
+}
+
 export type SubmittedDemandFeedback = { operation: "apply" | "undo"; text: string; requestId: string | null };
 export function clearsSubmittedDemandFeedback(submission: SubmittedDemandFeedback | null, requestId: string, currentDraft: string) {
   return submission?.operation === "apply" && submission.requestId === requestId && submission.text === currentDraft;

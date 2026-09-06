@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { DemandHistory, DemandIdeaResult, DemandWorkspace } from "@edison/contracts";
 import { demandHistoryRecords, DemandReaderHistory } from "../lib/demand-reader-history";
-import { recoverDemandContinuity, type DemandContinuity } from "../lib/demand-reader-state";
+import { recoverDemandContinuity, restoreCurrentDemandContinuity, type DemandContinuity } from "../lib/demand-reader-state";
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const now = "2026-09-06T12:00:00.000Z";
@@ -24,8 +24,9 @@ function page(entries = [exact()], nextCursor: string | null = "older_cursor"): 
 function reader() { const value = new DemandReaderHistory(); value.reset(id(1)); return value; }
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((yes) => { resolve = yes; });
-  return { promise, resolve };
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
 }
 
 test("older pages stay outside workspace360, replace one bounded window and retain the server's continuation", () => {
@@ -209,4 +210,93 @@ test("off-cap recovery failure stays a retryable metadata read, rejects principa
   const result = await recoverDemandContinuity(JSON.stringify(differentOrigin), workspace(), async (ideaId) => { recoveredIds.push(ideaId); return exact(ideaId === id(400) ? 400 : 401, true, "succeeded"); });
   assert.equal(recoveredIds.length, 2);
   assert.equal(result.saved?.selectedIdeaId, id(400));
+});
+
+function restorationHarness() {
+  let generation = 0;
+  const state = { view: "loop", activeLoopId: id(2), selectedIdeaId: null as string | null,
+    articleScrollY: 0, historyCursor: null as string | null, recovering: true, error: "", restored: 0 };
+  const history = reader();
+  return {
+    state, history,
+    intent: () => generation,
+    navigate: (view: "library" | "loop") => {
+      generation++;
+      Object.assign(state, { view, activeLoopId: view === "loop" ? id(5) : id(2), selectedIdeaId: null,
+        articleScrollY: 0, historyCursor: view === "library" ? "new_library_page" : "new_loop_page", recovering: false, error: "" });
+    },
+    retry: () => { generation++; state.recovering = true; state.error = ""; return generation; },
+    restore: (intent: number, getIdea: (id: string) => Promise<DemandIdeaResult>) => restoreCurrentDemandContinuity({
+      raw: JSON.stringify(savedReading()), workspace: workspace(), getIdea, isCurrent: () => intent === generation,
+      onRestored: ({ saved, recovered }) => {
+        for (const result of recovered) history.seed(result);
+        state.restored++;
+        state.recovering = false;
+        if (saved) Object.assign(state, { view: saved.view, activeLoopId: saved.activeLoopId,
+          selectedIdeaId: saved.selectedIdeaId, articleScrollY: saved.articleScrollY, historyCursor: saved.origin?.history?.cursor ?? null });
+      },
+      onFailure: (error) => { state.recovering = false; state.error = (error as Error).message; },
+    }),
+  };
+}
+
+test("delayed off-cap restoration success or failure cannot replace a newer Library or loop destination", async () => {
+  for (const destination of ["library", "loop"] as const) {
+    for (const fail of [false, true]) {
+      const harness = restorationHarness(); const metadata = deferred<DemandIdeaResult>(); let reads = 0;
+      const pending = harness.restore(harness.intent(), async () => { reads++; return metadata.promise; });
+      assert.equal(reads, 1);
+      harness.navigate(destination);
+      assert.equal(harness.state.recovering, false, "the explicit destination is usable before the old response settles");
+      const destinationState = structuredClone(harness.state);
+      if (fail) metadata.reject(new Error("Old article could not be recovered"));
+      else metadata.resolve(exact(400, true, "succeeded"));
+      await pending;
+      assert.deepEqual(harness.state, destinationState);
+      assert.equal(harness.history.snapshot().exact.length, 0, "cancelled restoration does not seed old selection metadata");
+    }
+  }
+});
+
+test("unchanged navigation intent restores the actual off-cap article, position, and older page", async () => {
+  const harness = restorationHarness(); const metadata = deferred<DemandIdeaResult>();
+  const pending = harness.restore(harness.intent(), () => metadata.promise);
+  metadata.resolve(exact(400, true, "succeeded"));
+  await pending;
+  assert.equal(harness.state.view, "article");
+  assert.equal(harness.state.selectedIdeaId, id(400));
+  assert.equal(harness.state.articleScrollY, 1500);
+  assert.equal(harness.state.historyCursor, "saved_page_8");
+  assert.equal(harness.state.recovering, false);
+  assert.equal(harness.state.error, "");
+  assert.equal(harness.history.snapshot().exact[0]?.idea.articleRequestId, id(10400));
+});
+
+test("a current restoration failure remains retryable and a deliberate retry owns a fresh intent", async () => {
+  const harness = restorationHarness(); let reads = 0;
+  await harness.restore(harness.intent(), async () => { reads++; throw new Error("Temporary metadata failure"); });
+  assert.equal(harness.state.error, "Temporary metadata failure");
+  assert.equal(harness.state.recovering, false);
+  const retry = harness.retry(); const metadata = deferred<DemandIdeaResult>();
+  const pending = harness.restore(retry, async () => { reads++; return metadata.promise; });
+  assert.equal(harness.state.error, ""); assert.equal(harness.state.recovering, true);
+  metadata.resolve(exact(400, true, "succeeded"));
+  await pending;
+  assert.equal(reads, 2);
+  assert.equal(harness.state.restored, 1);
+  assert.equal(harness.state.selectedIdeaId, id(400));
+});
+
+test("navigation before bootstrap or a queued retry starts never lends it the newer destination's intent", async () => {
+  for (const retry of [false, true]) {
+    const harness = restorationHarness();
+    const captured = retry ? harness.retry() : harness.intent();
+    harness.navigate("library");
+    await harness.restore(captured, async () => { throw new Error("Cancelled restoration must not fetch metadata"); });
+    assert.equal(harness.state.view, "library");
+    assert.equal(harness.state.historyCursor, "new_library_page");
+    assert.equal(harness.state.recovering, false);
+    assert.equal(harness.state.error, "");
+    assert.equal(harness.state.restored, 0);
+  }
 });

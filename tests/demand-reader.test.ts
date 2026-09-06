@@ -144,6 +144,29 @@ test("the approved create and Curate language stays exact and topic-general", ()
   assert.doesNotMatch(readerSource, /includes\(\s*["']medicine|includes\(\s*["']DNA/i);
 });
 
+test("explicit reader destinations cancel restoration and Retry retains its initiating generation", () => {
+  for (const name of ["openIdea", "openLoop", "returnFromReading", "openWorkspaceView", "openCreate"]) {
+    const start = readerSource.indexOf(`function ${name}(`);
+    const next = readerSource.indexOf("\n  function ", start + 1);
+    assert.ok(readerSource.slice(start, next < 0 ? undefined : next).includes("beginNavigation();"), `${name} must cancel old restoration`);
+  }
+  const navigation = readerSource.slice(readerSource.indexOf("function beginNavigation()"), readerSource.indexOf("function retryContinuityRestoration()"));
+  assert.match(navigation, /navigationIntentRef\.current\+\+/);
+  assert.match(navigation, /setRecoveringContinuity\(false\)/);
+  assert.match(navigation, /setContinuityFailure\(""\)/);
+  assert.match(readerSource, /setContinuityIntent\(\+\+navigationIntentRef\.current\)/);
+  assert.match(readerSource, /navigationIntentRef\.current === continuityIntent/);
+  assert.match(readerSource, /restoreCurrentDemandContinuity\(/);
+});
+
+test("Retry bootstrap failure uses the same recoverable surface as exact metadata failure", () => {
+  const failureHandler = readerSource.slice(readerSource.indexOf("const failRestoration ="), readerSource.indexOf("const restore = async"));
+  assert.match(failureHandler, /setContinuityFailure\(readableError\(error\)\)/);
+  assert.match(failureHandler, /setRecoveringContinuity\(false\)/);
+  assert.match(readerSource, /onFailure: failRestoration/);
+  assert.match(readerSource, /if \(!isCurrentIntent\(\)\) return;\s*if \(continuityIntent > 0\) failRestoration\(error\)/);
+});
+
 test("the browser client uses the same-origin proxy and keeps session credentials out of browser storage", () => {
   for (const route of [
     "session", "workspace", "loops", "/ideas", "/article", "/feedback",

@@ -58,7 +58,7 @@ import {
 } from "@/lib/demand-client";
 import {
   clearsSubmittedDemandFeedback, demandReadingPositionForIdea, DemandWorkspaceResponses,
-  rememberDemandReadingPosition, recoverDemandContinuity, restoreDemandReadingPositions, restoredDemandArticlePosition,
+  rememberDemandReadingPosition, restoreCurrentDemandContinuity, restoreDemandReadingPositions, restoredDemandArticlePosition,
   runScopedDemandRequest, type DemandContinuity, type DemandReadingPositions, type SubmittedDemandFeedback,
 } from "@/lib/demand-reader-state";
 import { demandHistoryRecords, demandHistoryScopeKey, DemandReaderHistory, type HistoryScope } from "@/lib/demand-reader-history";
@@ -701,7 +701,7 @@ export function DemandReader({
   const [history, setHistory] = useState(() => historyReader.snapshot());
   const [recoveringContinuity, setRecoveringContinuity] = useState(false);
   const [continuityFailure, setContinuityFailure] = useState("");
-  const [continuityRetry, setContinuityRetry] = useState(0);
+  const [continuityIntent, setContinuityIntent] = useState(0);
   const [ideaRecoveryErrors, setIdeaRecoveryErrors] = useState<Map<string, string>>(() => new Map());
   const [view, setView] = useState<DemandView>(initialLoop ? "loop" : "home");
   const [activeLoopId, setActiveLoopId] = useState(initialLoop?.id ?? PULSE_FOR_YOU_ID);
@@ -750,6 +750,7 @@ export function DemandReader({
   const curateOpenerRef = useRef<HTMLElement | null>(null);
   const askOpenerRef = useRef<HTMLElement | null>(null);
   const continuityRestored = useRef(false);
+  const navigationIntentRef = useRef(0);
   const articlePositionRef = useRef(0);
   const readingPositionsRef = useRef<DemandReadingPositions | null>(null);
   const restoringArticleRef = useRef<string | null>(null);
@@ -763,6 +764,10 @@ export function DemandReader({
     const changed = Boolean(workspaceIdentityRef.current && workspaceIdentityRef.current !== next.workspaceId);
     if (changed) {
       // A principal change is a new workspace, never a union or a stale article.
+      navigationIntentRef.current++;
+      continuityRestored.current = true;
+      setRecoveringContinuity(false);
+      setContinuityFailure("");
       selectedIdeaRef.current = null;
       curateLoopRef.current = null;
       activeLoopRef.current = next.loops[0]?.id ?? PULSE_FOR_YOU_ID;
@@ -840,73 +845,85 @@ export function DemandReader({
 
   useEffect(() => {
     let current = true;
+    // Captured by initial mount or an explicit Retry, before either network wait.
+    // A newer destination never grants this old restoration a new intent.
+    const isCurrentIntent = () => current && navigationIntentRef.current === continuityIntent;
+    const failRestoration = (error: unknown) => {
+      setContinuityFailure(readableError(error));
+      setRecoveringContinuity(false);
+    };
     const restore = async (next: DemandWorkspace) => {
-        if (!current) return;
-        continuityRestored.current = false;
-        publishWorkspace(workspaceResponses.hydrate(next));
-        let raw: string | null = null;
-        let positions: string | null = null;
-        try {
-          raw = localStorage.getItem("edison:demand:continuity:v1");
-          positions = localStorage.getItem("edison:demand:reading-positions:v1");
-        } catch { /* A fresh session remains usable. */ }
-        readingPositionsRef.current = restoreDemandReadingPositions(positions, next.workspaceId);
-        setContinuityFailure("");
-        setRecoveringContinuity(true);
-        let recovered;
-        try { recovered = await recoverDemandContinuity(raw, next, client.getDemandIdea); }
-        catch (error) {
-          if (current) { setContinuityFailure(readableError(error)); setRecoveringContinuity(false); }
-          return;
-        }
-        if (!current || workspaceIdentityRef.current !== next.workspaceId) return;
-        for (const result of recovered.recovered) historyReader.seed(result);
-        setHistory(historyReader.snapshot());
-        const saved = recovered.saved;
-        setRecoveringContinuity(false);
-        continuityRestored.current = true;
-        if (saved) {
-          activeLoopRef.current = saved.activeLoopId;
-          setActiveLoopId(saved.activeLoopId);
-          setView(saved.view === "article" ? "request" : saved.view);
-          setReturnTarget(saved.origin);
-          setSelectedIdeaId(saved.selectedIdeaId);
-          selectedIdeaRef.current = saved.selectedIdeaId;
-          const idea = next.ideas.find(({ id }) => id === saved.selectedIdeaId) ?? recovered.recovered.find(({ idea }) => idea.id === saved.selectedIdeaId)?.idea;
-          setSelectedRequestId(idea?.articleRequestId ?? null);
-          const restoredPosition = restoredDemandArticlePosition(saved);
-          articlePositionRef.current = restoredPosition ?? 0;
-          restoringArticleRef.current = restoredPosition !== null ? saved.selectedIdeaId : null;
-          if (idea) {
-            setQuestion(readDraft("question", idea.id, 1000));
-            const pending = readPendingRequest("question", idea.id);
-            const previous = next.requests.filter((request) => request.ideaId === idea.id && request.kind === "question")
-              .toSorted((a, b) => b.createdAt.localeCompare(a.createdAt));
-            setQuestionRequestId(previous.find(({ id }) => id === pending)?.id ?? previous[0]?.id ?? null);
+      if (!current) return;
+      publishWorkspace(workspaceResponses.hydrate(next));
+      setLoading(false);
+      if (!isCurrentIntent()) return;
+      continuityRestored.current = false;
+      let raw: string | null = null;
+      let positions: string | null = null;
+      try {
+        raw = localStorage.getItem("edison:demand:continuity:v1");
+        positions = localStorage.getItem("edison:demand:reading-positions:v1");
+      } catch { /* A fresh session remains usable. */ }
+      readingPositionsRef.current = restoreDemandReadingPositions(positions, next.workspaceId);
+      setContinuityFailure("");
+      setRecoveringContinuity(true);
+      await restoreCurrentDemandContinuity({ raw, workspace: next, getIdea: client.getDemandIdea,
+        isCurrent: () => isCurrentIntent() && workspaceIdentityRef.current === next.workspaceId,
+        onFailure: failRestoration,
+        onRestored: (recovered) => {
+          for (const result of recovered.recovered) historyReader.seed(result);
+          setHistory(historyReader.snapshot());
+          const saved = recovered.saved;
+          setRecoveringContinuity(false);
+          continuityRestored.current = true;
+          if (saved) {
+            activeLoopRef.current = saved.activeLoopId;
+            setActiveLoopId(saved.activeLoopId);
+            setView(saved.view === "article" ? "request" : saved.view);
+            setReturnTarget(saved.origin);
+            setSelectedIdeaId(saved.selectedIdeaId);
+            selectedIdeaRef.current = saved.selectedIdeaId;
+            const idea = next.ideas.find(({ id }) => id === saved.selectedIdeaId) ?? recovered.recovered.find(({ idea }) => idea.id === saved.selectedIdeaId)?.idea;
+            setSelectedRequestId(idea?.articleRequestId ?? null);
+            const restoredPosition = restoredDemandArticlePosition(saved);
+            articlePositionRef.current = restoredPosition ?? 0;
+            restoringArticleRef.current = restoredPosition !== null ? saved.selectedIdeaId : null;
+            if (idea) {
+              setQuestion(readDraft("question", idea.id, 1000));
+              const pending = readPendingRequest("question", idea.id);
+              const previous = next.requests.filter((request) => request.ideaId === idea.id && request.kind === "question")
+                .toSorted((a, b) => b.createdAt.localeCompare(a.createdAt));
+              setQuestionRequestId(previous.find(({ id }) => id === pending)?.id ?? previous[0]?.id ?? null);
+            }
+            if (saved.history ?? saved.origin?.history) {
+              const { cursor, ...query } = (saved.history ?? saved.origin!.history)!;
+              void loadHistoryPage(query, cursor);
+            } else if (saved.view === "library") void loadHistoryPage({ scope: "saved" }, null);
+          } else if (next.loops.length) {
+            activeLoopRef.current = next.loops[0]!.id;
+            setActiveLoopId(next.loops[0]!.id);
+            setView("loop");
+          } else {
+            setCreateOpen(true);
           }
-          if (saved.history ?? saved.origin?.history) {
-            const { cursor, ...query } = (saved.history ?? saved.origin!.history)!;
-            void loadHistoryPage(query, cursor);
-          } else if (saved.view === "library") void loadHistoryPage({ scope: "saved" }, null);
-        } else if (next.loops.length) {
-          activeLoopRef.current = next.loops[0]!.id;
-          setActiveLoopId(next.loops[0]!.id);
-          setView("loop");
-        } else {
-          setCreateOpen(true);
-        }
+        },
+      });
     };
     if (initialWorkspace) {
       queueMicrotask(() => { void restore(initialWorkspace); });
       return () => { current = false; };
     }
     void client.startDemandSession().then(restore)
-      .catch((error) => current && setPageError(readableError(error)))
+      .catch((error) => {
+        if (!isCurrentIntent()) return;
+        if (continuityIntent > 0) failRestoration(error);
+        else setPageError(readableError(error));
+      })
       .finally(() => current && setLoading(false));
     return () => {
       current = false;
     };
-  }, [client, continuityRetry, historyReader, initialWorkspace, loadHistoryPage, publishWorkspace, workspaceResponses]);
+  }, [client, continuityIntent, historyReader, initialWorkspace, loadHistoryPage, publishWorkspace, workspaceResponses]);
 
   useEffect(() => {
     if (!workspace || !continuityRestored.current) return;
@@ -1208,6 +1225,21 @@ export function DemandReader({
     try { localStorage.setItem("edison:demand:reading-positions:v1", JSON.stringify(readingPositionsRef.current)); } catch { /* Keep in-memory continuity if storage is unavailable. */ }
   }
 
+  function beginNavigation() {
+    navigationIntentRef.current++;
+    continuityRestored.current = true;
+    setRecoveringContinuity(false);
+    setContinuityFailure("");
+    setPageError("");
+  }
+
+  function retryContinuityRestoration() {
+    continuityRestored.current = false;
+    setContinuityFailure("");
+    setRecoveringContinuity(true);
+    setContinuityIntent(++navigationIntentRef.current);
+  }
+
   async function commissionIdeas(loop: DemandLoop) {
     const fingerprint = `${loop.id}:${loop.revision}`;
     let attempt = ideasAttemptRefs.current.get(loop.id);
@@ -1295,6 +1327,7 @@ export function DemandReader({
   async function openIdea(inputIdea: DemandIdea) {
     const idea = demandHistoryRecords(workspace, historyReader.snapshot()).ideas.find(({ id }) => id === inputIdea.id) ?? inputIdea;
     rememberCurrentReadingPosition();
+    beginNavigation();
     setAskOpen(false);
     if ((view === "loop" && activeLoopId === idea.loopId) || view === "library" || view === "home") {
       setReturnTarget({ view, loopId: view === "loop" ? idea.loopId : null, scrollY: window.scrollY, ideaId: idea.id,
@@ -1544,6 +1577,7 @@ export function DemandReader({
   function openLoop(loopId: string) {
     if (!workspace?.loops.some(({ id }) => id === loopId)) return;
     rememberCurrentReadingPosition();
+    beginNavigation();
     pendingHistoryReturn.current = null;
     historyReader.close();
     setHistory(historyReader.snapshot());
@@ -1560,6 +1594,7 @@ export function DemandReader({
   function returnFromReading() {
     rememberCurrentReadingPosition();
     const target = returnTarget;
+    beginNavigation();
     pendingHistoryReturn.current = target?.history ? target : null;
     setAskOpen(false);
     selectedIdeaRef.current = null;
@@ -1583,6 +1618,7 @@ export function DemandReader({
 
   function openWorkspaceView(next: "home" | "library" | "profile") {
     rememberCurrentReadingPosition();
+    beginNavigation();
     pendingHistoryReturn.current = null;
     if (next === "library") void loadHistoryPage({ scope: "saved" }, null);
     else { historyReader.close(); setHistory(historyReader.snapshot()); }
@@ -1596,6 +1632,7 @@ export function DemandReader({
   }
 
   function openCreate(event?: { currentTarget: EventTarget | null }) {
+    beginNavigation();
     createOpenerRef.current = dialogOpener(event);
     setCreateOpen(true);
   }
@@ -1867,7 +1904,7 @@ export function DemandReader({
 
   function content() {
     if (loading) return <main ref={readingSurfaceRef} tabIndex={-1} className="demand-loading" role="status"><EdisonMark /><p>Opening your reading workspace…</p></main>;
-    if (recoveringContinuity || continuityFailure) return <main ref={readingSurfaceRef} tabIndex={-1} className="demand-loading"><h1>{continuityFailure ? "We couldn’t restore your reading yet." : "Restoring your article…"}</h1>{continuityFailure ? <><p role="alert">{continuityFailure}</p><button type="button" className="demand-primary" onClick={() => setContinuityRetry((value) => value + 1)}>Try restoring again</button><button type="button" className="demand-text-action" onClick={() => { setContinuityFailure(""); continuityRestored.current = true; openWorkspaceView("library"); }}>Back to Library</button></> : <p role="status">Recovering the saved article and its original reading page.</p>}</main>;
+    if (recoveringContinuity || continuityFailure) return <main ref={readingSurfaceRef} tabIndex={-1} className="demand-loading"><h1>{continuityFailure ? "We couldn’t restore your reading yet." : "Restoring your article…"}</h1>{continuityFailure ? <><p role="alert">{continuityFailure}</p><button type="button" className="demand-primary" onClick={retryContinuityRestoration}>Try restoring again</button><button type="button" className="demand-text-action" onClick={() => openWorkspaceView("library")}>Back to Library</button></> : <p role="status">Recovering the saved article and its original reading page.</p>}</main>;
     if (!workspace) return <main ref={readingSurfaceRef} tabIndex={-1} className="demand-loading"><h1>We couldn’t open your reading.</h1><p>{pageError}</p><button type="button" className="demand-primary" onClick={() => window.location.reload()}>Try again</button></main>;
     if (view === "loop") return renderLoop();
     if (view === "request") return renderRequest();

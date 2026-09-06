@@ -27,24 +27,27 @@ principles/Undo and questions are implemented locally on base `d084df4`, with
 prompt candidate v1.2. CoS owns editorial/value acceptance and Design reviews
 the built interface. Full real-provider/hosted acceptance is still incomplete.
 
-The combined history/continuity freeze passes 279 web tests, 125 API tests, both typechecks,
+The combined history/continuity freeze passes 285 web tests, 125 API tests, both typechecks,
 repository lint and both production builds. Checkpoint `bd2bf2f` is pushed to PR #1;
 its CI application job and all three Vercel Preview builds passed. Supabase PG17
 CI caught a redundant privileged ALTER ROLE in new001. A narrow follow-up retains
 least-privilege CREATE attributes and rejects unsafe role collisions, with 69
-local pgTAP assertions and restricted-CREATEROLE checks passing; full CI is being
-rerun. Earlier bounded separate-process PostgreSQL 18.6 admission/provider-stage/
+local pgTAP assertions and restricted-CREATEROLE checks passing. Correction
+`44534e8` passed full CI `34047052622`: application and disposable Supabase PG17
+database jobs, all 16 migrations, 234 pgTAP assertions, publication/correction
+replays and strict schema lint. Earlier bounded separate-process PostgreSQL 18.6 admission/provider-stage/
 checkpoint-contention/owner-isolation checks and all-16 native clean-chain
 rehearsal used the original migration before that role correction, with Supabase-owned
 prerequisites. A separate 420-row SQL history case passed. Final UI changes cover
 ordered responses, draft/Undo safety, half-read leave/reopen/reload, combined For
 You, scoped Ask, existing account Profile access and bounded 60-card older/saved
-history with exact status recovery beyond recent workspace caps (44 focused tests).
+history with exact status recovery beyond recent workspace caps (50 focused tests).
 Exact hashes and limits are in the implementation checkpoint; earlier rendered
 fixture checks do not establish browser acceptance of the corrected UI.
 Design independently closed the original continuity/history source cases at
-44/44, then identified late metadata restoration overriding newer navigation;
-that bounded success/failure intent guard is being corrected separately.
+44/44. Its subsequent late-restoration/navigation finding now has a guarded
+success/failure/bootstrap/Retry correction and regressions, with final independent
+Design source closure and rendered/connected acceptance still separate.
 
 This record accompanies the scoped feature-off checkpoint for existing PR #1;
 the commit containing it identifies the source. The candidate remains off behind
