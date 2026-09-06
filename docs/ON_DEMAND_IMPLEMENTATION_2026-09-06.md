@@ -2,6 +2,14 @@
 
 September 6, 2026 · Owner: CTO · Status: implemented locally; release acceptance incomplete.
 
+Latest execution state is in [the release record](ON_DEMAND_RELEASE_2026-09-06.md).
+It supersedes the expired-login and untested logical-backup notes retained below:
+Vercel sign-in is verified; exact 81ac136 CI is green; an encrypted current-data
+checkpoint was restored and verified. A default-off protected web/API connector
+is prepared; activating the exact Trusted Sources access boundary awaits
+Michael's specific approval after automatic review rejected the broader authority.
+No hosted migration, new deployment or real on-demand provider call is implied.
+
 ## Candidate and authority
 
 The controlling assignment is [D26's approved v8 handoff](brand/APPROVED_ON_DEMAND_LOOPS_CTO_HANDOFF_2026-09-06.md). Michael's newer approval in Chief of Staff resolves the historical design hold. This record accompanies the scoped feature-off checkpoint on `codex/production-release-candidate`, based on `d084df4f96ce8ee78bc8c1b9d88376c9519f4ec8`. The commit containing this record identifies the candidate; it is not a deployed revision or a completed release. CoS retains operations/editorial/status ownership; unrelated shared changes are preserved.

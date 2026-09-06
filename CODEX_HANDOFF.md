@@ -15,6 +15,32 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
+### September 6 execution update — protected access approval pending
+
+Read `docs/ON_DEMAND_RELEASE_2026-09-06.md` for current execution evidence.
+Exact committed/pushed `81ac136` passed full CI `34047355450`, including all
+410 application tests and 234 Supabase PG17 pgTAP assertions. Vercel CLI login
+**succeeded**; expected account `mike-9085` is verified. Do not generate another
+device code because older notes below say login expired.
+
+A fresh Supabase automatic backup is complete; an encrypted logical checkpoint
+was taken over certificate-verified TLS, restored into a network-isolated native
+PostgreSQL copy, and matched all 59 tables/190 rows by content digest. The exact
+new001 migration also passed against that restored current-data copy. The
+encrypted checkpoint is retained privately on the owner's Mac with its new key
+in Keychain. This is not a hosted physical/PITR restoration or a full service RTO
+drill. The hosted dry run still reports only new001 pending; none was applied.
+
+Private connected browser testing needs a narrow opt-in web→API OIDC connector
+and an existing-project Production→Production Trusted Sources rule. Both Vercel
+projects retain Standard Protection; no trust or auth-path activation occurred.
+Automatic approval review in CoS rejected this access-boundary change without
+Michael's explicit approval of its exact target/scope. Reversible default-off
+code/tests and the proposal may be completed, but do not activate or work around
+the rejection. CoS coordinates the required owner approval. Current public
+deployments/domains, budgets and reader authorization remain unchanged; real
+on-demand generation/browser acceptance and apex rollout are still ahead.
+
 ### September 6 approved on-demand v8 — local implementation, not released
 
 Michael approved the exact v8 in Chief of Staff and requested CTO handoff (D26).

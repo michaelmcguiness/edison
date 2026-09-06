@@ -18,6 +18,9 @@ function fail(status: number, code: string, message: string) {
 
 export async function proxyDemandRequest(request: Request, path: string, options: {
   apiUrl?: string; enabled: boolean; production: boolean; fetcher?: typeof fetch;
+  // Server-only opt-in: the separately configured exact URL must match the
+  // existing fixed API target. A caller cannot choose the recipient or token.
+  trustedSource?: { apiUrl?: string; getToken: () => Promise<string> };
 }) {
   if (!options.enabled) return fail(503, "on_demand_unavailable", "On-demand reading is not available yet.");
   if (!isDemandProxyPath(request.method, path)) return fail(404, "not_found", "That reading resource was not found.");
@@ -41,6 +44,11 @@ export async function proxyDemandRequest(request: Request, path: string, options
         (base.protocol !== "https:" && !(local && base.protocol === "http:")) ||
         base.pathname.replace(/\/$/, "") !== "/v1") throw new Error("invalid_api");
   } catch { return fail(503, "api_not_configured", "The reading service is not connected yet."); }
+  if (options.trustedSource && (!options.production ||
+      !/^https:\/\/[a-z0-9]+(?:-[a-z0-9]+)*\.vercel\.app\/v1$/.test(options.trustedSource.apiUrl ?? "") ||
+      options.trustedSource.apiUrl !== base.href.replace(/\/$/, ""))) {
+    return fail(503, "protected_api_not_configured", "The protected reading service is not connected yet.");
+  }
   const insecureLocal = !options.production && ownUrl.protocol === "http:" && ["localhost", "127.0.0.1"].includes(ownUrl.hostname);
   const cookieName = insecureLocal ? "edison_demand_dev" : "__Host-edison_demand";
   const token = request.headers.get("cookie")?.split(";").map((part) => part.trim())
@@ -67,6 +75,25 @@ export async function proxyDemandRequest(request: Request, path: string, options
       body += decoder.decode();
       if (body) JSON.parse(body);
     } catch { return fail(400, "invalid_json", "That request was not valid JSON."); }
+  }
+  if (options.trustedSource) {
+    try {
+      // Obtain the short-lived workload identity only after validating the
+      // browser's origin, fixed target, route, cookie and bounded request body.
+      const identity = await options.trustedSource.getToken();
+      if (typeof identity !== "string" || identity.length > 16_384 ||
+          !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(identity)) throw new Error("missing_identity");
+      // Signature/issuer/project/environment validation belongs to Vercel's
+      // Trusted Sources gate. Do not relay a known-expired SDK token.
+      const claims = JSON.parse(Buffer.from(identity.split(".")[1], "base64url").toString("utf8")) as { exp?: unknown };
+      if (typeof claims.exp !== "number" || !Number.isSafeInteger(claims.exp) || claims.exp <= Math.floor(Date.now() / 1000)) throw new Error("expired_identity");
+      headers.set("x-vercel-trusted-oidc-idp-token", identity);
+      // This authenticated server-to-server leg is not a browser CORS request.
+      // The exact incoming browser-origin check above remains mandatory.
+      headers.delete("Origin");
+    } catch {
+      return fail(503, "protected_api_identity_unavailable", "The protected reading connection is unavailable. Please try again.");
+    }
   }
   try {
     const response = await (options.fetcher ?? fetch)(`${base.href.replace(/\/$/, "")}/demand/${path}${ownUrl.search}`, {
