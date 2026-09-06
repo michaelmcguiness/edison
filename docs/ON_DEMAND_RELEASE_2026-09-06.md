@@ -4,6 +4,211 @@ Owner: CTO. Scope: D26 on-demand reading, protected real-output calibration,
 connected/browser acceptance, then the authorized existing apex rollout.
 This is an execution record, not a claim that the new experience is live.
 
+## Unpaid v1.7 correction — implemented and locally verified, not deployed
+
+CoS closed the real lupus diagnosis with independent editorial review. No further
+distorted clinical result was identified, but the roughly 350-word draft did not
+explain the selected immune-reset concept for the reader; a factual pass alone
+would not establish useful reading. The final check misread design intent as
+demonstrated compatibility, while its definition remained imprecise. The historical
+request stays withheld and immutable.
+
+Selected bounded correction, owned by CTO:
+
+1. Clarify the difference between contradictory evidence and missing support,
+   design intent and achieved result, and imprecise definitions and false outcomes.
+   Reasons must identify the actual unsupported meaning, not a stronger substitute.
+2. Inspect the complete retained packet before removing a necessary explanation
+   for a displayed-source mismatch; repair its citation when existing support
+   exists. Keep background concepts separate from another study's outcomes.
+3. Preserve the core explanatory bridge through writing/check/repair. Explain or
+   omit nonessential jargon and evaluate reader fit/payoff independently of
+   factual support and length. Return insufficiency if the actual evidence cannot
+   sustain the necessary bridge.
+
+Scope is versioned prompts and focused contrastive contract tests, not a schema,
+retrieval, ledger or publication-gate redesign. Models, dollar ceilings, stages,
+sole repair and existing historical records stay unchanged. No staging, public
+release or additional paid call is authorized at this checkpoint. The same guest's
+next normal quota eligibility is being calculated read-only; an available quota
+slot is not a new sampling decision or proof of readiness.
+
+Fresh read-only admission verification at 21:56:19 UTC finds this guest at **4/4
+articles**, legacy article count zero, and zero of two concurrent slots in use.
+The oldest counted request was created September 6 at 19:14:31.066561 UTC. Its
+next per-reader slot opens September 7 just after the same UTC time; the actual
+millisecond cutoff is **19:14:31.067 UTC / 3:14:31.067 PM EDT** (practically
+3:14:32 PM EDT or later). Failures count, and the rolling window is not a midnight
+reset. Admission still requires the $1.20 request reservation to fit shared budgets,
+no blocking unpriced/uncertain spend, a valid session and concurrency capacity.
+This is not guaranteed admission or permission for another calibration request.
+No wakeup or paid test has been scheduled.
+
+The implementation uses task-specific examples and separate criteria, consistent
+with current official [prompt engineering](https://developers.openai.com/api/docs/guides/prompt-engineering)
+and [evaluation guidance](https://developers.openai.com/api/docs/guides/evaluation-best-practices).
+Constructed tests can verify prompt delivery and unchanged acceptance boundaries;
+they cannot prove improved semantic judgment or a useful fresh article.
+
+The correction is now frozen. Production changes are limited to writer/check/repair
+instructions and the `edison-demand-v1.7` version; ideas, idea-check, answer and
+feedback instruction strings are byte-identical to v1.6. A separate importable
+five-case contrast corpus records authored expected meanings/verdicts. Six injected
+regressions cover verdict preservation, citation repair without deleting prose,
+independent fit/payoff rejection, insufficiency stops, immutable outputs/usage and
+the unchanged sole-repair/token bounds. They contain no prompt-wording assertions
+and do not run a semantic provider comparison. The existing pipeline version
+assertion verifies the new version reaches its stages.
+
+Root independently read all final source/tests/corpus and the final single-line
+evidence-gap fixture correction. All **373 web + 149 API tests**, final standalone
+typechecks, full lint and both production builds pass. API remains 13 steps/three
+workflows. Owner's 121 focused tests also pass. CoS independently closed the bounded
+prompt/source review and final fixture extraction, matching all four frozen hashes.
+
+Frozen source identities:
+
+- Prompts `9cd7dfb7b8af47afb22caf1b4b6e28c418707c45dd429618d6dbb4dfa8c1b3e5`.
+- Calibration tests `91342a32cb8b72645207fb60802c757558e646acc5c3521cc263fcc4600c89d5`.
+- Contrast corpus `3c6dd9230e75f5559e1927cbdead72610604195285ff69da65638fbabc91d923`.
+- Pipeline version test `018c3c84147733c649a0af55c2beedb0b3d4a4aa09ca367558642d8c8d815c45`.
+
+This is a local-only source checkpoint. No v1.7 push-triggered hosted checks,
+protected deployment, provider comparison or public promotion has occurred.
+Hosted calibration remains exact c600d939/v1.6; public September 5 remains live.
+Next dependency is a scoped live validation after normal quota availability and
+a selected next sampling step—not another credential or generic approval request.
+
+## v1.6 adapted article withheld — 21:48 UTC
+
+Selected idea `bbbbd1e2-815c-4da9-8d54-ecb5a59519bc`, **Could Off-the-Shelf
+Engineered T Cells Reset Lupus?**, ran only after the saved revision-1 feedback and
+fresh adapted ideas. Article request `772dbf04-ed94-45ac-adc5-d3842b01fb48`
+ran 21:46:12.575788–21:47:34.530050 UTC and failed `editorial_withheld`.
+Workflow `wrun_01M1WAZA048ZD2GAT23NBTBXNE` independently confirms completion
+at 21:47:34.963 UTC on exact v1.6 API `dpl_DKxE4WYPSePEYNock194nVMmAYuf`,
+with no runtime error. The UI shows the selected card and an honest unpublished
+failure; root inspected the desktop screenshot
+`/private/tmp/edison-calibration-ui.SgJRjD/v16-adapted-withheld.png`.
+
+All four writer/check/sole-repair/check stages completed. Charges are 40,228 +
+5,573 + 46,238 + 5,230 microUSD, **$0.097269**. Cumulative on-demand calibration
+ledger estimate is **$0.515594**, not invoice reconciliation. Terminal private
+packet `/private/tmp/edison-calibration-capture.YuLWR5` retains exact input,
+evidence, original/repaired drafts, checks and charges. Its stage-1 through stage-4
+JSON SHA-256 identities are respectively:
+
+- `cbd52ebb9e52d711653425de25fa6ffee2ad2568cbf2b69773c6a29c9589a3c9`.
+- `1ea0d31617516c8893fdca466311f3ebfb6f21b91ee6f74047e826c1ee7f0717`.
+- `61a8957082a1d6d76b17cb14f4f37a179ee35814ad8268bbd6575fb0fa3ad870`.
+- `121a784b1dd90fa5ac42b87dce8bcf588956255ebf37f7a93b3b39eaffb02625`.
+
+The first check objected to the CD19/B-cell explanation not being in cited s1,
+and to a neutral heading's clinical claim mapping. The sole repair removed that
+explanation, fixed the heading mapping and supplied the title claim map. The final
+check supported all 14 authored claims and found promise, fit, continuity, privacy
+and metadata passed, with no missed material claims. It nevertheless rejected the
+exact body.1 definition **“hypoimmune, meaning engineered for use across recipients”**
+as expanding beyond the retained evidence. That paragraph is byte-identical to
+the first draft, where the initial complete check marked it supported.
+
+Both check snapshots contain all four sources/12 passages; this is not an absent
+final audit or a lost-evidence incident. The first check's CD19 objection concerns
+the displayed source mapping: s2 has B-cell context, but the paragraph cited only
+s1. Its proposed repair failed to identify the already-retained source as an
+available citation repair. Exact unchanged-paragraph/check classification and
+editorial severity are under unpaid review. Do not equate “beyond evidence” with
+proof of an opposing fact, silently override a failed audit, or manually rescue
+the article. This is not current-version reading acceptance.
+
+Independent mechanical diagnosis found no runtime defect: both complete 11-surface
+audits and 13/14-claim assessments normalized faithfully; raw provider drafts
+assemble exactly into checker input; the original findings reached repair intact;
+both fingerprint values recompute correctly. Evidence/context/idea/instructions
+were identical, but body.0 and some claim mappings/paraphrases changed, so the full
+checker inputs were not identical. Evidence JSON SHA-256 is
+`e7320d4908847437dc17d7e5029eccb35b03b6c910d11fbfc5f0094857e9f2ff`;
+unchanged body.1 text SHA-256 is
+`1ca7aae075b46310dce076ee2d9c62d05cbcd8b3ff333d205d7291abc26b4d1d`.
+The pipeline correctly ran a fresh complete final check and withheld on its
+material failure, without inheriting a previous pass or adding a second repair.
+Inconsistent assessment is established; which semantic judgment is appropriate
+requires the separate editorial diagnosis, not an automatic deterministic override.
+
+CoS's direct preliminary read also identifies overgenerous reader-fit acceptance:
+the revision removes a useful B-cell explanation despite retained s2 support, leaves
+several unfamiliar medical terms/acronyms unexplained for the stated DNA-basics
+reader, and repeats limitations in both ending paragraphs. It distinguishes design
+intent (“engineered for use”) from proof of successful compatibility and does not
+accept the final check's contradiction label on that rationale. These are separate
+semantic and useful-explanation findings, not permission to publish the draft.
+
+**New paid work and public rollout are stopped.** No contextual Ask or adapted
+article return/reopen occurred. Terminal quota shows zero queued/running requests;
+the same replacement guest used two ideas/four articles/one feedback, with original
+guest records preserved. The aggregate three-ideas/five-articles sampling plan is
+exhausted; no extra principal, quota reset or automatic replacement sample. Broader
+topics, mobile rendering, accepted-article Save, current Ask/reading acceptance,
+and final public configuration/cron activation remain explicitly unverified.
+CTO owns the mechanical diagnosis/record; CoS owns editorial interpretation and
+the next bounded prompt/QA calibration proposal. Existing public release remains
+unchanged; no new credentials or founder hosting action is required for diagnosis.
+
+## v1.6 protected checkpoint and adapted feedback — 21:27 UTC
+
+Reviewed source `c600d9393a6ae16ff78a61ce0a2efcf87e9addf1` is committed/pushed.
+[CI 34060400262](https://github.com/michaelmcguiness/edison/actions/runs/34060400262)
+passed (application 21:16:23 UTC; database 21:15:53 UTC), with all three Vercel
+Preview contexts successful. Independent verification matched all eight recorded
+hashes to shared files, committed blobs and the clean exact-revision copy
+`/private/tmp/edison-release-v16.d8gnIA/candidate`.
+
+Ready protected Production pair at that exact revision:
+
+- API `dpl_DKxE4WYPSePEYNock194nVMmAYuf`,
+  `edison-i8fnrvnth-mike-michaelmcguis-projects.vercel.app`.
+- Web `dpl_25F72uWd9nw9xyg6FXf7ykBApKjS`,
+  `edison-fi1dr2zxa-mike-michaelmcguis-projects.vercel.app`.
+
+The same stable calibration alias points to this web, pinned at build/runtime to
+the exact API using existing approved trust. Independent 21:22:56 UTC read-back
+confirmed anonymous SSO302 on stable/unique web and API, both protections/team
+OIDC, unchanged exact Production-to-Production trust, and unchanged public web/API
+aliases and production targets. Public API configuration/database/Auth are OK.
+Preflights passed; the existing API TLS-verification warning remains.
+
+Immediate cron recovery `dpl_ASYND9pjYLVDdx29S17ifNwBy9oi` is Ready at exact
+old `a681331673b416d1267cd27a263222399b5285f1`, demand=false,
+`edison-k596u7a8h-mike-michaelmcguis-projects.vercel.app`. All three original
+schedules are enabled there with original enabledAt and disabledAt=null. This
+verifies binding/configuration, not actual scheduled execution. No public rollout.
+
+Same-origin reload retained the existing guest, loop and prior history. Exact
+feedback “Focus on medicine. I know the basics of DNA. Keep future articles concise
+and include concrete examples.” succeeded as request
+`147ac0f8-4ebf-4108-a918-ec46c562a580`, 21:23:52–21:24:01 UTC. Persisted loop
+revision 1 separately records medicine direction, declared DNA knowledge, and
+concise/examples preference with exact feedback provenance. UI and stored state
+agree; three principles survived reload. Cost is $0.000424. Terminal private
+packet: `/private/tmp/edison-calibration-capture.L5lTHC`.
+
+The final adapted ideas request `8353c67c-0a64-4c09-bb20-1b6dea12fa12`
+succeeded 21:25:30–21:26:15 UTC, two stages, $0.018377. It offered three medical
+cards and withheld one broader unsupported premise. Earlier ideas remain visible,
+not rewritten. Terminal private packet:
+`/private/tmp/edison-calibration-capture.AOD48x`. Cumulative on-demand ledger
+estimate is now **$0.418325**, not invoice reconciliation. Actual idea promises and
+evidence are being reviewed before the one remaining selected body request; no
+adapted body or contextual Ask has yet been requested. Preserve original quotas,
+same guest and stop new paid work on any material failure.
+
+Independent Workflow metadata confirms both feedback and ideas runs completed
+without runtime errors on exact `dpl_DKxE4WYPSePEYNock194nVMmAYuf` (21:24:02.448
+and 21:26:16.258 UTC). Root/CoS found no concrete false premise in the qualified
+lupus brief. The temporary-cell-therapy headline merits more tentative framing;
+its explicit no-superiority qualification and engineering-tradeoff payoff do not
+establish comparative clinical safety. This is a follow-up, not a new sample.
+
 ## v1.5 hosted checkpoint — 20:41 UTC
 
 Exact `60da1482784152fc5a080ba328bf9b5c8cdbef94` is committed/pushed and

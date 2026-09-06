@@ -15,6 +15,58 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
+### September 6 v1.7 — locally verified correction, no further hosted work
+
+CoS closed the v1.6 lupus diagnosis: the checker misinterpreted design intent,
+but the short draft also failed to explain the core immune-reset concept and left
+unhelpful jargon. Keep the historical withheld outcome. CTO implemented one
+bounded prompt/contract-test correction for evidence-verdict precision, citation
+repair using already-retained background support, and preserving the central
+explanation/reader fit through repair. No schema/retrieval/ledger/gate redesign,
+model or budget change, extra repair, staging/publication or new paid call.
+
+All **373 web/149 API tests**, final typechecks/lint and both production builds
+pass; the frozen source has a reusable five-contrast corpus and six injected
+regressions, not a claim of semantic model improvement. CoS closed bounded prompt
+review; exact hashes are in the technical release record. The correction is retained
+in a local-only commit, with no further push-triggered hosted builds or staging.
+
+The same guest's next normal article slot opens September 7 at **3:14:31.067 PM
+EDT** (use 3:14:32 or later), subject to unchanged global-budget/session/concurrency
+checks. Quota availability does not authorize a new sample or establish useful
+output. No wakeup or paid test is scheduled. CoS owns the next bounded sampling
+decision/editorial review; CTO owns integration and eventual release execution.
+Public September 5 and protected c600d939/v1.6 remain unchanged.
+
+### September 6 v1.6 — adapted article withheld, paid work/rollout stopped
+
+Exact `c600d9393a6ae16ff78a61ce0a2efcf87e9addf1` is pushed, green in CI
+`34060400262` and all three Vercel contexts, and deployed as the protected web/API
+pair at the same calibration origin. Independent checks matched the clean copy,
+eight hashes, hosted identities, protection/trust and unchanged public targets.
+All three original crons are restored on old a681331 recovery
+`dpl_ASYND9pjYLVDdx29S17ifNwBy9oi`. Public September 5 remains unchanged.
+
+The agreed feedback succeeded and persisted three correctly attributed principles
+at loop revision 1; they survived UI reload. The final fresh adapted batch offered
+three medical ideas and rejected a fourth unsupported premise. The qualified lupus
+brief was reviewed without a concrete false premise. Its selected single article
+request `772dbf04-ed94-45ac-adc5-d3842b01fb48` failed `editorial_withheld` at
+21:47:34 UTC after all four stages, with no publication or runtime failure. Final
+check accepted all 14 authored claims but rejected one exact body definition of
+“hypoimmune”; that unchanged paragraph had passed the initial exact check. Both
+checks received the same complete evidence. Unpaid mechanical/editorial diagnosis
+is underway; no silent audit override or manual article rescue is allowed.
+
+The article cost $0.097269; cumulative ledger estimate is **$0.515594**, not invoice
+reconciliation. Terminal packet is `/private/tmp/edison-calibration-capture.YuLWR5`.
+No requests remain in flight. Preserve the same guest and old failed/false-positive
+records; the aggregate sampling plan is exhausted. **No new paid work/public rollout.**
+Ask/current accepted-body return remain unrun. CTO/CoS are closing the bounded
+diagnosis and next prompt/QA proposal, not waiting for credentials or a generic
+owner approval. Exact evidence and limits are in
+`docs/ON_DEMAND_RELEASE_2026-09-06.md`.
+
 ### September 6 v1.6 — local verification complete, protected checkpoint next
 
 Title evidence now follows the independently checked neutral/material heading

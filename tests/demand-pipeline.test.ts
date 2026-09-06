@@ -248,7 +248,7 @@ test("a parseable initial selected-title failure gets one deterministic repair t
   assert.deepEqual(calls.map((call) => call.stage), ["write", "repair", "check"]);
   assert.deepEqual(calls.map((call) => call.idempotencyKey), [`${requestId}:write`, `${requestId}:repair`, `${requestId}:recheck`]);
   assert.deepEqual(calls.map((call) => call.model), ["gpt-5.6-terra", "gpt-5.6-terra", "gpt-5.6-luna"]);
-  assert.ok(calls.every((call) => call.promptVersion === "edison-demand-v1.6"));
+  assert.ok(calls.every((call) => call.promptVersion === "edison-demand-v1.7"));
 });
 
 test("initial structural repair is terminal if its draft remains invalid or its full recheck fails", async () => {
