@@ -300,6 +300,8 @@ type ReaderAppProps = {
   reader: { id?: string; name: string; email: string };
   dataMode?: DataMode;
   prototypeResearchedAt?: string;
+  /** Only the server-selected on-demand Profile route crosses back to the new home. */
+  returnHomeToDemand?: boolean;
 };
 
 export function ReaderApp(props: ReaderAppProps) {
@@ -311,6 +313,7 @@ function ReaderSession({
   reader,
   dataMode = "prototype",
   prototypeResearchedAt,
+  returnHomeToDemand = false,
 }: ReaderAppProps) {
   const prototypeStories = useMemo(
     () => makeDemoStories(prototypeResearchedAt ?? "1970-01-01T00:00:00.000Z"),
@@ -466,7 +469,20 @@ function ReaderSession({
     setDirectionReviewOpen(true);
   }, []);
 
+  const openDemandHome = useCallback((replace = false) => {
+    if (!returnHomeToDemand || typeof window === "undefined") return false;
+    // A local history update cannot select the server-rendered DemandReader.
+    if (replace) window.location.replace("/");
+    else {
+      // Deliberate document boundary: leave the legacy session and its local router.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.assign("/");
+    }
+    return true;
+  }, [returnHomeToDemand]);
+
   const navigate = useCallback((next: ReaderRoute, replace = false, returnOverride?: ReaderRoute | null) => {
+    if (next.view === "home" && openDemandHome(replace)) return;
     articleRequest.current += 1;
     setSummary(null);
     setAskOpen(false);
@@ -488,13 +504,14 @@ function ReaderSession({
     }
     routeRef.current = next;
     setRoute(next);
-  }, [capturePosition]);
+  }, [capturePosition, openDemandHome]);
 
   const goHome = useCallback((target = section) => {
     navigate({ section: target, view: "home", articleId: null, ...(target === "news" ? { loopId: routeRef.current.loopId ?? "for-you" } : {}) });
   }, [navigate, section]);
 
   const backHome = useCallback(() => {
+    if (openDemandHome()) return;
     if (dataMode !== "prototype" && section === "news") {
       const current = routeRef.current;
       const steps = readerBackSteps(current, window.history.state ?? {});
@@ -519,7 +536,7 @@ function ReaderSession({
       return;
     }
     navigate({ section, view: "home", articleId: null }, true);
-  }, [capturePosition, dataMode, navigate, section]);
+  }, [capturePosition, dataMode, navigate, openDemandHome, section]);
 
   useEffect(() => {
     routeRef.current = route;
@@ -529,6 +546,7 @@ function ReaderSession({
     const applyLocation = (state?: unknown) => {
       articleRequest.current += 1;
       const next = parseReaderRoute(window.location.search);
+      if (next.view === "home" && openDemandHome(true)) return;
       const previous = routeRef.current;
       if (next.view === "home" && previous.view === "article" && previous.articleId) {
         const journey = continuity.record.current.journeys[previous.articleId];
@@ -549,7 +567,7 @@ function ReaderSession({
     const onPopState = (event: PopStateEvent) => { capturePosition(readerRouteHref(routeRef.current)); applyLocation(event.state); };
     window.addEventListener("popstate", onPopState);
     return () => { window.history.scrollRestoration = previousRestoration; window.removeEventListener("popstate", onPopState); };
-  }, [capturePosition, continuity.record]);
+  }, [capturePosition, continuity.record, openDemandHome]);
 
   useEffect(() => {
     if (!continuityReady || loading || (view === "home" && readingLoops.loading) || (view === "library" && libraryLoading) || (view === "article" && article?.id !== route.articleId)) return;

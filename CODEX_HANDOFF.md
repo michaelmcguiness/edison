@@ -15,7 +15,46 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
-### September 6 execution update — trust/migration applied, protected testing underway
+### September 6 real calibration — failure retained, bounded correction underway
+
+Current source checkpoint `343b474` is committed/pushed with green CI `34051930097`;
+the actual protected web/API below still run f5776ad. First source-informed ideas
+succeeded, but the selected article failed validation and was **not published**.
+The one retained source conflicted with the legacy two-source writer contract;
+the response also had incomplete claim mapping/citation fragments and its retained
+evidence was too narrow. Actual new ledger-estimated cost: **$0.053472**. Preserve
+the original failed request, provider response and charges; never retry/rescue it.
+
+CTO's bounded v1.3 correction separates one-or-more-unique-source on-demand schemas
+from legacy minimum-two, routes only parseable initial structural failures through
+the existing sole repair plus full recheck, clarifies claim indices/terms/citations,
+and selects distinct contextual windows from whole retrieved pages. Raw publisher
+HTML now has a tested 2-MiB streaming ceiling (all three formerly oversized public
+papers now retrieve), preserving transport protections and the 40KB retained packet
+cap. Models, prices, provider-stage accounting, budgets and old-version replay stops
+are unchanged. Final local correction passes 324 web + 143 API tests, both types,
+repository lint and both production builds. Independent safety review and CoS's
+v1.3 prompt/retained-evidence source review closed; neither is real article
+acceptance. Profile now has the minimal server-selected full-navigation return to
+the enabled demand homepage, with actual isolated callback/popstate tests. Final
+CI/Profile closure, corrected staged deployments and new real output remain pending.
+
+**Calibration continuity correction:** the first guest is tied to its immutable
+unique website URL. Cross-origin guest transfer is unsupported. CoS explicitly
+approved one replacement guest on a fresh stable protected alias of existing
+edison-app, with only the aggregate **remaining two ideas/three article requests**;
+original records/charges and all other limits remain intact. Stop paid work on the
+original guest. No cookie/token export, quota reset, special routing rule or extra
+principal beyond this one replacement. Corrected fresh baseline is ideas slot2,
+adapted is slot3; Architecture and the broader topic matrix are unrun follow-ups.
+Verify same-origin continuity on the stable alias. Account Profile return must
+resolve back to the enabled demand homepage rather than legacy client navigation.
+
+No new migration, trust approval, login, purchase, design or length selector is
+needed. See `docs/ON_DEMAND_RELEASE_2026-09-06.md` for exact evidence and next gates.
+Public September 5 web/API remain unchanged; final apex rollout is not complete.
+
+### Earlier September 6 execution — trust/migration applied, protected testing underway
 
 This supersedes the historical preparation holds below. Michael directly answered
 Yes in the CTO task to the exact `edison-app` Production → `edison-api` Production

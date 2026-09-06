@@ -27,6 +27,7 @@ type Claims = {
   email?: string;
   user_metadata?: { display_name?: string; full_name?: string };
 };
+type SearchParameters = Record<string, string | string[] | undefined>;
 
 // Execute the actual page branch logic without loading either client app or
 // contacting Auth. Mode resolution itself is covered in app-mode.test.ts.
@@ -35,12 +36,14 @@ async function home(options: {
   flag?: string;
   claims?: Claims;
   environment?: Record<string, string>;
+  query?: SearchParameters;
+  searchParams?: Promise<SearchParameters>;
 }) {
   let authCalls = 0;
   let clientCalls = 0;
   let stylesheetImports = 0;
   const exports: {
-    default?: () => Promise<ReactElement<Record<string, unknown>>>;
+    default?: (props: { searchParams: Promise<SearchParameters> }) => Promise<ReactElement<Record<string, unknown>>>;
     dynamic?: string;
   } = {};
   new Script(compiled, { filename: "app/page.tsx" }).runInNewContext({
@@ -72,7 +75,9 @@ async function home(options: {
   assert.equal(exports.dynamic, "force-dynamic");
   assert.equal(stylesheetImports, 1);
   assert.ok(exports.default);
-  const element = await exports.default();
+  const element = await exports.default({
+    searchParams: options.searchParams ?? Promise.resolve(options.query ?? {}),
+  });
   return { element, authCalls, clientCalls };
 }
 
@@ -91,6 +96,74 @@ test("signed-in readers use the same demand root without a separate homepage aut
   assert.equal(result.element.type, DemandStub);
   assert.equal(result.clientCalls, 0);
   assert.equal(result.authCalls, 0);
+});
+
+test("the exact account Profile link awaits search parameters and retains authenticated Pulse controls", async () => {
+  let resolveQuery!: (query: SearchParameters) => void;
+  const pending = home({
+    mode: "live", flag: "true",
+    claims: { sub: "owner-id", email: "owner@example.test", user_metadata: { display_name: "Owner" } },
+    searchParams: new Promise((resolve) => { resolveQuery = resolve; }),
+  });
+  resolveQuery({ view: "profile" });
+  const { element, authCalls, clientCalls } = await pending;
+  assert.equal(element.type, PulseStub);
+  assert.equal(element.props.dataMode, "live");
+  assert.equal(element.props.returnHomeToDemand, true);
+  assert.deepEqual(JSON.parse(JSON.stringify(element.props.reader)), {
+    id: "owner-id", name: "Owner", email: "owner@example.test",
+  });
+  assert.equal(clientCalls, 1);
+  assert.equal(authCalls, 1);
+});
+
+test("the exact Profile query cannot turn an unauthenticated guest into an account reader", async () => {
+  const { element, authCalls, clientCalls } = await home({
+    mode: "live", flag: "true", query: { view: "profile" },
+  });
+  assert.equal(element.type, PulseStub);
+  assert.equal(element.props.dataMode, "guest");
+  assert.equal(element.props.returnHomeToDemand, true);
+  assert.deepEqual(JSON.parse(JSON.stringify(element.props.reader)), { name: "", email: "" });
+  assert.equal(clientCalls, 1);
+  assert.equal(authCalls, 1);
+});
+
+test("other, duplicated or additional query parameters cannot select the legacy reader while demand is enabled", async () => {
+  for (const query of [
+    {}, { view: "" }, { view: "Profile" }, { view: " profile" },
+    { view: "home" }, { view: "library" }, { view: "article", article: "article-id" },
+    { view: ["profile"] }, { view: ["profile", "profile"] }, { view: ["profile", "home"] },
+    { view: "profile", section: "books" }, { view: "profile", article: "article-id" },
+    { view: "profile", redirect: "https://example.test" },
+  ] satisfies SearchParameters[]) {
+    const { element, authCalls, clientCalls } = await home({ mode: "live", flag: "true", query });
+    assert.equal(element.type, DemandStub);
+    assert.equal(clientCalls, 0);
+    assert.equal(authCalls, 0);
+  }
+});
+
+test("the Profile query preserves off-mode guest, account, demo and setup behavior", async () => {
+  for (const flag of [undefined, "false"]) {
+    for (const claims of [undefined, { sub: "reader-id", email: "reader@example.test" }]) {
+      const { element, authCalls } = await home({ mode: "live", flag, claims, query: { view: "profile" } });
+      assert.equal(element.type, PulseStub);
+      assert.equal(element.props.dataMode, claims ? "live" : "guest");
+      assert.equal(element.props.returnHomeToDemand, false);
+      assert.equal(authCalls, 1);
+    }
+  }
+  for (const flag of [undefined, "false", "true"]) {
+    const demo = await home({ mode: "demo", flag, query: { view: "profile" } });
+    assert.equal(demo.element.type, PulseStub);
+    assert.equal(demo.element.props.dataMode, "prototype");
+    assert.equal(demo.element.props.returnHomeToDemand, undefined);
+    assert.equal(demo.clientCalls, 0);
+    const setup = await home({ mode: "setup", flag, query: { view: "profile" } });
+    assert.match(renderToStaticMarkup(setup.element), /Edison is almost ready\./);
+    assert.equal(setup.clientCalls, 0);
+  }
 });
 
 test("missing or non-exact opt-in preserves the existing live guest homepage", async () => {

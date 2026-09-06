@@ -1,6 +1,7 @@
 import { lookup } from "node:dns/promises";
 import { request as httpsRequest } from "node:https";
 import { BlockList, isIP } from "node:net";
+import type { Readable } from "node:stream";
 
 // Retrieved pages are untrusted evidence, never executable instructions. Each
 // hop is resolved and pinned independently; fetch() alone would permit DNS
@@ -41,8 +42,37 @@ export function evidenceUrl(value: string): URL {
   return url;
 }
 
-const MAX_BYTES = 512_000;
+// Publisher HTML often includes large navigation/metadata shells. This bounds
+// raw transfer, not retained model evidence (which has a separate packet cap).
+export const MAX_EVIDENCE_BODY_BYTES = 2 * 1024 * 1024;
 const TIMEOUT_MS = 15_000;
+
+/** Stop on the first oversized chunk; never return a truncated source page. */
+export async function readBoundedEvidenceBody(
+  response: Readable, declaredLength?: string,
+): Promise<string> {
+  if (declaredLength && /^\d+$/.test(declaredLength) &&
+      BigInt(declaredLength) > BigInt(MAX_EVIDENCE_BODY_BYTES)) {
+    response.destroy();
+    throw new Error("evidence_content_too_large");
+  }
+  const chunks: Buffer[] = [];
+  let length = 0;
+  try {
+    for await (const chunk of response) {
+      const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      length += bytes.length;
+      if (length > MAX_EVIDENCE_BODY_BYTES) {
+        throw new Error("evidence_content_too_large");
+      }
+      chunks.push(bytes);
+    }
+    return Buffer.concat(chunks, length).toString("utf8");
+  } catch (error) {
+    response.destroy();
+    throw error;
+  }
+}
 
 export function readableEvidenceText(markup: string): string {
   return markup
@@ -104,18 +134,8 @@ const transport: EvidenceTransport = {
           (response.headers["content-encoding"] && response.headers["content-encoding"] !== "identity")) {
         response.destroy(); reject(new Error("evidence_content_unavailable")); return;
       }
-      const chunks: Buffer[] = [];
-      let length = 0;
-      response.on("error", reject);
-      response.on("data", (chunk: Buffer) => {
-        length += chunk.length;
-        if (length > MAX_BYTES) {
-          response.destroy(); reject(new Error("evidence_content_too_large")); return;
-        }
-        chunks.push(chunk);
-      });
-      response.on("end", () => resolve({ status, contentType,
-        text: Buffer.concat(chunks).toString("utf8") }));
+      void readBoundedEvidenceBody(response, response.headers["content-length"])
+        .then((text) => resolve({ status, contentType, text }), reject);
     });
     req.on("error", reject);
     req.end();
@@ -147,6 +167,10 @@ export async function retrieveEvidencePage(
         continue;
       }
       if (response.status !== 200) throw new Error("evidence_content_unavailable");
+      // Keep the public transport seam subject to the same full-page bound.
+      if (Buffer.byteLength(response.text, "utf8") > MAX_EVIDENCE_BODY_BYTES) {
+        throw new Error("evidence_content_too_large");
+      }
       const text = readableEvidenceText(response.text);
       if (text.length < 100) throw new Error("evidence_content_unavailable");
       const rawTitle = /(?:text\/html|application\/xhtml\+xml)/i.test(response.contentType)

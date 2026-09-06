@@ -4,7 +4,96 @@ Owner: CTO. Scope: D26 on-demand reading, protected real-output calibration,
 connected/browser acceptance, then the authorized existing apex rollout.
 This is an execution record, not a claim that the new experience is live.
 
-## Execution update — 18:23 UTC
+## Real calibration failure and bounded correction — 18:55 UTC
+
+Latest committed source before this correction is `343b474f4bb0adc2ad9e29118409e4630c5a35f6`;
+[CI 34051930097](https://github.com/michaelmcguiness/edison/actions/runs/34051930097)
+and all three Vercel Preview contexts passed. The actual protected calibration
+deployments below remain **f5776ad**, not this newer homepage source. No apex rollout
+has occurred.
+
+The first normal-browser guest was created at 18:24:42 UTC. Its first Synthetic
+Biology ideas request `d3e3137d-dbe8-492d-afcf-1ae069c6e113` succeeded at 18:31:46:
+four researched ideas, one offered after three source retrieval failures. Actual
+recorded Luna usage across research/check was **$0.028652**, with two web searches.
+Workflow `wrun_01M1VZSXZ3158SZ20Y0JT481HC` independently reports completed on the
+exact protected f5776ad API deployment. CoS accepts the offered idea's bounded,
+explicitly modeled premise, not a completed article.
+
+Selected article request `5c6a9a09-b017-4b46-b222-b2552b691f99` failed safely at
+18:33:04 with `provider_invalid`, after one accounted Terra writer response costing
+**$0.024820**. No article was published and no checker/repair ran. The Workflow
+`wrun_01M1VZX4D9Q0R0BDMF016W5533` completed on the same deployment because the
+application handled the failure; Workflow completion is not article acceptance.
+New calibration cost to this point is **$0.053472** (ledger estimates, not invoice
+reconciliation). These requests, original responses and charges remain immutable.
+Private exact packets are retained outside the repository and supplied to CoS.
+
+Reproduction found a real contract mismatch: one independently retrieved source
+could establish an eligible idea, but the legacy writer schema required two. The
+writer duplicated that source and runtime validation rejected it. It also omitted
+ending claim locations and emitted incomplete inline citation fragments. The
+retained abstract/clipped introduction did not support the complete explanation.
+
+The current bounded correction implements prompt version **edison-demand-v1.3**:
+
+- Separate on-demand one-or-more **unique** source schemas; legacy two-source
+  contracts remain unchanged. Count alone never establishes evidence sufficiency.
+- A parseable initial written draft can carry bounded deterministic findings to
+  the same **sole** repair slot, followed by complete structural/factual/payoff
+  recheck. No fabricated checker verdict, additional repair loop, uncertain replay,
+  failed-record rewrite, model/price change, or admission/usage bypass.
+- Full-body-array claim indices include headings. Necessary terms need explanation
+  at the reader's declared level; citation labels must be complete and structured.
+- Discovery-guided selection now scans the whole independently fetched page for
+  up to three distinct actual contextual windows, with hashes/locators/time and
+  the same fail-closed **40,000-byte** whole-evidence-packet ceiling. Model excerpts
+  remain leads, never relabeled evidence. A fresh read-only primary-paper check
+  retains the mechanism and half-life definition; the exact later equal-initial-
+  output result is still not retained and must not be asserted without support.
+- Current exact-URL diagnosis reproduced `evidence_content_too_large` for all
+  three previously unavailable sources. Raw HTML is now capped at **2 MiB** rather
+  than 512,000 bytes, with an early declared-size check and streaming byte-count
+  cancellation, never partial evidence. All three exact public URLs then retrieved
+  successfully (80,593–120,161 normalized characters, 1.3–1.8 seconds). HTTPS,
+  hostname verification, public-address checks, DNS pinning, per-hop checks,
+  compression restrictions and the 15-second timeout are unchanged.
+
+The final local correction passes **324 web + 143 API tests**, both typechecks,
+repository lint and both production builds (API: 13 steps/three workflows).
+An independent bounded safety review found no blocking regression in transport,
+source validation, sole repair or durable replay/accounting, with 96 focused tests.
+CoS directly matched/reviewed the exact v1.3 prompt and retained passages and closed
+that source/evidence scope, explicitly excluding real article acceptance. The
+Profile correction preserves the exact authenticated `/?view=profile` route and
+passes a server-selected return flag: home/logo/back use full navigation to `/`
+instead of selecting the legacy client homepage. Five actual isolated callback/
+popstate tests supplement the 11 actual-page branch tests; this is not mounted
+browser evidence. Final CI, independent Profile closure and corrected protected
+deployments are still pending. No new real article has been accepted.
+
+### Corrected calibration origin and remaining allowance
+
+The initial website used an immutable unique Vercel deployment URL, not a movable
+alias. Its host-only HttpOnly guest cookie cannot follow a new deployment origin;
+Edison does not implement cross-origin guest transfer. No credential export,
+injection, new transfer feature or special routing rule is permitted or needed.
+
+CoS explicitly corrected its sampling rule: use **one replacement guest** on a
+fresh, stable, protected alias in the existing `edison-app` project. Stop using the
+original guest for new paid work. Keep all original records/charges, with exactly
+**two ideas batches and three article requests remaining across the correction**
+(aggregate original window at most three ideas/four article requests), and existing
+feedback/question/global dollar ceilings. This is not a quota reset or new budget.
+Verify protection and exact Ready deployment identity before commissioning; retain
+the same stable origin for reload/return and any later candidate revisions.
+
+The corrected fresh Synthetic Biology baseline consumes ideas slot two; the adapted
+case consumes slot three. Architecture, Health, History and Crypto are explicitly
+unrun follow-up benchmarks. Successful baseline/adapted output, real feedback,
+connected/rendered continuity and Editorial/Design acceptance still precede rollout.
+
+## Earlier execution update — 18:23 UTC
 
 The earlier preparation/approval holds below are historical. Michael directly
 answered **Yes** in the CTO task to the exact Production website-to-API trust

@@ -42,7 +42,7 @@ function idea(): OnDemandIdea {
 function draft(packet = evidence()): OnDemandWriterOutput {
   const article = { category: "tech-science" as const, kicker: "Biology", topic: "Engineered cells", title: idea().headline, deck: idea().deck,
     summary: ["Responses were measured in a laboratory.", "Clinical efficacy was not tested.", "Evidence scope matters."], whyWritten: "The article explains evidence limits.", readingMinutes: 3,
-    body: Array.from({ length: 6 }, (_, index) => ({ type: "paragraph" as const, text: `Constructed explanation ${index}: laboratory behavior is not clinical evidence.`, citations: [{ sourceKey: packet.sources[index % 2].id, label: "example.org" }] })),
+    body: Array.from({ length: 6 }, (_, index) => ({ type: "paragraph" as const, text: `Constructed explanation ${index}: laboratory behavior is not clinical evidence.`, citations: [{ sourceKey: packet.sources[index % packet.sources.length].id, label: "example.org" }] })),
     sources: packet.sources.map((source) => ({ key: source.id, title: source.title, publisher: source.publisher, url: source.url, publishedAt: null })),
   };
   const locations = ["title", "deck", "summary.0", "summary.1", "summary.2", ...article.body.map((_, index) => `body.${index}`)];
@@ -196,6 +196,95 @@ test("failed article check permits one repair and one full recheck, then withhol
   assert.equal(state.failureCode, "editorial_withheld");
   await advanceDemandPipeline({ request, state }, { provider }); assert.equal(calls.length, 4);
   assert.equal(new Set(calls.map((call) => call.idempotencyKey)).size, 4);
+});
+
+function initialValidationFixture() {
+  const packet = evidence(); packet.sources = packet.sources.slice(0, 1); packet.passages = packet.passages.slice(0, 1);
+  const selectedIdea = { ...idea(), passageIds: packet.passages.map((passage) => passage.id) };
+  const request = row("article", { selection: { idea: selectedIdea, evidence: packet } });
+  const fixed = draft(packet);
+  fixed.article!.body.push({ type: "heading", level: 2, text: "The limit" },
+    { type: "paragraph", text: "The experiment does not establish clinical efficacy.", citations: [{ sourceKey: "s0", label: "example.org" }] },
+    { type: "paragraph", text: "A separate clinical study would answer a different question.", citations: [{ sourceKey: "s0", label: "example.org" }] });
+  for (const index of [7, 8]) fixed.claims.push({ id: `ending-${index}`, text: "Clinical efficacy remains untested.", locations: [`body.${index}`], passageIds: ["lead-0"] });
+  const invalid = structuredClone(fixed);
+  invalid.article!.sources.push({ ...invalid.article!.sources[0] });
+  invalid.claims = invalid.claims.filter((claim) => !claim.id.startsWith("ending-"));
+  return { request, fixed, invalid };
+}
+
+test("a parseable initial duplicate-source/ending-map failure gets one deterministic repair then full checking", async () => {
+  const { request, fixed, invalid } = initialValidationFixture(); const calls: OnDemandProviderRequest[] = [];
+  const provider = fakeProvider((call) => {
+    if (call.stage === "write") return invalid;
+    if (call.stage === "repair") {
+      const input = call.input as { check?: unknown; validationFindings: Array<{ location: string }> };
+      assert.equal(input.check, undefined, "deterministic findings are not a fabricated checker verdict");
+      assert.ok(input.validationFindings.some((finding) => finding.location === "body.7"));
+      assert.ok(input.validationFindings.some((finding) => finding.location === "body.8"));
+      return fixed;
+    }
+    assert.deepEqual((call.input as { draft: unknown }).draft, fixed);
+    return check(fixed);
+  }, calls);
+  const first = await advanceDemandPipeline({ request, state: initial(request) }, { provider });
+  assert.equal(first.state.phase, "repair"); assert.equal(first.outcome, undefined);
+  assert.deepEqual(first.state.draft, invalid); assert.equal(first.state.check, undefined);
+  const second = await advanceDemandPipeline({ request, state: first.state }, { provider });
+  assert.equal(second.state.phase, "recheck"); assert.equal(second.outcome, undefined); assert.equal(second.state.repairAttempted, true);
+  const final = await advanceDemandPipeline({ request, state: second.state }, { provider });
+  assert.equal(final.outcome, "article"); assert.equal(final.state.phase, "ready");
+  assert.deepEqual(calls.map((call) => call.stage), ["write", "repair", "check"]);
+  assert.deepEqual(calls.map((call) => call.idempotencyKey), [`${requestId}:write`, `${requestId}:repair`, `${requestId}:recheck`]);
+  assert.deepEqual(calls.map((call) => call.model), ["gpt-5.6-terra", "gpt-5.6-terra", "gpt-5.6-luna"]);
+  assert.ok(calls.every((call) => call.promptVersion === "edison-demand-v1.3"));
+});
+
+test("initial structural repair is terminal if its draft remains invalid or its full recheck fails", async () => {
+  for (const failure of ["repair", "recheck", "insufficient"] as const) {
+    const { request, fixed, invalid } = initialValidationFixture(); const calls: OnDemandProviderRequest[] = [];
+    const provider = fakeProvider((call) => call.stage === "write" ? invalid
+      : call.stage === "repair" ? failure === "repair" ? invalid : failure === "insufficient" ? { status: "insufficient_evidence", article: null, claims: [], reason: "The evidence cannot sustain the promise." } : fixed
+        : check(fixed, "repair"), calls);
+    let state = initial(request);
+    for (let index = 0; index < 4; index++) {
+      const result = await advanceDemandPipeline({ request, state }, { provider }); state = result.state;
+      assert.equal(result.outcome, undefined);
+      if (state.phase === "failed") break;
+    }
+    assert.equal(state.phase, "failed");
+    assert.equal(calls.filter((call) => call.stage === "repair").length, 1);
+    assert.equal(calls.length, failure === "recheck" ? 3 : 2);
+    await advanceDemandPipeline({ request, state }, { provider });
+    assert.equal(calls.length, failure === "recheck" ? 3 : 2);
+  }
+});
+
+test("resuming initial-validation and repair phases reuses retained stages without another writer or repair", async () => {
+  const { request, fixed, invalid } = initialValidationFixture();
+  const cache = new Map<string, Awaited<ReturnType<OnDemandProvider>>>(); let commissions = 0;
+  const provider: OnDemandProvider = async (call) => {
+    if (cache.has(call.idempotencyKey)) return cache.get(call.idempotencyKey)!;
+    commissions++; const result = await fakeProvider(() => call.stage === "write" ? invalid : fixed)(call);
+    cache.set(call.idempotencyKey, result); return result;
+  };
+  const first = await advanceDemandPipeline({ request, state: initial(request) }, { provider });
+  const firstReplay = await advanceDemandPipeline({ request, state: initial(request) }, { provider });
+  assert.deepEqual(firstReplay.state, first.state); assert.equal(commissions, 1);
+  const repair = await advanceDemandPipeline({ request, state: first.state }, { provider });
+  const repairReplay = await advanceDemandPipeline({ request, state: first.state }, { provider });
+  assert.deepEqual(repairReplay.state, repair.state); assert.equal(commissions, 2);
+  const repeated = await advanceDemandPipeline({ request, state: { ...repair.state, phase: "repair" } }, { provider });
+  assert.equal(repeated.failureCode, "pipeline_state_invalid"); assert.equal(commissions, 2);
+});
+
+test("unparseable or uncertain initial responses never enter deterministic repair", async () => {
+  const { request } = initialValidationFixture();
+  for (const provider of [fakeProvider(() => ({ status: "written", article: {} })), async () => { throw new Error("provider_uncertain"); }]) {
+    const result = await advanceDemandPipeline({ request, state: initial(request) }, { provider });
+    assert.equal(result.state.phase, "failed"); assert.equal(result.state.draftValidationFindings, undefined);
+    assert.equal(result.state.draft, undefined); assert.equal(result.outcome, undefined);
+  }
 });
 
 test("insufficient evidence skips repair instead of spending another drafting call", async () => {

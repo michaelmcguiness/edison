@@ -297,6 +297,19 @@ test("bounded repair is followed by a complete recheck and cannot loop", async (
   assert.deepEqual(result.trace.map((entry) => entry.stage), ["write", "check", "repair", "check"]);
 });
 
+test("convenience composition shares the sole repair for an initial deterministic draft failure", async () => {
+  const invalid = draft(); invalid.article!.sources.push({ ...invalid.article!.sources[0] });
+  const stages = { write: writeOnDemandArticle, check: checkOnDemandArticle, repair: repairOnDemandArticle };
+  const result = await generateSelectedArticle(selected, stages, { write: options(invalid, "w"), check: options(passed(), "c"), repair: options(draft(), "r"), recheck: options(passed(), "rc") });
+  assert.equal(result.status, "accepted");
+  assert.deepEqual(result.trace.map((entry) => entry.stage), ["write", "repair", "check"]);
+  assert.equal(result.trace.reduce((sum, entry) => sum + entry.usage.outputTokens, 0), 150);
+  const failed = { ...passed(), verdict: "repair" as const, promiseFulfilled: false };
+  const withheld = await generateSelectedArticle(selected, stages, { write: options(invalid, "w"), check: options(passed(), "c"), repair: options(draft(), "r"), recheck: options(failed, "rc") });
+  assert.equal(withheld.status, "withheld");
+  assert.deepEqual(withheld.trace.map((entry) => entry.stage), ["write", "repair", "check"]);
+});
+
 test("insufficient-evidence verdict skips repair rather than scheduling a human queue", async () => {
   const result = await generateSelectedArticle(selected, { write: writeOnDemandArticle, check: checkOnDemandArticle, repair: repairOnDemandArticle }, { write: options(draft(), "w"), check: options({ ...passed(), verdict: "insufficient_evidence", promiseFulfilled: false }, "c"), repair: options(draft(), "r"), recheck: options(passed(), "rc") });
   assert.equal(result.status, "withheld");

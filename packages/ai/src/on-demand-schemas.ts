@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { generatedArticleFormatSchema } from "./schemas";
+import { onDemandArticleFormatSchema } from "./schemas";
 
 const key = z.string().min(1).max(40);
 const text = z.string().min(1).max(2000);
@@ -93,10 +93,17 @@ export const onDemandClaimSchema = z.object({
 
 export const onDemandWriterOutputSchema = z.object({
   status: z.enum(["written", "insufficient_evidence"]),
-  article: generatedArticleFormatSchema.nullable(),
+  article: onDemandArticleFormatSchema.nullable(),
   claims: z.array(onDemandClaimSchema).max(100),
   reason: z.string().max(1500).nullable(),
 }).strict();
+
+// These are server-produced structural findings, not a model's factual verdict.
+export const onDemandDraftValidationFindingsSchema = z.array(z.object({
+  location: z.string().min(1).max(80),
+  reason: z.string().min(1).max(500),
+}).strict()).min(1).max(24);
+export type OnDemandDraftValidationFinding = z.infer<typeof onDemandDraftValidationFindingsSchema>[number];
 
 export const onDemandCheckOutputSchema = z.object({
   verdict: z.enum(["pass", "repair", "insufficient_evidence"]),

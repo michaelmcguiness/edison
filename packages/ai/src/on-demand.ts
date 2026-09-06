@@ -1,11 +1,12 @@
 import { z } from "zod";
-import { generatedArticleSchema } from "./schemas";
+import { onDemandArticleSchema } from "./schemas";
 import { ProviderResponseValidationError, type ObservedProviderUsage } from "./provider-response-error";
 import { ON_DEMAND_PROMPTS, ON_DEMAND_PROMPT_VERSION } from "./on-demand-prompts";
 import {
   onDemandAnswerOutputSchema,
   onDemandCheckOutputSchema,
   onDemandContextSchema,
+  onDemandDraftValidationFindingsSchema,
   onDemandEvidenceSchema,
   onDemandIdeaChecksSchema,
   onDemandResearchOutputSchema,
@@ -13,6 +14,7 @@ import {
   type OnDemandAnswerOutput,
   type OnDemandCheckOutput,
   type OnDemandContext,
+  type OnDemandDraftValidationFinding,
   type OnDemandEvidence,
   type OnDemandIdea,
   type OnDemandResearchOutput,
@@ -58,6 +60,18 @@ export type OnDemandStageResult<T> = {
   stage: OnDemandStage;
   promptVersion: typeof ON_DEMAND_PROMPT_VERSION;
 };
+
+/** A parseable initial written draft needs the sole deterministic repair. Its
+ * original provider response/usage is already retained by the durable wrapper. */
+export class OnDemandDraftValidationError extends ProviderResponseValidationError {
+  readonly draft: OnDemandWriterOutput;
+  readonly findings: OnDemandDraftValidationFinding[];
+  constructor(readonly result: OnDemandStageResult<OnDemandWriterOutput>, findings: OnDemandDraftValidationFinding[]) {
+    super("The initial written draft failed deterministic validation", result.usage);
+    this.draft = result.output;
+    this.findings = onDemandDraftValidationFindingsSchema.parse(findings);
+  }
+}
 
 function invalid(message: string): never {
   throw new Error(message);
@@ -227,7 +241,7 @@ export function assertOnDemandDraft(input: SelectedOnDemandInput, output: OnDema
     return;
   }
   if (!output.article || output.reason !== null) invalid("Inconsistent written result");
-  const article = generatedArticleSchema.parse(output.article);
+  const article = onDemandArticleSchema.parse(output.article);
   if (!article.body.some((block) => block.type === "paragraph")) invalid("An article must contain explanatory prose, not headings alone");
   if (article.title !== input.idea.headline) invalid("Selected headline changed");
   // Every prose surface needs coverage. A factual heading can also carry a
@@ -247,6 +261,8 @@ export function assertOnDemandDraft(input: SelectedOnDemandInput, output: OnDema
   }
   article.body.forEach((block, index) => {
     if (block.type === "heading") return;
+    if (block.citations.some((citation) => malformedCitationLabel(citation.label))) invalid("A citation label contains an unfinished reference fragment");
+    if (block.type === "paragraph" && hasInlineCitationDebris(block.text, block.citations.map((citation) => citation.label))) invalid("Citation references belong only in structured citation fields, not inline prose");
     const claims = output.claims.filter((claim) => claim.locations.includes(`body.${index}`));
     const supportSources = new Set(claims.flatMap((claim) => claim.passageIds.map((id) => input.evidence.passages.find((passage) => passage.id === id)!.sourceId)));
     if (block.citations.some((citation) => !supportSources.has(citation.sourceKey))) invalid("A block citation lacks mapped supporting evidence");
@@ -257,9 +273,54 @@ export function assertOnDemandDraft(input: SelectedOnDemandInput, output: OnDema
   });
 }
 
+function malformedCitationLabel(label: string) {
+  const stack: string[] = [];
+  const pairs: Record<string, string> = { ")": "(", "]": "[", "}": "{" };
+  for (const character of label) {
+    if ("([{".includes(character)) stack.push(character);
+    else if (character in pairs && stack.pop() !== pairs[character]) return true;
+  }
+  return stack.length > 0;
+}
+
+function hasInlineCitationDebris(text: string, labels: string[]) {
+  // Match duplicated actual citation labels / unmistakable reference markers,
+  // not arbitrary brackets that may be legitimate mathematics or notation.
+  if (/cite|【\d+(?::\d+)?†|\[(?:source|reference|ref)[ _:-]*\d+\]/i.test(text)) return true;
+  return labels.some((label) => new RegExp(`\\[\\s*${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?=\\s|[\\])]|$)`, "i").test(text));
+}
+
+function initialDraftFindings(output: OnDemandWriterOutput, error: unknown): OnDemandDraftValidationFinding[] {
+  const findings: OnDemandDraftValidationFinding[] = error instanceof z.ZodError
+    ? error.issues.slice(0, 12).map((issue) => ({ location: `article.${issue.path.join(".")}`.slice(0, 80), reason: issue.message.slice(0, 500) }))
+    : [{ location: "article", reason: error instanceof Error ? error.message.slice(0, 500) : "The complete draft failed deterministic validation." }];
+  const mapped = new Set(output.claims.flatMap((claim) => claim.locations));
+  for (const location of articleLocations(output)) {
+    if (!mapped.has(location)) findings.push({ location, reason: "This non-heading prose surface has no material-claim mapping. Body indices include every heading in the array." });
+  }
+  output.article?.body.forEach((block, index) => {
+    if (block.type === "heading") return;
+    if (block.citations.some((citation) => malformedCitationLabel(citation.label))) findings.push({ location: `body.${index}`, reason: "Replace unfinished citation labels with concise, accurate source-identity labels." });
+    if (block.type === "paragraph" && hasInlineCitationDebris(block.text, block.citations.map((citation) => citation.label))) findings.push({ location: `body.${index}`, reason: "Remove duplicated inline reference fragments; citations belong only in structured fields." });
+  });
+  const distinct = findings.filter((finding, index) => findings.findIndex((other) => other.location === finding.location && other.reason === finding.reason) === index);
+  return distinct.length <= 24 ? distinct : [...distinct.slice(0, 23), { location: "article", reason: "Additional deterministic defects may remain. Revalidate the entire draft and complete claim map, not only the listed findings." }];
+}
+
 export function writeOnDemandArticle(input: SelectedOnDemandInput, options: OnDemandStageOptions) {
   assertSelection(input);
-  return runStage("write", input, onDemandWriterOutputSchema, options, (output) => assertOnDemandDraft(input, output));
+  return runStage("write", input, onDemandWriterOutputSchema, options).then((result) => {
+    try { assertOnDemandDraft(input, result.output); }
+    catch (error) {
+      // Unparseable output never reaches this point; inconsistent insufficiency
+      // is terminal rather than permission to invent an article during repair.
+      if (result.output.status === "written" && result.output.article) {
+        throw new OnDemandDraftValidationError(result, initialDraftFindings(result.output, error));
+      }
+      throw new ProviderResponseValidationError("The write response failed on-demand validation", result.usage);
+    }
+    return result;
+  });
 }
 
 function assertCheckCoverage(check: OnDemandCheckOutput, claims: OnDemandWriterOutput["claims"], evidence: OnDemandEvidence) {
@@ -329,10 +390,20 @@ export async function checkOnDemandArticle(input: SelectedOnDemandInput & { draf
   return { ...result, accepted: onDemandCheckAccepted(result.output) };
 }
 
-export function repairOnDemandArticle(input: SelectedOnDemandInput & { draft: OnDemandWriterOutput; check: OnDemandCheckOutput }, options: OnDemandStageOptions) {
+export type OnDemandArticleRepairInput = SelectedOnDemandInput & { draft: OnDemandWriterOutput } & (
+  { check: OnDemandCheckOutput; validationFindings?: never } |
+  { validationFindings: OnDemandDraftValidationFinding[]; check?: never }
+);
+
+export function repairOnDemandArticle(input: OnDemandArticleRepairInput, options: OnDemandStageOptions) {
   assertSelection(input);
-  onDemandCheckOutputSchema.parse(input.check);
-  if (input.check.verdict === "insufficient_evidence" || onDemandCheckAccepted(input.check)) invalid("Repair requires a repairable failed check");
+  const draft = onDemandWriterOutputSchema.parse(input.draft);
+  if (draft.status !== "written" || !draft.article || (input.check !== undefined) === (input.validationFindings !== undefined)) invalid("Repair requires exactly one explicit failure report for a written draft");
+  if (input.validationFindings !== undefined) onDemandDraftValidationFindingsSchema.parse(input.validationFindings);
+  else {
+    onDemandCheckOutputSchema.parse(input.check);
+    if (input.check.verdict === "insufficient_evidence" || onDemandCheckAccepted(input.check)) invalid("Repair requires a repairable failed check");
+  }
   return runStage("repair", input, onDemandWriterOutputSchema, options, (output) => assertOnDemandDraft(input, output));
 }
 
@@ -350,17 +421,27 @@ export async function generateSelectedArticle(
 ) {
   if (new Set(Object.values(options).map((option) => option.idempotencyKey)).size !== 4) invalid("Each generation stage needs a distinct stable request identity");
   const trace: OnDemandStageResult<unknown>[] = [];
-  const written = await stages.write(input, options.write);
+  let written: OnDemandStageResult<OnDemandWriterOutput>;
+  let repairInput: OnDemandArticleRepairInput | undefined;
+  try { written = await stages.write(input, options.write); }
+  catch (error) {
+    if (!(error instanceof OnDemandDraftValidationError)) throw error;
+    written = error.result;
+    repairInput = { ...input, draft: error.draft, validationFindings: error.findings };
+  }
   trace.push(written);
   if (written.output.status !== "written") return { status: "withheld" as const, article: null, trace };
-  const checked = await stages.check({ ...input, draft: written.output }, options.check);
-  trace.push(checked);
-  if (checked.accepted) {
-    assertAcceptedOnDemandArticleCheck(input, written.output, checked.output);
-    return { status: "accepted" as const, article: written.output.article, claims: written.output.claims, trace };
+  if (!repairInput) {
+    const checked = await stages.check({ ...input, draft: written.output }, options.check);
+    trace.push(checked);
+    if (checked.accepted) {
+      assertAcceptedOnDemandArticleCheck(input, written.output, checked.output);
+      return { status: "accepted" as const, article: written.output.article, claims: written.output.claims, trace };
+    }
+    if (checked.output.verdict === "insufficient_evidence") return { status: "withheld" as const, article: null, trace };
+    repairInput = { ...input, draft: written.output, check: checked.output };
   }
-  if (checked.output.verdict === "insufficient_evidence") return { status: "withheld" as const, article: null, trace };
-  const repaired = await stages.repair({ ...input, draft: written.output, check: checked.output }, options.repair);
+  const repaired = await stages.repair(repairInput, options.repair);
   trace.push(repaired);
   if (repaired.output.status !== "written") return { status: "withheld" as const, article: null, trace };
   const rechecked = await stages.check({ ...input, draft: repaired.output }, options.recheck);
@@ -382,7 +463,7 @@ export type OnDemandQuestionInput = {
 
 function assertQuestionInput(input: OnDemandQuestionInput) {
   if (!input.articleId || !Number.isInteger(input.articleVersion) || input.articleVersion < 1 || !input.question.trim() || input.question.length > 2000 || input.conversation.length > 12 || input.conversation.some((message) => message.text.length > 8000)) invalid("Invalid bounded article question context");
-  generatedArticleSchema.parse(input.article);
+  onDemandArticleSchema.parse(input.article);
   assertOnDemandEvidence(input.evidence);
 }
 

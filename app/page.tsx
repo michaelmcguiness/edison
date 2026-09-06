@@ -7,10 +7,20 @@ import "./demand.css";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const mode = getWebAppMode();
+  let returnHomeToDemand = false;
   if (mode === "live" && process.env.EDISON_ON_DEMAND_ENABLED === "true") {
-    return <DemandReader />;
+    const query = await searchParams;
+    // Preserve the existing account link without opening a general legacy-view
+    // switch. Its normal Auth check and guest restrictions still apply below.
+    const accountProfile = query.view === "profile" && Object.keys(query).length === 1;
+    if (!accountProfile) return <DemandReader />;
+    returnHomeToDemand = true;
   }
 
   if (mode !== "live") {
@@ -50,6 +60,7 @@ export default async function Home() {
       <EdisonApp
         reader={{ name: "", email: "" }}
         dataMode="guest"
+        returnHomeToDemand={returnHomeToDemand}
         prototypeResearchedAt={requestedAt}
       />
     );
@@ -70,6 +81,7 @@ export default async function Home() {
     <EdisonApp
       reader={{ id: claims.sub, name, email }}
       dataMode="live"
+      returnHomeToDemand={returnHomeToDemand}
       prototypeResearchedAt={requestedAt}
     />
   );

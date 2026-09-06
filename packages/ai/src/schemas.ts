@@ -73,8 +73,7 @@ const generatedArticlePublicationSchema = z.object({
   sources: z.array(generatedSourceSchema).min(2).max(20),
 });
 
-export const generatedArticleSchema = generatedArticlePublicationSchema.superRefine(
-  (article, context) => {
+function validateArticleReferences(article: z.infer<typeof generatedArticlePublicationSchema>, context: z.RefinementCtx) {
     const keys = new Set<string>();
     const urls = new Set<string>();
 
@@ -109,8 +108,19 @@ export const generatedArticleSchema = generatedArticlePublicationSchema.superRef
         });
       });
     });
-  },
-);
+}
+
+export const generatedArticleSchema = generatedArticlePublicationSchema.superRefine(validateArticleReferences);
+
+// On-demand evidence sufficiency is claim/payoff based. One inspected primary
+// source may suffice; never pad this list with duplicates to meet a legacy count.
+// The legacy generation contract above deliberately remains at two sources.
+export const onDemandArticleFormatSchema = generatedArticleFormatSchema.extend({
+  sources: z.array(generatedSourceFormatSchema).min(1).max(20),
+});
+export const onDemandArticleSchema = generatedArticlePublicationSchema.extend({
+  sources: z.array(generatedSourceSchema).min(1).max(20),
+}).superRefine(validateArticleReferences);
 
 export const parsedPreferenceCommandSchema = z.object({
   changes: z.array(preferenceChangeSchema).max(8),
