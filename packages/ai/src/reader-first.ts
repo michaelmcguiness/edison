@@ -1,0 +1,307 @@
+import { createHash } from "node:crypto";
+import { z } from "zod";
+import {
+  assertOnDemandEvidence, type OnDemandContext, type OnDemandEvidence, type OnDemandSource,
+  type OnDemandProviderRequest, type OnDemandProviderResponse, type OnDemandStageOptions,
+  onDemandContextSchema,
+} from "./on-demand";
+import { ProviderResponseValidationError } from "./provider-response-error";
+import { READER_FIRST_PROMPTS, READER_FIRST_PROMPT_VERSION } from "./reader-first-prompts";
+import {
+  readerFirstSavedWriterInputSchema, readerFirstWriterOutputSchema, readerFirstWriterProviderSchema,
+  readerFirstAnswerOutputSchema, readerFirstAnswerProviderSchema, readerFirstResearchOutputSchema,
+  readerFirstCheckOutputSchema, readerFirstIdeaChecksSchema, readerFirstIdeaSchema,
+  type ReaderFirstArticle, type ReaderFirstBlock, type ReaderFirstWriterOutput, type ReaderFirstAnswerOutput,
+  type ReaderFirstResearch, type ReaderFirstResearchOutput, type ReaderFirstCheckOutput, type ReaderFirstIdea,
+} from "./reader-first-schemas";
+
+export * from "./reader-first-schemas";
+export { READER_FIRST_PROMPT_VERSION, READER_FIRST_PROMPTS } from "./reader-first-prompts";
+export type ReaderFirstStageOptions = OnDemandStageOptions & { researchPolicy?: NonNullable<OnDemandProviderRequest["researchPolicy"]> };
+export type ReaderFirstSelection = { context: OnDemandContext; idea: ReaderFirstIdea; evidence: OnDemandEvidence };
+export type ReaderFirstQuestion = {
+  context: OnDemandContext; articleVersion: string; draft: ReaderFirstWriterOutput; evidence: OnDemandEvidence;
+  question: string; previousMessages: Array<{ role: "user" | "assistant"; text: string }>;
+};
+export type ReaderFirstStageResult<T> = Omit<OnDemandProviderResponse, "output"> & {
+  output: T; stage: OnDemandProviderRequest["stage"]; promptVersion: typeof READER_FIRST_PROMPT_VERSION;
+};
+export type ReaderFirstValidationFinding = { location: string; reason: string };
+export class ReaderFirstDraftValidationError extends Error {
+  readonly deterministicFindings: ReaderFirstValidationFinding[];
+  constructor(readonly findings: ReaderFirstValidationFinding[]) {
+    super("The draft needs a bounded structural or evidence repair");
+    this.name = "ReaderFirstDraftValidationError";
+    this.deterministicFindings = findings.slice(0, 24);
+  }
+}
+
+const none = { mode: "none" as const, reason: "Independent checking uses the final retained evidence", maxCalls: 0 };
+const emptyEvidence: OnDemandEvidence = { sources: [], passages: [] };
+function invalid(message: string): never { throw new Error(message); }
+function unique(values: string[], name: string) { if (new Set(values).size !== values.length) invalid(`Duplicate ${name}`); }
+function stable(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
+  if (value && typeof value === "object") return `{${Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => `${JSON.stringify(key)}:${stable(item)}`).join(",")}}`;
+  return JSON.stringify(value);
+}
+export function readerFirstFingerprint(value: unknown) { return createHash("sha256").update(stable(value)).digest("hex"); }
+
+async function stage<T>(
+  name: keyof typeof READER_FIRST_PROMPTS, input: unknown, schema: z.ZodType<T>, options: ReaderFirstStageOptions,
+  normalize?: (output: T, response: OnDemandProviderResponse) => void,
+): Promise<ReaderFirstStageResult<T>> {
+  if (!options.model || !options.idempotencyKey || !options.safetyIdentifier) invalid("Explicit model and request identities are required");
+  const checking = name === "check" || name === "ideas_check";
+  const researchPolicy = checking ? none : options.researchPolicy ?? { mode: "auto", reason: "Selectively verify the reader's question and specific assertions", maxCalls: 8 };
+  if (!Number.isInteger(researchPolicy.maxCalls) || researchPolicy.maxCalls < 0 || researchPolicy.maxCalls > 8 || !researchPolicy.reason.trim() || researchPolicy.reason.length > 500 || (researchPolicy.mode === "none" && researchPolicy.maxCalls !== 0)) invalid("Invalid bounded research policy");
+  const providerStage = name === "answer_repair" ? "repair" : name;
+  const response = await options.provider({
+    stage: providerStage, promptVersion: READER_FIRST_PROMPT_VERSION, instructions: READER_FIRST_PROMPTS[name],
+    input, schema, model: options.model, idempotencyKey: options.idempotencyKey, safetyIdentifier: options.safetyIdentifier,
+    timeoutMs: options.timeoutMs ?? 90_000, maxOutputTokens: providerStage === "write" || providerStage === "repair" ? 12_000 : 8000,
+    research: researchPolicy.mode !== "none", researchPolicy,
+  });
+  try {
+    const output = schema.parse(response.output);
+    normalize?.(output, response);
+    return { ...response, output, stage: providerStage, promptVersion: READER_FIRST_PROMPT_VERSION };
+  } catch {
+    // The durable provider already retains the original response. Preserve its
+    // observed usage even if strict parsing or provenance validation fails.
+    throw new ProviderResponseValidationError(`The ${providerStage} response failed reader-first validation`, response.usage);
+  }
+}
+
+function selection(input: ReaderFirstSelection) {
+  onDemandContextSchema.parse(input.context); readerFirstIdeaSchema.parse(input.idea); assertOnDemandEvidence(input.evidence);
+  if (input.idea.loopId !== input.context.loopId || input.idea.loopRevision > input.context.revision) invalid("Idea does not belong to the frozen selection context");
+}
+function question(input: ReaderFirstQuestion) {
+  onDemandContextSchema.parse(input.context); readerFirstSavedWriterInputSchema.parse(input.draft); assertOnDemandEvidence(input.evidence);
+  if (!input.articleVersion || input.articleVersion.length > 120 || input.draft.status !== "written" || !input.draft.article || !input.question.trim() || input.question.length > 2000 || input.previousMessages.length > 12 || input.previousMessages.some((message) => !["user", "assistant"].includes(message.role) || !message.text || message.text.length > 8000)) invalid("Invalid bounded article question");
+}
+function discovery(research: ReaderFirstResearch, response: OnDemandProviderResponse, evidence: OnDemandEvidence) {
+  assertOnDemandEvidence({ sources: research.sources, passages: research.passages.map((passage) => ({ ...passage, provenance: "model_reported", retrievedAt: null })) });
+  const provenance = response.researchProvenance;
+  const urls = new Set([...(provenance?.consultedUrls ?? []), ...(provenance?.openedUrls ?? []), ...(provenance?.citedUrls ?? [])]);
+  for (const source of research.sources) {
+    const prior = evidence.sources.find((candidate) => candidate.id === source.id);
+    if (prior && prior.url !== source.url) invalid("Research source ID changed its URL");
+    if (!urls.has(source.url) && prior?.url !== source.url) invalid("A declared source has no actual tool provenance");
+  }
+}
+function identities(research: ReaderFirstResearch, evidence: OnDemandEvidence) {
+  const map = new Map(research.sources.map((source) => [source.id, source]));
+  for (const source of evidence.sources) {
+    if (map.has(source.id) && map.get(source.id)!.url !== source.url) invalid("Research source ID collision");
+    map.set(source.id, source);
+  }
+  return map;
+}
+function displaySource(source: OnDemandSource): ReaderFirstArticle["sources"][number] {
+  return { key: source.id, title: source.title, publisher: source.publisher, url: source.url,
+    publishedAt: source.datePrecision === "day" ? `${source.publishedDate}T00:00:00.000Z` : null };
+}
+function label(source: OnDemandSource, index: number) {
+  const host = new URL(source.url).hostname.replace(/^www\./, "");
+  return host.length <= 24 ? host : `Source ${index + 1}`;
+}
+type RawBlock = z.infer<typeof readerFirstWriterProviderSchema>["article"] extends infer A ? NonNullable<A> extends { body: infer B } ? B : never : never;
+function materialize(keys: string[], body: RawBlock, research: ReaderFirstResearch, evidence: OnDemandEvidence) {
+  unique(keys, "displayed source");
+  const map = identities(research, evidence);
+  const sources = keys.map((id) => { const source = map.get(id); if (!source) invalid("Unknown displayed source"); return displaySource(source); });
+  unique(sources.map((source) => source.url), "displayed source URL");
+  return { sources, body: body.map((block): ReaderFirstBlock => {
+    if (block.type === "heading") return block;
+    unique(block.citations.map((citation) => citation.sourceKey), "block citation");
+    return { ...block, citations: block.citations.map((citation) => {
+      const index = keys.indexOf(citation.sourceKey);
+      if (index < 0) invalid("Citation not included in source list");
+      return { sourceKey: citation.sourceKey, label: label(map.get(citation.sourceKey)!, index) };
+    }) };
+  }) };
+}
+
+export function generateReaderFirstIdeas(context: OnDemandContext, options: ReaderFirstStageOptions, requestedCount = 4) {
+  onDemandContextSchema.parse(context);
+  if (!Number.isInteger(requestedCount) || requestedCount < 1 || requestedCount > 6) invalid("Idea count must be 1–6");
+  return stage("ideas", { context, requestedCount }, readerFirstResearchOutputSchema, options, (output, response) => {
+    unique(output.ideas.map((idea) => idea.key), "idea key");
+    if (output.ideas.length > requestedCount || (!output.ideas.length && !output.insufficiencyReason)) invalid("Invalid idea count or unavailable reason");
+    discovery(output, response, emptyEvidence);
+    const ids = new Set(output.passages.map((passage) => passage.id));
+    for (const idea of output.ideas) { unique(idea.passageIds, "idea passage"); if (idea.passageIds.some((id) => !ids.has(id))) invalid("Unknown discovery passage"); }
+  });
+}
+export async function checkReaderFirstIdeas(input: { context: OnDemandContext; research: ReaderFirstResearchOutput; evidence: OnDemandEvidence; batchId: string }, options: ReaderFirstStageOptions) {
+  onDemandContextSchema.parse(input.context); readerFirstResearchOutputSchema.parse(input.research); assertOnDemandEvidence(input.evidence);
+  if (!input.batchId || input.batchId.length > 120) invalid("Batch identity required");
+  unique(input.research.ideas.map((idea) => idea.key), "idea key");
+  const fingerprint = readerFirstFingerprint({ version: READER_FIRST_PROMPT_VERSION, kind: "ideas", ...input });
+  const result = await stage("ideas_check", { ...input, fingerprint }, readerFirstIdeaChecksSchema.extend({ fingerprint: z.literal(fingerprint) }), options, (output) => {
+    unique(output.ideas.map((idea) => idea.key), "checked idea key");
+    if (output.ideas.length !== input.research.ideas.length || output.ideas.some((idea) => !input.research.ideas.some((candidate) => candidate.key === idea.key))) invalid("Incomplete idea checks");
+    for (const checked of output.ideas) retrieved(checked.passageIds, input.evidence);
+  });
+  const ideas = result.output.ideas.filter((checked) => checked.verdict === "pass" && checked.premiseSupported && checked.verificationPassed && checked.fitsLoop && checked.distinctContribution && (!checked.verificationRequired || checked.passageIds.length > 0)).map((checked) => readerFirstIdeaSchema.parse({
+    ...input.research.ideas.find((candidate) => candidate.key === checked.key)!, passageIds: checked.passageIds,
+    id: `${input.batchId}:${checked.key}`, loopId: input.context.loopId, loopRevision: input.context.revision,
+  }));
+  return { ...result, ideas };
+}
+
+async function writer(name: "write" | "repair", input: ReaderFirstSelection & Record<string, unknown>, options: ReaderFirstStageOptions): Promise<ReaderFirstStageResult<ReaderFirstWriterOutput>> {
+  selection(input);
+  const result = await stage(name, input, readerFirstWriterProviderSchema, options, (output, response) => {
+    discovery(output.research, response, input.evidence);
+    if ((output.status === "written") !== Boolean(output.article) || (output.status === "written" ? output.reason !== null : !output.reason)) invalid("Inconsistent article availability");
+    if (output.article) materialize(output.article.sourceKeys, output.article.body, output.research, input.evidence);
+  });
+  const raw = result.output;
+  const article = raw.article ? (() => {
+    const { sourceKeys, body, ...prose } = raw.article;
+    return { ...prose, ...materialize(sourceKeys, body, raw.research, input.evidence) };
+  })() : null;
+  return { ...result, output: readerFirstWriterOutputSchema.parse({ ...raw, article }) };
+}
+export function writeReaderFirstArticle(input: ReaderFirstSelection, options: ReaderFirstStageOptions) { return writer("write", input, options); }
+
+function retrieved(ids: string[], evidence: OnDemandEvidence) {
+  unique(ids, "retrieved passage");
+  if (ids.some((id) => !evidence.passages.some((passage) => passage.id === id && passage.provenance === "retrieved" && passage.retrievedAt))) invalid("Unknown or unretrieved supporting passage");
+}
+const plain = (value: string) => value.replace(/\s+/g, " ").trim();
+function compileBody(body: ReaderFirstBlock[], sources: ReaderFirstArticle["sources"], evidence: OnDemandEvidence) {
+  assertOnDemandEvidence(evidence);
+  unique(sources.map((source) => source.key), "source key"); unique(sources.map((source) => source.url), "source URL");
+  const findings: ReaderFirstValidationFinding[] = [];
+  const keys = sources.map((source) => source.key);
+  for (const source of sources) {
+    const canonical = evidence.sources.find((candidate) => candidate.id === source.key);
+    if (!canonical || !evidence.passages.some((passage) => passage.sourceId === source.key && passage.provenance === "retrieved" && passage.retrievedAt)) findings.push({ location: "sources", reason: `Source ${source.key} needs independently retrieved support` });
+  }
+  body.forEach((block, index) => {
+    if (block.type === "heading") return;
+    unique(block.citations.map((citation) => citation.sourceKey), "block citation");
+    if (block.citations.some((citation) => !keys.includes(citation.sourceKey))) findings.push({ location: `body.${index}`, reason: "A citation is absent from the displayed source list" });
+    if (block.type === "quote" && !evidence.passages.some((passage) => passage.provenance === "retrieved" && passage.retrievedAt && block.citations.some((citation) => citation.sourceKey === passage.sourceId) && plain(passage.text).includes(plain(block.text)))) findings.push({ location: `body.${index}`, reason: "The quotation is not exact text in a cited independently retrieved passage" });
+  });
+  if (!body.some((block) => block.type === "paragraph")) findings.push({ location: "body", reason: "Reading needs a substantive explanatory paragraph" });
+  if (findings.length) throw new ReaderFirstDraftValidationError(findings);
+  // The server retriever owns redirect resolution and the retained identity.
+  // Discovery URLs are not authoritative after that secure fetch. Final
+  // acceptance separately requires this exact canonical presentation.
+  return materialize(keys, body, { sources: [], passages: [] }, evidence);
+}
+
+/** Call after bounded retrieval. Metadata is compiled from the final evidence,
+ * never from provider-authored title/date/label fields. Raw outputs stay retained. */
+export function compileReaderFirstArticle(input: ReaderFirstSelection, draft: ReaderFirstWriterOutput, finalEvidence: OnDemandEvidence = input.evidence): ReaderFirstWriterOutput {
+  selection({ ...input, evidence: finalEvidence }); readerFirstWriterOutputSchema.parse(draft);
+  if (draft.status !== "written" || !draft.article || draft.reason !== null) invalid("Cannot compile an unavailable article");
+  if (draft.article.title !== input.idea.headline) throw new ReaderFirstDraftValidationError([{ location: "title", reason: "Selected headline changed" }]);
+  return { ...draft, article: { ...draft.article, ...compileBody(draft.article.body, draft.article.sources, finalEvidence) } };
+}
+export function compileReaderFirstAnswer(input: ReaderFirstQuestion, answer: ReaderFirstAnswerOutput, finalEvidence: OnDemandEvidence = input.evidence): ReaderFirstAnswerOutput {
+  question({ ...input, evidence: finalEvidence }); readerFirstAnswerOutputSchema.parse(answer);
+  if (answer.status !== "answered" || answer.reason !== null) invalid("Cannot compile an unavailable answer");
+  if (readerFirstAnswerText(answer).length > 8000) throw new ReaderFirstDraftValidationError([{ location: "body", reason: "The answer exceeds its bounded context length" }]);
+  return { ...answer, ...compileBody(answer.body, answer.sources, finalEvidence) };
+}
+export function readerFirstAnswerText(answer: ReaderFirstAnswerOutput | ReaderFirstBlock[]) {
+  return (Array.isArray(answer) ? answer : answer.body).map((block) => block.text + (block.type === "quote" && block.attribution ? ` — ${block.attribution}` : "")).join("\n\n");
+}
+
+function articleLocations(article: ReaderFirstArticle) {
+  return { title: article.title, deck: article.deck, whyWritten: article.whyWritten,
+    ...Object.fromEntries(article.summary.map((value, index) => [`summary.${index}`, value])), ...bodyLocations(article.body) };
+}
+function bodyLocations(body: ReaderFirstBlock[]) {
+  return Object.fromEntries(body.flatMap((block, index) => [[`body.${index}`, block.text], ...(block.type === "quote" && block.attribution ? [[`body.${index}.attribution`, block.attribution]] : [])]));
+}
+export function readerFirstArticleFingerprint(input: ReaderFirstSelection, draft: ReaderFirstWriterOutput) {
+  return readerFirstFingerprint({ version: READER_FIRST_PROMPT_VERSION, kind: "article", context: input.context, idea: input.idea, evidence: input.evidence, draft });
+}
+export function readerFirstAnswerFingerprint(input: ReaderFirstQuestion, answer: ReaderFirstAnswerOutput) {
+  return readerFirstFingerprint({ version: READER_FIRST_PROMPT_VERSION, kind: "answer", context: input.context,
+    articleVersion: input.articleVersion, draft: input.draft, evidence: input.evidence,
+    question: input.question, previousMessages: input.previousMessages, answer });
+}
+function boundCheck(check: ReaderFirstCheckOutput, fingerprint: string, locations: Record<string, string>, evidence: OnDemandEvidence) {
+  readerFirstCheckOutputSchema.parse(check);
+  if (check.fingerprint !== fingerprint) invalid("Stale or mismatched exact-artifact check");
+  for (const finding of check.findings) {
+    if (!locations[finding.location]?.includes(finding.excerpt)) invalid("Finding does not quote its actual text location");
+    retrieved(finding.passageIds, evidence);
+  }
+}
+export function readerFirstCheckAccepted(check: ReaderFirstCheckOutput) {
+  readerFirstCheckOutputSchema.parse(check);
+  return check.verdict === "pass" && check.accuracyPassed && check.verificationPassed && check.promiseFulfilled && check.readerFit && check.continuity && check.privacyPassed && !check.findings.some((finding) => finding.severity === "material" || finding.kind === "verification_required");
+}
+export function assertAcceptedReaderFirstArticleCheck(input: ReaderFirstSelection, draft: ReaderFirstWriterOutput, check: ReaderFirstCheckOutput) {
+  const compiled = compileReaderFirstArticle(input, draft);
+  if (readerFirstFingerprint(compiled) !== readerFirstFingerprint(draft)) invalid("Article source presentation is not canonical");
+  boundCheck(check, readerFirstArticleFingerprint(input, draft), articleLocations(draft.article!), input.evidence);
+  if (!readerFirstCheckAccepted(check)) invalid("editorial_withheld");
+}
+export function assertAcceptedReaderFirstAnswerCheck(input: ReaderFirstQuestion, answer: ReaderFirstAnswerOutput, check: ReaderFirstCheckOutput) {
+  const compiled = compileReaderFirstAnswer(input, answer);
+  if (readerFirstFingerprint(compiled) !== readerFirstFingerprint(answer)) invalid("Answer source presentation is not canonical");
+  boundCheck(check, readerFirstAnswerFingerprint(input, answer), bodyLocations(answer.body), input.evidence);
+  if (!readerFirstCheckAccepted(check)) invalid("editorial_withheld");
+}
+export async function checkReaderFirstArticle(input: ReaderFirstSelection & { draft: ReaderFirstWriterOutput }, options: ReaderFirstStageOptions) {
+  const compiled = compileReaderFirstArticle(input, input.draft);
+  if (readerFirstFingerprint(compiled) !== readerFirstFingerprint(input.draft)) invalid("Compile final article evidence before checking");
+  const fingerprint = readerFirstArticleFingerprint(input, input.draft);
+  const locations = articleLocations(input.draft.article!);
+  const result = await stage("check", { ...input, mode: "article", fingerprint, allowedLocations: Object.keys(locations) }, readerFirstCheckOutputSchema.extend({ fingerprint: z.literal(fingerprint) }), options, (output) => boundCheck(output, fingerprint, locations, input.evidence));
+  const accepted = readerFirstCheckAccepted(result.output);
+  if (accepted) assertAcceptedReaderFirstArticleCheck(input, input.draft, result.output);
+  return { ...result, accepted };
+}
+export async function checkReaderFirstAnswer(input: ReaderFirstQuestion & { answer: ReaderFirstAnswerOutput }, options: ReaderFirstStageOptions) {
+  const compiled = compileReaderFirstAnswer(input, input.answer);
+  if (readerFirstFingerprint(compiled) !== readerFirstFingerprint(input.answer)) invalid("Compile final answer evidence before checking");
+  const fingerprint = readerFirstAnswerFingerprint(input, input.answer);
+  const locations = bodyLocations(input.answer.body);
+  const result = await stage("check", { ...input, mode: "answer", fingerprint, allowedLocations: Object.keys(locations) }, readerFirstCheckOutputSchema.extend({ fingerprint: z.literal(fingerprint) }), options, (output) => boundCheck(output, fingerprint, locations, input.evidence));
+  const accepted = readerFirstCheckAccepted(result.output);
+  if (accepted) assertAcceptedReaderFirstAnswerCheck(input, input.answer, result.output);
+  return { ...result, accepted };
+}
+
+type Failure = { check: ReaderFirstCheckOutput; deterministicFindings?: never } | { check?: never; deterministicFindings: ReaderFirstValidationFinding[] };
+function repairable(input: Failure, fingerprint: string, locations: Record<string, string>, evidence: OnDemandEvidence) {
+  if ((input.check !== undefined) === (input.deterministicFindings !== undefined)) invalid("Repair requires exactly one failure report");
+  if (input.check) {
+    boundCheck(input.check, fingerprint, locations, evidence);
+    if (readerFirstCheckAccepted(input.check)) invalid("Repair needs a repairable failed check");
+  } else if (!input.deterministicFindings?.length || input.deterministicFindings.length > 24 || input.deterministicFindings.some((finding) => !finding.location || finding.location.length > 80 || !finding.reason || finding.reason.length > 500)) invalid("Invalid deterministic failure report");
+}
+export function repairReaderFirstArticle(input: ReaderFirstSelection & { draft: ReaderFirstWriterOutput } & Failure, options: ReaderFirstStageOptions) {
+  selection(input); readerFirstWriterOutputSchema.parse(input.draft);
+  if (input.draft.status !== "written" || !input.draft.article) invalid("Cannot repair an unavailable article");
+  repairable(input, readerFirstArticleFingerprint(input, input.draft), articleLocations(input.draft.article), input.evidence);
+  return writer("repair", input, options);
+}
+async function answerStage(name: "answer" | "answer_repair", input: ReaderFirstQuestion & Record<string, unknown>, options: ReaderFirstStageOptions): Promise<ReaderFirstStageResult<ReaderFirstAnswerOutput>> {
+  question(input);
+  const result = await stage(name, input, readerFirstAnswerProviderSchema, options, (output, response) => {
+    discovery(output.research, response, input.evidence);
+    if (output.status === "answered" ? !output.body.length || output.reason !== null : !output.reason) invalid("Inconsistent answer availability");
+    materialize(output.sourceKeys, output.body, output.research, input.evidence);
+  });
+  const { sourceKeys, body, ...rest } = result.output;
+  return { ...result, output: readerFirstAnswerOutputSchema.parse({ ...rest, ...materialize(sourceKeys, body, rest.research, input.evidence) }) };
+}
+export function answerReaderFirstQuestion(input: ReaderFirstQuestion, options: ReaderFirstStageOptions) { return answerStage("answer", input, options); }
+export function repairReaderFirstAnswer(input: ReaderFirstQuestion & { answer: ReaderFirstAnswerOutput } & Failure, options: ReaderFirstStageOptions) {
+  question(input); readerFirstAnswerOutputSchema.parse(input.answer);
+  if (input.answer.status !== "answered") invalid("Cannot repair an unavailable answer");
+  repairable(input, readerFirstAnswerFingerprint(input, input.answer), bodyLocations(input.answer.body), input.evidence);
+  return answerStage("answer_repair", input, options);
+}

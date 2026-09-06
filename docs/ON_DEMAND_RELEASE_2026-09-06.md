@@ -4,6 +4,90 @@ Owner: CTO. Scope: D26 on-demand reading, protected real-output calibration,
 connected/browser acceptance, then the authorized existing apex rollout.
 This is an execution record, not a claim that the new experience is live.
 
+## D28 reader-first implementation — locally integrated, protected release pending
+
+Michael's D28 approval supersedes the older v1.7 assessment/hosted-work hold below.
+CTO implements natural explanations with selective research and the existing D26
+interface. Stable general knowledge needs no invented bibliography; current,
+uncertain, specific empirical/statistical/quoted and consequential claims still
+need appropriate verification. Papers are optional. No new service, migration,
+model, quota or dollar-ceiling change is included.
+
+Implemented on top of `1e2468d`, not yet committed or deployed:
+
+- Version-2 request snapshots and an isolated generation/check/sole-repair path.
+  Existing version-1 prompts/results remain preserved, not rewritten or reapproved.
+- Full actual draft checking for accuracy, verification, question payoff, reader
+  fit, continuity and privacy; exact artifact/assignment/evidence fingerprint.
+  Duplicate author-paraphrased claim ledgers and mandatory per-paragraph support
+  are absent from the new path. Publication reasserts the accepted fingerprint.
+- Bounded optional hosted search with actual tool-result URL provenance; fetched
+  passages still pass the existing SSRF-protected retriever. Safe redirects use
+  final retrieved identity. Failed refreshes cannot reuse old evidence as fresh.
+- Eight total research-tool actions across the whole request, allocated under
+  existing principal/request locks, with exact replay allocation. Search actions
+  and other tool actions are counted separately; unknown pricing is retained and
+  fails closed. No second repair or provider SDK retry was added.
+- Articles and Ask can acquire sources. Answers publish their own canonical
+  citations/source list; saved article text and references remain immutable. Final
+  article evidence is retained for follow-ups; new questions freeze current loop
+  knowledge/preferences and date without rewriting the article's original context.
+  Historical large paragraphs, old answers
+  and source-free new reading survive the compatibility boundary.
+- Existing reading/Ask components render zero-source and researched states
+  truthfully. No empty Sources list or made-up research time. D26 layout, focus,
+  drafts/navigation and recovery controls remain; no Perplexity visual redesign.
+
+Fresh local verification: **430 web + 163 API tests pass**, both standalone
+typechecks pass, full lint has no warnings and both production builds pass.
+API build registers 13 steps/three workflows. Initial build type errors were in
+new test fixtures/imports and were corrected before the successful reruns. Added
+publication tests independently pass9/9; pipeline tests pass13/13, including
+stable concepts, researched Ask, sole repair, genuine provenance, safe redirects,
+refresh failure and cross-version/loop rejection. The final integration review
+also found and closed stale Ask preferences: admission now locks the owned loop,
+freezes its current knowledge/preferences and date, and preserves exact replay
+and the immutable article. Tests cover updated preferences and reject foreign or
+regressed contexts. These are constructed fixtures
+and injected verdicts, not real generated-writing quality evidence.
+
+No local disposable PostgreSQL/Docker instance is available. Existing CI retains
+234 declared pgTAP assertions plus publication/correction replay checks. A bounded
+local-only integration check now exercises the changed real provider
+allocation/accounting transaction path in that CI database; its offline safety
+guards/types/lint pass, but database assertions have not run there yet.
+The permitted protected rendered states, exact committed CI/protected deployment and
+actual explanation/Ask/return remain pending. Existing public and protected hosts,
+scheduled jobs and guest data are unchanged; no D28 paid calls have been made.
+
+Local alternative screenshot routes remain restricted. Preparation was stopped
+before any harness build, localhost server, browser access or screenshot; the one
+unexecuted synthetic fixture is not release evidence. Design will receive actual
+screenshots from the permitted protected deployment.
+
+Frozen core source hashes before committing:
+
+| Source | SHA-256 |
+| --- | --- |
+| `packages/ai/src/reader-first.ts` | `cefcc7dcab98a86f899bb840fde730d799423e6972ebfd38e98057f14d401be4` |
+| `apps/api/src/services/reader-first-pipeline.ts` | `3a9fdaa787717d5f855b9d715d502e0ba85bee8284e121701958ccecdafcb3fb` |
+| `apps/api/src/services/reader-first-publication.ts` | `1393c5aa31a1f011650a1a32ffe1083a6b8dff15d3481a4b88cdff5642aea83a` |
+| `apps/api/src/services/demand-result-compatibility.ts` | `00a56c1a8da9a9509a149f4bbb9335a6d73ea0432ad75269619e69632914af40` |
+| `apps/api/src/services/demand-reading.ts` | `8c8472a9fcde26b2e374be2863a210e920d9b1a8f8856491f891910606b0034f` |
+| `apps/api/src/services/demand-provider-stages.ts` | `3c9721e2532e716eb35ad4d628ffbb57ac283f672009c75a0754e70836b89d9b` |
+| `components/edison/demand-reader.tsx` | `0d2fe34b4e5380490461fde66237bd715e6e9909fbb5cfbc7fe67bf09b8f1cfe` |
+| `scripts/check-demand-provider-local-db.ts` | `e688b66dc22a84b694315fd27862c6977cc95f12c93054859e967dc04ca243c8` |
+
+CoS's successor sample is authorized in
+`operations/LOOP_VALUE_ACCEPTANCE_2026-09-06.md`: at most two idea batches, two
+selected articles, two Ask and one labeled QA preference change, in the same
+guest under unchanged normal limits. First practical article eligibility is
+September7 **3:14:32PM EDT or later**; the second around3:57:30PM. The old aggregate
+sample cap is superseded, not the normal limits. No quota reset, new principal,
+blocked-bookmark retry, raw-API workaround or automatic scheduled run. Stop paid
+sampling on material failure. CoS reviews selected real outputs; this is not a
+routine manual publishing queue. Public rollout follows actual value acceptance.
+
 ## Unpaid v1.7 correction — implemented and locally verified, not deployed
 
 CoS closed the real lupus diagnosis with independent editorial review. No further

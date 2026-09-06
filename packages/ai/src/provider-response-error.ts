@@ -5,6 +5,9 @@ export type ObservedProviderUsage = {
   cachedInputTokens: number;
   outputTokens: number;
   webSearchCalls?: number;
+  // v2 bills search actions, but bounds search/open/find actions together.
+  webSearchToolCalls?: number;
+  webSearchPricingStatus?: "priced" | "unpriced";
 };
 
 /**

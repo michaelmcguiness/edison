@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { articleSchema } from "./articles";
+import { articleBlockSchema, articleSchema, articleSourceSchema } from "./articles";
 import { idempotencyKeySchema, uuidSchema } from "./common";
 
 export const demandPrincipleSchema = z.object({
@@ -104,11 +104,78 @@ export const demandIdeaResultSchema = z.object({
   request.id === idea.articleRequestId && request.ideaId === idea.id && request.loopId === idea.loopId && request.kind === "article"
 ), "Recovered request must belong to its article idea.");
 
+export const demandBasisSchema = z.enum(["general_knowledge", "researched", "mixed"]);
+
+function validateDemandSources(value: {
+  body: z.infer<typeof articleBlockSchema>[];
+  sources: z.infer<typeof articleSourceSchema>[];
+  basis: z.infer<typeof demandBasisSchema>;
+  researchedAt: string | null;
+}, context: z.RefinementCtx) {
+  const sourceIds = new Set(value.sources.map((source) => source.id));
+  if (sourceIds.size !== value.sources.length) {
+    context.addIssue({ code: "custom", path: ["sources"], message: "Sources must have unique IDs." });
+  }
+  const usesResearch = value.basis !== "general_knowledge";
+  if (usesResearch !== (value.sources.length > 0) || usesResearch !== (value.researchedAt !== null)) {
+    context.addIssue({ code: "custom", path: ["basis"], message: "Research basis, sources and research time must agree." });
+  }
+  value.body.forEach((block, blockIndex) => {
+    if (block.type === "heading") return;
+    block.citations.forEach((citation, citationIndex) => {
+      if (!sourceIds.has(citation.sourceId)) {
+        context.addIssue({ code: "custom", path: ["body", blockIndex, "citations", citationIndex, "sourceId"],
+          message: "A citation must reference a source belonging to this result." });
+      }
+    });
+  });
+}
+
+// Demand explanations can use general knowledge. Keep the legacy publication
+// and public-share contracts unchanged, and normalize old demand reads only.
+export const demandArticleSchema = articleSchema.extend({
+  researchedAt: z.string().datetime().nullable(),
+  basis: demandBasisSchema.optional(),
+}).transform((article) => ({
+  ...article,
+  basis: article.basis ?? (article.sources.length ? "researched" as const : "general_knowledge" as const),
+  researchedAt: article.basis === undefined && !article.sources.length ? null : article.researchedAt,
+})).superRefine((article, context) => {
+  validateDemandSources(article, context);
+  if (article.sourceCount !== article.sources.length) {
+    context.addIssue({ code: "custom", path: ["sourceCount"], message: "The source count must match the included sources." });
+  }
+});
+
+export const demandAnswerV2Schema = z.object({
+  version: z.literal(2),
+  body: z.array(articleBlockSchema).min(1).max(40),
+  sources: z.array(articleSourceSchema).max(20),
+  basis: demandBasisSchema,
+  researchedAt: z.string().datetime().nullable(),
+}).strict().superRefine((answer, context) => {
+  validateDemandSources(answer, context);
+  if (answer.body.reduce((length, block) => length + block.text.length +
+    (block.type === "quote" ? block.attribution?.length ?? 0 : 0), 0) > 8000) {
+    context.addIssue({ code: "custom", path: ["body"], message: "The answer must fit within 8000 characters." });
+  }
+  if (!answer.body.some((block) => block.type !== "heading")) {
+    context.addIssue({ code: "custom", path: ["body"], message: "An answer must include prose." });
+  }
+});
+
+// Historical answers used aggregate references into their saved article.
+// They are not rewritten or presented as newly acquired answer evidence.
+export const demandAnswerSchema = z.union([
+  demandAnswerV2Schema,
+  z.object({ text: z.string().min(1).max(8000),
+    sourceIds: z.array(z.string().min(1).max(80)).max(20) }).strict(),
+]);
+
 export const demandResultSchema = z.object({
   request: demandRequestSchema,
-  article: articleSchema.nullable(),
-  answer: z.object({ text: z.string().min(1).max(8000),
-    sourceIds: z.array(z.string().min(1).max(80)).max(20) }).strict().nullable(),
+  article: demandArticleSchema.nullable(),
+  answer: demandAnswerSchema.nullable(),
 }).strict();
 
 export const createDemandLoopSchema = z.object({
@@ -147,6 +214,9 @@ export type DemandIdea = z.infer<typeof demandIdeaSchema>;
 export type DemandRequest = z.infer<typeof demandRequestSchema>;
 export type DemandWorkspace = z.infer<typeof demandWorkspaceSchema>;
 export type DemandResult = z.infer<typeof demandResultSchema>;
+export type DemandArticle = z.infer<typeof demandArticleSchema>;
+export type DemandAnswer = z.infer<typeof demandAnswerSchema>;
+export type DemandAnswerV2 = z.infer<typeof demandAnswerV2Schema>;
 export type DemandHistoryQuery = z.infer<typeof demandHistoryQuerySchema>;
 export type DemandHistory = z.infer<typeof demandHistorySchema>;
 export type DemandIdeaResult = z.infer<typeof demandIdeaResultSchema>;

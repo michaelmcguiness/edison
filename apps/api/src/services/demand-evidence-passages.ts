@@ -49,20 +49,42 @@ export function actualDemandPassages(
   page: Awaited<ReturnType<typeof retrieveEvidencePage>>,
   research: OnDemandResearchOutput,
 ): OnDemandEvidence["passages"] {
-  const actual = normalizeEvidencePassage(page.text);
-  if (!actual.length) return [];
   const leads = research.passages.filter((passage) => passage.sourceId === source.id);
   const leadIds = new Set(leads.map((lead) => lead.id));
   const ideas = research.ideas.filter((idea) => idea.passageIds.some((id) => leadIds.has(id)));
+  return selectDemandEvidencePassages(source, page, {
+    sources: research.sources,
+    passages: leads,
+    queries: ideas.map((idea) => [idea.headline, idea.deck, idea.readerQuestion, idea.payoff, idea.advanceBeyondPrevious].join(" ")),
+    qualifications: ideas.flatMap((idea) => idea.qualifications),
+  });
+}
+
+export type DemandPassageTargets = {
+  sources: readonly { id: string }[];
+  passages: readonly { sourceId: string; text: string }[];
+  queries: readonly string[];
+  qualifications: readonly string[];
+};
+
+/** Article/answer/repair targets need not pretend to be ideas. Discovery leads
+ * and query facets only select context from independently retrieved page text. */
+export function selectDemandEvidencePassages(
+  source: Pick<OnDemandEvidence["sources"][number], "id" | "title">,
+  page: Awaited<ReturnType<typeof retrieveEvidencePage>>,
+  targets: DemandPassageTargets,
+): OnDemandEvidence["passages"] {
+  const actual = normalizeEvidencePassage(page.text);
+  if (!actual.length) return [];
+  const leads = targets.passages.filter((passage) => passage.sourceId === source.id);
   // Qualifications are separate search facets: a long headline/deck must not
   // truncate the limiting context from the tail of one combined query.
   const findingQueries = leads.map((lead) => terms(lead.text).slice(0, 64));
-  const payoffQueries = ideas.map((idea) => terms([idea.headline, idea.deck, idea.readerQuestion,
-    idea.payoff, idea.advanceBeyondPrevious].join(" ")).slice(0, 64));
-  const qualificationQueries = ideas.flatMap((idea) => idea.qualifications.map((value) => terms(value).slice(0, 64)));
+  const payoffQueries = targets.queries.map((query) => terms(query).slice(0, 64));
+  const qualificationQueries = targets.qualifications.map((value) => terms(value).slice(0, 64));
   const queries = [...findingQueries, ...payoffQueries, ...qualificationQueries];
   if (!queries.length) queries.push(terms(source.title).slice(0, 64));
-  const budget = demandPassageBudget(research.sources.length);
+  const budget = demandPassageBudget(targets.sources.length);
   const windowCharacters = Math.min(MAX_WINDOW_CHARACTERS, Math.floor(budget.bytes / budget.windows));
   const candidates: Candidate[] = [];
   const starts = new Set<number>();

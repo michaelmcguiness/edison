@@ -42,3 +42,14 @@ test("same-key replay remains ahead of the distinct pending-key conflict", () =>
   assert.ok(replay >= 0 && replay < conflict && conflict < reserve);
   assert.doesNotMatch(request, /return pending/);
 });
+
+test("Ask admission freezes current owned loop context after replay while retaining immutable article material", () => {
+  const source = readFileSync(new URL("./demand-reading.ts", import.meta.url), "utf8");
+  const request = source.slice(source.indexOf("export async function requestDemandQuestion"), source.indexOf("export async function recordDemandEvent"));
+  const replay = request.indexOf("replayRequest(");
+  const lock = request.indexOf("loopForUpdate(tx, principal.id, idea.loopId)");
+  const assemble = request.indexOf("currentContext: await assembleDemandContext(tx, loop)");
+  assert.ok(replay >= 0 && replay < lock && lock < assemble);
+  assert.match(request, /articleContext: article\.snapshot\.context/);
+  assert.match(request, /draft: material\.storedDraft, evidence: material\.evidence/);
+});

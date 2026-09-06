@@ -5,17 +5,18 @@ import {
   withDemandDb, withDemandWorkerDb, type DemandTransaction,
 } from "@edison/db";
 import {
-  articleSchema, demandIdeaSchema, demandLoopSchema, demandRequestSchema, demandResultSchema,
+  demandIdeaSchema, demandLoopSchema, demandRequestSchema, demandResultSchema,
   demandWorkspaceSchema, type DemandWorkspace,
 } from "@edison/contracts";
 import {
   assembleLoopPrincipleContext, createEmptyLoopPrincipleState, reduceLoopPrinciples,
   type LoopPrincipleState,
 } from "@edison/domain";
-import { onDemandWriterOutputSchema, onDemandEvidenceSchema, type OnDemandContext } from "@edison/ai";
+import { type OnDemandContext } from "@edison/ai";
 import { HttpError } from "../http/errors";
 import { assertDemandPrincipalActive, type DemandPrincipal } from "../auth/verify-demand-principal";
 import { demandFailure, demandLimits, demandReservationMicrousd } from "./demand-configuration";
+import { demandAnswerConversationText, demandPreviousArticleContext, demandQuestionMaterial } from "./demand-result-compatibility";
 
 export type DemandLoopRow = typeof demandLoops.$inferSelect;
 export type DemandRequestRow = typeof demandRequests.$inferSelect;
@@ -166,10 +167,7 @@ export async function assembleDemandContext(tx: DemandTransaction, loop: DemandL
     declaredKnowledge: context.context.principles.knowledge.map((item) => item.instruction),
     readingPreferences: context.context.principles.preferences.map((item) => item.instruction),
     preferences: demandBaselinePreferences(accountPreferences),
-    previousArticles: previous.flatMap((row) => {
-      const parsed = articleSchema.safeParse(row.result?.article);
-      return parsed.success ? [{ title: parsed.data.title, summary: parsed.data.summary }] : [];
-    }),
+    previousArticles: previous.flatMap((row) => demandPreviousArticleContext(row.result?.article)),
     currentDate: new Date().toISOString().slice(0, 10),
   };
 }
@@ -244,7 +242,7 @@ export async function createDemandLoop(principal: DemandPrincipal, input: { curi
     }).returning();
     const context = await assembleDemandContext(tx, loop);
     return reserveRequest(tx, { principalId: principal.id, loopId: id, kind: "ideas", idempotencyKey: input.idempotencyKey,
-      requestFingerprint: fingerprint, snapshot: { version: 1, context, principleState: loop.principles } });
+      requestFingerprint: fingerprint, snapshot: { version: 2, context, principleState: loop.principles } });
   });
 }
 
@@ -263,7 +261,7 @@ export async function requestDemandIdeas(principal: DemandPrincipal, loopId: str
     // second paid batch once that pending request becomes terminal.
     rejectDistinctPendingIdeasRequest(pending, loop.revision);
     return reserveRequest(tx, { principalId: principal.id, loopId, kind: "ideas", idempotencyKey: input.idempotencyKey,
-      requestFingerprint: fingerprint, snapshot: { version: 1, context: await assembleDemandContext(tx, loop), principleState: loop.principles } });
+      requestFingerprint: fingerprint, snapshot: { version: 2, context: await assembleDemandContext(tx, loop), principleState: loop.principles } });
   });
 }
 
@@ -282,7 +280,7 @@ export async function requestDemandArticle(principal: DemandPrincipal, ideaId: s
     }
     const loop = await loopForUpdate(tx, principal.id, idea.loopId);
     const request = await reserveRequest(tx, { principalId: principal.id, loopId: loop.id, ideaId, kind: "article", idempotencyKey: input.idempotencyKey,
-      requestFingerprint: fingerprint, snapshot: { version: 1, context: await assembleDemandContext(tx, loop), principleState: loop.principles,
+      requestFingerprint: fingerprint, snapshot: { version: 2, context: await assembleDemandContext(tx, loop), principleState: loop.principles,
         selection: { idea: idea.brief, evidence: idea.evidence } } });
     await tx.update(demandIdeas).set({ articleRequestId: request.id }).where(and(eq(demandIdeas.id, ideaId), eq(demandIdeas.principalId, principal.id)));
     return request;
@@ -332,21 +330,20 @@ export async function requestDemandQuestion(principal: DemandPrincipal, ideaId: 
     if (!idea?.articleRequestId) throw new HttpError(409, "article_not_ready", "Open the prepared article before asking a question.");
     const [article] = await tx.select().from(demandRequests).where(and(eq(demandRequests.id, idea.articleRequestId), eq(demandRequests.principalId, principal.id))).limit(1);
     if (article?.status !== "succeeded" || !article.result?.draft) throw new HttpError(409, "article_not_ready", "That article is not ready yet.");
-    const draft = onDemandWriterOutputSchema.parse(article.result.draft);
-    if (!draft.article) throw new HttpError(409, "article_not_ready", "That article is not ready yet.");
-    const includedSources = new Set(draft.article.sources.map((source) => source.key));
-    const retained = onDemandEvidenceSchema.parse(idea.evidence);
-    const evidence = { sources: retained.sources.filter((source) => includedSources.has(source.id)),
-      passages: retained.passages.filter((passage) => includedSources.has(passage.sourceId)) };
+    const loop = await loopForUpdate(tx, principal.id, idea.loopId);
+    const material = demandQuestionMaterial({ articleId: article.id, articleResult: article.result,
+      articleProgress: article.progress, articleContext: article.snapshot.context,
+      currentContext: await assembleDemandContext(tx, loop),
+      legacyIdeaEvidence: idea.evidence, currentDate: new Date().toISOString().slice(0, 10) });
     const history = await tx.select({ snapshot: demandRequests.snapshot, result: demandRequests.result }).from(demandRequests)
       .where(and(eq(demandRequests.principalId, principal.id), eq(demandRequests.ideaId, ideaId), eq(demandRequests.kind, "question"), eq(demandRequests.status, "succeeded")))
       .orderBy(desc(demandRequests.createdAt)).limit(6);
     return reserveRequest(tx, { principalId: principal.id, loopId: idea.loopId, ideaId, kind: "question", idempotencyKey: input.idempotencyKey,
-      requestFingerprint: fingerprint, snapshot: { version: 1, context: article.snapshot.context, question: {
-        question: input.question, articleVersion: article.id, draft, evidence,
+      requestFingerprint: fingerprint, snapshot: { version: 2, context: material.context, question: {
+        question: input.question, articleVersion: material.articleVersion, draft: material.storedDraft, evidence: material.evidence,
         previousMessages: history.reverse().flatMap((row) => [
           { role: "user", text: (row.snapshot.question as { question: string }).question },
-          { role: "assistant", text: (row.result?.answer as { text: string }).text },
+          { role: "assistant", text: demandAnswerConversationText(row.result?.answer) },
         ]),
       } } });
   });

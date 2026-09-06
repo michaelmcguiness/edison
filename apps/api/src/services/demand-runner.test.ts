@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ON_DEMAND_PROMPT_VERSION } from "@edison/ai";
+import { ON_DEMAND_PROMPT_VERSION, READER_FIRST_PROMPT_VERSION } from "@edison/ai";
 import {
   demandCheckpoint,
   demandFailureReplayCheckpoint,
@@ -28,6 +28,45 @@ test("durable internal phases map to truthful reader-visible stages", () => {
   assert.equal(demandVisibleStage("repair"), "repairing");
   assert.equal(demandVisibleStage("recheck"), "checking");
   assert.equal(demandVisibleStage("ready"), "ready");
+  assert.equal(demandVisibleStage("ideas"), "queued");
+  assert.equal(demandVisibleStage("answer_repair"), "repairing");
+  assert.equal(demandVisibleStage("answer_recheck"), "checking");
+});
+
+test("reader-first requests pin their own version while historical requests retain the old pipeline", () => {
+  const base = { id: "00000000-0000-4000-8000-000000000202", requestFingerprint: "b".repeat(64),
+    snapshot: { version: 2, context: { loopId: "loop-2" } } };
+  for (const [kind, phase] of [["ideas", "ideas"], ["article", "write"], ["question", "answer"]] as const) {
+    const request = { ...base, kind };
+    const state = initialDemandState(request);
+    assert.equal(state.version, 2);
+    assert.equal(state.snapshotVersion, 2);
+    assert.equal(state.phase, phase);
+    assert.equal(state.promptVersion, READER_FIRST_PROMPT_VERSION);
+    assert.equal(demandProgressCompatibilityFailure(request, state), null);
+    assert.equal(demandProgressCompatibilityFailure(request, { ...state, promptVersion: ON_DEMAND_PROMPT_VERSION }),
+      "pipeline_version_unsupported");
+    assert.equal(demandProgressCompatibilityFailure({ ...request, snapshot: { ...base.snapshot, version: 1 } }, state),
+      "pipeline_version_unsupported");
+    assert.equal(demandProgressCompatibilityFailure({ ...request, requestFingerprint: "c".repeat(64) }, state),
+      "pipeline_state_invalid");
+  }
+  const feedback = { ...base, kind: "feedback" as const };
+  assert.equal(demandProgressCompatibilityFailure(feedback, initialDemandState(feedback)), "pipeline_version_unsupported");
+  const historicalFeedback = { ...feedback, snapshot: { ...base.snapshot, version: 1 } };
+  assert.equal(demandProgressCompatibilityFailure(historicalFeedback, initialDemandState(historicalFeedback)), null);
+});
+
+test("reader-first repeated retrieval checkpoints bind exact progress and failure replay preserves the newer one", () => {
+  const state = initialDemandState({ id: "00000000-0000-4000-8000-000000000203", kind: "article",
+    requestFingerprint: "c".repeat(64), snapshot: { version: 2, context: { loopId: "loop-3" } } });
+  const acquisition = { research: { sources: [], passages: [] }, after: "check" as const,
+    failures: [], queries: [], qualifications: [], nextSourceIndex: 0 };
+  const earlier = { ...state, phase: "retrieve", acquisition };
+  const current = { ...state, phase: "retrieve", acquisition: { ...acquisition, nextSourceIndex: 4 } };
+  assert.notEqual(demandCheckpoint(earlier), demandCheckpoint(current));
+  assert.equal(demandFailureReplayCheckpoint("running", current, demandCheckpoint(earlier)), demandCheckpoint(current));
+  assert.equal(demandFailureReplayCheckpoint("running", current, demandCheckpoint(current)), null);
 });
 
 test("principle limits and stale revisions are deterministic failures, not paid worker retries", () => {

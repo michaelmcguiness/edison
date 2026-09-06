@@ -44,8 +44,8 @@ export function demandFailure(code: string | null) {
   const failures: Record<string, { message: string; retryable: boolean }> = {
     workflow_dispatch_failed: { message: "Preparation could not start. Try again to resume this request.", retryable: true },
     worker_interrupted: { message: "Preparation was interrupted. Try again to resume the saved work.", retryable: true },
-    evidence_unavailable: { message: "We could not retrieve enough reliable evidence for this idea. Your loop is saved; you can request other ideas.", retryable: false },
-    editorial_withheld: { message: "This article did not pass its evidence and editorial checks. It has not been published. You can choose another idea.", retryable: false },
+    evidence_unavailable: { message: "We could not verify what this explanation needs. Your loop and existing reading are saved.", retryable: false },
+    editorial_withheld: { message: "This explanation did not pass its accuracy and clarity checks. It has not been published. Your existing reading is unchanged.", retryable: false },
     feedback_unclear: { message: "We could not confidently apply that change. Your previous settings are unchanged. Try describing what to change more specifically.", retryable: false },
     loop_changed: { message: "The loop changed while this request was running. Your latest settings are safe; request fresh ideas or submit your feedback again.", retryable: false },
     provider_uncertain: { message: "We could not confirm the provider result. We have stopped this request to avoid commissioning it twice.", retryable: false },

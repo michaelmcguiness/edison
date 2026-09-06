@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import { RetryableError } from "workflow";
 import {
-  getArticleModel, getUtilityModel, ON_DEMAND_PROMPT_VERSION, ProviderResponseValidationError,
+  getArticleModel, getUtilityModel, ON_DEMAND_PROMPT_VERSION, READER_FIRST_PROMPT_VERSION, ProviderResponseValidationError,
   onDemandWriterOutputSchema,
   type OnDemandContext, type OnDemandEvidence, type OnDemandIdea,
   type OnDemandWriterOutput, type OnDemandCheckOutput, type OnDemandFeedbackOutput,
@@ -16,17 +16,23 @@ import { demandArtifactId, demandFeedbackOperations, publishableDemandArticle, p
 import { DemandUsagePersistenceError } from "./demand-provider-stages";
 import { requireDemandEnabled } from "./demand-configuration";
 import { HttpError } from "../http/errors";
+import {
+  advanceReaderFirstPipeline, initialReaderFirstPhase, readerFirstQuestion, readerFirstSelection,
+  type ReaderFirstPipelineState,
+} from "./reader-first-pipeline";
+import { publishReaderFirstAnswer, publishReaderFirstArticle } from "./reader-first-publication";
 
 const JOB_LEASE_MS = 5 * 60_000;
 const DEMAND_PIPELINE_VERSION = 1;
 const DEMAND_SNAPSHOT_VERSION = 1;
+type ReadingPipelineState = DemandPipelineState | ReaderFirstPipelineState;
 
 type DemandProgressIdentity = Pick<
   DemandRequestRow,
   "id" | "kind" | "requestFingerprint" | "snapshot"
 >;
 
-export function demandCheckpoint(state: DemandPipelineState) {
+export function demandCheckpoint(state: ReadingPipelineState) {
   // Retrieval can retain its visible phase while advancing through source groups.
   // A fingerprint binds replay/CAS to the complete persisted checkpoint, not
   // merely to a repeated label such as "retrieve".
@@ -35,19 +41,21 @@ export function demandCheckpoint(state: DemandPipelineState) {
 
 export function demandVisibleStage(phase: string): string {
   if (phase === "research" || phase.startsWith("retrieve")) return "researching";
-  return ({ ideas_check: "checking-ideas", write: "writing", check: "checking", repair: "repairing",
-    recheck: "checking", feedback: "updating", answer: "answering", answer_check: "checking", ready: "ready", failed: "failed" } as Record<string, string>)[phase] ?? "queued";
+  return ({ ideas: "queued", ideas_check: "checking-ideas", write: "writing", check: "checking", repair: "repairing",
+    recheck: "checking", feedback: "updating", answer: "answering", answer_check: "checking",
+    answer_repair: "repairing", answer_recheck: "checking", ready: "ready", failed: "failed" } as Record<string, string>)[phase] ?? "queued";
 }
 
 export function initialDemandState(
   request: DemandProgressIdentity,
-): DemandPipelineState {
+): ReadingPipelineState {
+  const readerFirst = request.snapshot.version === 2;
   return {
-    version: DEMAND_PIPELINE_VERSION,
+    version: readerFirst ? 2 : DEMAND_PIPELINE_VERSION,
     snapshotVersion: request.snapshot.version,
     snapshotFingerprint: demandFingerprint(request.snapshot),
-    promptVersion: ON_DEMAND_PROMPT_VERSION,
-    phase: initialDemandPhase(request.kind),
+    promptVersion: readerFirst ? READER_FIRST_PROMPT_VERSION : ON_DEMAND_PROMPT_VERSION,
+    phase: readerFirst ? initialReaderFirstPhase(request.kind) : initialDemandPhase(request.kind),
     requestId: request.id,
     requestFingerprint: request.requestFingerprint,
     kind: request.kind,
@@ -57,13 +65,16 @@ export function initialDemandState(
 
 export function demandProgressCompatibilityFailure(
   request: DemandProgressIdentity,
-  state: DemandPipelineState,
+  state: ReadingPipelineState,
 ) {
+  const readerFirst = request.snapshot.version === 2;
+  const snapshotVersion = readerFirst ? 2 : DEMAND_SNAPSHOT_VERSION;
   if (
-    request.snapshot.version !== DEMAND_SNAPSHOT_VERSION ||
-    state.version !== DEMAND_PIPELINE_VERSION ||
-    state.snapshotVersion !== DEMAND_SNAPSHOT_VERSION ||
-    state.promptVersion !== ON_DEMAND_PROMPT_VERSION
+    request.snapshot.version !== snapshotVersion ||
+    state.version !== (readerFirst ? 2 : DEMAND_PIPELINE_VERSION) ||
+    state.snapshotVersion !== snapshotVersion ||
+    state.promptVersion !== (readerFirst ? READER_FIRST_PROMPT_VERSION : ON_DEMAND_PROMPT_VERSION) ||
+    (readerFirst && request.kind === "feedback")
   ) {
     return "pipeline_version_unsupported";
   }
@@ -85,7 +96,7 @@ export function demandProgressCompatibilityFailure(
  */
 export function demandFailureReplayCheckpoint(
   status: DemandRequestRow["status"],
-  state: DemandPipelineState | null,
+  state: ReadingPipelineState | null,
   expectedCheckpoint?: string,
 ) {
   if (status !== "running" || state === null) return null;
@@ -129,7 +140,7 @@ export async function claimDemandRequest(id: string, runId: string): Promise<str
       await tx.update(demandRequests).set({ status: "failed", stage: "failed", failureCode: "reading_session_expired", leaseExpiresAt: null }).where(eq(demandRequests.id, id));
       return null;
     }
-    const state = request.progress as DemandPipelineState | null ?? initialDemandState(request);
+    const state = request.progress as ReadingPipelineState | null ?? initialDemandState(request);
     const compatibilityFailure = demandProgressCompatibilityFailure(request, state);
     if (compatibilityFailure) {
       await failInTransaction(tx, id, compatibilityFailure);
@@ -142,12 +153,12 @@ export async function claimDemandRequest(id: string, runId: string): Promise<str
   });
 }
 
-async function failInTransaction(tx: DemandTransaction, id: string, code: string, state?: DemandPipelineState) {
+async function failInTransaction(tx: DemandTransaction, id: string, code: string, state?: ReadingPipelineState) {
   await tx.update(demandRequests).set({ status: "failed", stage: "failed", failureCode: code,
     leaseExpiresAt: null, ...(state ? { progress: state } : {}) }).where(eq(demandRequests.id, id));
 }
 
-async function finish(tx: DemandTransaction, request: DemandRequestRow, state: DemandPipelineState, outcome: string) {
+async function finish(tx: DemandTransaction, request: DemandRequestRow, state: ReadingPipelineState, outcome: string) {
   const compatibilityFailure = demandProgressCompatibilityFailure(request, state);
   if (compatibilityFailure) throw new Error(compatibilityFailure);
   const context = request.snapshot.context as OnDemandContext;
@@ -171,10 +182,17 @@ async function finish(tx: DemandTransaction, request: DemandRequestRow, state: D
     await tx.insert(demandIdeas).values(rows);
     result = { ideaIds: rows.map((row) => row.id) };
   } else if (outcome === "article") {
-    const selection = { context, ...(request.snapshot.selection as { idea: OnDemandIdea; evidence: OnDemandEvidence }) } satisfies SelectedOnDemandInput;
-    const article = publishableDemandArticle({ requestId: request.id, selection,
-      draft: state.draft as OnDemandWriterOutput, check: state.check as OnDemandCheckOutput, publishedAt: new Date().toISOString() });
-    result = { article, draft: state.draft, check: state.check };
+    if (state.version === 2) {
+      if (!state.draft || !state.check) throw new Error("editorial_withheld");
+      const selection = readerFirstSelection(request, state.evidence);
+      const article = publishReaderFirstArticle({ requestId: request.id, selection, draft: state.draft, check: state.check });
+      result = { version: 2, article, draft: state.draft, check: state.check, evidence: selection.evidence };
+    } else {
+      const selection = { context, ...(request.snapshot.selection as { idea: OnDemandIdea; evidence: OnDemandEvidence }) } satisfies SelectedOnDemandInput;
+      const article = publishableDemandArticle({ requestId: request.id, selection,
+        draft: state.draft as OnDemandWriterOutput, check: state.check as OnDemandCheckOutput, publishedAt: new Date().toISOString() });
+      result = { article, draft: state.draft, check: state.check };
+    }
   } else if (outcome === "feedback") {
     const feedback = request.snapshot.feedback as { text: string; baseRevision: number };
     const mutationId = demandArtifactId(`${request.id}:mutation`);
@@ -191,6 +209,12 @@ async function finish(tx: DemandTransaction, request: DemandRequestRow, state: D
       receipt: { receipt: reduced.receipt, request: mutationRequest, beforeState, afterState: reduced.state } });
     result = { receipt: reduced.receipt };
   } else if (outcome === "question") {
+    if (state.version === 2) {
+      if (!state.answer || !state.check) throw new Error("editorial_withheld");
+      const question = readerFirstQuestion(request, state.evidence);
+      result = { version: 2, answer: publishReaderFirstAnswer({ requestId: request.id, question,
+        answer: state.answer, check: state.check }), check: state.check, evidence: question.evidence };
+    } else {
     const answer = state.answer as OnDemandAnswerOutput;
     const question = request.snapshot.question as { articleVersion: string; evidence: OnDemandEvidence; draft: unknown;
       question: string; previousMessages: Array<{ role: "user" | "assistant"; text: string }> };
@@ -199,6 +223,7 @@ async function finish(tx: DemandTransaction, request: DemandRequestRow, state: D
     result = { answer: publishableDemandAnswer({ articleId: question.articleVersion, articleVersion: 1,
       article: draft.article, evidence: question.evidence, question: question.question, conversation: question.previousMessages },
     answer, state.check as OnDemandCheckOutput), check: state.check };
+    }
   } else throw new Error("provider_invalid");
   await tx.update(demandRequests).set({ status: "succeeded", stage: "ready", result, progress: state,
     leaseExpiresAt: null, failureCode: null }).where(eq(demandRequests.id, request.id));
@@ -211,7 +236,7 @@ export async function advanceDemandRequest(id: string, runId: string, expectedCh
     const request = await lockRequest(tx, id);
     if (!request || request.status !== "running" || request.workflowRunId !== runId) return null;
     if (!await active(tx, request.principalId)) { await failInTransaction(tx, id, "reading_session_expired"); return null; }
-    const state = request.progress as DemandPipelineState | null;
+    const state = request.progress as ReadingPipelineState | null;
     if (!state) throw new Error("demand_progress_missing");
     const compatibilityFailure = demandProgressCompatibilityFailure(request, state);
     if (compatibilityFailure) {
@@ -225,11 +250,13 @@ export async function advanceDemandRequest(id: string, runId: string, expectedCh
   if (!loaded) return null;
   if (demandCheckpoint(loaded.state) !== expectedCheckpoint) return demandCheckpoint(loaded.state);
   try {
-    const next = await advanceDemandPipeline(loaded);
+    const next = loaded.state.version === 2
+      ? await advanceReaderFirstPipeline({ request: loaded.request, state: loaded.state })
+      : await advanceDemandPipeline({ request: loaded.request, state: loaded.state });
     return await withDemandWorkerDb(async (tx) => {
       const current = await lockRequest(tx, id);
       if (!current || current.status !== "running" || current.workflowRunId !== runId) return null;
-      const state = current.progress as DemandPipelineState;
+      const state = current.progress as ReadingPipelineState;
       const compatibilityFailure = demandProgressCompatibilityFailure(current, state);
       if (compatibilityFailure) {
         await failInTransaction(tx, id, compatibilityFailure);
@@ -267,7 +294,7 @@ export async function failDemandRequest(
     if (!current || !["queued", "running"].includes(current.status) || current.workflowRunId !== runId) return null;
     const replay = demandFailureReplayCheckpoint(
       current.status,
-      current.progress as DemandPipelineState | null,
+      current.progress as ReadingPipelineState | null,
       expectedCheckpoint,
     );
     if (replay) return replay;

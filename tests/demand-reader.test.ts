@@ -5,9 +5,11 @@ import { createElement, type ComponentProps } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   demandWorkspaceSchema,
+  demandAnswerSchema,
   type DemandWorkspace,
 } from "@edison/contracts";
-import { demandIdeaAction, DemandReader, restoreDemandDialogFocus } from "../components/edison/demand-reader";
+import { DemandAnswerContent, demandIdeaAction, DemandReader, DemandReadingMetadata, DemandSourceList,
+  restoreDemandDialogFocus } from "../components/edison/demand-reader";
 import {
   DemandClientError,
   resolveDemandAccessToken,
@@ -105,15 +107,15 @@ test("the demand reader renders only persisted workspace ideas and truthful requ
   assert.match(html, /Shade is infrastructure/);
   assert.match(html, /The night that never cools/);
   assert.match(html, /Read article/);
-  assert.match(html, /Checking sources…/);
+  assert.match(html, /Checking explanation…/);
   assert.match(html, /Choose an article\. We’ll write it for you\./);
   assert.match(html, /aria-label="Read article: Shade is infrastructure"/);
-  assert.match(html, /aria-label="Checking sources…: The night that never cools"/);
+  assert.match(html, /aria-label="Checking explanation…: The night that never cools"/);
   assert.match(html, /Open article/);
   assert.match(html, /Earlier ideas/);
   assert.ok(html.indexOf("The night that never cools") < html.indexOf("Earlier ideas"));
   assert.ok(html.indexOf("Earlier ideas") < html.indexOf("Shade is infrastructure"));
-  assert.match(html, /Checking the article and its sources/);
+  assert.match(html, /Checking your explanation/);
   assert.match(html, /aria-label="Remove saved idea: Shade is infrastructure"/);
   assert.doesNotMatch(html, /Opening your reading workspace/);
   assert.doesNotMatch(html, /Share/);
@@ -330,9 +332,56 @@ test("card actions follow persisted backend state without suggesting a pending a
   const request = workspace.requests[0]!;
   assert.equal(demandIdeaAction(workspace.ideas[0]!, undefined), "Read article");
   assert.equal(demandIdeaAction(idea, { ...request, stage: "writing" }), "Preparing…");
-  assert.equal(demandIdeaAction(idea, { ...request, stage: "repairing" }), "Checking sources…");
+  assert.equal(demandIdeaAction(idea, { ...request, stage: "repairing" }), "Checking explanation…");
+  assert.equal(demandIdeaAction(idea, { ...request, stage: "researching" }), "Researching…");
   assert.equal(demandIdeaAction(idea, { ...request, status: "failed", stage: "failed" }), "View status");
   assert.equal(demandIdeaAction(idea, { ...request, status: "succeeded", stage: "ready" }), "Read article");
+});
+
+test("new answers display their own inline citations and source links even when article IDs collide", () => {
+  const source = { id: loopId, title: "The answer’s newly consulted source", publisher: "Answer publisher",
+    url: "https://example.com/answer-source", publishedAt: null, accessedAt: now };
+  const answer = demandAnswerSchema.parse({ version: 2, basis: "mixed", researchedAt: now,
+    body: [
+      { type: "paragraph", text: "A direct explanation with familiar background.", citations: [] },
+      { type: "paragraph", text: "A current detail needs this new source.", citations: [{ sourceId: source.id, label: "1" }] },
+    ], sources: [source] });
+  const html = renderToStaticMarkup(createElement(DemandAnswerContent, { answer,
+    articleSources: [{ ...source, title: "Article-only source", url: "https://example.com/article-source" }] }));
+  assert.match(html, /A direct explanation with familiar background/);
+  assert.match(html, /class="demand-citations"/);
+  assert.match(html, /aria-label="Source: The answer’s newly consulted source"/);
+  assert.equal((html.match(/href="https:\/\/example.com\/answer-source"/g) ?? []).length, 2);
+  assert.doesNotMatch(html, /Article-only source|article-source/);
+});
+
+test("unresearched reading and answers render no empty Sources or false research metadata", () => {
+  const answer = demandAnswerSchema.parse({ version: 2, basis: "general_knowledge", researchedAt: null,
+    body: [{ type: "paragraph", text: "Here is the explanation.", citations: [] }], sources: [] });
+  const html = renderToStaticMarkup(createElement(DemandAnswerContent, { answer, articleSources: [] }));
+  assert.match(html, /Here is the explanation/);
+  assert.doesNotMatch(html, /Sources|demand-citations|researched|checked/);
+  assert.equal(renderToStaticMarkup(createElement(DemandSourceList, { sources: [] })), "");
+  assert.equal(renderToStaticMarkup(createElement(DemandReadingMetadata, { article: { readingMinutes: 1, sources: [] } })), "<small>1 min</small>");
+  assert.doesNotMatch(readerSource, /Sources are checked before|will research distinct|Checking sources…|Checking the article and its sources/);
+});
+
+test("historical answers retain aggregate article references and disclose missing saved sources", () => {
+  const source = { id: loopId, title: "The saved article source", publisher: "Saved publisher",
+    url: "https://example.com/old-source", publishedAt: null, accessedAt: now };
+  const html = renderToStaticMarkup(createElement(DemandAnswerContent, {
+    answer: { text: "A historical answer.", sourceIds: [source.id, "missing-old-id"] }, articleSources: [source], pending: true,
+  }));
+  assert.match(html, /Previous answer/);
+  assert.match(html, /A historical answer/);
+  assert.match(html, /href="https:\/\/example.com\/old-source"/);
+  assert.match(html, /Some saved source references are unavailable/);
+  assert.doesNotMatch(html, /demand-citations/);
+  const unavailable = renderToStaticMarkup(createElement(DemandAnswerContent, {
+    answer: { text: "A historical answer.", sourceIds: ["missing-old-id"] }, articleSources: [],
+  }));
+  assert.doesNotMatch(unavailable, /<h2>Sources<\/h2>/);
+  assert.match(unavailable, /Some saved source references are unavailable/);
 });
 
 test("dialog close restores a connected opener or a connected enabled reading surface without scrolling", () => {

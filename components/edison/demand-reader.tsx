@@ -13,8 +13,10 @@ import {
   type MutableRefObject,
 } from "react";
 import type {
-  Article,
   ArticleBlock,
+  ArticleSource,
+  DemandAnswer,
+  DemandArticle,
   DemandIdea,
   DemandLoop,
   DemandRequest,
@@ -260,13 +262,13 @@ function readableError(error: unknown) {
 function requestStage(stage: DemandRequest["stage"]) {
   const labels: Record<DemandRequest["stage"], string> = {
     queued: "Queued",
-    researching: "Researching useful directions",
+    researching: "Researching sources",
     "checking-ideas": "Checking the article ideas",
-    writing: "Writing your article",
-    checking: "Checking the article and its sources",
+    writing: "Preparing your explanation",
+    checking: "Checking your explanation",
     repairing: "Rechecking a revision",
     updating: "Updating this loop",
-    answering: "Checking an answer",
+    answering: "Preparing your answer",
     ready: "Ready",
     failed: "Couldn’t finish",
   };
@@ -294,7 +296,7 @@ export function demandIdeaAction(idea: DemandIdea, request?: DemandRequest) {
   if (request?.status === "failed") return "View status";
   if (!request) return "Open article";
   return request.stage === "checking" || request.stage === "repairing"
-    ? "Checking sources…" : "Preparing…";
+    ? "Checking explanation…" : request.stage === "researching" ? "Researching…" : "Preparing…";
 }
 
 export function restoreDemandDialogFocus(opener: HTMLElement | null, fallback: HTMLElement | null) {
@@ -555,7 +557,7 @@ function CurateLoopDialog({
                 <span>— {principle.kind === "knowledge" ? "your declared knowledge" : principle.kind === "preference" ? "your preference" : "your direction"}</span>
               </li>
             ))}
-            <li>Sources are checked before an article is ready <span>— Edison default</span></li>
+            <li>Explanations are checked for accuracy and useful detail <span>— Edison default</span></li>
           </ul>
         </section>
         <form
@@ -605,12 +607,12 @@ function ArticleQuestionDialog({
   onOpenChange, onDraftChange, onSubmit, onLoadAgain, openerRef, fallbackRef,
 }: DialogFocusProps & {
   open: boolean;
-  article: Article | null;
+  article: DemandArticle | null;
   draft: string;
   pending: boolean;
   status: string;
   error: string;
-  answer: { text: string; sourceIds: string[] } | null;
+  answer: DemandAnswer | null;
   loadFailed: boolean;
   onOpenChange: (open: boolean) => void;
   onDraftChange: (draft: string) => void;
@@ -620,7 +622,6 @@ function ArticleQuestionDialog({
   const id = useId();
   const textarea = useDemandGrowingTextarea(draft, open, 68);
   const content = useEditorialDialogViewport(open);
-  const sourceById = new Map(article?.sources.map((source) => [source.id, source]) ?? []);
   return (
     <Dialog open={open && Boolean(article)} onOpenChange={onOpenChange}>
       <DialogContent
@@ -654,12 +655,7 @@ function ArticleQuestionDialog({
         {pending ? <p className="demand-dialog-status" role="status">{status}</p> : null}
         {error ? <p id={`${id}-error`} className="demand-dialog-error" role="alert">{error}</p> : null}
         {loadFailed ? <button type="button" className="demand-text-action" onClick={onLoadAgain}>Load answer again</button> : null}
-        {answer ? (
-          <div className="demand-answer" aria-live="polite">
-            <strong>{pending ? "Previous answer" : "Edison"}</strong><p>{answer.text}</p>
-            {answer.sourceIds.length ? <p className="demand-answer-sources">Sources: {answer.sourceIds.map((sourceId) => sourceById.get(sourceId)?.title).filter(Boolean).join(" · ")}</p> : null}
-          </div>
-        ) : null}
+        {answer ? <DemandAnswerContent answer={answer} articleSources={article?.sources ?? []} pending={pending} /> : null}
       </DialogContent>
     </Dialog>
   );
@@ -667,12 +663,12 @@ function ArticleQuestionDialog({
 
 function CitationLinks({
   block,
-  article,
+  sources,
 }: {
   block: Exclude<ArticleBlock, { type: "heading" }>;
-  article: Article;
+  sources: ArticleSource[];
 }) {
-  const byId = new Map(article.sources.map((source) => [source.id, source]));
+  const byId = new Map(sources.map((source) => [source.id, source]));
   return block.citations.length ? (
     <sup className="demand-citations">
       {block.citations.map((citation) => {
@@ -685,6 +681,47 @@ function CitationLinks({
       })}
     </sup>
   ) : null;
+}
+
+export function DemandSourceList({ sources }: { sources: ArticleSource[] }) {
+  if (!sources.length) return null;
+  return (
+    <section className="demand-sources">
+      <h2>Sources</h2>
+      <ol>{sources.map((source, index) => <li key={source.id}><a href={source.url} target="_blank" rel="noreferrer"><span>{index + 1}</span><div><strong>{source.publisher}</strong><small>{source.title}</small></div></a></li>)}</ol>
+    </section>
+  );
+}
+
+export function DemandReadingMetadata({ article }: { article: Pick<DemandArticle, "readingMinutes" | "sources"> }) {
+  return <small>{article.readingMinutes} min{article.sources.length ? ` · ${article.sources.length} ${article.sources.length === 1 ? "source" : "sources"}` : ""}</small>;
+}
+
+export function DemandAnswerContent({ answer, articleSources, pending = false }: {
+  answer: DemandAnswer;
+  articleSources: ArticleSource[];
+  pending?: boolean;
+}) {
+  // Only historical answers borrow their saved article's aggregate references.
+  // V2 resolves every inline citation against the answer's own validated sources.
+  const legacy = "text" in answer;
+  const sourceById = new Map(articleSources.map((source) => [source.id, source]));
+  const sources = legacy
+    ? [...new Set(answer.sourceIds)].flatMap((sourceId) => sourceById.has(sourceId) ? [sourceById.get(sourceId)!] : [])
+    : answer.sources;
+  const missingLegacySources = legacy && answer.sourceIds.some((sourceId) => !sourceById.has(sourceId));
+  return (
+    <div className="demand-answer" aria-live="polite">
+      <strong>{pending ? "Previous answer" : "Edison"}</strong>
+      {legacy ? <p>{answer.text}</p> : answer.body.map((block, index) => {
+        if (block.type === "heading") return <h2 key={`${block.text}-${index}`}>{block.text}</h2>;
+        if (block.type === "quote") return <blockquote key={`${block.text}-${index}`}>{block.text}{block.attribution ? <cite>— {block.attribution}</cite> : null}<CitationLinks block={block} sources={sources} /></blockquote>;
+        return <p key={`${block.text}-${index}`}>{block.text}<CitationLinks block={block} sources={sources} /></p>;
+      })}
+      <DemandSourceList sources={sources} />
+      {missingLegacySources ? <p className="demand-answer-sources">Some saved source references are unavailable.</p> : null}
+    </div>
+  );
 }
 
 export function DemandReader({
@@ -719,12 +756,12 @@ export function DemandReader({
   const [feedbackStatus, setFeedbackStatus] = useState("");
   const [selectedIdeaId, setSelectedIdeaId] = useState<string | null>(null);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
-  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+  const [selectedArticle, setSelectedArticle] = useState<DemandArticle | null>(null);
   const [askOpen, setAskOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [questionRequestId, setQuestionRequestId] = useState<string | null>(null);
   const [questionSubmittingIdeaId, setQuestionSubmittingIdeaId] = useState<string | null>(null);
-  const [answer, setAnswer] = useState<{ text: string; sourceIds: string[] } | null>(null);
+  const [answer, setAnswer] = useState<DemandAnswer | null>(null);
   const [savingIdeas, setSavingIdeas] = useState<Set<string>>(() => new Set());
   const [ideasSubmittingLoopId, setIdeasSubmittingLoopId] = useState<string | null>(null);
   const [retryingRequestId, setRetryingRequestId] = useState<string | null>(null);
@@ -1803,7 +1840,7 @@ export function DemandReader({
         ) : !ideasPending && ideasRequest?.status !== "failed" ? (
           <section className="demand-empty">
             <h2>Find something worth reading next.</h2>
-            <p>Edison will research distinct article directions before writing any full article.</p>
+            <p>Edison will prepare distinct article ideas before writing the explanation you choose.</p>
             <button type="button" className="demand-primary" disabled={ideasSubmittingLoopId === activeLoop.id} onClick={() => void askForIdeas(activeLoop)}>
               {ideasSubmittingLoopId === activeLoop.id ? "Starting…" : "Find article ideas"}<ArrowRight />
             </button>
@@ -1880,20 +1917,17 @@ export function DemandReader({
           <p className="demand-kicker">{selectedArticle.kicker}</p>
           <h1>{selectedArticle.title}</h1>
           <p className="demand-article-deck">{selectedArticle.deck}</p>
-          <div className="demand-byline"><EdisonMark /><span><strong>Written by Edison for this loop</strong><small>{selectedArticle.readingMinutes} min · {selectedArticle.sourceCount} {selectedArticle.sourceCount === 1 ? "source" : "sources"}</small></span></div>
+          <div className="demand-byline"><EdisonMark /><span><strong>Written by Edison for this loop</strong><DemandReadingMetadata article={selectedArticle} /></span></div>
         </header>
         <aside className="demand-why"><EdisonMark /><div><strong>Why Edison wrote this</strong><p>{selectedArticle.reason}</p></div></aside>
         <div className="demand-article-body">
           {selectedArticle.body.map((block, index) => {
             if (block.type === "heading") return <h2 key={`${block.text}-${index}`}>{block.text}</h2>;
-            if (block.type === "quote") return <blockquote key={`${block.text}-${index}`}>{block.text}{block.attribution ? <cite>— {block.attribution}</cite> : null}<CitationLinks block={block} article={selectedArticle} /></blockquote>;
-            return <p key={`${block.text}-${index}`}>{block.text}<CitationLinks block={block} article={selectedArticle} /></p>;
+            if (block.type === "quote") return <blockquote key={`${block.text}-${index}`}>{block.text}{block.attribution ? <cite>— {block.attribution}</cite> : null}<CitationLinks block={block} sources={selectedArticle.sources} /></blockquote>;
+            return <p key={`${block.text}-${index}`}>{block.text}<CitationLinks block={block} sources={selectedArticle.sources} /></p>;
           })}
         </div>
-        <section className="demand-sources">
-          <h2>Sources</h2>
-          <ol>{selectedArticle.sources.map((source, index) => <li key={source.id}><a href={source.url} target="_blank" rel="noreferrer"><span>{index + 1}</span><div><strong>{source.publisher}</strong><small>{source.title}</small></div></a></li>)}</ol>
-        </section>
+        <DemandSourceList sources={selectedArticle.sources} />
         <nav className="demand-next" aria-label="Continue reading">
           {nextIdea ? <><p>Up next · {backLabel}</p><button type="button" onClick={() => void openIdea(nextIdea)}><span>{!nextIdea.articleRequestId ? "Write next article" : nextRequest?.status === "succeeded" ? "Next article" : "View next article"}: {nextIdea.title}</span><ArrowRight /></button></> : null}
           <button type="button" className="demand-end-back" onClick={returnFromReading}><ChevronLeft aria-hidden="true" />Back to {backLabel}</button>

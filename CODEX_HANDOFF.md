@@ -15,6 +15,49 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
+### September 6 D28 — reader-first implementation authorized and integrated locally
+
+Michael approved implementation of the assessed reader-first approach and asked
+how soon Edison can be useful daily. This supersedes the v1.7 assessment/hosted-work
+hold below. CTO owns integration, verification, protected deployment and the
+already-authorized edisonreader.com release once actual reading/Ask quality passes.
+Reuse D26 presentation, existing infrastructure/models, identity/history/recovery,
+normal quotas and dollar ceilings. The separate Perplexity visual proposal is not
+an implementation dependency.
+
+The new local pipeline uses stable general knowledge where appropriate, selective
+bounded research, independent full-draft accuracy/payoff/reader-fit QA, one repair
+and exact accepted-artifact/evidence binding. Articles and Ask can acquire sources;
+answers own their sources while saved articles remain immutable. V2 requests are
+isolated from frozen v1 execution. Honest source-free metadata, legacy history
+compatibility and request-wide research accounting are integrated. No schema or
+service migration is required. Source remains uncommitted on top of `1e2468d`.
+
+All **430 web/163 API tests**, both standalone typechecks, warning-free lint and
+both production builds pass. Initial test-fixture/import type errors were corrected
+before these successful reruns. New Ask requests now freeze current owned loop
+instructions while preserving their original article. The added local-only real
+transaction CI check passes offline safety/types/lint; database assertions and
+permitted protected rendered states remain pending. Exact committed CI/protected
+deployment and real quality/Ask/return remain open. Injected tests do not establish
+real model quality. No D28 hosted deployment, paid request or public cutover has
+occurred. Details: `docs/ON_DEMAND_RELEASE_2026-09-06.md`.
+
+CoS authorized the bounded successor sample in
+`docs/operations/LOOP_VALUE_ACCEPTANCE_2026-09-06.md`: at most two ideas batches,
+two selected articles, two Ask requests and one explicitly labeled QA preference
+change, all in the same existing guest under normal admission limits. The older
+aggregate sampling cap is superseded; normal quota/budget limits are not. First
+article eligibility is September 7 at **3:14:32 PM EDT or later**, with the second
+around 3:57:30 PM; other admission checks still apply. No quota reset, new principal,
+blocked-bookmark retry or raw-API bypass. No automatic run is scheduled. Stop paid
+sampling on material failure and diagnose; CoS owns selected-output review.
+
+Estimate remains **8–16 engineering/verification hours**, with a plausible first
+usable private-production checkpoint in **1–2 working days**, not a promise or
+evidence of sustained daily reliability. No known hosting/access blocker. The
+September 5 public deployment and protected c600d939/v1.6 pair remain unchanged.
+
 ### September 6 v1.7 — locally verified correction, no further hosted work
 
 CoS closed the v1.6 lupus diagnosis: the checker misinterpreted design intent,

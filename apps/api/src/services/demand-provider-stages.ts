@@ -17,12 +17,13 @@ import { priceRecordedAiUsage } from "./ai-request-reservations";
 
 export const DEMAND_STAGE_INPUT_BYTES = 96_000;
 export const DEMAND_STAGE_OUTPUT_BYTES = 2_000_000;
-const STAGE_LIMITS = { ideas: 2, article: 4, feedback: 1, question: 2 } as const;
+export const DEMAND_REQUEST_SEARCH_TOOL_CALLS = 8;
+const STAGE_LIMITS = { ideas: 2, article: 4, feedback: 1, question: 4 } as const;
 const ALLOWED_STAGES = {
   ideas: new Set(["ideas", "ideas_check"]),
   article: new Set(["write", "check", "repair"]),
   feedback: new Set(["feedback"]),
-  question: new Set(["answer", "check"]),
+  question: new Set(["answer", "check", "repair"]),
 };
 
 type Snapshot = Record<string, unknown> & {
@@ -31,11 +32,14 @@ type Snapshot = Record<string, unknown> & {
   model: string;
   searchPriceMicrousd: number;
   estimatedCeilingMicrousd: number;
+  researchPolicy?: OnDemandProviderRequest["researchPolicy"];
+  researchCallsBefore?: number;
+  requestedResearchMaxCalls?: number;
 };
 type StageRow = typeof demandStages.$inferSelect;
 type StageIdentity = { requestId: string; principalId: string; stageKey: string; requestFingerprint: string; snapshot: Snapshot };
 type ReservedStage = { id: string; leaseExpiresAt: Date };
-type Reservation = { disposition: "call"; stage: ReservedStage } | { disposition: "replay"; response: OnDemandProviderResponse } | { disposition: "stop"; code: string };
+type Reservation = { disposition: "call"; stage: ReservedStage; identity?: StageIdentity } | { disposition: "replay"; response: OnDemandProviderResponse } | { disposition: "stop"; code: string };
 type RecordedResult = { stage: ReservedStage; identity: StageIdentity; response: OnDemandProviderResponse | null; usage: ObservedProviderUsage; invalid: boolean };
 export interface DemandStageStore {
   reserve(identity: StageIdentity, now: Date): Promise<Reservation>;
@@ -72,12 +76,20 @@ const usageSchema = z.object({
   cachedInputTokens: z.number().int().nonnegative().max(2_000_000_000),
   outputTokens: z.number().int().nonnegative().max(2_000_000_000),
   webSearchCalls: z.number().int().nonnegative().max(1000).optional(),
-}).refine((usage) => usage.cachedInputTokens <= usage.inputTokens);
-const responseSchema = z.object({ output: z.unknown(), usage: usageSchema, researchedUrls: z.array(z.string().max(2048)).max(200).optional() });
+  webSearchToolCalls: z.number().int().nonnegative().max(1000).optional(),
+  webSearchPricingStatus: z.enum(["priced", "unpriced"]).optional(),
+}).refine((usage) => usage.cachedInputTokens <= usage.inputTokens)
+  .refine((usage) => usage.webSearchToolCalls === undefined || (usage.webSearchCalls ?? 0) <= usage.webSearchToolCalls);
+const urlsSchema = z.array(z.string().max(2048)).max(200);
+const responseSchema = z.object({ output: z.unknown(), usage: usageSchema, researchedUrls: urlsSchema.optional(), researchProvenance: z.object({ consultedUrls: urlsSchema, openedUrls: urlsSchema, citedUrls: urlsSchema }).optional() });
+const researchPolicySchema = z.object({ mode: z.enum(["none", "auto", "required"]), reason: z.string().trim().min(1).max(2000), maxCalls: z.number().int().nonnegative().max(DEMAND_REQUEST_SEARCH_TOOL_CALLS) }).strict()
+  .refine((policy) => policy.mode !== "none" || policy.maxCalls === 0)
+  .refine((policy) => policy.mode !== "required" || policy.maxCalls > 0);
 
 export function demandStagePricing(usage: ObservedProviderUsage, searchPriceMicrousd: number) {
   usageSchema.parse(usage);
   const pricing = priceRecordedAiUsage(usage);
+  if (usage.webSearchPricingStatus === "unpriced") return { pricingStatus: "unpriced" as const, costMicrousd: null };
   return {
     pricingStatus: pricing.pricingStatus,
     costMicrousd: pricing.costMicrousd === null ? null : pricing.costMicrousd + (usage.webSearchCalls ?? 0) * searchPriceMicrousd,
@@ -94,7 +106,10 @@ export function prepareDemandStage(
   if (!allowedModels.includes(request.model) || !isPricedOpenAiModel(request.model)) stop("provider_model_not_allowed");
   if (!request.idempotencyKey || request.idempotencyKey.length > 128 || !/^[A-Za-z0-9._:-]+$/.test(request.idempotencyKey)) stop("provider_request_identity_invalid");
   if (!Number.isInteger(request.maxOutputTokens) || request.maxOutputTokens < 1 || request.maxOutputTokens > 12_000 || !Number.isInteger(request.timeoutMs) || request.timeoutMs < 1 || request.timeoutMs > 120_000) stop("provider_stage_limit_invalid");
-  if (request.research !== (request.stage === "ideas")) stop("provider_stage_tools_invalid");
+  if (request.researchPolicy) {
+    const policy = researchPolicySchema.safeParse(request.researchPolicy);
+    if (!policy.success || request.research !== (policy.data.mode !== "none") || (policy.data.mode !== "none" && !new Set(["ideas", "write", "answer", "repair"]).has(request.stage))) stop("provider_stage_tools_invalid");
+  } else if (request.research !== (request.stage === "ideas")) stop("provider_stage_tools_invalid");
   const rawSearchPrice = environment.OPENAI_WEB_SEARCH_COST_MICROUSD?.trim();
   const searchPriceMicrousd = Number(rawSearchPrice);
   if (!rawSearchPrice || !Number.isSafeInteger(searchPriceMicrousd) || searchPriceMicrousd < 0 || searchPriceMicrousd > 1_000_000) stop("provider_search_price_invalid");
@@ -106,18 +121,65 @@ export function prepareDemandStage(
     model: request.model, idempotencyKey: `edison-demand:${requestId}:${stageKey}`,
     safetyIdentifier: `edison-demand:${principalId}`, timeoutMs: request.timeoutMs,
     maxOutputTokens: request.maxOutputTokens, research: request.research, wireFormat,
+    ...(request.researchPolicy ? { researchPolicy: request.researchPolicy } : {}),
   })) as Omit<OnDemandProviderRequest, "schema">;
   const inputBytes = bytes(frozen);
   if (inputBytes > DEMAND_STAGE_INPUT_BYTES) stop("provider_input_limit");
   // Pessimistic byte-to-token estimate for supplied input, plus a bounded search
   // allowance. This is admission headroom, not a guarantee of provider charges;
   // actual usage is always retained and overspend stops subsequent stages.
-  const estimated = demandStagePricing({ providerResponseId: "reservation", model: request.model, inputTokens: inputBytes + (request.research ? 32_000 : 0), cachedInputTokens: 0, outputTokens: request.maxOutputTokens, webSearchCalls: request.research ? 8 : 0 }, searchPriceMicrousd);
+  const searchCalls = request.researchPolicy?.maxCalls ?? (request.research ? 8 : 0);
+  const estimated = demandStagePricing({ providerResponseId: "reservation", model: request.model, inputTokens: inputBytes + searchCalls * 4000, cachedInputTokens: 0, outputTokens: request.maxOutputTokens, webSearchCalls: searchCalls }, searchPriceMicrousd);
   const snapshot: Snapshot = { version: 1, ...frozen, stage: request.stage, model: request.model, searchPriceMicrousd, estimatedCeilingMicrousd: estimated.costMicrousd! };
   return {
     identity: { requestId, principalId, stageKey, requestFingerprint: hash(json(snapshot)), snapshot },
     providerRequest: { ...frozen, schema: request.schema },
   };
+}
+
+/** All actions consume the request's tool allowance; only search actions are
+ * billable search calls. Historical snapshots predate that distinction. */
+export function demandRecordedSearchToolCalls(stages: readonly Pick<StageRow, "snapshot" | "usage">[]): number | null {
+  let total = 0;
+  for (const stage of stages) {
+    const usage = usageSchema.safeParse(stage.usage);
+    if (!usage.success) return null;
+    const calls = stage.snapshot.researchPolicy
+      ? usage.data.webSearchToolCalls
+      : usage.data.webSearchToolCalls ?? usage.data.webSearchCalls ?? 0;
+    if (calls === undefined || usage.data.webSearchPricingStatus === "unpriced") return null;
+    total += calls;
+  }
+  return total;
+}
+
+/** Allocation runs under the request lock. Freeze the effective cap and the
+ * allocation basis so replay reconstructs this exact fingerprint, never a new
+ * allowance from the current ledger. The original requested cap remains visible. */
+export function bindDemandResearchBudget(identity: StageIdentity, callsBefore: number): StageIdentity {
+  if (!Number.isSafeInteger(callsBefore) || callsBefore < 0 || callsBefore > DEMAND_REQUEST_SEARCH_TOOL_CALLS) stop("provider_search_budget_exhausted");
+  const policy = identity.snapshot.researchPolicy;
+  if (!policy) {
+    if (identity.snapshot.research && callsBefore > 0) stop("provider_search_budget_exhausted");
+    return identity;
+  }
+  const maxCalls = Math.min(policy.maxCalls, DEMAND_REQUEST_SEARCH_TOOL_CALLS - callsBefore);
+  if (policy.mode === "required" && maxCalls === 0) stop("provider_search_budget_exhausted");
+  const researchPolicy = { ...policy, maxCalls };
+  const metadata = new Set(["version", "searchPriceMicrousd", "estimatedCeilingMicrousd", "researchCallsBefore", "requestedResearchMaxCalls"]);
+  const frozen = { ...Object.fromEntries(Object.entries(identity.snapshot).filter(([key]) => !metadata.has(key))), researchPolicy };
+  const estimated = demandStagePricing({ providerResponseId: "reservation", model: identity.snapshot.model, inputTokens: bytes(frozen) + maxCalls * 4000, cachedInputTokens: 0, outputTokens: Number(identity.snapshot.maxOutputTokens), webSearchCalls: maxCalls }, identity.snapshot.searchPriceMicrousd);
+  const snapshot = { ...identity.snapshot, researchPolicy, researchCallsBefore: callsBefore, requestedResearchMaxCalls: policy.maxCalls, estimatedCeilingMicrousd: estimated.costMicrousd! };
+  return { ...identity, snapshot, requestFingerprint: hash(json(snapshot)) };
+}
+
+export function demandUsageWithinProviderLimits(snapshot: Snapshot, usage: ObservedProviderUsage, totalToolCalls: number | null): boolean {
+  const policy = snapshot.researchPolicy;
+  const calls = policy ? usage.webSearchToolCalls : usage.webSearchToolCalls ?? usage.webSearchCalls ?? 0;
+  return calls !== undefined && totalToolCalls !== null && totalToolCalls <= DEMAND_REQUEST_SEARCH_TOOL_CALLS
+    && usage.outputTokens <= Number(snapshot.maxOutputTokens)
+    && calls <= (policy?.maxCalls ?? (snapshot.research ? 8 : 0))
+    && (policy?.mode !== "required" || calls > 0);
 }
 
 export function demandStageDisposition(stage: Pick<StageRow, "status" | "requestFingerprint" | "leaseExpiresAt" | "output">, fingerprint: string, now: Date): "replay" | "busy" | "uncertain" | "failed" | "mismatch" {
@@ -143,6 +205,10 @@ const databaseStore: DemandStageStore = {
       const stages = await tx.select().from(demandStages).where(and(eq(demandStages.requestId, request.id), eq(demandStages.principalId, identity.principalId))).for("update");
       const existing = stages.find((stage) => stage.stageKey === identity.stageKey);
       if (existing) {
+        if (identity.snapshot.researchPolicy) {
+          if (typeof existing.snapshot.researchCallsBefore !== "number") return { disposition: "stop", code: "provider_snapshot_mismatch" };
+          identity = bindDemandResearchBudget(identity, existing.snapshot.researchCallsBefore);
+        }
         const disposition = demandStageDisposition(existing, identity.requestFingerprint, now);
         if (disposition === "replay") {
           const cached = responseSchema.parse(existing.output);
@@ -159,11 +225,14 @@ const databaseStore: DemandStageStore = {
         if (pending.status === "reserved" && (!pending.leaseExpiresAt || pending.leaseExpiresAt <= now)) await tx.update(demandStages).set({ status: "uncertain", updatedAt: now }).where(eq(demandStages.id, pending.id));
         return { disposition: "stop", code: pending.status === "reserved" && pending.leaseExpiresAt && pending.leaseExpiresAt > now ? "provider_stage_busy" : "provider_uncertain" };
       }
+      const priorToolCalls = demandRecordedSearchToolCalls(stages);
+      if (priorToolCalls === null) return { disposition: "stop", code: "provider_usage_unpriced" };
+      identity = bindDemandResearchBudget(identity, priorToolCalls);
       const [{ spent, unpriced }] = await tx.select({ spent: sql<number>`coalesce(sum(${demandUsage.costMicrousd}), 0)::integer`, unpriced: sql<number>`count(*) filter (where ${demandUsage.pricingStatus} = 'unpriced')::integer` }).from(demandUsage).where(eq(demandUsage.requestId, request.id));
       if (unpriced || spent + identity.snapshot.estimatedCeilingMicrousd > request.reservedMicrousd) return { disposition: "stop", code: "budget_exhausted" };
       const leaseExpiresAt = new Date(now.getTime() + Number(identity.snapshot.timeoutMs) + 30_000);
       const [stage] = await tx.insert(demandStages).values({ principalId: identity.principalId, requestId: request.id, stageKey: identity.stageKey, requestFingerprint: identity.requestFingerprint, snapshot: identity.snapshot, status: "reserved", leaseExpiresAt }).returning();
-      return { disposition: "call", stage: { id: stage.id, leaseExpiresAt } };
+      return { disposition: "call", stage: { id: stage.id, leaseExpiresAt }, identity };
     });
   },
   async record(result, now) {
@@ -185,7 +254,9 @@ const databaseStore: DemandStageStore = {
       const sameLease = stage.leaseExpiresAt?.getTime() === result.stage.leaseExpiresAt.getTime();
       const returnedExpectedModel = result.usage.model === result.identity.snapshot.model || (result.usage.model.startsWith(`${result.identity.snapshot.model}-`) && /^\d{4}-\d{2}-\d{2}$/.test(result.usage.model.slice(result.identity.snapshot.model.length + 1)));
       const withinBudget = Boolean(request && totalSpent <= request.reservedMicrousd);
-      const withinProviderLimits = result.usage.outputTokens <= Number(result.identity.snapshot.maxOutputTokens) && (result.usage.webSearchCalls ?? 0) <= (result.identity.snapshot.research ? 8 : 0);
+      const previousStages = await tx.select().from(demandStages).where(and(eq(demandStages.requestId, result.identity.requestId), eq(demandStages.principalId, result.identity.principalId)));
+      const totalToolCalls = demandRecordedSearchToolCalls([...previousStages.filter((previous) => previous.id !== stage.id), { snapshot: stage.snapshot, usage: result.usage }]);
+      const withinProviderLimits = demandUsageWithinProviderLimits(result.identity.snapshot, result.usage, totalToolCalls);
       const usable = !result.invalid && Boolean(result.response) && pricing.pricingStatus === "priced" && returnedExpectedModel && withinBudget && withinProviderLimits && stage.status === "reserved" && sameLease && Boolean(stage.leaseExpiresAt && stage.leaseExpiresAt > now) && Boolean(principal && access?.active) && request?.status === "running";
       // Spend is committed even if the principal was revoked, a worker lease
       // became uncertain, or the request was cancelled while the provider ran.
@@ -209,10 +280,12 @@ export function durableDemandProvider(
   const provider = dependencies.provider ?? openAIOnDemandProvider;
   const now = dependencies.now ?? (() => new Date());
   return async (request) => {
-    const { identity, providerRequest } = prepareDemandStage(requestId, principalId, request, dependencies.environment ?? process.env);
-    const reserved = await store.reserve(identity, now());
+    const prepared = prepareDemandStage(requestId, principalId, request, dependencies.environment ?? process.env);
+    const reserved = await store.reserve(prepared.identity, now());
     if (reserved.disposition === "stop") stop(reserved.code, reserved.code === "provider_stage_busy" ? 409 : 503);
     if (reserved.disposition === "replay") return reserved.response;
+    const identity = reserved.identity ?? prepared.identity;
+    const providerRequest = { ...prepared.providerRequest, ...(identity.snapshot.researchPolicy ? { researchPolicy: identity.snapshot.researchPolicy } : {}) };
     let response: OnDemandProviderResponse;
     try {
       response = await provider(providerRequest);
@@ -227,7 +300,7 @@ export function durableDemandProvider(
       await store.uncertain(identity, reserved.stage, now());
       stop("provider_uncertain");
     }
-    const tooLarge = bytes(response) > DEMAND_STAGE_OUTPUT_BYTES;
+    const tooLarge = bytes(response) > DEMAND_STAGE_OUTPUT_BYTES || !responseSchema.safeParse(response).success;
     let result: Awaited<ReturnType<DemandStageStore["record"]>>;
     try { result = await store.record({ identity, stage: reserved.stage, response: tooLarge ? null : response, usage: response.usage, invalid: tooLarge }, now()); }
     catch { throw new DemandUsagePersistenceError(response.usage); }

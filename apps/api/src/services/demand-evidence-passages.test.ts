@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import type { OnDemandResearchOutput } from "@edison/ai";
-import { actualDemandPassages, demandPassageBudget } from "./demand-evidence-passages";
+import { actualDemandPassages, demandPassageBudget, selectDemandEvidencePassages } from "./demand-evidence-passages";
 import { normalizeEvidencePassage } from "./evidence-retrieval";
 
 // Constructed generic evidence only; no downloaded publisher text is committed.
@@ -147,6 +147,32 @@ test("large pages and many distinct leads remain deterministic and bounded", () 
 
 test("empty fetched text never becomes evidence", () => {
   assert.deepEqual(actualDemandPassages(source, page("  "), research([mechanism])), []);
+});
+
+test("answer and draft queries retrieve real context without ideas or invented passage identities", () => {
+  const text = abstract.repeat(2) + spacer.repeat(30) + mechanism.repeat(2) + spacer.repeat(30) + tradeoff.repeat(2);
+  const result = selectDemandEvidencePassages(source, page(text), {
+    sources: [source], passages: [{ sourceId: source.id, text: abstract }],
+    queries: ["Why do overlapping plates on a guided track change thermal expansion and compression?"],
+    qualifications: ["The comparison held initial load and span geometry equal; maintenance burden increased."],
+  });
+  const retained = result.map((item) => item.text).join(" ");
+  assert.match(retained, /overlapping plates can move along a guided track/);
+  assert.match(retained, /held initial load and span geometry equal/);
+  assertExactBoundedPassages(text, result);
+  assert.ok(result.every((item) => item.provenance === "retrieved" && item.retrievedAt === page(text).retrievedAt));
+});
+
+test("generic targets preserve the legacy selector result exactly and ignore another source's leads", () => {
+  const input = research([abstract, mechanism], "Compare support compression and maintenance burden.");
+  const text = abstract + spacer.repeat(30) + mechanism + spacer.repeat(30) + tradeoff;
+  const legacy = actualDemandPassages(source, page(text), input);
+  const generic = selectDemandEvidencePassages(source, page(text), {
+    sources: input.sources, passages: [...input.passages, { sourceId: "another-source", text: "Unretrieved invented fact about violet planets." }],
+    queries: input.ideas.map((idea) => [idea.headline, idea.deck, idea.readerQuestion, idea.payoff, idea.advanceBeyondPrevious].join(" ")),
+    qualifications: input.ideas.flatMap((idea) => idea.qualifications),
+  });
+  assert.deepEqual(generic, legacy);
 });
 
 function assertExactBoundedPassages(text: string, result: ReturnType<typeof actualDemandPassages>) {

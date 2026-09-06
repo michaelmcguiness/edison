@@ -45,12 +45,17 @@ export type OnDemandProviderRequest = {
   timeoutMs: number;
   maxOutputTokens: number;
   research: boolean;
+  // Omitted policies preserve historical ideas-only research behavior.
+  researchPolicy?: { mode: "none" | "auto" | "required"; reason: string; maxCalls: number };
 };
 export type OnDemandProviderResponse = {
   output: unknown;
   usage: ObservedProviderUsage;
   // Discovery provenance only; these URLs do not establish passage support.
   researchedUrls?: string[];
+  // Provider tool/annotation metadata, never the model's structured source claims.
+  // Discovery/citation provenance does not assert that fetched passage text exists.
+  researchProvenance?: { consultedUrls: string[]; openedUrls: string[]; citedUrls: string[] };
 };
 export type OnDemandProvider = (request: OnDemandProviderRequest) => Promise<OnDemandProviderResponse>;
 export type OnDemandStageOptions = {

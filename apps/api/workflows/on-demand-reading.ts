@@ -12,7 +12,8 @@ export async function onDemandReadingWorkflow(requestId: string) {
     // settlement returns the saved checkpoint instead of overwriting it.
     phase = await fail(requestId, workflowRunId);
   }
-  // At most research + four retrieval groups + check, or write/check/repair/check.
+  // V2 uses at most generation/check/repair/check and two bounded source-fetch
+  // rounds (four groups each). Legacy research/selection is shorter.
   // Bound the orchestration too; a malformed phase cannot create an endless job.
   for (let steps = 0; phase !== null && steps < 16; steps += 1) {
     const expectedCheckpoint = phase;
