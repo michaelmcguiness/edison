@@ -31,17 +31,31 @@ and exact accepted-artifact/evidence binding. Articles and Ask can acquire sourc
 answers own their sources while saved articles remain immutable. V2 requests are
 isolated from frozen v1 execution. Honest source-free metadata, legacy history
 compatibility and request-wide research accounting are integrated. No schema or
-service migration is required. Source remains uncommitted on top of `1e2468d`.
+service migration is required. The initial D28 checkpoint is committed/pushed as
+`9d28746355209c5c7011748c7e9a206ab35b6dd3` (32 CTO-owned files).
 
 All **430 web/163 API tests**, both standalone typechecks, warning-free lint and
 both production builds pass. Initial test-fixture/import type errors were corrected
 before these successful reruns. New Ask requests now freeze current owned loop
 instructions while preserving their original article. The added local-only real
-transaction CI check passes offline safety/types/lint; database assertions and
-permitted protected rendered states remain pending. Exact committed CI/protected
-deployment and real quality/Ask/return remain open. Injected tests do not establish
-real model quality. No D28 hosted deployment, paid request or public cutover has
-occurred. Details: `docs/ON_DEMAND_RELEASE_2026-09-06.md`.
+transaction check also passes in exact-head CI **34067166843**, together with the
+application job, pgTAP and strict schema lint; all three Vercel contexts are green.
+These checks establish the initial checkpoint, not the follow-up below or real
+model quality. No explicit protected D28 staging, paid request or public cutover
+has occurred. Details: `docs/ON_DEMAND_RELEASE_2026-09-06.md`.
+
+CoS's bounded source review then identified a chained-Ask gap: a question about
+an earlier answer's “source 1” lost its owned references/evidence. A focused
+correction is implemented and locally verified before staging. It retains message-local source identity,
+bounded retrieved support, honest original timestamps and exact replay; original
+articles remain immutable. Missing/overflowed/refreshed historical support is
+explicitly unavailable, not relabeled fresh. Existing context/evidence/tool/cost
+limits remain. All **449 web/163 API tests**, both final standalone typechecks,
+warning-free full lint and both production builds pass on the corrected source.
+The history helper has 15 regressions and the pipeline 14, including refreshed
+support becoming unavailable without changing historical reference identity.
+The correction's commit/CI and protected/rendered/real quality still need
+completion; the earlier green CI does not cover these subsequent edits.
 
 CoS authorized the bounded successor sample in
 `docs/operations/LOOP_VALUE_ACCEPTANCE_2026-09-06.md`: at most two ideas batches,

@@ -9,8 +9,10 @@ import {
   ReaderFirstDraftValidationError, READER_FIRST_PROMPT_VERSION, readerFirstWriterProviderSchema,
   readerFirstAnswerProviderSchema, readerFirstResearchOutputSchema, readerFirstCheckOutputSchema,
   readerFirstIdeaCandidateSchema,
+  assertReaderFirstPreviousMessages,
   type ReaderFirstSelection, type ReaderFirstWriterOutput, type ReaderFirstCheckOutput,
   type ReaderFirstQuestion, type ReaderFirstStageOptions,
+  type ReaderFirstPreviousReference,
 } from "../packages/ai/src/reader-first";
 import { onDemandArticleSchema } from "../packages/ai/src/schemas";
 import { ProviderResponseValidationError } from "../packages/ai/src/provider-response-error";
@@ -250,4 +252,94 @@ test("provider wire schemas remain structured-output compatible and reject the o
     const wire = zodTextFormat(schema, "reader_first_test"); assert.equal(wire.strict, true); assert.equal(wire.schema.type, "object");
   }
   await assert.rejects(writeReaderFirstArticle(selection, options({ ...rawArticle(), claims: [{ text: "A weaker author paraphrase" }] })), ProviderResponseValidationError);
+});
+
+function previousReference(): ReaderFirstPreviousReference {
+  return { label: "1", sourceId: "answer-1-display-source", title: evidence.sources[0].title, url: evidence.sources[0].url,
+    accessedAt: evidence.passages[0].retrievedAt, evidenceSourceKey: "s1", passageIds: ["p1"] };
+}
+
+test("a chained Ask receives the prior answer-owned reference and binds it to the exact checked conversation", async () => {
+  const originalArticle = await draft(); const input = question(originalArticle);
+  const firstRaw = { status: "answered", body: [{ type: "paragraph", text: "This constructed test missed two flashes.", citations: [{ sourceKey: "s1" }] }], sourceKeys: ["s1"], research: { sources: evidence.sources, passages: [] }, reason: null };
+  const first = compileReaderFirstAnswer(input, (await answerReaderFirstQuestion(input, options(firstRaw, [], {
+    researchProvenance: { consultedUrls: [evidence.sources[0].url], openedUrls: [], citedUrls: [] },
+  }))).output, evidence);
+  const followup: ReaderFirstQuestion = { ...input, evidence, question: "What does source 1 in your previous answer actually establish?", previousMessages: [
+    { role: "user", text: input.question },
+    { role: "assistant", text: readerFirstAnswerText(first), references: [previousReference()] },
+  ] };
+  const calls: OnDemandProviderRequest[] = [];
+  const second = compileReaderFirstAnswer(followup, (await answerReaderFirstQuestion(followup, options((request: OnDemandProviderRequest) => {
+    const supplied = request.input as ReaderFirstQuestion;
+    const message = supplied.previousMessages[1];
+    assert.equal(message.role, "assistant");
+    if (message.role !== "assistant") throw new Error("Expected saved answer");
+    const reference = message.references![0];
+    assert.equal(reference.sourceId, "answer-1-display-source");
+    assert.equal(reference.evidenceSourceKey, "s1"); assert.deepEqual(reference.passageIds, ["p1"]);
+    assert.equal(reference.accessedAt, "2026-09-06T12:00:00.000Z");
+    return { status: "answered", body: [{ type: "paragraph", text: "It distinguishes a light-detection design from the measured result: the test missed two flashes.", citations: [{ sourceKey: reference.evidenceSourceKey }] }], sourceKeys: [reference.evidenceSourceKey], research: empty, reason: null };
+  }, calls))).output);
+  const checked = await checkReaderFirstAnswer({ ...followup, answer: second }, checkOptions(calls));
+  assert.equal(checked.accepted, true); assert.equal(second.sources[0].url, evidence.sources[0].url);
+  assert.deepEqual(originalArticle.article!.sources, []); assert.deepEqual(calls.map((call) => call.stage), ["answer", "check"]);
+  for (const mutate of [
+    (reference: ReaderFirstPreviousReference) => { reference.label = "2"; },
+    (reference: ReaderFirstPreviousReference) => { reference.sourceId = "different-display-id"; },
+    (reference: ReaderFirstPreviousReference) => { reference.title = "Changed historical title"; },
+    (reference: ReaderFirstPreviousReference) => { reference.accessedAt = "2026-09-07T12:00:00.000Z"; },
+    (reference: ReaderFirstPreviousReference) => { reference.evidenceSourceKey = null; reference.passageIds = []; },
+  ]) {
+    const changed = structuredClone(followup); const message = changed.previousMessages[1];
+    if (message.role !== "assistant") throw new Error("Expected saved answer");
+    mutate(message.references![0]);
+    assert.throws(() => assertAcceptedReaderFirstAnswerCheck(changed, second, checked.output), /Stale|mismatched/);
+  }
+});
+
+test("numeric reference labels are message-local and omitted support remains explicitly unavailable", async () => {
+  const other = { ...previousReference(), sourceId: "answer-2-display-source", title: "A separate earlier source", url: "https://reference.example.net/other", evidenceSourceKey: null, passageIds: [] };
+  const messages: ReaderFirstQuestion["previousMessages"] = [
+    { role: "assistant", text: "An earlier answer with its own source 1.", references: [previousReference()] },
+    { role: "assistant", text: "Another answer also called its own reference source 1.", references: [other] },
+  ];
+  assert.doesNotThrow(() => assertReaderFirstPreviousMessages(messages, evidence));
+  const input = { ...question(await draft()), evidence, question: "What did source 1 in the second answer find?", previousMessages: messages };
+  const calls: OnDemandProviderRequest[] = [];
+  const answer = await answerReaderFirstQuestion(input, options((request: OnDemandProviderRequest) => {
+    const supplied = (request.input as ReaderFirstQuestion).previousMessages[1];
+    if (supplied.role !== "assistant") throw new Error("Expected second answer");
+    assert.equal(supplied.references![0].url, other.url);
+    assert.equal(supplied.references![0].evidenceSourceKey, null); assert.deepEqual(supplied.references![0].passageIds, []);
+    return { status: "insufficient_evidence", body: [], sourceKeys: [], research: empty, reason: "That second reference is identified, but its supporting text is not in the retained packet." };
+  }, calls));
+  assert.equal(answer.output.status, "insufficient_evidence"); assert.deepEqual(answer.output.sources, []); assert.equal(calls.length, 1);
+  assert.doesNotThrow(() => assertReaderFirstPreviousMessages([{ role: "assistant", text: "Old answer whose citation mapping is unavailable." }], empty));
+});
+
+test("malformed, ambiguous and cross-source prior mappings fail before a provider call", async () => {
+  const secondEvidence = structuredClone(evidence);
+  secondEvidence.sources.push({ ...evidence.sources[0], id: "s2", url: "https://example.org/other" });
+  secondEvidence.passages.push({ ...evidence.passages[0], id: "p2", sourceId: "s2" });
+  const bad: unknown[] = [
+    [{ role: "user", text: "Reader input", references: [] }],
+    [{ role: "assistant", text: "Ambiguous source 1", references: [previousReference(), { ...previousReference(), sourceId: "other-display-id" }] }],
+    [{ role: "assistant", text: "Bad source", references: [{ ...previousReference(), url: "http://example.org/results" }] }],
+    [{ role: "assistant", text: "Bad source", references: [{ ...previousReference(), url: "https://secret@example.org/results" }] }],
+    [{ role: "assistant", text: "Bad date", references: [{ ...previousReference(), accessedAt: "yesterday" }] }],
+    [{ role: "assistant", text: "Unknown key", references: [{ ...previousReference(), evidenceSourceKey: "missing" }] }],
+    [{ role: "assistant", text: "Wrong URL", references: [{ ...previousReference(), url: "https://example.org/other" }] }],
+    [{ role: "assistant", text: "Wrong passage", references: [{ ...previousReference(), passageIds: ["p2"] }] }],
+    [{ role: "assistant", text: "Missing passage", references: [{ ...previousReference(), passageIds: [] }] }],
+    [{ role: "assistant", text: "Null mapping with evidence", references: [{ ...previousReference(), evidenceSourceKey: null }] }],
+    [{ role: "assistant", text: "Overlong identity", references: [{ ...previousReference(), sourceId: "x".repeat(121) }] }],
+    [{ role: "assistant", text: "Too many references", references: Array.from({ length: 17 }, (_, index) => ({ ...previousReference(), label: String(index + 1), sourceId: `display-${index}` })) }],
+    [{ role: "assistant", text: "Too many passages", references: [{ ...previousReference(), passageIds: Array.from({ length: 49 }, (_, index) => `p${index}`) }] }],
+  ];
+  const original = await draft(); const calls: OnDemandProviderRequest[] = [];
+  for (const messages of bad) await assert.rejects(answerReaderFirstQuestion({ ...question(original), evidence: secondEvidence, previousMessages: messages as ReaderFirstQuestion["previousMessages"] }, options({}, calls)));
+  const reported = structuredClone(evidence); reported.passages[0].provenance = "model_reported"; reported.passages[0].retrievedAt = null;
+  assert.throws(() => assertReaderFirstPreviousMessages([{ role: "assistant", text: "Not independent evidence", references: [previousReference()] }], reported), /independently retained/);
+  assert.equal(calls.length, 0);
 });

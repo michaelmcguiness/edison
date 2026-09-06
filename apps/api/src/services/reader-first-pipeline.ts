@@ -1,5 +1,6 @@
 import {
   answerReaderFirstQuestion, assertAcceptedReaderFirstAnswerCheck, assertAcceptedReaderFirstArticleCheck,
+  assertReaderFirstPreviousMessages,
   assertOnDemandEvidence, checkReaderFirstAnswer, checkReaderFirstArticle, checkReaderFirstIdeas,
   compileReaderFirstAnswer, compileReaderFirstArticle, generateReaderFirstIdeas,
   onDemandContextSchema, onDemandEvidenceSchema, ProviderResponseValidationError,
@@ -8,7 +9,7 @@ import {
   ReaderFirstDraftValidationError, repairReaderFirstAnswer, repairReaderFirstArticle, writeReaderFirstArticle,
   type OnDemandContext, type OnDemandEvidence, type OnDemandProvider, type OnDemandProviderResponse,
   type ReaderFirstAnswerOutput, type ReaderFirstCheckOutput, type ReaderFirstValidationFinding, type ReaderFirstIdea,
-  type ReaderFirstQuestion, type ReaderFirstResearch, type ReaderFirstResearchOutput,
+  type ReaderFirstQuestion, type ReaderFirstPreviousMessage, type ReaderFirstResearch, type ReaderFirstResearchOutput,
   type ReaderFirstSelection, type ReaderFirstStageOptions, type ReaderFirstWriterOutput,
 } from "@edison/ai";
 import { HttpError } from "../http/errors";
@@ -76,7 +77,7 @@ export function readerFirstQuestion(request: DemandRequestRow, evidence?: OnDema
   const context = onDemandContextSchema.parse(request.snapshot.context);
   const question = request.snapshot.question as {
     articleVersion?: string; question?: string; draft?: unknown; evidence?: unknown;
-    previousMessages?: Array<{ role: "user" | "assistant"; text: string }>;
+    previousMessages?: ReaderFirstPreviousMessage[];
   } | undefined;
   if (context.loopId !== request.loopId || !question?.articleVersion || !question.question ||
     !Array.isArray(question.previousMessages) || question.previousMessages.length > 12 ||
@@ -84,9 +85,27 @@ export function readerFirstQuestion(request: DemandRequestRow, evidence?: OnDema
       typeof message.text !== "string" || message.text.length > 8000)) stop("pipeline_snapshot_invalid");
   const draft = readDemandStoredDraft(question.draft);
   if (draft.status !== "written" || !draft.article) stop("pipeline_snapshot_invalid");
+  const savedEvidence = boundedReaderFirstEvidence(question.evidence);
+  assertReaderFirstPreviousMessages(question.previousMessages, savedEvidence);
+  const retained = evidence ?? savedEvidence;
+  // A refresh may replace the prior answer's exact historical passages. Keep
+  // its display identity/time, but never pretend a new passage supports that
+  // old answer. This projection is frozen into each subsequent exact check.
+  const previousMessages = structuredClone(question.previousMessages).map((message) => ({ ...message,
+    ...(message.role === "assistant" && message.references ? { references: message.references.map((reference) => {
+      if (reference.evidenceSourceKey === null) return reference;
+      const source = retained.sources.find((entry) => entry.id === reference.evidenceSourceKey);
+      const exact = source && new URL(source.url).href === new URL(reference.url).href && reference.passageIds.every((id) => {
+        const saved = savedEvidence.passages.find((entry) => entry.id === id);
+        const current = retained.passages.find((entry) => entry.id === id);
+        return saved && current && JSON.stringify(saved) === JSON.stringify(current);
+      });
+      return exact ? reference : { ...reference, evidenceSourceKey: null, passageIds: [] };
+    }) } : {}),
+  }));
+  assertReaderFirstPreviousMessages(previousMessages, retained);
   return { context, articleVersion: question.articleVersion, draft,
-    evidence: boundedReaderFirstEvidence(evidence ?? question.evidence), question: question.question,
-    previousMessages: question.previousMessages };
+    evidence: boundedReaderFirstEvidence(retained), question: question.question, previousMessages };
 }
 
 function consultedUrls(response: Pick<OnDemandProviderResponse, "researchProvenance">) {

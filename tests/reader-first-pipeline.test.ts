@@ -220,3 +220,26 @@ test("a failed source refresh cannot resurrect stale article evidence during rep
   assert.deepEqual(request.snapshot.question, { articleVersion: ideaId, question: "What does the current source say?",
     draft: savedArticle(), evidence: old, previousMessages: [] });
 });
+
+test("refreshing a chained Ask source preserves its historical reference but never rebinds old prose to new passages", async () => {
+  const oldTime = "2025-01-01T00:00:00.000Z";
+  const old = { sources: [{ ...source, title: "Old title", publishedDate: null, datePrecision: "unknown" }],
+    passages: [{ id: "old", sourceId: "s1", text: "An older constructed description.", locator: "Old page",
+      provenance: "retrieved", retrievedAt: oldTime }] };
+  const reference = { label: "1", sourceId: "00000000-0000-4000-8000-000000000705", title: "Old title",
+    url: source.url, accessedAt: oldTime, evidenceSourceKey: "s1", passageIds: ["old"] };
+  const request = row("question", { question: { articleVersion: ideaId, question: "What does source 1 say now?",
+    draft: savedArticle(), evidence: old, previousMessages: [
+      { role: "user", text: "What did the earlier source say?" },
+      { role: "assistant", text: "The saved older explanation.", references: [reference] },
+    ] } });
+  const before = structuredClone(request.snapshot);
+  const calls: OnDemandProviderRequest[] = [];
+  const result = await run(request, fake((call) => call.stage === "answer" ? rawAnswer(true) : checked(call), calls));
+  assert.equal(result.outcome, "question");
+  const generation = calls[0].input as { previousMessages: Array<{ references?: unknown[] }> };
+  const check = calls[1].input as typeof generation;
+  assert.deepEqual(generation.previousMessages[1].references, [reference]);
+  assert.deepEqual(check.previousMessages[1].references, [{ ...reference, evidenceSourceKey: null, passageIds: [] }]);
+  assert.deepEqual(request.snapshot, before);
+});

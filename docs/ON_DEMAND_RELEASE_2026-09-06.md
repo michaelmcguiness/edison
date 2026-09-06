@@ -13,7 +13,9 @@ uncertain, specific empirical/statistical/quoted and consequential claims still
 need appropriate verification. Papers are optional. No new service, migration,
 model, quota or dollar-ceiling change is included.
 
-Implemented on top of `1e2468d`, not yet committed or deployed:
+Initial checkpoint committed/pushed as `9d28746355209c5c7011748c7e9a206ab35b6dd3`
+(32 CTO-owned files). The following describes that source; the focused chained-Ask
+correction below is subsequent, locally verified:
 
 - Version-2 request snapshots and an isolated generation/check/sole-repair path.
   Existing version-1 prompts/results remain preserved, not rewritten or reapproved.
@@ -38,7 +40,7 @@ Implemented on top of `1e2468d`, not yet committed or deployed:
   truthfully. No empty Sources list or made-up research time. D26 layout, focus,
   drafts/navigation and recovery controls remain; no Perplexity visual redesign.
 
-Fresh local verification: **430 web + 163 API tests pass**, both standalone
+Initial checkpoint verification: **430 web + 163 API tests pass**, both standalone
 typechecks pass, full lint has no warnings and both production builds pass.
 API build registers 13 steps/three workflows. Initial build type errors were in
 new test fixtures/imports and were corrected before the successful reruns. Added
@@ -55,9 +57,11 @@ No local disposable PostgreSQL/Docker instance is available. Existing CI retains
 234 declared pgTAP assertions plus publication/correction replay checks. A bounded
 local-only integration check now exercises the changed real provider
 allocation/accounting transaction path in that CI database; its offline safety
-guards/types/lint pass, but database assertions have not run there yet.
-The permitted protected rendered states, exact committed CI/protected deployment and
-actual explanation/Ask/return remain pending. Existing public and protected hosts,
+guards/types/lint pass. Exact-head [CI 34067166843](https://github.com/michaelmcguiness/edison/actions/runs/34067166843)
+also passed both application/database jobs, including this new real transaction
+check, pgTAP and strict schema lint. All three Vercel contexts are successful.
+The permitted protected deployment/rendered states and actual explanation/Ask/return
+remain pending. Existing public and protected hosts,
 scheduled jobs and guest data are unchanged; no D28 paid calls have been made.
 
 Local alternative screenshot routes remain restricted. Preparation was stopped
@@ -65,7 +69,7 @@ before any harness build, localhost server, browser access or screenshot; the on
 unexecuted synthetic fixture is not release evidence. Design will receive actual
 screenshots from the permitted protected deployment.
 
-Frozen core source hashes before committing:
+Frozen initial-checkpoint source hashes (9d28746, not the subsequent correction):
 
 | Source | SHA-256 |
 | --- | --- |
@@ -77,6 +81,43 @@ Frozen core source hashes before committing:
 | `apps/api/src/services/demand-provider-stages.ts` | `3c9721e2532e716eb35ad4d628ffbb57ac283f672009c75a0754e70836b89d9b` |
 | `components/edison/demand-reader.tsx` | `0d2fe34b4e5380490461fde66237bd715e6e9909fbb5cfbc7fe67bf09b8f1cfe` |
 | `scripts/check-demand-provider-local-db.ts` | `e688b66dc22a84b694315fd27862c6977cc95f12c93054859e967dc04ca243c8` |
+
+### Chained-Ask reference correction — implemented and locally verified
+
+CoS independently found that admission forwarded prior answer prose but omitted
+its canonical owned sources and saved `result.evidence`. A follow-up asking what
+that answer's “source 1” means could not resolve the actual reference, especially
+after a source-free article. The focused correction retains a message-local source
+mapping and genuine supporting passages under existing bounds. Numeric labels in
+different answers do not merge. Prior prose remains conversation context, not
+factual authority; old retrieval times never imply fresh verification. If packet
+limits or a source refresh remove historical support, retain its known identity
+with explicit unavailable support, requiring research or an honest limitation.
+Original articles/results and admitted request replay stay immutable. New regressions
+cover source-number collisions, source-free article chains, exact fingerprints,
+overflow and refresh. Legacy unresolved references are omitted and the remaining
+labels match the compact displayed source list. History imports only genuine
+retrieved passages at the answer's actual saved retrieval version. Sources that
+cannot fit retain their identity with explicitly unavailable evidence.
+
+Corrected-source verification: **449 web + 163 API tests pass**, both final
+standalone typechecks pass, full lint has no warnings and both production builds
+pass (API 13 steps/three workflows). The history helper passes 15 regressions;
+pipeline 14 and the focused AI suite 105. These remain constructed/injected tests,
+not semantic provider or rendered UI acceptance. Commit/CI follows separately.
+
+Frozen correction source hashes:
+
+| Source | SHA-256 |
+| --- | --- |
+| `apps/api/src/services/demand-question-history.ts` | `09751945c059bd298c50b83fe4f0711ab73ff7b5c1996d6ac2d013cace8e785e` |
+| `apps/api/src/services/reader-first-pipeline.ts` | `e7cb65f92d6918230e9b989a2054d19b2193e265623ed48dfdd8559b9bb97b0d` |
+| `apps/api/src/services/demand-reading.ts` | `931e87039905585c4986196c7cb7f346b4a29138aba3115b4ba327943053a65f` |
+| `packages/ai/src/reader-first.ts` | `cbe8e397b526cdc0cecbbeb903a47d5996ef6013c3326ad9316c05ad06d5371f` |
+| `packages/ai/src/reader-first-prompts.ts` | `88f45b3c5c5fa3809ddf736259e2b105a40f786150b04e83a10c6c9c85024058` |
+| `tests/demand-question-history.test.ts` | `d5833b49536141f8ddba3361254cdc696e5ce173439f6ffb7f44ab327ce7e485` |
+| `tests/reader-first-pipeline.test.ts` | `32faf6d6cf030d07f42ff06d7ec714425c8df685802b27df00f3cc43ff6ee30f` |
+| `tests/reader-first-ai.test.ts` | `97bf1d73400d2a0b729eb536366502522b5b235a5f95fa91d3caaa6a12fbe5f2` |
 
 CoS's successor sample is authorized in
 `operations/LOOP_VALUE_ACCEPTANCE_2026-09-06.md`: at most two idea batches, two

@@ -16,7 +16,8 @@ import { type OnDemandContext } from "@edison/ai";
 import { HttpError } from "../http/errors";
 import { assertDemandPrincipalActive, type DemandPrincipal } from "../auth/verify-demand-principal";
 import { demandFailure, demandLimits, demandReservationMicrousd } from "./demand-configuration";
-import { demandAnswerConversationText, demandPreviousArticleContext, demandQuestionMaterial } from "./demand-result-compatibility";
+import { demandPreviousArticleContext, demandQuestionMaterial } from "./demand-result-compatibility";
+import { demandQuestionHistory } from "./demand-question-history";
 
 export type DemandLoopRow = typeof demandLoops.$inferSelect;
 export type DemandRequestRow = typeof demandRequests.$inferSelect;
@@ -335,16 +336,14 @@ export async function requestDemandQuestion(principal: DemandPrincipal, ideaId: 
       articleProgress: article.progress, articleContext: article.snapshot.context,
       currentContext: await assembleDemandContext(tx, loop),
       legacyIdeaEvidence: idea.evidence, currentDate: new Date().toISOString().slice(0, 10) });
-    const history = await tx.select({ snapshot: demandRequests.snapshot, result: demandRequests.result }).from(demandRequests)
+    const history = await tx.select({ id: demandRequests.id, snapshot: demandRequests.snapshot, result: demandRequests.result }).from(demandRequests)
       .where(and(eq(demandRequests.principalId, principal.id), eq(demandRequests.ideaId, ideaId), eq(demandRequests.kind, "question"), eq(demandRequests.status, "succeeded")))
       .orderBy(desc(demandRequests.createdAt)).limit(6);
+    const conversation = demandQuestionHistory({ articleEvidence: material.evidence, history: history.reverse() });
     return reserveRequest(tx, { principalId: principal.id, loopId: idea.loopId, ideaId, kind: "question", idempotencyKey: input.idempotencyKey,
       requestFingerprint: fingerprint, snapshot: { version: 2, context: material.context, question: {
-        question: input.question, articleVersion: material.articleVersion, draft: material.storedDraft, evidence: material.evidence,
-        previousMessages: history.reverse().flatMap((row) => [
-          { role: "user", text: (row.snapshot.question as { question: string }).question },
-          { role: "assistant", text: demandAnswerConversationText(row.result?.answer) },
-        ]),
+        question: input.question, articleVersion: material.articleVersion, draft: material.storedDraft, evidence: conversation.evidence,
+        previousMessages: conversation.previousMessages,
       } } });
   });
 }

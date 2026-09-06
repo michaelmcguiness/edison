@@ -19,9 +19,26 @@ export * from "./reader-first-schemas";
 export { READER_FIRST_PROMPT_VERSION, READER_FIRST_PROMPTS } from "./reader-first-prompts";
 export type ReaderFirstStageOptions = OnDemandStageOptions & { researchPolicy?: NonNullable<OnDemandProviderRequest["researchPolicy"]> };
 export type ReaderFirstSelection = { context: OnDemandContext; idea: ReaderFirstIdea; evidence: OnDemandEvidence };
+const referenceKey = z.string().min(1).max(40);
+const previousReferenceSchema = z.object({
+  label: z.string().min(1).max(24), sourceId: z.string().min(1).max(120),
+  title: z.string().min(1).max(300),
+  url: z.string().min(1).max(2048).refine((value) => {
+    try { const url = new URL(value); return url.protocol === "https:" && !url.username && !url.password; }
+    catch { return false; }
+  }, "Historical reference URLs must be credential-free HTTPS"),
+  accessedAt: z.string().datetime().nullable(), evidenceSourceKey: referenceKey.nullable(),
+  passageIds: z.array(referenceKey).max(48),
+}).strict();
+export const readerFirstPreviousMessagesSchema = z.array(z.discriminatedUnion("role", [
+  z.object({ role: z.literal("user"), text: z.string().min(1).max(8000) }).strict(),
+  z.object({ role: z.literal("assistant"), text: z.string().min(1).max(8000), references: z.array(previousReferenceSchema).max(16).optional() }).strict(),
+])).max(12);
+export type ReaderFirstPreviousReference = z.infer<typeof previousReferenceSchema>;
+export type ReaderFirstPreviousMessage = z.infer<typeof readerFirstPreviousMessagesSchema>[number];
 export type ReaderFirstQuestion = {
   context: OnDemandContext; articleVersion: string; draft: ReaderFirstWriterOutput; evidence: OnDemandEvidence;
-  question: string; previousMessages: Array<{ role: "user" | "assistant"; text: string }>;
+  question: string; previousMessages: ReaderFirstPreviousMessage[];
 };
 export type ReaderFirstStageResult<T> = Omit<OnDemandProviderResponse, "output"> & {
   output: T; stage: OnDemandProviderRequest["stage"]; promptVersion: typeof READER_FIRST_PROMPT_VERSION;
@@ -79,7 +96,33 @@ function selection(input: ReaderFirstSelection) {
 }
 function question(input: ReaderFirstQuestion) {
   onDemandContextSchema.parse(input.context); readerFirstSavedWriterInputSchema.parse(input.draft); assertOnDemandEvidence(input.evidence);
-  if (!input.articleVersion || input.articleVersion.length > 120 || input.draft.status !== "written" || !input.draft.article || !input.question.trim() || input.question.length > 2000 || input.previousMessages.length > 12 || input.previousMessages.some((message) => !["user", "assistant"].includes(message.role) || !message.text || message.text.length > 8000)) invalid("Invalid bounded article question");
+  if (!input.articleVersion || input.articleVersion.length > 120 || input.draft.status !== "written" || !input.draft.article || !input.question.trim() || input.question.length > 2000) invalid("Invalid bounded article question");
+  assertReaderFirstPreviousMessages(input.previousMessages, input.evidence);
+}
+
+/** Historical display identity is preserved even when its evidence is omitted
+ * from the bounded packet. A URL is metadata, not authority to fetch it. */
+export function assertReaderFirstPreviousMessages(messages: unknown, evidence: OnDemandEvidence): asserts messages is ReaderFirstPreviousMessage[] {
+  const parsed = readerFirstPreviousMessagesSchema.parse(messages);
+  assertOnDemandEvidence(evidence);
+  for (const message of parsed) {
+    if (message.role !== "assistant" || !message.references) continue;
+    unique(message.references.map((reference) => reference.label), "historical message label");
+    unique(message.references.map((reference) => reference.sourceId), "historical message source identity");
+    for (const reference of message.references) {
+      unique(reference.passageIds, "historical reference passage");
+      if (reference.evidenceSourceKey === null) {
+        if (reference.passageIds.length) invalid("Unavailable historical evidence cannot retain passage mappings");
+        continue;
+      }
+      const source = evidence.sources.find((candidate) => candidate.id === reference.evidenceSourceKey);
+      if (!source || new URL(source.url).href !== new URL(reference.url).href || !reference.passageIds.length) invalid("Historical reference does not match retained evidence");
+      for (const id of reference.passageIds) {
+        const passage = evidence.passages.find((candidate) => candidate.id === id);
+        if (!passage || passage.sourceId !== source.id || passage.provenance !== "retrieved" || !passage.retrievedAt) invalid("Historical reference passage is not independently retained for its source");
+      }
+    }
+  }
 }
 function discovery(research: ReaderFirstResearch, response: OnDemandProviderResponse, evidence: OnDemandEvidence) {
   assertOnDemandEvidence({ sources: research.sources, passages: research.passages.map((passage) => ({ ...passage, provenance: "model_reported", retrievedAt: null })) });

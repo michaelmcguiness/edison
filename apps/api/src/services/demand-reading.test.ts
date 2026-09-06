@@ -51,5 +51,7 @@ test("Ask admission freezes current owned loop context after replay while retain
   const assemble = request.indexOf("currentContext: await assembleDemandContext(tx, loop)");
   assert.ok(replay >= 0 && replay < lock && lock < assemble);
   assert.match(request, /articleContext: article\.snapshot\.context/);
-  assert.match(request, /draft: material\.storedDraft, evidence: material\.evidence/);
+  assert.match(request, /demandQuestionHistory\(\{ articleEvidence: material\.evidence, history: history\.reverse\(\) \}\)/);
+  assert.match(request, /draft: material\.storedDraft, evidence: conversation\.evidence/);
+  assert.match(request, /previousMessages: conversation\.previousMessages/);
 });
