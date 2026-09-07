@@ -6,7 +6,18 @@ launching; they can change without a code release.
 
 ## Decision and current status
 
-**Latest release, September 7 — D31:** API `1b05c1e` is live behind the existing
+**Current — v2.4 live, September 7:** API `a38b535` has passed exact-source
+[CI 34114058927](https://github.com/michaelmcguiness/edison/actions/runs/34114058927)
+and hosted target/schedule/health/access checks. Web remains `6eb811b` at apex.
+The short-complete-preview instruction is live with six/eight allowances and
+unchanged other controls. The same QA loop retained an explicit preference after
+reload and generated four complete concept-led ideas. A selected article published
+and was read in the apex UI; a natural contextual question completed successfully.
+Root's bounded direct assessment finds useful explanation, not a general-quality
+estimate. Answer rendering and saved return remain pending while shared-browser
+ownership is clarified; the view unexpectedly moved to unrelated reading.
+
+**Previous release, September 7 — D31:** API `1b05c1e` is live behind the existing
 apex/web connection, with six rolling ideas batches per reader; web remains
 `6eb811b`. Article allowance eight and all spending/concurrency/history controls
 are unchanged. Exact-source [CI 34112267215](https://github.com/michaelmcguiness/edison/actions/runs/34112267215)

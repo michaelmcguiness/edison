@@ -1,6 +1,19 @@
 # Edison deployment
 
-## Latest release — D31, September 7, 2026
+## Latest API rollout — v2.4, September 7, 2026
+
+Source `a38b535` is Ready/Production at the existing API connector; web `6eb811b`
+remains on edisonreader.com. [CI 34114058927](https://github.com/michaelmcguiness/edison/actions/runs/34114058927)
+passed both jobs. In-flight precheck, exact public/schedule targets, health,
+apex CORS and unauthenticated cron denial passed. Six/eight allowances and all
+other limits are unchanged. Normal QA preference persistence and a fresh set of
+four complete concept previews passed; the selected article published and was
+read in the apex UI. Its contextual question completed successfully. Answer
+rendering and saved return remain pending because the shared browser changed to
+an unrelated article; navigation paused while ownership is clarified.
+See [the execution record](ON_DEMAND_RELEASE_2026-09-06.md) for verification limits.
+
+## Previous release — D31, September 7, 2026
 
 The existing apex service now uses API source `1b05c1e`; web remains `6eb811b`.
 The approved ideas allowance is six batches per reader across loops over rolling

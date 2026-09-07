@@ -15,6 +15,39 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
+### September 7 — v2.4 live; preference persistence and concept ideas verified
+
+Exact API source `a38b535dddb5e5aefc83af219aca7c151fa4c3ac` is Ready/Production on
+the existing service behind **edisonreader.com**. Web remains `6eb811b`.
+[CI 34114058927](https://github.com/michaelmcguiness/edison/actions/runs/34114058927)
+passed application and disposable-database jobs. The no-active-work precheck,
+exact target/schedule identity, health, apex CORS and negative cron-access checks
+passed. The prospective preview correction described below is now live; historical
+failed output is unchanged.
+
+An explicitly labeled QA preference was submitted through Curate in the existing
+loop. It retained the original subject, specified plain-language single-mechanism
+explanations and preserved the DNA-basics knowledge level. The three interpreted
+principles persisted identically after reload/reopen. Fresh ideas then produced
+four checked, complete, concept-led previews. A directly inspected two-input logic
+brief carries an explicit qualification against claiming clinical reliability.
+That actual card published after write/check with no repair. Root read the whole
+article in the apex UI: a concrete two-input mechanism, AND/OR distinction and
+leakage, timing and marker-selection limits. A natural question about the example
+also completed answer/check, distinguishing signals detected by one engineered
+cell from clues supplied by one target or its neighborhood. Both outputs truthfully
+retain a general-knowledge basis, no research timestamp and no invented sources.
+Root's direct sampled assessment finds a useful conceptual explanation; this is
+not independent actual-output review or certification of production quality.
+
+Three other ideas remain unused. The shared browser unexpectedly moved to an
+unrelated article while Ask was being checked; root paused navigation to avoid
+interfering and asked CoS about browser ownership. Answer rendering and ordinary
+saved-reading return remain unverified in this sample; stored success alone does
+not establish them. This is test preference/selection evidence, not Michael's
+personal preference change, controlled prompt improvement or a two-completed-
+article adaptation comparison. No additional paid request followed the question.
+
 ### September 7 — D31 live; new sample withheld; v2.4 prepared
 
 Michael answered yes in CoS to doubling ideas **3 → 6 batches per reader per

@@ -3,7 +3,44 @@
 Owner: CTO. Scope: D28 reader-first reading and D29/D30 direct-apex operation.
 The app is live; useful real-output acceptance is a separate unfinished check.
 
-## Latest — D31 live; first post-allowance sample withheld
+## Latest — v2.4 live; normal preference and ideas evidence
+
+Owner: CTO, September 7. Exact API source
+`a38b535dddb5e5aefc83af219aca7c151fa4c3ac` is Ready/Production; web `6eb811b`
+is unchanged on the apex. [CI 34114058927](https://github.com/michaelmcguiness/edison/actions/runs/34114058927)
+passed application and disposable-database jobs. No active work preceded rollout.
+Public target and all enabled schedule hosts match; configuration/database/Auth,
+exact-apex CORS 204 and all unauthenticated cron 401 checks passed. Historical
+failed output was not reopened or rewritten. No new model, service, schema,
+configuration, migration or spending allowance.
+
+An explicitly labeled QA Curate input retained the original loop's subject and
+DNA-basics level while requesting plain-language, concrete, one-mechanism reading.
+The resulting three principles were shown as saved and persisted identically
+after ordinary reload/reopen. This is test input, not Michael's actual preference.
+The next normal ideas batch offered four complete concept-led previews. Root
+inspected the actual selected brief: its two-input logic promise is conceptual,
+with an explicit no-guaranteed-clinical-reliability qualification. The card was
+selected through the normal UI and published after write/check without a repair.
+Root read the whole article in the apex UI. It explains a concrete two-input
+mechanism, distinguishes AND from OR, and identifies leakage, timing and marker-
+selection limits. A natural follow-up about the example completed answer/check
+without repair. Direct inspection of the saved answer finds it responsive: one
+engineered cell detecting both inputs is not proof that both clues originate on
+one target cell. Both outputs preserve truthful general-knowledge metadata with
+no invented references or research timestamp. These are direct sampled AI
+assessments, not independent actual-output review or general quality estimates.
+
+Three checked ideas remain unused. This establishes persisted preferences and
+observed selection, not controlled prompt improvement or adaptation between two
+completed articles. During Ask verification the shared browser moved to an
+unrelated article and controls detached. Root paused navigation and asked CoS to
+clarify browser ownership rather than interfering or creating a new guest. No
+product-navigation defect is established by that observation. Answer rendering
+and ordinary saved-reading return remain pending; stored success is not a
+rendered-conversation check. No additional paid request followed the question.
+
+## Previous — D31 live; first post-allowance sample withheld
 
 Owner: CTO, September 7. Public API source
 `1b05c1e1cc92fb6bcfe6c232afb6f2fc70a66927` is Ready/Production and attached to the
