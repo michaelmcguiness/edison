@@ -328,7 +328,7 @@ test("article completion cannot steal navigation and reading progress starts at 
   assert.match(readerSource, /selectedRequestIdeaId !== selectedIdeaId/);
   assert.match(readerSource, /setSelectedRequestId\(idea\.articleRequestId\)/);
   assert.match(readerSource, /window\.scrollTo\(0, 0\)/);
-  assert.match(readerSource, /window\.scrollTo\(0, target\?\.scrollY \?\? 0\)/);
+  assert.match(readerSource, /window\.scrollTo\(0, origin.scrollY\)/);
   assert.match(readerSource, /\.focus\(\{ preventScroll: true \}\)/);
   assert.match(readerSource, /showEditLoop=\{view === "loop" && Boolean\(activeLoop && !activeLoop.archivedAt\)\}/);
 });
@@ -448,7 +448,7 @@ test("Ask uses compact nonmodal entry and durable full conversation; For You has
 
 test("opening existing reading uses the validated position map and end-of-article Back remains available after Next", () => {
   assert.match(readerSource, /articlePositionRef\.current = demandReadingPositionForIdea/);
-  assert.match(readerSource, /rememberCurrentReadingPosition\(\);\s*const target = returnTarget/);
+  assert.match(readerSource, /rememberCurrentReadingPosition\(\);\s*const target: DemandOrigin = returnTarget/);
   assert.match(readerSource, /edison:demand:reading-positions:v1/);
   const endNavigation = readerSource.slice(readerSource.indexOf('<nav className="demand-next"'), readerSource.indexOf("</nav>", readerSource.indexOf('<nav className="demand-next"')));
   assert.match(endNavigation, /nextIdea \?/);
@@ -468,7 +468,8 @@ test("older history is a separate paged surface and all exact-recovery errors re
   assert.match(readerSource, /await recoverIdea\(idea\.id, true\)/);
   assert.match(readerSource, /historyReader\.finishMutation\(idea\.id\)/);
   assert.match(readerSource, /historyReader\.seed\(\{ workspaceId: response\.workspace\.workspaceId, idea: \{ \.\.\.idea, articleRequestId: response\.requestId \}/);
-  assert.match(readerSource, /pendingHistoryReturn\.current = target\?\.history \? target : null/);
+  assert.match(readerSource, /pendingHistoryReturn\.current = origin/);
+  assert.match(readerSource, /const \{ cursor, \.\.\.query \} = origin.history;\s*void loadHistoryPage\(query, cursor\)/);
   assert.match(readerSource, /visibleHistory\.cursor !== target\.history\.cursor/);
   assert.doesNotMatch(readerSource, /const saved = combinedIdeas\.filter/);
 });

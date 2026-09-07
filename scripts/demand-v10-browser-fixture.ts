@@ -7,7 +7,8 @@
  * {action:'complete',requestId,count?:0..6} | {action:'fail',requestId,retryable?:boolean}
  * {action:'stage',requestId,stage} | {action:'next-stage',stage}
  * {action:'fault',mode:'fail'|'lose-response',path?:'/v1/demand/...'}
- * {action:'seed-turns',articleId,count:0..240} | {action:'reset'}
+ * {action:'seed-turns',articleId,count:0..240,failedIndex?:number}
+ * {action:'seed-history',count:0..180} | {action:'reset'}
  * Read-only IDs/counters: GET /__fixture/state. No control is shipped in the UI.
  */
 import assert from "node:assert/strict";
@@ -178,7 +179,7 @@ export function createV10Fixture() {
       if (turn) { turn.request = copy(request); turn.answer = resolvedAnswer; }
     }
   }
-  function seedTurns(articleId: string, count: number) {
+  function seedTurns(articleId: string, count: number, failedIndex?: number) {
     const article = required(articles.get(articleId));
     const idea = required([...ideas.values()].find((item) => item.articleRequestId === article.id));
     for (const previous of turns.get(articleId) ?? []) { requests.delete(previous.request.id); requestText.delete(previous.request.id); }
@@ -188,10 +189,25 @@ export function createV10Fixture() {
       const question = `Constructed earlier question ${index + 1}: what does a reference measurement establish?`;
       const request = demandRequestSchema.parse({ id: newId(), loopId: idea.loopId, ideaId: idea.id, kind: "question",
         status: "succeeded", stage: "ready", failure: null, createdAt: time, updatedAt: time });
+      if (index === failedIndex) {
+        request.status = "failed"; request.stage = "failed";
+        request.failure = { code: "worker_interrupted", retryable: true, message: "This constructed earlier answer can resume saved work." };
+      }
       requests.set(request.id, request); requestText.set(request.id, question);
-      conversation.push({ request, question, answer: answer(question, index % 3 === 0) });
+      conversation.push({ request, question, answer: index === failedIndex ? null : answer(question, index % 3 === 0) });
     }
     turns.set(articleId, conversation);
+  }
+  function seedHistory(count: number) {
+    const example = required(ideas.get(id(100)));
+    for (let index = 0; index < count; index++) {
+      const time = new Date(Date.parse("2026-08-20T12:00:00Z") + index * 1000).toISOString();
+      const idea: DemandIdea = { ...copy(example), id: newId(), title: `Constructed saved reading ${index + 1}: interpreting a measurement`,
+        createdAt: time, rank: 1, saved: true, articleRequestId: null };
+      const request = makeRequest("article", idea.loopId, idea.id, { succeeded: true });
+      request.createdAt = time; request.updatedAt = time;
+      ideas.set(idea.id, idea); makeArticle(idea, request, false); turns.set(request.id, []);
+    }
   }
   function reset() {
     for (const map of [loops, ideas, requests, articles, turns, requestText, shares, articleShares, operations]) map.clear();
@@ -283,7 +299,11 @@ export function createV10Fixture() {
       if (!STAGES.includes(stage as PendingStage)) throw new Error("invalid_stage"); nextStage = stage as PendingStage;
     } else if (input.action === "seed-turns") {
       if (!Number.isInteger(input.count) || Number(input.count) < 0 || Number(input.count) > 240) throw new Error("invalid_count");
-      seedTurns(String(input.articleId), Number(input.count));
+      if (input.failedIndex !== undefined && (!Number.isInteger(input.failedIndex) || Number(input.failedIndex) < 0 || Number(input.failedIndex) >= Number(input.count))) throw new Error("invalid_index");
+      seedTurns(String(input.articleId), Number(input.count), input.failedIndex === undefined ? undefined : Number(input.failedIndex));
+    } else if (input.action === "seed-history") {
+      if (!Number.isInteger(input.count) || Number(input.count) < 0 || Number(input.count) > 180) throw new Error("invalid_count");
+      seedHistory(Number(input.count));
     } else {
       const request = required(requests.get(String(input.requestId)));
       if (input.action === "complete") {
@@ -536,9 +556,20 @@ export async function selfTestV10Fixture() {
   const before = fixture.state().ideaIds.length;
   await operator({ action: "complete", requestId: (more.body as { requestId: string }).requestId, count: 3 });
   assert.equal(fixture.state().ideaIds.length, before + 3);
+  await operator({ action: "seed-history", count: 65 });
+  const savedPage = demandHistorySchema.parse((await call("GET", "/v1/demand/history?scope=saved")).body);
+  assert.equal(savedPage.ideas.length, 60); assert.ok(savedPage.nextCursor);
+  const olderSaved = demandHistorySchema.parse((await call("GET", `/v1/demand/history?scope=saved&cursor=${savedPage.nextCursor}`)).body);
+  assert.equal(olderSaved.ideas.length, 7);
+  assert.ok(olderSaved.ideas.every((idea) => !savedPage.ideas.some((current) => current.id === idea.id)));
+  await operator({ action: "seed-turns", articleId: id(200), count: 125, failedIndex: 1 });
+  const olderFailure = required(fixture.state().failed.find((request) => request.kind === "question"));
+  assert.equal((await call("POST", `/v1/demand/requests/${olderFailure.id}/retry`)).status, 202);
+  await operator({ action: "complete", requestId: olderFailure.id });
+  assert.equal(demandResultSchema.parse((await call("GET", `/v1/demand/requests/${olderFailure.id}`)).body).request.status, "succeeded");
   assert.equal(fixture.state().providerCalls, 0); assert.equal(fixture.state().databaseCalls, 0);
   return { passed: true, scenarios: ["environment guards", "session isolation", "source-free/sourced articles", "125-turn pagination",
-    "lost response/idempotent question", "operator-only completion", "public whitelist", "edit/archive retention", "retry eligibility", "partial More batch"] };
+    "lost response/idempotent question", "operator-only completion", "public whitelist", "edit/archive retention", "retry eligibility", "partial More batch", "older saved-reading pages", "older exact question retry"] };
 }
 
 async function main() {

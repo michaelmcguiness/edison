@@ -8,6 +8,11 @@ import { PULSE_FOR_YOU_ID } from "@/components/edison/pulse-shell";
 export function loopOverflow(scrollLeft: number, clientWidth: number, scrollWidth: number) {
   return { left: scrollLeft > 1, right: scrollLeft + clientWidth < scrollWidth - 1 };
 }
+export function loopRevealScroll(scrollLeft: number, clientWidth: number, itemLeft: number, itemWidth: number) {
+  if (itemLeft < scrollLeft) return Math.max(0, itemLeft);
+  if (itemLeft + itemWidth > scrollLeft + clientWidth) return Math.max(0, itemLeft + itemWidth - clientWidth);
+  return scrollLeft;
+}
 
 export function ReaderShell({ loops, activeLoopId, children, onSelectLoop, onAddLoop, onOpenHome,
   onOpenLibrary, onOpenProfile, onEditLoop, showLoopNavigation, showEditLoop }: {
@@ -32,11 +37,8 @@ export function ReaderShell({ loops, activeLoopId, children, onSelectLoop, onAdd
     const selected = Array.from(element.querySelectorAll<HTMLButtonElement>("button"))
       .find((button) => button.dataset.loopId === activeLoopId);
     if (selected) {
-      const start = selected.offsetLeft - element.offsetLeft;
-      if (start < element.scrollLeft) element.scrollLeft = start;
-      else if (start + selected.offsetWidth > element.scrollLeft + element.clientWidth) {
-        element.scrollLeft = start + selected.offsetWidth - element.clientWidth;
-      }
+      const start = selected.getBoundingClientRect().left - element.getBoundingClientRect().left + element.scrollLeft - element.clientLeft;
+      element.scrollLeft = loopRevealScroll(element.scrollLeft, element.clientWidth, start, selected.offsetWidth);
     }
     measure();
     const observer = new ResizeObserver(measure);

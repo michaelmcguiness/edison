@@ -35,7 +35,9 @@ import { ReaderShell } from "@/components/edison/demand-v10/reader-shell";
 import { LoopEditor } from "@/components/edison/demand-v10/loop-editor";
 import { ArticleConversation } from "@/components/edison/demand-v10/article-conversation";
 import { SharePanel } from "@/components/edison/demand-v10/share-panel";
-import { appendStableIdeas, articlePreparationLabel, type LoopEditDraft } from "@/components/edison/demand-v10/reader-state";
+import { acceptedIdeaArrival, appendStableIdeas, articlePreparationLabel, type LoopEditDraft } from "@/components/edison/demand-v10/reader-state";
+import { availableDemandOrigin, demandRouteHref, navigationForSelection, parseDemandNavigation, parseDemandRoute, readDemandRouteSelection, readyRouteHistoryMode, resolveDemandOrigin,
+  type DemandNavigation, type DemandOrigin, type DemandRouteSelection } from "@/components/edison/demand-v10/route-continuity";
 import { EdisonMark } from "@/components/edison/brand";
 import { useEditorialDialogViewport } from "@/components/edison/editorial-composer";
 import {
@@ -123,6 +125,24 @@ function idempotencyKey(prefix: string) {
   return `${prefix}:${crypto.randomUUID()}`;
 }
 
+function readRouteNavigation(workspaceId: string, selection?: DemandRouteSelection | null): DemandNavigation | null {
+  const matches = (record: DemandNavigation | null) => record && (!selection || record.selection?.kind === selection.kind && record.selection.id === selection.id);
+  const fromHistory = parseDemandNavigation(window.history.state?.demandNavigation, workspaceId);
+  if (matches(fromHistory)) return fromHistory;
+  try {
+    const raw = localStorage.getItem("edison:demand:navigation:v1");
+    const saved = raw && raw.length <= 4096 ? parseDemandNavigation(JSON.parse(raw), workspaceId) : null;
+    return matches(saved) ? saved : null;
+  } catch { return null; }
+}
+
+function writeRouteNavigation(record: DemandNavigation, mode: "push" | "replace", path: string) {
+  const state = { ...window.history.state, demandNavigation: record };
+  if (mode === "push") window.history.pushState(state, "", path);
+  else window.history.replaceState(state, "", path);
+  try { localStorage.setItem("edison:demand:navigation:v1", JSON.stringify(record)); } catch { /* Browser history remains usable without device storage. */ }
+}
+
 function beginAttempt(
   reference: MutableRefObject<ClientAttempt | null>,
   fingerprint: string,
@@ -177,7 +197,7 @@ function finishScopedAttempt(
   }
 }
 
-function readDraft(kind: "feedback" | "question", ownerId: string, maxLength: number) {
+function readDraft(kind: "feedback" | "question" | "article", ownerId: string, maxLength: number) {
   try {
     return (localStorage.getItem(`edison:demand:${kind}:${ownerId}`) ?? "").slice(0, maxLength);
   } catch {
@@ -185,7 +205,7 @@ function readDraft(kind: "feedback" | "question", ownerId: string, maxLength: nu
   }
 }
 
-function writeDraft(kind: "feedback" | "question", ownerId: string, draft: string) {
+function writeDraft(kind: "feedback" | "question" | "article", ownerId: string, draft: string) {
   try {
     const key = `edison:demand:${kind}:${ownerId}`;
     if (draft) localStorage.setItem(key, draft);
@@ -195,7 +215,7 @@ function writeDraft(kind: "feedback" | "question", ownerId: string, draft: strin
   }
 }
 
-function readPendingRequest(kind: "feedback" | "question", ownerId: string) {
+function readPendingRequest(kind: "feedback" | "question" | "article", ownerId: string) {
   try {
     const value = localStorage.getItem(`edison:demand:${kind}-request:${ownerId}`);
     return value && /^[0-9a-f-]{36}$/.test(value) ? value : null;
@@ -205,7 +225,7 @@ function readPendingRequest(kind: "feedback" | "question", ownerId: string) {
 }
 
 function writePendingRequest(
-  kind: "feedback" | "question",
+  kind: "feedback" | "question" | "article",
   ownerId: string,
   requestId: string | null,
 ) {
@@ -233,7 +253,7 @@ function writeSubmittedFeedback(loopId: string, value: SubmittedDemandFeedback) 
   try { localStorage.setItem(`edison:demand:feedback-submitted:${loopId}`, JSON.stringify(value)); } catch { /* Optional local recovery. */ }
 }
 
-function readStoredAttempt(kind: "feedback" | "question", ownerId: string) {
+function readStoredAttempt(kind: "feedback" | "question" | "article", ownerId: string) {
   try {
     const raw = localStorage.getItem(`edison:demand:${kind}-attempt:${ownerId}`);
     if (!raw || raw.length > 2_000) return null;
@@ -248,7 +268,7 @@ function readStoredAttempt(kind: "feedback" | "question", ownerId: string) {
 }
 
 function writeStoredAttempt(
-  kind: "feedback" | "question",
+  kind: "feedback" | "question" | "article",
   ownerId: string,
   attempt: ClientAttempt | null,
 ) {
@@ -610,7 +630,7 @@ export function DemandReader({
   const [shareOpen, setShareOpen] = useState(false);
   const shareOpenerRef = useRef<HTMLElement | null>(null);
   const stableIdeasRef = useRef<{ workspaceId: string; ideas: DemandIdea[] } | null>(null);
-  const requestedBatches = useRef(new Map<string, { ids: Set<string>; previousRequestId: string | null }>());
+  const requestedBatches = useRef(new Map<string, { ids: Set<string>; previousRequestId: string | null; requestId?: string; previousFailureTime?: string }>());
   const [newIdeas, setNewIdeas] = useState(new Map<string, string[]>());
   const [savingIdeas, setSavingIdeas] = useState<Set<string>>(() => new Set());
   const [ideasSubmittingLoopId, setIdeasSubmittingLoopId] = useState<string | null>(null);
@@ -638,11 +658,11 @@ export function DemandReader({
   const articlePositionRef = useRef(0);
   const readingPositionsRef = useRef<DemandReadingPositions | null>(null);
   const restoringArticleRef = useRef<string | null>(null);
-  const pendingHistoryReturn = useRef<ReturnTarget | null>(null);
+  const pendingHistoryReturn = useRef<DemandOrigin | null>(null);
   const submittedFeedbackRefs = useRef(new Map<string, SubmittedDemandFeedback>());
   const workspaceIdentityRef = useRef(initialWorkspace?.workspaceId ?? null);
   const curateLoopRef = useRef<string | null>(null);
-  const directArticleRef = useRef(initialArticleId);
+  const initialSelectionRef = useRef<DemandRouteSelection | null>(initialArticleId ? { kind: "article", id: initialArticleId } : null);
 
   const publishWorkspace = useCallback((next: DemandWorkspace | null) => {
     if (!next) return false;
@@ -711,43 +731,64 @@ export function DemandReader({
       return null;
     }
   }, [client, historyReader]);
-  const restoreArticleRoute = useCallback(async (articleId: string, next: DemandWorkspace, intent: number) => {
+  const returnToOrigin = useCallback((origin: DemandOrigin, intent: number) => {
+    const loop = origin.view === "loop" ? origin.loopId : PULSE_FOR_YOU_ID;
+    activeLoopRef.current = loop ?? PULSE_FOR_YOU_ID;
+    setActiveLoopId(activeLoopRef.current);
+    setView(origin.view);
+    if (origin.history) {
+      pendingHistoryReturn.current = origin;
+      const { cursor, ...query } = origin.history;
+      void loadHistoryPage(query, cursor);
+    } else {
+      pendingHistoryReturn.current = null;
+      historyReader.close(); setHistory(historyReader.snapshot());
+      requestAnimationFrame(() => {
+        if (navigationIntentRef.current !== intent) return;
+        window.scrollTo(0, origin.scrollY);
+        const card = origin.ideaId ? document.querySelector<HTMLButtonElement>(`[data-idea-id="${origin.ideaId}"] .demand-idea-open-target`) : null;
+        (card ?? readingSurfaceRef.current)?.focus({ preventScroll: true });
+      });
+    }
+  }, [historyReader, loadHistoryPage]);
+
+  const restoreArticleRoute = useCallback(async (selection: DemandRouteSelection, next: DemandWorkspace, intent: number) => {
     setRecoveringContinuity(true);
     setContinuityFailure("");
+    const isCurrent = () => navigationIntentRef.current === intent && workspaceIdentityRef.current === next.workspaceId;
     try {
-      const result = await client.getDemandArticle(articleId);
-      if (navigationIntentRef.current !== intent || workspaceIdentityRef.current !== next.workspaceId) return;
-      if (result.workspaceId !== next.workspaceId || result.article.id !== articleId) throw new Error("This article belongs to a different reading workspace.");
+      const result = await readDemandRouteSelection({ selection, workspaceId: next.workspaceId, getArticle: client.getDemandArticle, getIdea: client.getDemandIdea });
+      if (!isCurrent()) return;
+      const origin = await resolveDemandOrigin({ navigation: readRouteNavigation(next.workspaceId, selection), workspace: next, selectedIdea: result.idea, getIdea: client.getDemandIdea });
+      if (!isCurrent()) return;
+      if (origin.recovered) historyReader.seed(origin.recovered);
       historyReader.seed({ workspaceId: result.workspaceId, idea: result.idea, request: result.request });
       setHistory(historyReader.snapshot());
       selectedIdeaRef.current = result.idea.id;
       activeLoopRef.current = result.idea.loopId;
       setSelectedIdeaId(result.idea.id);
-      setSelectedRequestId(result.request.id);
+      setSelectedRequestId(result.idea.articleRequestId);
       setActiveLoopId(result.idea.loopId);
       setSelectedArticle(result.article);
       setRecoveredLoop(result.loop);
-      setCreateOpen(false);
-      setAskOpen(false);
-      setShareOpen(false);
+      setCreateOpen(false); setAskOpen(false); setShareOpen(false);
+      setResultLoadFailed(false);
+      setPageError(result.idea.articleRequestId ? "" : "The article request hasn’t been confirmed. Check its status to recover it; no new article will be requested.");
       articlePositionRef.current = demandReadingPositionForIdea(readingPositionsRef.current, next.workspaceId, result.idea);
       restoringArticleRef.current = result.idea.id;
-      const loop = next.loops.find(({ id, archivedAt }) => id === result.idea.loopId && !archivedAt);
-      const routeOrigin: unknown = window.history.state?.demandOrigin;
-      const candidate = routeOrigin && typeof routeOrigin === "object" ? routeOrigin as Partial<ReturnTarget> : null;
-      const validOrigin = window.history.state?.demandWorkspaceId === next.workspaceId && candidate &&
-        ["home", "library", "loop"].includes(candidate.view ?? "") && candidate.ideaId === result.idea.id &&
-        typeof candidate.scrollY === "number" && Number.isFinite(candidate.scrollY) && candidate.scrollY >= 0 &&
-        (candidate.view !== "loop" || next.loops.some(({ id, archivedAt }) => id === candidate.loopId && !archivedAt));
-      setReturnTarget(validOrigin ? candidate as ReturnTarget : { view: loop ? "loop" : "home", loopId: loop?.id ?? null, ideaId: result.idea.id, scrollY: 0 });
-      setView("article");
+      setReturnTarget(origin.origin);
+      if (origin.origin.history) {
+        const { cursor, ...query } = origin.origin.history;
+        void loadHistoryPage(query, cursor);
+      }
+      setView(result.article ? "article" : "request");
       continuityRestored.current = true;
       setRecoveringContinuity(false);
     } catch (error) {
-      if (navigationIntentRef.current !== intent || workspaceIdentityRef.current !== next.workspaceId) return;
+      if (!isCurrent()) return;
       setContinuityFailure(readableError(error)); setRecoveringContinuity(false);
     }
-  }, [client, historyReader]);
+  }, [client, historyReader, loadHistoryPage]);
   const readingRecords = useMemo(() => demandHistoryRecords(workspace, history), [workspace, history]);
   const historyQuery: HistoryScope | null = view === "library" ? { scope: "saved" }
     : view === "home" ? { scope: "all" } : view === "loop" ? { scope: "all", loopId: activeLoopId } : null;
@@ -757,9 +798,11 @@ export function DemandReader({
     if (!target?.history || !visibleHistory?.page || visibleHistory.cursor !== target.history.cursor ||
       demandHistoryScopeKey(visibleHistory.query) !== demandHistoryScopeKey(target.history)) return;
     pendingHistoryReturn.current = null;
+    const intent = navigationIntentRef.current;
     const frame = requestAnimationFrame(() => {
+      if (navigationIntentRef.current !== intent) return;
       window.scrollTo(0, target.scrollY);
-      (document.querySelector<HTMLButtonElement>(`[data-idea-id="${target.ideaId}"] .demand-idea-open-target`) ?? readingSurfaceRef.current)?.focus({ preventScroll: true });
+      (target.ideaId ? document.querySelector<HTMLButtonElement>(`[data-idea-id="${target.ideaId}"] .demand-idea-open-target`) ?? readingSurfaceRef.current : readingSurfaceRef.current)?.focus({ preventScroll: true });
     });
     return () => cancelAnimationFrame(frame);
   }, [visibleHistory]);
@@ -786,10 +829,16 @@ export function DemandReader({
         positions = localStorage.getItem("edison:demand:reading-positions:v1");
       } catch { /* A fresh session remains usable. */ }
       readingPositionsRef.current = restoreDemandReadingPositions(positions, next.workspaceId);
-      const routeId = window.location.pathname.match(/^\/articles\/([0-9a-f-]{36})\/?$/)?.[1] ?? directArticleRef.current;
-      if (routeId) {
-        directArticleRef.current = routeId;
-        await restoreArticleRoute(routeId, next, continuityIntent);
+      const selection = parseDemandRoute(window.location.pathname, window.location.search) ?? initialSelectionRef.current;
+      if (selection) {
+        initialSelectionRef.current = selection;
+        await restoreArticleRoute(selection, next, continuityIntent);
+        return;
+      }
+      const routeNavigation = readRouteNavigation(next.workspaceId);
+      if (routeNavigation && routeNavigation.selection === null) {
+        continuityRestored.current = true;
+        returnToOrigin(availableDemandOrigin(routeNavigation.origin, next), continuityIntent);
         return;
       }
       setContinuityFailure("");
@@ -843,38 +892,39 @@ export function DemandReader({
     return () => {
       current = false;
     };
-  }, [client, continuityIntent, historyReader, initialWorkspace, loadHistoryPage, publishWorkspace, restoreArticleRoute, workspaceResponses]);
+  }, [client, continuityIntent, historyReader, initialWorkspace, loadHistoryPage, publishWorkspace, restoreArticleRoute, returnToOrigin, workspaceResponses]);
 
   useEffect(() => {
     if (!workspace) return;
     const onPopState = () => {
       const intent = ++navigationIntentRef.current;
       setAskOpen(false); setShareOpen(false); setCurateOpen(false);
-      const routeId = window.location.pathname.match(/^\/articles\/([0-9a-f-]{36})\/?$/)?.[1];
-      directArticleRef.current = routeId ?? null;
-      if (routeId) { void restoreArticleRoute(routeId, workspace, intent); return; }
+      const selection = parseDemandRoute(window.location.pathname, window.location.search);
+      initialSelectionRef.current = selection;
+      if (selection) { void restoreArticleRoute(selection, workspace, intent); return; }
       continuityRestored.current = true; setRecoveringContinuity(false); setContinuityFailure("");
       selectedIdeaRef.current = null;
-      const saved = window.history.state?.demandFeed;
-      const loop = workspace.loops.find(({ id, archivedAt }) => id === saved?.loopId && !archivedAt);
-      const destination = saved?.view === "library" ? "library" : saved?.view === "loop" && loop ? "loop" : "home";
-      activeLoopRef.current = loop?.id ?? PULSE_FOR_YOU_ID; setActiveLoopId(activeLoopRef.current); setView(destination);
-      if (destination === "library") void loadHistoryPage({ scope: "saved" }, null);
-      requestAnimationFrame(() => {
-        window.scrollTo(0, typeof saved?.scrollY === "number" && Number.isFinite(saved.scrollY) ? Math.max(0, saved.scrollY) : 0);
-        readingSurfaceRef.current?.focus({ preventScroll: true });
-      });
+      setSelectedArticle(null); setSelectedIdeaId(null); setSelectedRequestId(null);
+      const saved = parseDemandNavigation(window.history.state?.demandNavigation, workspace.workspaceId);
+      const origin = saved?.selection === null ? saved.origin : { view: "home" as const, loopId: null, ideaId: null, scrollY: 0 };
+      returnToOrigin(availableDemandOrigin(origin, workspace), intent);
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, [loadHistoryPage, restoreArticleRoute, workspace]);
+  }, [restoreArticleRoute, returnToOrigin, workspace]);
 
   useEffect(() => {
-    if (view !== "article" || !selectedArticle || !workspace || recoveringContinuity) return;
-    const path = `/articles/${selectedArticle.id}`;
-    if (window.location.pathname !== path) window.history.pushState({ ...window.history.state, demandOrigin: returnTarget, demandWorkspaceId: workspace.workspaceId }, "", path);
-    directArticleRef.current = selectedArticle.id;
-  }, [recoveringContinuity, returnTarget, selectedArticle, view, workspace]);
+    if (view !== "article" || !selectedArticle || !selectedIdeaId || !workspace || recoveringContinuity) return;
+    const current = parseDemandRoute(window.location.pathname, window.location.search);
+    const mode = readyRouteHistoryMode(current, selectedIdeaId, selectedArticle.id);
+    const origin = returnTarget ?? { view: "home" as const, loopId: null, ideaId: selectedIdeaId, scrollY: 0 };
+    const selection = { kind: "article" as const, id: selectedArticle.id };
+    const record = navigationForSelection(workspace.workspaceId, origin, selection);
+    if (mode !== "none" || JSON.stringify(window.history.state?.demandNavigation) !== JSON.stringify(record)) {
+      writeRouteNavigation(record, mode === "none" ? "replace" : mode, demandRouteHref(selection));
+    }
+    initialSelectionRef.current = selection;
+  }, [recoveringContinuity, returnTarget, selectedArticle, selectedIdeaId, view, workspace]);
 
   useEffect(() => {
     if (!workspace || !continuityRestored.current) return;
@@ -1097,9 +1147,10 @@ export function DemandReader({
   useEffect(() => {
     if (!workspace) return;
     for (const [loopId, previous] of requestedBatches.current) {
-      const request = latestRequest(workspace, loopId, "ideas");
+      const request = previous.requestId ? workspace.requests.find(({ id }) => id === previous.requestId) : latestRequest(workspace, loopId, "ideas");
+      if (previous.previousFailureTime && request?.status === "failed" && request.updatedAt === previous.previousFailureTime) continue;
       if (!request || request.id === previous.previousRequestId || request.status === "queued" || request.status === "running") continue;
-      const added = combinedIdeas.filter((idea) => idea.loopId === loopId && !previous.ids.has(idea.id)).map((idea) => idea.id);
+      const added = acceptedIdeaArrival(combinedIdeas, request, previous.ids);
       if (request.status === "succeeded") setNewIdeas((current) => new Map(current).set(loopId, added));
       requestedBatches.current.delete(loopId);
     }
@@ -1121,7 +1172,7 @@ export function DemandReader({
     setRecoveringContinuity(false);
     setContinuityFailure("");
     setPageError("");
-    directArticleRef.current = null;
+    initialSelectionRef.current = null;
   }
 
   function retryContinuityRestoration() {
@@ -1156,6 +1207,8 @@ export function DemandReader({
         baseRevision: loop.revision,
         idempotencyKey: attempt.idempotencyKey,
       });
+      const tracked = requestedBatches.current.get(loop.id);
+      if (tracked && response.requestId) tracked.requestId = response.requestId;
       publishWorkspace(workspaceResponses.acceptMutation(ticket, response.workspace));
       if (ideasAttemptRefs.current.get(loop.id) === attempt) {
         ideasAttemptRefs.current.delete(loop.id);
@@ -1195,6 +1248,7 @@ export function DemandReader({
       activeLoopRef.current = loop.id;
       setActiveLoopId(loop.id);
       setView("loop");
+      writeRouteNavigation(navigationForSelection(created.workspace.workspaceId, { view: "loop", loopId: loop.id, ideaId: null, scrollY: 0 }, null), "push", "/");
       setCreateDraft("");
       setCreateOpen(false);
       const existingIdeas = created.workspace.ideas.some(({ loopId }) => loopId === loop.id);
@@ -1221,16 +1275,18 @@ export function DemandReader({
     const idea = demandHistoryRecords(workspace, historyReader.snapshot()).ideas.find(({ id }) => id === inputIdea.id) ?? inputIdea;
     rememberCurrentReadingPosition();
     beginNavigation();
-    if (view === "home" || view === "loop" || view === "library") {
-      window.history.replaceState({ ...window.history.state, demandFeed: { view, loopId: activeLoopId, scrollY: window.scrollY }, demandWorkspaceId: workspace?.workspaceId }, "", window.location.href);
-    }
     setAskOpen(false);
     setShareOpen(false);
-    if ((view === "loop" && activeLoopId === idea.loopId) || view === "library" || view === "home") {
-      setReturnTarget({ view, loopId: view === "loop" ? idea.loopId : null, scrollY: window.scrollY, ideaId: idea.id,
-        ...(visibleHistory ? { history: { ...visibleHistory.query, cursor: visibleHistory.cursor } } : {}) });
-    } else if (view !== "article" && view !== "request") {
-      setReturnTarget({ view: "loop", loopId: idea.loopId, scrollY: 0, ideaId: idea.id });
+    const fromFeed = view === "loop" || view === "library" || view === "home";
+    const origin: ReturnTarget = fromFeed
+      ? { view, loopId: view === "loop" ? activeLoopId : null, scrollY: window.scrollY, ideaId: idea.id,
+          ...(visibleHistory ? { history: { ...visibleHistory.query, cursor: visibleHistory.cursor } } : {}) }
+      : returnTarget ?? { view: "home", loopId: null, scrollY: 0, ideaId: idea.id };
+    setReturnTarget(origin);
+    if (workspace) {
+      if (fromFeed) writeRouteNavigation(navigationForSelection(workspace.workspaceId, origin, null), "replace", window.location.pathname + window.location.search);
+      const selection = { kind: "idea" as const, id: idea.id };
+      writeRouteNavigation(navigationForSelection(workspace.workspaceId, origin, selection), "push", demandRouteHref(selection));
     }
     articlePositionRef.current = demandReadingPositionForIdea(readingPositionsRef.current, workspace?.workspaceId ?? "", idea);
     restoringArticleRef.current = idea.articleRequestId ? idea.id : null;
@@ -1255,6 +1311,10 @@ export function DemandReader({
     }
     setView("request");
     let attempt = articleAttemptRefs.current.get(idea.id);
+    if (!attempt && workspace) {
+      const stored = readStoredAttempt("article", `${workspace.workspaceId}:${idea.id}`);
+      if (stored?.fingerprint === idea.id) attempt = stored;
+    }
     if (!attempt) {
       attempt = {
         fingerprint: idea.id,
@@ -1265,6 +1325,8 @@ export function DemandReader({
     }
     if (attempt.inFlight) return;
     attempt.inFlight = true;
+    articleAttemptRefs.current.set(idea.id, attempt);
+    if (workspace) writeStoredAttempt("article", `${workspace.workspaceId}:${idea.id}`, attempt);
     let commissioned = false;
     const ticket = workspaceResponses.beginMutation();
     historyReader.invalidateMutation(idea.id);
@@ -1276,6 +1338,7 @@ export function DemandReader({
       if (!publishWorkspace(workspaceResponses.acceptMutation(ticket, response.workspace))) return;
       if (!response.requestId) throw new Error("Edison did not return the article request.");
       commissioned = true;
+      if (workspace) writeStoredAttempt("article", `${workspace.workspaceId}:${idea.id}`, null);
       historyReader.seed({ workspaceId: response.workspace.workspaceId, idea: { ...idea, articleRequestId: response.requestId },
         request: response.workspace.requests.find(({ id }) => id === response.requestId) ?? null }, true);
       setHistory(historyReader.snapshot());
@@ -1393,6 +1456,10 @@ export function DemandReader({
   async function retryRequest(request: DemandRequest) {
     if (retryingRequestIds.current.has(request.id)) return;
     retryingRequestIds.current.add(request.id);
+    if (request.kind === "ideas") {
+      requestedBatches.current.set(request.loopId, { ids: new Set(combinedIdeas.map(({ id }) => id)), previousRequestId: null, requestId: request.id, previousFailureTime: request.updatedAt });
+      setNewIdeas((current) => { const next = new Map(current); next.delete(request.loopId); return next; });
+    }
     setRetryingRequestId(request.id);
     setPageError("");
     const ticket = workspaceResponses.beginMutation();
@@ -1441,34 +1508,19 @@ export function DemandReader({
     setSelectedIdeaId(null);
     setSelectedRequestId(null);
     setView("loop");
-    if (window.location.pathname.startsWith("/articles/")) window.history.pushState({ ...window.history.state, demandFeed: { view: "loop", loopId, scrollY: 0 } }, "", "/");
+    if (workspace) writeRouteNavigation(navigationForSelection(workspace.workspaceId, { view: "loop", loopId, ideaId: null, scrollY: 0 }, null), "push", "/");
   }
 
   function returnFromReading() {
     rememberCurrentReadingPosition();
-    const target = returnTarget;
+    const target: DemandOrigin = returnTarget ?? { view: "home", loopId: null, ideaId: selectedIdeaId, scrollY: 0 };
     beginNavigation();
-    pendingHistoryReturn.current = target?.history ? target : null;
-    setAskOpen(false);
-    setShareOpen(false);
+    setAskOpen(false); setShareOpen(false);
     selectedIdeaRef.current = null;
-    if (target?.view === "loop" && target.loopId) {
-      activeLoopRef.current = target.loopId;
-      setActiveLoopId(target.loopId);
-    } else if (target?.view === "home") {
-      activeLoopRef.current = PULSE_FOR_YOU_ID;
-      setActiveLoopId(PULSE_FOR_YOU_ID);
-    }
-    setView(target?.view ?? "loop");
-    if (window.location.pathname.startsWith("/articles/")) window.history.pushState({ ...window.history.state, demandFeed: { view: target?.view ?? "home", loopId: target?.loopId, scrollY: target?.scrollY ?? 0 } }, "", "/");
-    requestAnimationFrame(() => {
-      window.scrollTo(0, target?.scrollY ?? 0);
-      if (target) {
-        (document.querySelector<HTMLButtonElement>(
-          `[data-idea-id="${target.ideaId}"] .demand-idea-open-target`,
-        ) ?? readingSurfaceRef.current)?.focus({ preventScroll: true });
-      }
-    });
+    setSelectedArticle(null); setSelectedIdeaId(null); setSelectedRequestId(null);
+    const origin = workspace ? availableDemandOrigin(target, workspace) : { view: "home" as const, loopId: null, ideaId: null, scrollY: 0 };
+    if (workspace) writeRouteNavigation(navigationForSelection(workspace.workspaceId, origin, null), "push", "/");
+    returnToOrigin(origin, navigationIntentRef.current);
   }
 
   function openWorkspaceView(next: "home" | "library" | "profile") {
@@ -1485,7 +1537,8 @@ export function DemandReader({
       setActiveLoopId(PULSE_FOR_YOU_ID);
     }
     setView(next);
-    if (window.location.pathname.startsWith("/articles/")) window.history.pushState({ ...window.history.state, demandFeed: { view: next, scrollY: 0 } }, "", "/");
+    if (workspace) writeRouteNavigation(navigationForSelection(workspace.workspaceId, { view: next === "library" ? "library" : "home", loopId: null, ideaId: null, scrollY: 0,
+      ...(next === "library" ? { history: { scope: "saved" as const, cursor: null } } : {}) }, null), "push", "/");
   }
 
   function openCreate(event?: { currentTarget: EventTarget | null }) {
@@ -1682,6 +1735,9 @@ export function DemandReader({
         </section>
         {pageError ? <p className="demand-page-error" role="alert">{pageError}</p> : null}
         {renderIdeaRecoveryErrors([idea])}
+        {!idea.articleRequestId && workspace ? <button type="button" className="demand-text-action" onClick={() => {
+          void restoreArticleRoute({ kind: "idea", id: idea.id }, workspace, navigationIntentRef.current);
+        }}>Check article status</button> : null}
         {request?.status !== "failed" && !resultLoadFailed ? <div className="demand-article-skeleton" aria-hidden="true">{[0, 1, 2].map((group) => <div key={group}><span /><span /><span /><span /></div>)}</div> : null}
       </main>
     );
@@ -1770,7 +1826,7 @@ export function DemandReader({
         pendingUndo={feedbackSubmittingLoopId === curateLoop.id || Boolean(feedbackRequestId)} status={feedbackStatus} error={feedbackError}
         onClose={() => { setCurateOpen(false); restoreDemandDialogFocus(curateOpenerRef.current, readingSurfaceRef.current); }} /> : null}
       {selectedArticle && selectedIdea && workspace && view === "article" ? <ArticleConversation key={`${workspace.workspaceId}:${selectedArticle.id}`} article={selectedArticle}
-        workspaceId={workspace.workspaceId} open={askOpen}
+        workspaceId={workspace.workspaceId} ideaId={selectedIdea.id} loopId={selectedIdea.loopId} open={askOpen} getResult={client.getDemandResult}
         getConversation={(cursor) => client.getDemandConversation(selectedArticle.id, cursor ? { cursor } : {})}
         ask={async (question, key) => {
           const ticket = workspaceResponses.beginMutation();

@@ -121,7 +121,7 @@ test("route, question and sharing source boundaries remain explicit and non-gene
   const chat = readFileSync(new URL("demand-v10/article-conversation.tsx", root), "utf8");
   const share = readFileSync(new URL("demand-v10/share-panel.tsx", root), "utf8");
   const editor = readFileSync(new URL("demand-v10/loop-editor.tsx", root), "utf8");
-  assert.match(source, /client.getDemandArticle\(articleId\)/);
+  assert.match(source, /readDemandRouteSelection\(\{ selection, workspaceId: next.workspaceId, getArticle: client.getDemandArticle, getIdea: client.getDemandIdea \}\)/);
   assert.match(source, /window.addEventListener\("popstate"/);
   assert.match(chat, /ask\(attempt.question, attempt.key\)/);
   assert.match(chat, /request.failure\?\.retryable/);

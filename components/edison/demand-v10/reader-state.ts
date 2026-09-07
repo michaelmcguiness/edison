@@ -20,6 +20,15 @@ export function loopDraftChanged(draft: LoopEditDraft, saved: LoopEditDraft) {
   return draft.name !== saved.name || draft.instructions !== saved.instructions;
 }
 
+export function resolvedLoopEditDraft(latest: LoopEditDraft, submitted: LoopEditDraft) {
+  const matches = !loopDraftChanged(latest, submitted);
+  return { draft: matches ? { name: submitted.name.trim(), instructions: submitted.instructions } : latest, close: matches };
+}
+
+export function acceptedIdeaArrival(ideas: readonly DemandIdea[], request: DemandRequest, previous: ReadonlySet<string>) {
+  return request.status === "succeeded" ? ideas.filter((idea) => idea.batchRequestId === request.id && !previous.has(idea.id)).map((idea) => idea.id) : [];
+}
+
 export function readScopedDraft<T>(key: string, fallback: T, validate: (value: unknown) => value is T): T {
   try {
     const raw = localStorage.getItem(key);

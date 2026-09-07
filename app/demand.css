@@ -623,6 +623,10 @@ body:has(.pulse-app .demand-article) {
 .demand-loop-editor footer { margin-top: 19px; padding-top: 6px; border-top: 1px solid #eee; }
 .demand-delete-loop { min-height: 44px; padding: 8px 0; border: 0; background: transparent; color: #6c5b5c; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
 .demand-ask-mini { width: 400px; padding: 19px; }
+@media (min-width: 1360px) {
+  /* Keep the compact question box in the centered article's right gutter. */
+  .demand-ask-mini { right: 24px; width: min(400px, calc((100vw - 650px) / 2 - 48px)); }
+}
 .demand-ask-mini .demand-mini-head h2 { font-size: 16px; }
 .demand-ask-mini .demand-question-context { margin: 0 0 16px; font-size: 13px; }
 .demand-question-composer { padding: 14px 14px 11px; border: 1px solid #d8d9dc; border-radius: 24px; background: #f7f7f8; }
@@ -654,6 +658,9 @@ body:has(.pulse-app .demand-article) {
 .demand-chat-dock { position: fixed; bottom: 0; left: 0; right: 0; z-index: 3; padding: 16px 40px max(18px, env(safe-area-inset-bottom)); border-top: 1px solid #eee; background: #fff; }
 .demand-chat-dock > div { max-width: 700px; margin: auto; }
 .demand-v10 button:focus-visible, .demand-floating-panel :is(button,input,textarea,summary):focus-visible, .demand-conversation-page :is(button,textarea,a):focus-visible { outline: 2px solid #1d70c9 !important; outline-offset: 3px !important; }
+.demand-question-composer:has(textarea:focus-visible) { outline: 2px solid #1d70c9; outline-offset: 3px; }
+.demand-floating-panel .demand-question-composer textarea:focus-visible,
+.demand-conversation-page .demand-question-composer textarea:focus-visible { outline: 0 !important; }
 @media (max-width: 600px) {
   .demand-loop-strip { gap: 3px; padding: 0 0 20px; }
   .demand-loop-scroller .pulse-loop-tab { max-width: 166px; padding: 11px 13px; }

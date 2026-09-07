@@ -58,6 +58,17 @@ test("names are bounded literal display text; original learning text is not shor
   assert.equal(transitionDemandLoop(historical, edit({ name: historical.title, instructions: "Use short examples." }), now).title, historical.title);
 });
 
+test("short topics and longer topic prefixes preserve initialisms and decimal versions", () => {
+  for (const topic of ["U.S. politics", "GPT-5.6", "A.I. research", "3.14 and pi", "Dr. Jane's research"]) {
+    assert.equal(conciseDemandLoopName(`  ${topic}  `), topic);
+  }
+  for (const topic of ["U.S. politics", "U. S. politics", "GPT-5.6", "A.I. research", "3.14 and pi"]) {
+    const instructions = `${topic}. Explain the important mechanisms with examples and their practical limitations.`;
+    assert.equal(conciseDemandLoopName(instructions), topic);
+  }
+  assert.equal(conciseDemandLoopName("  U.S.   politics  "), "U.S. politics");
+});
+
 test("instruction replacement is literal, clears superseded typed instructions, and never rewrites history", () => {
   const before = loop();
   const original = structuredClone(before);

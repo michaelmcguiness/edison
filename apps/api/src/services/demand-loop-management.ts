@@ -35,9 +35,12 @@ export function contextDemandLoopCuriosity(loop: { editorInstructions?: string |
 /** Display-only shortening; never replaces the stored learning request. */
 export function conciseDemandLoopName(curiosity: string) {
   const original = curiosity.trim();
-  const firstPhrase = original.split(/[.!?\n\r]/, 1)[0].trim();
-  if (firstPhrase && firstPhrase.length <= 40 && firstPhrase.length < original.length) return firstPhrase;
   const text = original.replace(/\s+/g, " ");
+  if (text.length <= 48 && !/[\n\r]/.test(original)) return text;
+  // A newline explicitly separates a topic from instructions. For longer prose,
+  // do not mistake an initial's period or a decimal/version separator for a stop.
+  const firstPhrase = original.split(/(?<!\b[A-Za-z])\.(?=\s)|[!?\n\r]/, 1)[0].replace(/\s+/g, " ").trim();
+  if (firstPhrase && firstPhrase.length <= 40 && firstPhrase.length < original.length) return firstPhrase;
   if (text.length <= 48) return text;
   const prefix = text.slice(0, 48);
   const wordEnd = prefix.lastIndexOf(" ");
