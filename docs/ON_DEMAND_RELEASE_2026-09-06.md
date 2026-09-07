@@ -3,6 +3,53 @@
 Owner: CTO. Scope: D28 reader-first reading and D29/D30 direct-apex operation.
 The app is live; useful real-output acceptance is a separate unfinished check.
 
+## E11 — one idea passes, database display projection needs normalization
+
+Request `93b448ca-95ae-49fb-8024-0f6435c4d6aa` completed both v2.2 provider
+stages ($0.017712/17712microUSD). Actual source retrieval succeeded for s1/s5/s6/s7;
+s2/s3/s4 remained unavailable. The checker accepted the manufacturing idea and
+correctly rejected two incomplete preview decks plus the unsupported microbial
+idea. This is not yet accepted article prose or demonstrated prompt improvement.
+The final database insert failed: the accepted deck ends with one ASCII space,
+while live `demand_ideas_deck_length` requires `deck=btrim(deck)`. Read-only exact
+SQL reports length457/raw trim false, normalized length456, title length81/trim true.
+The saved request is `worker_interrupted` at `ideas_check`, attempt1; neither
+completed provider stage nor its usage was lost. Exact capture:
+`/private/tmp/edison-calibration-capture.tO5q1P`.
+
+Offline advance with the exact retained checker result reaches ready with the
+original one approved idea,0modelcalls. The implemented persistence correction
+projects only DISPLAY title/deck through `.trim()` and validates their nonempty
+bounds before the database insert; it never truncates text. Exact approved brief,
+evidence, raw/check output and checkpoint remain unchanged. Promptv2.2/model/schema
+are unchanged so the existing request can reuse cached stages on ordinary retry.
+Three regressions cover actual trailing-space shape/immutable complete checkpoint,
+empty and over-bound deterministic rejection, and preserved interior whitespace.
+An initial incomplete test fixture type was corrected before final typecheck.
+Deploy the API only, then verify one same-request resume adds no provider stage,
+cost or ideas reservation before selecting the article. No fourth ideas batch.
+
+## v2.2 live on edisonreader.com
+
+Exact `6eb811b51e6fa243654cbdca43cb084a394e3f60` is committed/pushed, with
+[CI34071031970](https://github.com/michaelmcguiness/edison/actions/runs/34071031970)
+passing application/database gates. Both explicit Production builds are Ready:
+web `dpl_CeUv9T9DQCyxQeiQqDfFirXVmyuP` / `edison-hxabbbw9n-mike-michaelmcguis-projects.vercel.app`
+aliased to edisonreader.com, and API `dpl_Bn76eQspHcj4BHWmAb2Z1XgLJhks` /
+`edison-dy4ifbuu3-mike-michaelmcguis-projects.vercel.app` aliased to
+project-fjr95.vercel.app. Exact deployment metadata and live API target are verified;
+all three unchanged cron schedules point to this API, with enabledAt/disabledAt
+unchanged. Health/configuration/database/auth, three unauthenticated cron401 and
+apex CORS204/exact origin pass. Hosted web preflight0warnings; API retains only
+the known implicit-TLS-mode warning.
+
+Browser reload preserved the ordinary same apex guest/loop and earlier failures.
+The next normal ideas click rendered “Starting your ideas,” followed by “Checking
+the article ideas,” verifying the pending-label correction in the actual app.
+Request `93b448ca-95ae-49fb-8024-0f6435c4d6aa` started2026-09-07T00:53:45.290761Z.
+This is the third daily ideas request; no further batch is planned. Selection,
+actual article/Ask, explicit preference and saved-return checks follow.
+
 ## E10 — v2.1 live, documented NCBI retrieval correction
 
 Hotfix `f6de880f7b8f03b3b6d6181ae083f68a6e5b7553` is committed/pushed and live

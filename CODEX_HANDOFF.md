@@ -15,6 +15,36 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
+### E11 — approved idea saved-stage recovery, display whitespace fix
+
+The third v2.2 request completed both provider stages ($0.017712) and the checker
+approved one manufacturing idea. It correctly withheld two cut-off previews and
+one unsupported microbial premise. Saving the accepted row then failed because
+the preview's trailing ASCII space violates the live database's trimmed-column
+constraint. Saved progress remains `ideas_check`, failure `worker_interrupted`,
+attempt1; no new ideas batch is needed. Offline exact replay reaches ready with
+the one accepted idea; live read-only SQL confirms raw deck457chars/trimmed456,
+`deck=btrim(deck)` false and title valid.
+
+The tiny persistence fix trims only database DISPLAY title/deck columns. Approved
+brief, raw provider output, checker input/output, fingerprints and promptv2.2 are
+unchanged. Deploy the API fix then use the ordinary same-request “Try again”;
+verify existing durable stages/usage are reused before commissioning the article.
+No quota change, new identity or retry of either terminal content failure.
+
+### D30 v2.2 live — same-apex useful reading sample running
+
+Both web/API are **live** at exact `6eb811b51e6fa243654cbdca43cb084a394e3f60`:
+web `dpl_CeUv9T9DQCyxQeiQqDfFirXVmyuP` on edisonreader.com, API
+`dpl_Bn76eQspHcj4BHWmAb2Z1XgLJhks` on the unchanged public connector. All three
+cron hosts match the new API. CI34071031970/application+database passed;644local
+tests and type/lint checks pass. Actual fresh-submit UI now says “Starting your
+ideas,” then “Checking the article ideas,” not the prior failure's heading.
+Third same-apex ideas request `93b448ca-95ae-49fb-8024-0f6435c4d6aa` started
+2026-09-07T00:53:45.290761Z; useful output acceptance follows. Two earlier failures
+remain recorded. No source blacklist manager, podcast ingestion or more adapters
+are in scope. Stable explanations need no forced citation count or study hook.
+
 ### D30 v2.1 live; E10 official-source retrieval correction ready locally
 
 API hotfix `f6de880f7b8f03b3b6d6181ae083f68a6e5b7553` is **live**, deployment

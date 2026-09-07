@@ -116,6 +116,17 @@ export function demandRunnerFailure(error: unknown) {
     ? code : code.startsWith("provider_") ? "provider_invalid" : "worker_interrupted";
 }
 
+/** Display-only projection for the database's trimmed columns. The approved
+ * brief and its exact checker/provider snapshots must remain unchanged. */
+export function demandIdeaDisplay(idea: Pick<OnDemandIdea, "headline" | "deck">) {
+  const title = idea.headline.trim();
+  const deck = idea.deck.trim();
+  if (!title || title.length > 180 || !deck || deck.length > 500) {
+    throw new Error("provider_invalid");
+  }
+  return { title, deck };
+}
+
 async function lockRequest(tx: DemandTransaction, id: string) {
   const [identity] = await tx.select({ principalId: demandRequests.principalId }).from(demandRequests).where(eq(demandRequests.id, id)).limit(1);
   if (!identity) return null;
@@ -176,7 +187,7 @@ async function finish(tx: DemandTransaction, request: DemandRequestRow, state: R
       const id = demandArtifactId(`${request.id}:idea:${idea.key}`);
       if (idea.loopId !== loop.id || idea.loopRevision !== loop.revision) throw new Error("loop_changed");
       return { id, principalId: request.principalId, loopId: loop.id, batchRequestId: request.id,
-        batchRevision: loop.revision, rank: index + 1, title: idea.headline, deck: idea.deck,
+        batchRevision: loop.revision, rank: index + 1, ...demandIdeaDisplay(idea),
         brief: { ...idea, id }, evidence: state.evidence as unknown as Record<string, unknown> };
     });
     await tx.insert(demandIdeas).values(rows);
