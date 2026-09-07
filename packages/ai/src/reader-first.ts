@@ -54,7 +54,6 @@ export class ReaderFirstDraftValidationError extends Error {
 }
 
 const none = { mode: "none" as const, reason: "Independent checking uses the final retained evidence", maxCalls: 0 };
-const emptyEvidence: OnDemandEvidence = { sources: [], passages: [] };
 function invalid(message: string): never { throw new Error(message); }
 function unique(values: string[], name: string) { if (new Set(values).size !== values.length) invalid(`Duplicate ${name}`); }
 function stable(value: unknown): string {
@@ -124,10 +123,24 @@ export function assertReaderFirstPreviousMessages(messages: unknown, evidence: O
     }
   }
 }
-function discovery(research: ReaderFirstResearch, response: OnDemandProviderResponse, evidence: OnDemandEvidence) {
+function normalizedResearchHints(research: ReaderFirstResearch): ReaderFirstResearch {
+  // Publication dates come from independently retained metadata, never these
+  // model discovery hints. Preserve the raw billed response and supplied
+  // evidence; only this parsed generation result receives unknown dates.
+  const normalized = structuredClone(research);
+  normalized.sources = normalized.sources.map((source) => ({ ...source, publishedDate: null, datePrecision: "unknown" }));
+  return normalized;
+}
+function discoveryStructure(research: ReaderFirstResearch) {
   assertOnDemandEvidence({ sources: research.sources, passages: research.passages.map((passage) => ({ ...passage, provenance: "model_reported", retrievedAt: null })) });
+}
+function actualDiscoveryUrls(response: OnDemandProviderResponse) {
   const provenance = response.researchProvenance;
-  const urls = new Set([...(provenance?.consultedUrls ?? []), ...(provenance?.openedUrls ?? []), ...(provenance?.citedUrls ?? [])]);
+  return new Set([...(provenance?.consultedUrls ?? []), ...(provenance?.openedUrls ?? []), ...(provenance?.citedUrls ?? [])]);
+}
+function discovery(research: ReaderFirstResearch, response: OnDemandProviderResponse, evidence: OnDemandEvidence) {
+  discoveryStructure(research);
+  const urls = actualDiscoveryUrls(response);
   for (const source of research.sources) {
     const prior = evidence.sources.find((candidate) => candidate.id === source.id);
     if (prior && prior.url !== source.url) invalid("Research source ID changed its URL");
@@ -173,9 +186,21 @@ export function generateReaderFirstIdeas(context: OnDemandContext, options: Read
   return stage("ideas", { context, requestedCount }, readerFirstResearchOutputSchema, options, (output, response) => {
     unique(output.ideas.map((idea) => idea.key), "idea key");
     if (output.ideas.length > requestedCount || (!output.ideas.length && !output.insufficiencyReason)) invalid("Invalid idea count or unavailable reason");
-    discovery(output, response, emptyEvidence);
+    const normalized = normalizedResearchHints(output);
+    output.sources = normalized.sources; output.passages = normalized.passages;
+    // Malformed relationships remain invalid even if their source would later
+    // be excluded: quarantine must not hide invented IDs or duplicate keys.
+    discoveryStructure(output);
     const ids = new Set(output.passages.map((passage) => passage.id));
     for (const idea of output.ideas) { unique(idea.passageIds, "idea passage"); if (idea.passageIds.some((id) => !ids.has(id))) invalid("Unknown discovery passage"); }
+    const consulted = actualDiscoveryUrls(response);
+    const unsupportedSources = new Set(output.sources.filter((source) => !consulted.has(source.url)).map((source) => source.id));
+    const unsupportedPassages = new Set(output.passages.filter((passage) => unsupportedSources.has(passage.sourceId)).map((passage) => passage.id));
+    const before = output.ideas.length;
+    output.sources = output.sources.filter((source) => !unsupportedSources.has(source.id));
+    output.passages = output.passages.filter((passage) => !unsupportedSources.has(passage.sourceId));
+    output.ideas = output.ideas.filter((idea) => !idea.passageIds.some((id) => unsupportedPassages.has(id)));
+    if (before > 0 && output.ideas.length === 0) output.insufficiencyReason = "Every proposed idea depended on a source absent from the actual research provenance.";
   });
 }
 export async function checkReaderFirstIdeas(input: { context: OnDemandContext; research: ReaderFirstResearchOutput; evidence: OnDemandEvidence; batchId: string }, options: ReaderFirstStageOptions) {
@@ -198,6 +223,7 @@ export async function checkReaderFirstIdeas(input: { context: OnDemandContext; r
 async function writer(name: "write" | "repair", input: ReaderFirstSelection & Record<string, unknown>, options: ReaderFirstStageOptions): Promise<ReaderFirstStageResult<ReaderFirstWriterOutput>> {
   selection(input);
   const result = await stage(name, input, readerFirstWriterProviderSchema, options, (output, response) => {
+    output.research = normalizedResearchHints(output.research);
     discovery(output.research, response, input.evidence);
     if ((output.status === "written") !== Boolean(output.article) || (output.status === "written" ? output.reason !== null : !output.reason)) invalid("Inconsistent article availability");
     if (output.article) materialize(output.article.sourceKeys, output.article.body, output.research, input.evidence);
@@ -334,6 +360,7 @@ export function repairReaderFirstArticle(input: ReaderFirstSelection & { draft: 
 async function answerStage(name: "answer" | "answer_repair", input: ReaderFirstQuestion & Record<string, unknown>, options: ReaderFirstStageOptions): Promise<ReaderFirstStageResult<ReaderFirstAnswerOutput>> {
   question(input);
   const result = await stage(name, input, readerFirstAnswerProviderSchema, options, (output, response) => {
+    output.research = normalizedResearchHints(output.research);
     discovery(output.research, response, input.evidence);
     if (output.status === "answered" ? !output.body.length || output.reason !== null : !output.reason) invalid("Inconsistent answer availability");
     materialize(output.sourceKeys, output.body, output.research, input.evidence);

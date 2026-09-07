@@ -1,6 +1,18 @@
 # Edison deployment
 
-## Current release authorization — September 5, 2026
+## Current release — D29/D30 direct apex, September 6, 2026
+
+The reader-first app is live on `edisonreader.com` and retained
+`project-qlqve.vercel.app`; API remains `project-fjr95.vercel.app/v1`. Both are
+source `b2a5af2`, with demand enabled and the authorized article allowance8.
+Michael explicitly selected direct-apex development/testing; no private staging
+or pre-routing writing-acceptance hold remains. The first actual ideas response
+failed safely at discovery validation; a bounded v2.1 correction is being verified.
+Use [the current execution record](ON_DEMAND_RELEASE_2026-09-06.md) for exact
+deployment IDs, checks and unfinished real reading acceptance. Preserve historical
+usage/data and existing security/dollar limits; do not repeat setup below.
+
+## Historical release authorization — September 5, 2026
 
 The approved Pulse + loops release and subsequent owner-requested apex cutover
 are complete. Live web is `https://edisonreader.com`, with

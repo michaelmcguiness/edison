@@ -1,10 +1,63 @@
 # On-demand release execution — September 6, 2026
 
-Owner: CTO. Scope: D26 on-demand reading, protected real-output calibration,
-connected/browser acceptance, then the authorized existing apex rollout.
-This is an execution record, not a claim that the new experience is live.
+Owner: CTO. Scope: D28 reader-first reading and D29/D30 direct-apex operation.
+The app is live; useful real-output acceptance is a separate unfinished check.
 
-## D29/D30 — direct apex execution authorized; deployment underway
+## D30 live on the existing apex — first request correction
+
+At exact source `b2a5af2d1fdc11ad24e553498a30acc3fd3a1c9c`, both authorized
+Production deployments are Ready and promoted:
+
+- Web `dpl_69HsrL1T7LM8QadJDQg3c6cufZwa`, unique host
+  `edison-1o98nnz5q-mike-michaelmcguis-projects.vercel.app`; apex and retained
+  `project-qlqve.vercel.app` return200 with CSP; www redirects308 to apex.
+- API `dpl_D3Rvc3e9k4mbDweCmsMU4jxq4eYS`, unique host
+  `edison-ojlo5uc8f-mike-michaelmcguis-projects.vercel.app`; existing public
+  `project-fjr95.vercel.app/v1` connector. Ready with 13steps/3workflows.
+  All three original cron schedules now use this same demand-enabled API;
+  enabledAt1788629148557 and disabledAt=null remain unchanged. No cron recovery
+  to the older demand-disabled deployment is appropriate after D30.
+- API health/configuration/database/auth pass; unauthenticated me/workspace and
+  all cron requests401; apex preflight204 with exact origin; unapproved origin403.
+  Web preflight0warnings; API's existing implicit TLS-mode warning is unchanged.
+- [CI 34068971798](https://github.com/michaelmcguiness/edison/actions/runs/34068971798)
+  passed application/database gates. 618 local tests (450web/168API), standalone
+  typechecks and focused lint passed. No secrets were exported or changed.
+
+The ordinary apex guest created loop `a766e8bd-8dca-471a-a622-1d3705c85be3` for
+“Synthetic biology, especially medicine. I know the basics of DNA.” Request
+`94e80796-4024-436f-bedf-03a1cd39d27b` at 2026-09-07T00:16:28.890997Z failed
+`provider_invalid`. One provider stage succeeded and is retained: valid structured
+JSON, $0.015184/15184microUSD, input14034/output1981, one priced search/tool action.
+The first actual failure is post-provider discovery validation, not missing API
+credits, an output-token limit, or a failed transport. Source s1 had year precision
+with a full date; s7 declared an HTML URL where actual provenance contains only
+the PDF. No HTML/PDF equivalence is inferred. No idea/article was published.
+
+Private bounded capture: `/private/tmp/edison-calibration-capture.8sHKXS`;
+actual rendered failure: `/private/tmp/edison-live-d30.YMyC4B/ideas-withheld.png`.
+Raw billed output, historical failure/usage and prior private guest remain intact.
+
+**Locally implemented v2.1 correction:** clone/normalize only model discovery date
+hints to null/unknown. Ideas alone quarantine unconsulted sources, their passages,
+and each whole dependent idea; structural ID/duplicate/reference guards run first.
+Article/Ask retain strict provenance; independently retrieved metadata, historical
+evidence/timestamps and prose dates are not rewritten. Exact tool-URL copying and
+unknown discovery dates are explicit in v2.1 prompts. No new retry, model, quota,
+reservation or dollar-limit change. Exact saved-response offline replay through
+generation and initial pipeline advance retains original ideas1–3/s1–s6, removes
+idea4/s7, reaches retrieval, and leaves the raw envelope unchanged; zero new network
+or provider calls. Injected integration covers actual retrieval then independent
+checking; it is not factual/prose acceptance. Hotfix verification/deployment and
+the same-session bounded useful sample follow.
+
+Final local hotfix checks: all626tests (458web/168API), both standalone typechecks,
+focused lint and diff checks pass. Independent bounded review found no actionable
+regression; it separately ran23discovery/pipeline tests. Frozen v1 plus focused
+reader-first tests112/112 pass. No schema/framework/UI change is in this hotfix;
+deploy the API only, retaining the verified b2a5af2 web and existing public connector.
+
+## D29/D30 — direct apex execution authorization and configuration
 
 Michael's direct CTO instruction is to operate everything on edisonreader.com,
 accepting temporary breakage because there are no users. It supersedes the private

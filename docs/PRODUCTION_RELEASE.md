@@ -6,7 +6,15 @@ launching; they can change without a code release.
 
 ## Decision and current status
 
-**Latest release:** the authorized Pulse + loops v5 is deployed to the separate
+**Latest release, September 6:** D29/D30 reader-first is live on the existing apex
+and retained web/API hosts at source `b2a5af2`. Michael selected direct production
+testing and doubled the article allowance to8; existing security/dollar limits
+remain. First ideas output was withheld at source-discovery validation; a bounded
+v2.1 fix and actual useful reading/Ask acceptance are underway. See the controlling
+[on-demand execution record](ON_DEMAND_RELEASE_2026-09-06.md). No new setup,
+migration, invitation, secret entry or staging environment is needed.
+
+**Historical September 5 release:** the authorized Pulse + loops v5 is deployed to the separate
 Production web/API projects (web `a08c6a1`, API `a681331`). The subsequently
 authorized apex cutover is complete: `https://edisonreader.com` and retained
 `https://project-qlqve.vercel.app` serve the same live web deployment; www

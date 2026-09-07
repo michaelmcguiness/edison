@@ -116,6 +116,39 @@ test("a current premise without required evidence is withheld even when the auth
   assert.equal(result.failureCode, "evidence_unavailable");
 });
 
+test("mixed discovery metadata preserves only consulted ideas through retrieval and independent checking", async () => {
+  const unconsulted = { ...source, id: "s2", url: "https://example.org/new-study" };
+  const output = { sources: [{ ...source, datePrecision: "year", publishedDate: "2026-09-07" }, unconsulted],
+    passages: [...research.passages, { id: "lead2", sourceId: "s2", text: support, locator: "Unverified model lead" }],
+    ideas: [{ ...candidate, passageIds: ["lead1"] }, { ...candidate, key: "unsupported", passageIds: ["lead1", "lead2"] }],
+    insufficiencyReason: null };
+  const before = structuredClone(output);
+  const calls: OnDemandProviderRequest[] = [];
+  const base = fake((call) => {
+    if (call.stage === "ideas") return output;
+    assert.equal(call.stage, "ideas_check");
+    const input = call.input as { fingerprint: string; research: { ideas: typeof output.ideas }; evidence: OnDemandEvidence };
+    assert.deepEqual(input.research.ideas.map((entry) => entry.key), [candidate.key]);
+    assert.ok(input.evidence.passages.length > 0);
+    assert.ok(input.evidence.passages.every((entry) => entry.provenance === "retrieved" && entry.sourceId === "s1"));
+    return { fingerprint: input.fingerprint, ideas: [{ key: candidate.key, verdict: "pass", premiseSupported: true,
+      verificationRequired: true, verificationPassed: true, fitsLoop: true, distinctContribution: true,
+      passageIds: input.evidence.passages.map((entry) => entry.id), reason: "Injected verdict over actually retrieved fixture text." }] };
+  }, calls);
+  const provider: OnDemandProvider = async (call) => ({ ...await base(call), researchProvenance: {
+    consultedUrls: [source.url, `${unconsulted.url}.pdf`], openedUrls: [], citedUrls: [],
+  } });
+  const fetched: string[] = [];
+  const result = await run(row("ideas"), provider, async (url) => { fetched.push(url); return retrieve(url); });
+  assert.equal(result.outcome, "ideas");
+  assert.deepEqual(result.phases, ["ideas", "retrieve", "ideas_check"]);
+  assert.deepEqual(fetched, [source.url]);
+  assert.deepEqual(result.state.ideas?.map((entry) => entry.key), [candidate.key]);
+  assert.equal(result.state.evidence?.sources[0].publishedDate, null);
+  assert.equal(result.state.evidence?.sources[0].datePrecision, "unknown");
+  assert.deepEqual(output, before);
+});
+
 test("researched prose is compiled from actual retrieval, including safe canonical redirects", async () => {
   const result = await run(row("article"), fake((call) => call.stage === "write" ? rawArticle(true) : checked(call)),
     async (url) => ({ ...await retrieve(url), url: "https://example.org/canonical-control" }));

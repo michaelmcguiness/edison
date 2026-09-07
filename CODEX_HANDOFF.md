@@ -15,6 +15,31 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
+### D30 live checkpoint and v2.1 discovery correction
+
+The requested direct-apex release is **live** at `edisonreader.com`: web
+`dpl_69HsrL1T7LM8QadJDQg3c6cufZwa`, API
+`dpl_D3Rvc3e9k4mbDweCmsMU4jxq4eYS`, both source `b2a5af2d1fdc11ad24e553498a30acc3fd3a1c9c`.
+[CI 34068971798](https://github.com/michaelmcguiness/edison/actions/runs/34068971798)
+passed application/database gates; 618 local tests and both typechecks passed.
+Public API stays at `project-fjr95.vercel.app/v1`; all three existing cron hosts
+point to this same demand-enabled API. Apex/retained web 200, www308, health,
+exact-origin CORS, unauthorized API/cron denial and normal apex workspace/loop
+creation are verified. This supersedes older private-alias instructions below.
+
+First real apex ideas request `94e80796-4024-436f-bedf-03a1cd39d27b` failed safely
+after one completed provider stage ($0.015184): inconsistent model publication-date
+hints and one declared HTML URL absent from actual tool provenance (PDF only).
+Nothing was published. The historical failed request, raw output and charge remain.
+The bounded v2.1 correction is implemented locally: ignore untrusted discovery-date
+hints, exclude unknown-provenance sources and whole dependent ideas from idea
+discovery only, keep article/Ask provenance strict and preserve independent checks.
+Exact saved-response offline replay retains the original first three ideas and
+advances to retrieval without modifying raw history or making a provider call.
+New hotfix deployment and useful article/Ask/adaptation/return acceptance follow;
+see the current on-demand release record. Do not reset usage or create another
+principal; continue the ordinary same apex session within existing limits.
+
 ### D29/D30 — deploy and test directly on edisonreader.com, eight articles
 
 Michael directly instructed CTO: “Let’s just operate everything on edisonreader.com
