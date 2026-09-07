@@ -244,7 +244,11 @@ export async function advanceReaderFirstPipeline(
     };
     if (request.kind === "ideas") {
       if (state.phase === "ideas") {
-        const result = await generateReaderFirstIdeas(context, options);
+        // Pre-D33 snapshots commissioned four; preserve their exact cached stage
+        // on retry even if admission raced the deployment of the new default.
+        const requestedCount = request.snapshot.requestedCount === undefined ? 4 : request.snapshot.requestedCount;
+        if (typeof requestedCount !== "number") stop("pipeline_snapshot_invalid");
+        const result = await generateReaderFirstIdeas(context, options, requestedCount);
         state = { ...state, research: result.output, evidence: { sources: [], passages: [] } };
         if (!result.output.ideas.length) return fail(state, "evidence_unavailable");
         return { state: prepareAcquisition(state, { sources: result.output.sources, passages: result.output.passages }, result, "ideas_check", context, request) };

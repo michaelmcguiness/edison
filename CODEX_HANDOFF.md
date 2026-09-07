@@ -15,6 +15,17 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
+### Prepared — D33 six titles in each new loop batch
+
+Michael selected six titles per normal first/new ideas batch. The candidate pins
+six in new request snapshots and preserves four for historical snapshots/retries;
+existing accepted lists remain unchanged and bodies are still written only on
+selection. All 707 local tests, both typechecks and owned lint/diff checks pass;
+independent review passed 24 focused tests and verified both admission sites.
+Exact-source CI and API-only deployment are next. No paid sample, new UI,
+prompt-version/model change, quota or budget increase; D32's $10 daily cap remains.
+See [the execution record](docs/ON_DEMAND_RELEASE_2026-09-06.md).
+
 ### September 7 — D32 $10 daily Edison ceiling live
 
 Michael authorized a $10 daily API ceiling while reliability is being completed,

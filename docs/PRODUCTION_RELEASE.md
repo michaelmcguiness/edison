@@ -6,6 +6,12 @@ launching; they can change without a code release.
 
 ## Decision and current status
 
+**Prepared — D33 six titles per new batch:** three runtime files pin six for new
+requests and preserve historical four-count retries; semantic gates/actual count
+and bodies-on-selection remain. All 707 local tests, types, lint and independent
+24-test review pass. Exact-source CI/API-only rollout are pending; D32 remains
+live below. No paid sample, model, UI, quota or budget change.
+
 **Current — D32 configuration live, September 7:** API source remains `0b7611f`
 (v2.5), rebuilt as `dpl_G7KPS1UV5VitkgA2fcHSDj24Bos9`, Ready at 11:58:43 UTC.
 Only the Edison-wide rolling-24-hour admission ceiling changed from default $4

@@ -1,5 +1,13 @@
 # Edison deployment
 
+## Prepared — D33 six titles per batch
+
+The pending API-only candidate requests six briefs for newly admitted first/fresh
+ideas batches while keeping historical four-count retries intact. It does not
+pad rejected titles or generate bodies early. All 707 local tests, both typechecks,
+owned lint and independent 24-test review pass. Exact-source CI/deployment remain;
+no paid test batch or additional configuration change. D32 below remains live.
+
 ## Latest configuration rollout — D32, September 7, 2026
 
 Only API Production `EDISON_DEMAND_DAILY_MICROUSD=10000000` was added, raising

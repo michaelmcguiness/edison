@@ -213,7 +213,7 @@ export async function createDemandLoop(principal: DemandPrincipal, input: { curi
     }).returning();
     const context = await assembleDemandContext(tx, loop);
     return reserveRequest(tx, { principalId: principal.id, loopId: id, kind: "ideas", idempotencyKey: input.idempotencyKey,
-      requestFingerprint: fingerprint, snapshot: { version: 2, context, principleState: loop.principles } });
+      requestFingerprint: fingerprint, snapshot: { version: 2, context, principleState: loop.principles, requestedCount: 6 } });
   });
 }
 
@@ -232,7 +232,7 @@ export async function requestDemandIdeas(principal: DemandPrincipal, loopId: str
     // second paid batch once that pending request becomes terminal.
     rejectDistinctPendingIdeasRequest(pending, loop.revision);
     return reserveRequest(tx, { principalId: principal.id, loopId, kind: "ideas", idempotencyKey: input.idempotencyKey,
-      requestFingerprint: fingerprint, snapshot: { version: 2, context: await assembleDemandContext(tx, loop), principleState: loop.principles } });
+      requestFingerprint: fingerprint, snapshot: { version: 2, context: await assembleDemandContext(tx, loop), principleState: loop.principles, requestedCount: 6 } });
   });
 }
 

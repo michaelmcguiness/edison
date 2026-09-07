@@ -180,7 +180,7 @@ function materialize(keys: string[], body: RawBlock, research: ReaderFirstResear
   }) };
 }
 
-export function generateReaderFirstIdeas(context: OnDemandContext, options: ReaderFirstStageOptions, requestedCount = 4) {
+export function generateReaderFirstIdeas(context: OnDemandContext, options: ReaderFirstStageOptions, requestedCount = 6) {
   onDemandContextSchema.parse(context);
   if (!Number.isInteger(requestedCount) || requestedCount < 1 || requestedCount > 6) invalid("Idea count must be 1–6");
   return stage("ideas", { context, requestedCount }, readerFirstResearchOutputSchema, options, (output, response) => {

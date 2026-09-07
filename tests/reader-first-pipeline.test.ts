@@ -108,6 +108,60 @@ test("stable ideas have no required search or excerpt IDs but receive independen
   assert.deepEqual(result.state.ideas?.[0].passageIds, []);
 });
 
+test("first and subsequent loop batches request six briefs and publish only the accepted subset without writing bodies", async () => {
+  const candidates = Array.from({ length: 6 }, (_, index) => ({
+    ...candidate, key: `control-${index + 1}`, headline: `Constructed feedback question ${index + 1}?`,
+  }));
+  for (const revision of [1, 2]) {
+    const request = row("ideas", { context: { ...context, revision }, requestedCount: 6 });
+    const calls: OnDemandProviderRequest[] = [];
+    const result = await run(request, fake((call) => {
+      if (call.stage === "ideas") {
+        assert.equal((call.input as { requestedCount: number }).requestedCount, 6);
+        return { ...empty, ideas: candidates, insufficiencyReason: null };
+      }
+      assert.equal(call.stage, "ideas_check");
+      const input = call.input as { fingerprint: string; research: { ideas: typeof candidates } };
+      assert.equal(input.research.ideas.length, 6);
+      return { fingerprint: input.fingerprint, ideas: candidates.map((entry, index) => ({
+        key: entry.key, verdict: "pass", premiseSupported: true, verificationRequired: false,
+        verificationPassed: true, fitsLoop: index !== 1, distinctContribution: index !== 4,
+        passageIds: [], reason: "Constructed acceptance flags, not a real quality judgment.",
+      })) };
+    }, calls, false), async () => { throw new Error("Unexpected retrieval for constructed stable briefs"); });
+    assert.equal(result.outcome, "ideas");
+    assert.deepEqual(calls.map((call) => call.stage), ["ideas", "ideas_check"]);
+    assert.deepEqual(result.state.ideas?.map((entry) => entry.key), ["control-1", "control-3", "control-4", "control-6"]);
+    assert.equal(result.state.research?.ideas.length, 6, "Retain the original proposed batch");
+    assert.equal(result.state.draft, undefined, "No full articles are commissioned for an ideas batch");
+    assert.ok(result.state.ideas?.every((entry) => entry.loopRevision === revision));
+  }
+});
+
+test("old snapshots keep their four-title request while invalid explicit counts stop before provider dispatch", async () => {
+  const calls: OnDemandProviderRequest[] = [];
+  const result = await run(row("ideas"), fake((call) => {
+    if (call.stage === "ideas") {
+      assert.equal((call.input as { requestedCount: number }).requestedCount, 4);
+      return { ...empty, ideas: [candidate], insufficiencyReason: null };
+    }
+    return { fingerprint: (call.input as { fingerprint: string }).fingerprint, ideas: [{
+      key: candidate.key, verdict: "pass", premiseSupported: true, verificationRequired: false,
+      verificationPassed: true, fitsLoop: true, distinctContribution: true, passageIds: [],
+      reason: "A constructed historical brief remains usable without a new count.",
+    }] };
+  }, calls, false));
+  assert.equal(result.outcome, "ideas");
+  assert.equal(result.state.ideas?.length, 1);
+  for (const requestedCount of [null, "6", 0, 7, 1.5, NaN, Infinity]) {
+    const invalidCalls: OnDemandProviderRequest[] = [];
+    const rejected = await run(row("ideas", { requestedCount }), fake(() => ({}), invalidCalls, false));
+    assert.ok(rejected.failureCode);
+    assert.equal(rejected.outcome, undefined);
+    assert.equal(invalidCalls.length, 0, "An explicit malformed count is not coerced into an old or new batch");
+  }
+});
+
 test("a current premise without required evidence is withheld even when the author offers it", async () => {
   const result = await run(row("ideas"), fake((call) => call.stage === "ideas"
     ? { ...empty, ideas: [candidate], insufficiencyReason: null }

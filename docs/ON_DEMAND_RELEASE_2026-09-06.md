@@ -3,6 +3,39 @@
 Owner: CTO. Scope: D28 reader-first reading and D29/D30 direct-apex operation.
 The app is live; useful real-output acceptance is a separate unfinished check.
 
+## Prepared — D33 six titles per normal ideas batch
+
+Owner: CTO, September 7. Michael explicitly selected six titles at a time for a
+loop. The bounded implementation changes the active reader-first generation
+default from four to six; the existing schema maximum is already six. Both
+first-loop and fresh-batch admission snapshots now explicitly pin six. Semantic acceptance stays in
+place, publication stores only the actual accepted list, and the web renders that
+list without a four-card cap or padding. Full bodies still generate only when
+the reader opens an idea. No UI, model, prompt wording/version, quota, reservation
+or configuration change; six titles per batch is separate from six batches/day.
+
+The requested count is already frozen into the durable provider-stage fingerprint.
+An old interrupted count-four stage must not be reinterpreted as six: the new
+pipeline explicitly keeps four when the saved snapshot has no count field. New
+snapshots use their pinned six; explicitly malformed values fail before dispatch.
+This closes forward retry continuity even if an old admission races deployment;
+an empty precheck alone is not an admission fence. Exact four-count cached stages
+replay without another call, while attempted six-count substitution still fails
+closed. Completed historical batches and later checking/retrieval phases use
+their saved candidates unchanged. A rollback to code that ignores the new pinned
+field would still need compatible quiescence.
+
+The scoped initial aggregate found no active or safe-transport-retryable ideas
+requests. All 707 local tests, both standalone typechecks and owned lint/diff
+checks pass. The 77 focused count/pipeline/stage/retry/admission/limit checks pass,
+including six requested briefs with only four accepted and no article-body
+commissioning. These use constructed outputs/injected judgments, not live model
+quality. Independent review passed 24 focused tests and a read-only syntax-tree
+check of both actual admission sites, closing the forward-retry finding. This is
+prepared, not yet live; exact-source CI and predeploy checks must pass first.
+No paid batch is needed to
+prove the requested count, and no real-provider six-title quality claim follows.
+
 ## Latest — D32 $10 daily admission ceiling live
 
 Owner: CTO, September 7. Michael explicitly raised the daily API spending ceiling
