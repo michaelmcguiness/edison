@@ -4,6 +4,74 @@ Owner: CTO. Scope: D26 on-demand reading, protected real-output calibration,
 connected/browser acceptance, then the authorized existing apex rollout.
 This is an execution record, not a claim that the new experience is live.
 
+## D29/D30 — direct apex execution authorized; deployment underway
+
+Michael's direct CTO instruction is to operate everything on edisonreader.com,
+accepting temporary breakage because there are no users. It supersedes the private
+alias/routing hold and pre-routing value-acceptance sequence below. CoS separately
+verified his explicit instruction to double the article allowance. Apply both:
+deploy on the existing apex and use the ordinary apex session/account for the
+bounded real sample; preserve old private guest records, usage and all other
+limits/dollar ceilings. No credential transfer, repeated new principals to evade
+limits, new services, migration, invitation or additional domain is included.
+
+The smallest code correction raises `demandLimits` article default/maximum4→8
+and adds five regression tests for defaults, allowed1–8, rejection above8/invalid,
+unchanged other caps/reservations and runtime readiness. Configuration hash:
+`be103e6e95fdecab5ddded097fff2762682133da6e9fa751914edb82645c286c`;
+test hash `237931207ac1040cacb067ed603287cd2ad0f4d1aaf3421b9e5b22543319221a`.
+Specialist focused12tests/types/lint pass. Stored Production changes completed:
+API/web `EDISON_ON_DEMAND_ENABLED=true`, API `OPENAI_MAX_DAILY_GENERATIONS=8`,
+web `NEXT_PUBLIC_API_URL=https://project-fjr95.vercel.app/v1`. No private connector
+opt-in exists in stored web config. Secret values were neither read nor changed.
+Final code checks/commit and explicit Production builds follow; subsequent live
+verification will cover intended apex/API targets and demand-enabled cron binding.
+
+## Latest D28 protected deployment checkpoint — test-address update blocked
+
+Exact `4dc146342ce868dd2c5f2220128c41663328afde` is committed/pushed; final
+[CI 34068194442](https://github.com/michaelmcguiness/edison/actions/runs/34068194442)
+passed both application (2m19s) and database (2m38s) jobs. The latter actually ran
+v2 provider allocation/accounting/replay, migrations/pgTAP, publication/correction
+replay and schema lint. All three Vercel Git contexts also passed.
+
+The isolated clean 433-file candidate was explicitly deployed in existing projects
+with Production identity and `--skip-domain` (not public promotion):
+
+- API `dpl_C2Ac5CbB5AkjN4Y35UXeLkNhDyEJ`,
+  `https://edison-13m598oa5-mike-michaelmcguis-projects.vercel.app`.
+  Ready, exact SHA verified; on-demand=true supplied at runtime/build. Hosted build
+  registered 13 steps/three workflows. Existing TLS-mode preflight warning remains;
+  credentials were not exported or printed.
+- Web `dpl_QhTv1f6GoNhVBjVyau89ENJxWBFh`,
+  `https://edison-bkojwii2d-mike-michaelmcguis-projects.vercel.app`.
+  Ready, exact SHA verified; runtime/build API URL pinned to the above `/v1`,
+  with the reviewed protected connector and on-demand enabled. Web hosted
+  preflight passed with zero warnings and no server-only credentials.
+- Immediate cron recovery `dpl_EReEs8C2Qbnmn2HvPun6sQ9y8ca4`,
+  `https://edison-fpcshmpxm-mike-michaelmcguis-projects.vercel.app`, is Ready at
+  exact old `a681331673b416d1267cd27a263222399b5285f1`, supplied demand=false at
+  runtime/build (10 steps/two workflows). Fresh project read-back verifies all
+  three original schedules on this host, enabledAt1788629148557, disabledAt=null.
+  Public API target remains `dpl_JCoE2yh9oxwA56wcjJu1JULq4hC6`; public web remains
+  `dpl_3pzB3bKXiX7qFUVpits8QxP3CFpt`. Production-only trust and Standard Protection
+  remain unchanged. No manual cron invocation, migration or paid request occurred.
+
+The existing protected calibration alias update was **rejected by automatic
+approval review** as a domain/routing mutation conflicting with the older explicit
+stop-before-domain-changes instruction. Read-only checks of D22/D27/D28 and later
+direct deployment authority supported one same-command re-review; it too was
+rejected as not explicit enough for this exact alias. Neither command executed.
+No alternate API/UI route, new guest/origin or credential transfer was attempted.
+The stable alias remains on c600d939/v1.6, and tab62 was only inspected before any
+new deployment navigation. No D28 screenshot or connected/rendered acceptance is
+claimed. Michael must explicitly approve pointing only
+`edison-calibration-mike-michaelmcguis-projects.vercel.app` to the new web; no public
+domain changes are included in that request. After approval, allow about10–15min
+for same-session browser/history/profile/recovery checks and permitted screenshots
+if no runtime error appears. Real useful reading/Ask/return still requires the
+authorized same-guest sample after normal quota eligibility; no automatic run.
+
 ## D28 reader-first implementation — locally integrated, protected release pending
 
 Michael's D28 approval supersedes the older v1.7 assessment/hosted-work hold below.

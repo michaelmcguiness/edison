@@ -15,6 +15,52 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
+### D29/D30 — deploy and test directly on edisonreader.com, eight articles
+
+Michael directly instructed CTO: “Let’s just operate everything on edisonreader.com
+- we have no users there right now so it’s fine if we break stuff there for the
+time being.” This supersedes the private-alias approval hold and requiring real
+value acceptance before routing the new app to the existing apex. Deploy and test
+there now; no separate staging or repeat generic approval. Keep existing data,
+security, paid services and dollar ceilings; do not mislabel unverified writing
+quality as production readiness. Existing private guest records stay intact;
+use the ordinary authorized apex session/account flow without credential transfer
+or repeated new principals to evade limits.
+
+Michael separately instructed CoS: “Double the article allowance to get this up
+and running.” The on-demand per-reader rolling article default and hard maximum
+are now 8 (previously 4), with five boundary regressions. Stored Production API
+`OPENAI_MAX_DAILY_GENERATIONS` is 8; other limits/reservations are unchanged. Both
+web/API Production on-demand flags are now true and the web uses the existing
+public `https://project-fjr95.vercel.app/v1` connector. These configuration writes
+are complete; the corrected public deployments and runtime verification follow.
+Do not redeploy another private pair or restore old demand-disabled cron behavior
+after the authorized public release. Actual writing/Ask/adaptation remain to test.
+
+### Latest D28 execution checkpoint — protected builds ready, test-address approval blocked
+
+Exact `4dc146342ce868dd2c5f2220128c41663328afde` is committed/pushed and green in
+[CI 34068194442](https://github.com/michaelmcguiness/edison/actions/runs/34068194442):
+application/database jobs, actual v2 provider accounting/replay, pgTAP and strict
+schema lint pass. All three Vercel source-linked contexts pass. The permitted
+existing-project protected API `dpl_C2Ac5CbB5AkjN4Y35UXeLkNhDyEJ` and web
+`dpl_QhTv1f6GoNhVBjVyau89ENJxWBFh` are Ready at this exact source; web is pinned to
+the exact API. Old a681331 cron recovery `dpl_EReEs8C2Qbnmn2HvPun6sQ9y8ca4` is
+Ready and fresh read-back verifies all three original schedules and unchanged
+public API/web targets. No paid generation or public promotion occurred.
+
+Automatic approval review rejected the existing stable calibration alias update,
+citing the earlier stop-before-domain-changes boundary. A same-command re-review
+after checking D22/D27/D28 and later deployment authority was also rejected as
+insufficiently explicit for this exact routing change. Do not bypass, switch to a
+new guest/origin, transfer credentials, or retry through another tool. The alias
+and existing browser session still serve c600d939/v1.6. Ask Michael explicitly to
+point only `edison-calibration-mike-michaelmcguis-projects.vercel.app` to the new
+protected web; this does not change edisonreader.com. Same-session rendered checks
+and Design screenshots remain unrun on D28. Actual new article/Ask acceptance also
+remains pending the same guest's normal September7 3:14:32PM EDT quota eligibility.
+No automatic run is scheduled. Detailed identities/limits are in the release record.
+
 ### September 6 D28 — reader-first implementation authorized and integrated locally
 
 Michael approved implementation of the assessed reader-first approach and asked
