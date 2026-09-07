@@ -7,7 +7,7 @@ launching; they can change without a code release.
 ## Decision and current status
 
 **Latest release, September 6:** D29/D30 reader-first is live on the existing apex
-and retained web/API hosts (web `6eb811b`, API `c646142`). Michael selected direct production
+and retained web/API hosts (web `6eb811b`, API `029dc18` / prompt v2.3). Michael selected direct production
 testing and doubled the article allowance to8; existing security/dollar limits
 remain. First ideas output was withheld at source-discovery validation; a bounded
 v2.2 official-source retrieval fix is live. One idea was recovered with unchanged
@@ -19,8 +19,11 @@ and history. Its sole repair and final check completed; the revised article
 remained withheld for missing explanatory payoff despite passing factual and
 verification flags. Useful reading/Ask, preference adaptation and saved-reading
 return remain unverified. Further paid sampling stopped. A bounded future v2.3
-prompt refinement is prepared with 680 local tests, both typechecks and owned
-lint passing, but is not deployed or proven to improve real output. See the controlling
+prompt refinement is now live after 680 local tests, both typechecks, owned lint
+and exact-source CI's application/database jobs passed. No old queued/running
+work was present before rollout. Health/access checks and retained apex state
+pass; real-output improvement remains unmeasured. No further paid sample or
+quota bypass occurred. See the controlling
 [on-demand execution record](ON_DEMAND_RELEASE_2026-09-06.md). No new setup,
 migration, invitation, secret entry or staging environment is needed.
 

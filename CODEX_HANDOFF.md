@@ -20,10 +20,10 @@ This project is independent and is not affiliated with Perch.
 Michael selected development and testing directly on **https://edisonreader.com**
 (D30). No staging setup or further generic rollout approval is needed. Live web
 source remains `6eb811b51e6fa243654cbdca43cb084a394e3f60`; live API source is
-`c64614276cc96cbdc8b1054d0273feedfcfc123e`, with the existing public API connector,
+`029dc18d7c2759452adffd484677770d25704b38`, with the existing public API connector,
 enabled schedules, security controls, article allowance of eight and dollar caps.
 
-The qualified saved-check recovery passed 670 local tests, both typechecks,
+The prior c646142 qualified saved-check recovery passed 670 local tests, both typechecks,
 focused lint and independent review. Exact-source
 [CI 34074016183](https://github.com/michaelmcguiness/edison/actions/runs/34074016183)
 passed application and disposable-database jobs, including real independent-
@@ -42,7 +42,7 @@ cross-task handoff was blocked by approval review. Shared records use the
 permitted non-sensitive outcome and public source/CI evidence, not an alternate
 route to that blocked packet.
 
-### Next version — v2.3 prepared and locally verified, not live
+### Current version — v2.3 live; semantic improvement unmeasured
 
 CoS supplied the bounded refinement under D28: preserve accurate causal
 explanation while repairing unsupported claims or citation scope, and check what
@@ -64,10 +64,24 @@ The shared prompt version also covers ideas and Ask. Saved v2.2 progress cannot
 resume under v2.3 or qualify for cached-check recovery; changing only a version
 label cannot bypass exact cached snapshots. Queued requests with no progress
 adopt the current version when first started. Historical published reads remain
-compatible. Check in-flight work before a future rollout; do not rewrite old
-progress, grant another repair, reopen terminal requests or manufacture a new
-principal. Live API remains c646142/v2.2. No further paid sampling or v2.3
-deployment occurred in this preparation.
+compatible. The read-only pre-rollout check found no queued or running requests,
+so no older work needed draining. Do not rewrite old progress, grant another
+repair, reopen terminal requests or manufacture a new principal.
+
+[Exact-source CI 34075401770](https://github.com/michaelmcguiness/edison/actions/runs/34075401770)
+passed both application and disposable-database jobs, including the recovery
+admission races. The existing API-only deployment is Ready/Production at exact
+029dc18; public target and all three enabled schedule hosts match. Health reports
+configuration/database/Auth healthy; exact-apex preflight returns 204 and all
+three unauthenticated cron probes return 401. Ordinary apex reload restored the
+same selected-article failure state without reopening it. Web code is unchanged.
+
+No further paid sample was run. The existing test session has no uncommissioned
+checked idea and is at its normal rolling ideas allowance; article quota is not
+the limiting factor. A future ordinary sample needs fresh ideas through normal
+admission. No quota bypass, replacement session or scheduled future sample was
+created. Useful generated reading, Ask, adaptation and saved-reading acceptance
+remain unverified, despite the now-live instruction change.
 
 ### Historical checkpoint — qualified E12 recovery candidate, DB gate pending
 

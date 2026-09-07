@@ -5,13 +5,13 @@ The app is live; useful real-output acceptance is a separate unfinished check.
 
 ## Current completion — direct apex and qualified recovery verified live
 
-Owner: CTO. Live API source is `c64614276cc96cbdc8b1054d0273feedfcfc123e`;
+Owner: CTO. Live API source is `029dc18d7c2759452adffd484677770d25704b38`;
 web remains `6eb811b51e6fa243654cbdca43cb084a394e3f60` at
 **https://edisonreader.com** and its retained host. The existing API connector
 and schedules remain enabled. Deployment identity and public health were checked.
 No staging environment, new service, migration or credential change was needed.
 
-All 670 local tests, both typechecks, focused lint and independent review passed.
+The c646142 recovery release passed all 670 local tests, both typechecks, focused lint and independent review.
 [Exact-source CI 34074016183](https://github.com/michaelmcguiness/edison/actions/runs/34074016183)
 passed both jobs. Its disposable PostgreSQL test exercised actual independent-
 session same-request and fresh-admission daily/monthly budget races, plus
@@ -32,7 +32,7 @@ Only a non-sensitive operational summary was handed to CoS after approval review
 blocked detailed production metadata. These shared records do not forward the
 blocked packet or claim independent CoS inspection of the final article.
 
-### V2.3 preparation complete — not deployed or semantically evaluated
+### V2.3 live — actual semantic improvement still unmeasured
 
 Owner: CTO. CoS's explanation-preserving repair instruction is implemented in
 `packages/ai/src/reader-first-prompts.ts`. Writer/Ask explain what a relevant
@@ -61,11 +61,27 @@ The version bump covers ideas and Ask too. Saved v2.2 progress fails compatibili
 under v2.3 and cannot qualify for cached-check recovery; relabeling it cannot
 replace the exact old stage snapshots. Queued requests with null progress begin
 with the version current at first claim. Published read compatibility remains.
-Before a future rollout, check in-flight work; do not reset or rewrite old work.
-Live remains v2.2 on c646142; no additional paid sample or v2.3 deployment occurred.
-Existing quotas, dollar limits, sole repair and historical results stay unchanged.
-The following sections preserve earlier checkpoints, not current instructions to
-repeat recovery or deployment.
+The read-only pre-rollout check returned no queued/running jobs. No old work was
+reset, relabeled or interrupted. Exact-source
+[CI 34075401770](https://github.com/michaelmcguiness/edison/actions/runs/34075401770)
+passed application and disposable-database jobs, including actual recovery and
+admission races. The existing API-only rollout is Ready/Production at exact
+029dc18. The public project target and all three enabled schedules use it.
+Health/configuration/database/Auth pass; apex CORS returns 204 and all three
+unauthenticated cron probes return 401. Ordinary apex reload restored the same
+selected article and terminal failure; it did not reopen the historical result.
+The web deployment remains unchanged. Production preflight retains only the
+previously documented implicit TLS-mode warning; no secret/configuration change
+was made to silence it.
+
+No additional paid sample followed. Read-only ordinary-admission inspection
+confirmed no uncommissioned checked idea in the existing QA session and its
+normal rolling ideas allowance is used; article quota is not binding. Fresh
+reading evidence therefore needs future ideas through normal admission, not a
+new principal, reset, fourth batch or further repair. No scheduled future sample
+was created. Existing quotas, dollar limits, sole repair and historical results
+stay unchanged. The following sections preserve earlier checkpoints, not current
+instructions to repeat recovery or deployment.
 
 ## Historical checkpoint — saved-check recovery candidate before live verification
 
