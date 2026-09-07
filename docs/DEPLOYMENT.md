@@ -1,12 +1,17 @@
 # Edison deployment
 
-## Prepared — D33 six titles per batch
+## Latest API rollout — D33 six titles per batch
 
-The pending API-only candidate requests six briefs for newly admitted first/fresh
+Live source `7f7c6cf6cbe26e6ab21674617399456fc5e8c906` requests six briefs for newly admitted first/fresh
 ideas batches while keeping historical four-count retries intact. It does not
 pad rejected titles or generate bodies early. All 707 local tests, both typechecks,
-owned lint and independent 24-test review pass. Exact-source CI/deployment remain;
-no paid test batch or additional configuration change. D32 below remains live.
+owned lint and independent 24-test review pass. Exact-source
+[CI 34120463122](https://github.com/michaelmcguiness/edison/actions/runs/34120463122)
+passed both jobs; deployment `dpl_wzmxK43BDM6n1azkR17PYPEge12U` was Ready at
+12:15:38 UTC. Source/public alias/target/schedules, health 200, apex CORS 204 and
+all negative cron 401 checks passed at 12:16:04 UTC. No active work preceded
+rollout. Web remains `6eb811b`; D32's $10 daily/$40 monthly settings are retained
+and reverified. No paid test batch or additional configuration change.
 
 ## Latest configuration rollout — D32, September 7, 2026
 

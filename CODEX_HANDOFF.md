@@ -15,15 +15,22 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
-### Prepared — D33 six titles in each new loop batch
+### September 7 — D33 six titles in each new loop batch live
 
-Michael selected six titles per normal first/new ideas batch. The candidate pins
+Michael selected six titles per normal first/new ideas batch. Live API source
+`7f7c6cf6cbe26e6ab21674617399456fc5e8c906` pins
 six in new request snapshots and preserves four for historical snapshots/retries;
 existing accepted lists remain unchanged and bodies are still written only on
 selection. All 707 local tests, both typechecks and owned lint/diff checks pass;
 independent review passed 24 focused tests and verified both admission sites.
-Exact-source CI and API-only deployment are next. No paid sample, new UI,
-prompt-version/model change, quota or budget increase; D32's $10 daily cap remains.
+Exact-source [CI 34120463122](https://github.com/michaelmcguiness/edison/actions/runs/34120463122)
+passed both jobs. Deployment `dpl_wzmxK43BDM6n1azkR17PYPEge12U` was Ready at
+12:15:38 UTC; source, public alias/target, three enabled schedules, health and
+access checks passed at 12:16:04 UTC. Both active-work and safe-retryable ideas
+prechecks were empty. Web remains `6eb811b`; D32's exact $10 daily setting and
+unchanged $40 monthly default were reverified. No paid sample, new UI,
+prompt-version/model change, quota or budget increase. Real-provider output count
+and quality were not sampled as part of this release.
 See [the execution record](docs/ON_DEMAND_RELEASE_2026-09-06.md).
 
 ### September 7 — D32 $10 daily Edison ceiling live

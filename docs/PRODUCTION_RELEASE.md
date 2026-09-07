@@ -6,13 +6,17 @@ launching; they can change without a code release.
 
 ## Decision and current status
 
-**Prepared — D33 six titles per new batch:** three runtime files pin six for new
+**Current — D33 six titles per new batch live:** API source `7f7c6cf` pins six for new
 requests and preserve historical four-count retries; semantic gates/actual count
 and bodies-on-selection remain. All 707 local tests, types, lint and independent
-24-test review pass. Exact-source CI/API-only rollout are pending; D32 remains
-live below. No paid sample, model, UI, quota or budget change.
+24-test review pass. Exact-source [CI 34120463122](https://github.com/michaelmcguiness/edison/actions/runs/34120463122)
+passed both jobs. Deployment `dpl_wzmxK43BDM6n1azkR17PYPEge12U` was Ready at
+12:15:38 UTC; source/alias/target/schedules, health and access passed at 12:16:04 UTC.
+No active work preceded rollout. D32's $10 rolling daily/$40 monthly default and
+unchanged web were reverified. No paid sample, model, UI, quota or budget change;
+provider output quality/count was not sampled for this release.
 
-**Current — D32 configuration live, September 7:** API source remains `0b7611f`
+**Previous configuration rollout — D32, September 7:** API source `0b7611f`
 (v2.5), rebuilt as `dpl_G7KPS1UV5VitkgA2fcHSDj24Bos9`, Ready at 11:58:43 UTC.
 Only the Edison-wide rolling-24-hour admission ceiling changed from default $4
 to explicit $10; exact configuration/deployment inclusion, source/alias/schedules,

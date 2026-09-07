@@ -3,9 +3,22 @@
 Owner: CTO. Scope: D28 reader-first reading and D29/D30 direct-apex operation.
 The app is live; useful real-output acceptance is a separate unfinished check.
 
-## Prepared — D33 six titles per normal ideas batch
+## Latest — D33 six titles per normal ideas batch live
 
-Owner: CTO, September 7. Michael explicitly selected six titles at a time for a
+Owner: CTO, September 7. Exact source `7f7c6cf6cbe26e6ab21674617399456fc5e8c906`
+passed [CI 34120463122](https://github.com/michaelmcguiness/edison/actions/runs/34120463122)
+(application and disposable-database jobs). Both fresh predeploy aggregates were
+empty: all queued/running work, and active/safe-transport-retryable ideas requests.
+The clean reviewed source deployed only to the existing API as
+`dpl_wzmxK43BDM6n1azkR17PYPEge12U`, Ready at 12:15:38.281 UTC, at
+`edison-myi3u01br-mike-michaelmcguis-projects.vercel.app`. At 12:16:04 UTC, exact
+source, retained public API alias/production target and all three enabled schedule
+hosts match. Configuration/database/Auth health returned 200, exact-apex CORS
+204 and each unauthenticated cron 401. D32's selected non-secret setting still
+reads `10000000` and is included in the new deployment; monthly override remains
+absent/default $40. Web stays `6eb811b` / `dpl_CeUv9T9DQCyxQeiQqDfFirXVmyuP`.
+
+Michael explicitly selected six titles at a time for a
 loop. The bounded implementation changes the active reader-first generation
 default from four to six; the existing schema maximum is already six. Both
 first-loop and fresh-batch admission snapshots now explicitly pin six. Semantic acceptance stays in
@@ -31,10 +44,13 @@ checks pass. The 77 focused count/pipeline/stage/retry/admission/limit checks pa
 including six requested briefs with only four accepted and no article-body
 commissioning. These use constructed outputs/injected judgments, not live model
 quality. Independent review passed 24 focused tests and a read-only syntax-tree
-check of both actual admission sites, closing the forward-retry finding. This is
-prepared, not yet live; exact-source CI and predeploy checks must pass first.
-No paid batch is needed to
-prove the requested count, and no real-provider six-title quality claim follows.
+check of both actual admission sites, closing the forward-retry finding. The
+API-only rollout is verified above. No paid batch or live request mutation was
+used to prove the requested count, and no real-provider six-title quality claim
+follows. Prompt v2.5, models, budgets and other controls remain unchanged.
+Prior deployment `dpl_G7KPS1UV5VitkgA2fcHSDj24Bos9` retains D32 but uses the old
+count logic; any rollback must account for unfinished new six-count stages,
+without rewriting their saved snapshots or stage identities.
 
 ## Latest — D32 $10 daily admission ceiling live
 
