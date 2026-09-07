@@ -14,8 +14,14 @@ unchanged other controls. The same QA loop retained an explicit preference after
 reload and generated four complete concept-led ideas. A selected article published
 and was read in the apex UI; a natural contextual question completed successfully.
 Root's bounded direct assessment finds useful explanation, not a general-quality
-estimate. Answer rendering and saved return remain pending while shared-browser
-ownership is clarified; the view unexpectedly moved to unrelated reading.
+estimate. After Michael confirmed browser ownership, the same article/latest
+answer rendered after reload and reading-history reopen; Back restored its loop
+and card, and closing Ask restored opener focus. No extra generation or bookmark
+action. This is not a full conversation-history or mobile/scroll acceptance claim.
+Two later owner-reported football failures are diagnosed separately; a bounded
+prospective v2.5 checker-contract fix is prepared, not deployed: 699 local tests,
+both typechecks, lint and independent focused review pass. The larger
+single-pass generation recommendation remains proposed, not an active policy.
 
 **Previous release, September 7 — D31:** API `1b05c1e` is live behind the existing
 apex/web connection, with six rolling ideas batches per reader; web remains

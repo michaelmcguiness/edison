@@ -33,12 +33,66 @@ assessments, not independent actual-output review or general quality estimates.
 
 Three checked ideas remain unused. This establishes persisted preferences and
 observed selection, not controlled prompt improvement or adaptation between two
-completed articles. During Ask verification the shared browser moved to an
-unrelated article and controls detached. Root paused navigation and asked CoS to
-clarify browser ownership rather than interfering or creating a new guest. No
-product-navigation defect is established by that observation. Answer rendering
-and ordinary saved-reading return remain pending; stored success is not a
-rendered-conversation check. No additional paid request followed the question.
+completed articles. After the shared-browser pause, Michael confirmed the tab was
+free. Root resumed the same session: article/latest answer reopened after reload
+and through ordinary reading history; Back restored the loop/card and Ask close
+restored opener focus. The unexpected navigation did not recur. No new generation
+or bookmark action occurred. This is latest-answer persistence, not a browsable
+transcript; exact nonzero scroll continuity and phone rendering remain unverified.
+Independent source review matched live web bytes and identified two separate
+follow-ups: an unsent draft suppresses previous-answer selection on ordinary
+reopen, and older answers beyond the 120-request workspace lack exact recovery.
+Those are source findings, not fixed or newly mounted-tested behavior.
+
+### Owner-reported football failures — diagnosis, September 7
+
+Root inspected both supplied screenshots and narrowly read the matching saved
+requests/stages and their selected idea-check results. Both used current v2.4 and
+the actual September 7 date. The original ideas explicitly required verification;
+their same-batch retained pages identified the current season. No wrong-season
+carryover is established, but a projection page was future-dated and the evidence
+did not establish every role/upside inference added by writing. Source retrieval
+is not itself evidence of source credibility or claim support.
+
+- The waiver article completed writing/checking, then failed checker validation:
+  an unknown passage ID appeared in two findings, and another excerpt changed
+  the initial letter's capitalization. Its sole repair was never used. The other
+  findings still raised substantive role/comparative-upside support questions.
+- The matchup article used writing/checking/sole repair/final checking. Repair
+  corrected an injury-value-versus-scoring interpretation and citation scope;
+  final checking still found an unsupported current player rushing-role assertion.
+  It remained withheld. Existing exact paragraph-location normalization worked.
+
+Offline replay of the unmodified saved checker envelopes confirmed the first
+validation failure and the second article's initial/final rejected checks. No
+provider request or live state change was involved. Neither old failed request
+qualifies for the existing location-only recovery path. They must not be reset,
+relabelled, granted another repair or automatically regenerated.
+
+CoS authorized a bounded prospective checker-contract correction. v2.5 is prepared:
+allowed reference/location values at generation, strict actual evidence
+binding, narrowly unique same-location initial-letter excerpt correction, original
+envelopes and every substantive finding retained. An exact competing anchor at
+another location blocks case correction rather than guessing; final saved checks
+remain case-sensitive. No broader checking-policy, model, budget or UI change.
+
+All **699 local tests**, both full standalone typechecks and owned lint/diff checks
+pass. Independent source review passed 58 focused tests and closed the competing-
+anchor issue. Seven new constructed contract groups cover actual SDK conversion
+with 0/1/48 evidence IDs for article and Ask; empty-evidence maxItems:0; unknown or
+model-only references; all failed flags/material findings; allowed metadata case
+correction and ambiguous/punctuation/Unicode/wrong-location rejection; unchanged
+raw envelopes and strict saved acceptance/repair. Explicit old-version tests now
+include v2.4 alongside v2.2/v2.3 for checkpoint/cache/relabel rejection. These are
+local enforcement checks, not measured provider quality or live schema acceptance.
+No full generation prompt wording changed; the shared version is advanced to
+isolate new wire schemas. Exact-source CI and a fresh active-work check must pass
+before the API-only rollout. Historical failures and usage remain unchanged.
+
+The current [official Structured Outputs guide](https://developers.openai.com/api/docs/guides/structured-outputs)
+supports enums and bounded arrays; the generated schemas stay within documented
+limits. Schema validity does not establish factual support. No new provider call
+was made for this diagnosis or correction.
 
 ## Previous — D31 live; first post-allowance sample withheld
 

@@ -8,9 +8,13 @@ passed both jobs. In-flight precheck, exact public/schedule targets, health,
 apex CORS and unauthenticated cron denial passed. Six/eight allowances and all
 other limits are unchanged. Normal QA preference persistence and a fresh set of
 four complete concept previews passed; the selected article published and was
-read in the apex UI. Its contextual question completed successfully. Answer
-rendering and saved return remain pending because the shared browser changed to
-an unrelated article; navigation paused while ownership is clarified.
+read in the apex UI. Its contextual answer subsequently rendered after reload
+and reading-history reopen in the same session, once Michael freed the browser.
+Back and Ask-close focus restoration passed; no new generation or bookmark action.
+Ask displays the latest answer, not a browsable conversation transcript. A bounded
+checker-contract correction for the separately reported football failures is
+prepared as v2.5; 699 tests, both typechecks, lint and independent focused review
+pass. It is not deployed. Existing failed attempts remain unchanged.
 See [the execution record](ON_DEMAND_RELEASE_2026-09-06.md) for verification limits.
 
 ## Previous release — D31, September 7, 2026

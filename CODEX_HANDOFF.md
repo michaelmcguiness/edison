@@ -40,13 +40,27 @@ retain a general-knowledge basis, no research timestamp and no invented sources.
 Root's direct sampled assessment finds a useful conceptual explanation; this is
 not independent actual-output review or certification of production quality.
 
-Three other ideas remain unused. The shared browser unexpectedly moved to an
-unrelated article while Ask was being checked; root paused navigation to avoid
-interfering and asked CoS about browser ownership. Answer rendering and ordinary
-saved-reading return remain unverified in this sample; stored success alone does
-not establish them. This is test preference/selection evidence, not Michael's
-personal preference change, controlled prompt improvement or a two-completed-
-article adaptation comparison. No additional paid request followed the question.
+Michael subsequently confirmed the shared browser was free. Root resumed the
+same apex session and verified the completed article and latest saved answer
+after ordinary reload and reading-history reopen. Closing Ask restored focus to
+its opener; Back restored the originating loop and card. No unexpected navigation
+recurred. No new generation or bookmark action was performed. The visible Ask
+currently shows one answer, not a browsable transcript. Exact nonzero scroll
+restoration and phone-layout acceptance are not established by this sample.
+Independent source review also identified unsent-draft/reopen inconsistency and
+answer recovery beyond the bounded workspace as separate, unimplemented follow-ups.
+This is test preference/selection evidence, not Michael's personal preference
+change, controlled prompt improvement or a two-completed-article adaptation comparison.
+
+The current priority is the two owner-reported football failures, diagnosed from
+their existing records. One stopped at malformed checker metadata before repair;
+the other remained unsupported on a current player-usage claim after its sole
+repair and final check. Exact saved-response replay confirmed these distinct paths.
+A bounded prospective v2.5 checker-contract correction is prepared, not live.
+All 699 local tests, both full typechecks and owned lint/diff checks pass;
+independent review passed 58 focused tests and closed the ambiguous-anchor case.
+Historical failures remain terminal; no reset, fuzzy source remapping, additional
+repair or automatic regeneration. CoS's broader single-pass proposal is not selected.
 
 ### September 7 — D31 live; new sample withheld; v2.4 prepared
 

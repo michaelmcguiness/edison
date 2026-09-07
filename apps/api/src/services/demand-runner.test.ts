@@ -92,9 +92,9 @@ test("reader-first requests pin their own version while historical requests reta
   assert.equal(demandProgressCompatibilityFailure(historicalFeedback, initialDemandState(historicalFeedback)), null);
 });
 
-for (const promptVersion of ["edison-reader-first-v2.2", "edison-reader-first-v2.3"] as const) {
-  test(`saved ${promptVersion} article progress cannot resume any writing or repair phase under v2.4`, () => {
-    assert.equal(READER_FIRST_PROMPT_VERSION, "edison-reader-first-v2.4");
+for (const promptVersion of ["edison-reader-first-v2.2", "edison-reader-first-v2.3", "edison-reader-first-v2.4"] as const) {
+  test(`saved ${promptVersion} article progress cannot resume any writing or repair phase under v2.5`, () => {
+    assert.equal(READER_FIRST_PROMPT_VERSION, "edison-reader-first-v2.5");
     const request = { id: "00000000-0000-4000-8000-000000000204", kind: "article" as const,
       requestFingerprint: "d".repeat(64), snapshot: { version: 2, context: { loopId: "constructed-version-boundary" } } };
     const current = initialDemandState(request);

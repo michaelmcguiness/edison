@@ -13,7 +13,7 @@ const loopId = "00000000-0000-4000-8000-000000000802";
 const ideaId = "00000000-0000-4000-8000-000000000803";
 const requestId = "00000000-0000-4000-8000-000000000804";
 const prose = "A thermostat compares the measured room temperature with a target before changing its heating output.";
-const priorPromptVersions = ["edison-reader-first-v2.2", "edison-reader-first-v2.3"] as const;
+const priorPromptVersions = ["edison-reader-first-v2.2", "edison-reader-first-v2.3", "edison-reader-first-v2.4"] as const;
 
 async function fixture(options: { check?: (check: ReaderFirstCheckOutput) => void; duplicate?: boolean;
   constructedCachedVersion?: typeof priorPromptVersions[number] } = {}): Promise<DemandCheckRecoveryInput> {
@@ -130,7 +130,7 @@ test("foreign, inactive, exhausted, repaired, stale and altered selected artifac
 
 for (const promptVersion of priorPromptVersions) {
   test(`saved literal ${promptVersion} progress is not a current-version cached-check recovery`, async () => {
-    assert.equal(READER_FIRST_PROMPT_VERSION, "edison-reader-first-v2.4");
+    assert.equal(READER_FIRST_PROMPT_VERSION, "edison-reader-first-v2.5");
     const input = await fixture();
     assert.ok(await qualifyDemandCheckRecovery(input, environment), "control fixture qualifies before the version change");
     input.request.progress!.promptVersion = promptVersion;
@@ -139,7 +139,7 @@ for (const promptVersion of priorPromptVersions) {
     assert.deepEqual(input, before, "qualification cannot relabel old progress or append a receipt");
   });
 
-  test(`relabeling saved progress cannot admit constructed ${promptVersion} cached stage envelopes under v2.4`, async () => {
+  test(`relabeling saved progress cannot admit constructed ${promptVersion} cached stage envelopes under v2.5`, async () => {
     const input = await fixture({ constructedCachedVersion: promptVersion });
     const before = structuredClone(input);
     for (const stage of input.stages) {

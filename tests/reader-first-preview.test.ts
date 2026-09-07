@@ -31,8 +31,8 @@ function envelope(output: unknown, call: OnDemandProviderRequest, index = 0): On
     inputTokens: 100, cachedInputTokens: 0, outputTokens: 100, webSearchCalls: 0, webSearchToolCalls: 0, webSearchPricingStatus: "priced" } };
 }
 
-test("v2.4 targets complete previews below the unchanged hard bound only where a deck is authored", () => {
-  assert.equal(READER_FIRST_PROMPT_VERSION, "edison-reader-first-v2.4");
+test("v2.5 retains complete previews below the unchanged hard bound only where a deck is authored", () => {
+  assert.equal(READER_FIRST_PROMPT_VERSION, "edison-reader-first-v2.5");
   for (const stage of ["ideas", "write", "repair"] as const) {
     assert.match(READER_FIRST_PROMPTS[stage], /one or two short complete sentences/);
     assert.match(READER_FIRST_PROMPTS[stage], /120–300 characters/);

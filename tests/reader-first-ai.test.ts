@@ -32,8 +32,8 @@ test("idea prompts choose the explanation first and check complete preview copy 
   assert.match(READER_FIRST_PROMPTS.ideas_check, /Mark verificationPassed false when required support is absent/);
 });
 
-test("v2.4 retains v2.3 explanatory repair safeguards without weakening verification or adding a repair", () => {
-  assert.equal(READER_FIRST_PROMPT_VERSION, "edison-reader-first-v2.4");
+test("v2.5 retains v2.3 explanatory repair safeguards without weakening verification or adding a repair", () => {
+  assert.equal(READER_FIRST_PROMPT_VERSION, "edison-reader-first-v2.5");
   for (const stage of ["write", "answer", "repair", "answer_repair"] as const) {
     assert.match(READER_FIRST_PROMPTS[stage], /When a test or measurement is central to the reader's question/);
     assert.match(READER_FIRST_PROMPTS[stage], /what the result helps establish, why that matters, and what it cannot establish/);

@@ -306,12 +306,57 @@ function boundCheck(check: ReaderFirstCheckOutput, fingerprint: string, location
     retrieved(finding.passageIds, evidence);
   }
 }
+/** Constrain only new provider output. Saved checks keep their historical
+ * structural schema and must still pass exact binding at runtime. */
+function providerCheckSchema(fingerprint: string, locations: Record<string, string>, evidence: OnDemandEvidence) {
+  const allowedLocations = Object.keys(locations);
+  if (!allowedLocations.length) invalid("A check requires actual text locations");
+  const passageIds = evidence.passages.filter((passage) => passage.provenance === "retrieved" && passage.retrievedAt).map((passage) => passage.id);
+  const finding = readerFirstCheckOutputSchema.shape.findings.element;
+  return readerFirstCheckOutputSchema.extend({
+    fingerprint: z.literal(fingerprint),
+    findings: z.array(finding.extend({
+      location: z.enum(allowedLocations as [string, ...string[]]),
+      // An empty enum/never item is not a valid provider wire schema. A normal
+      // bounded string array with maxItems:0 represents no retained evidence.
+      passageIds: passageIds.length ? z.array(z.enum(passageIds as [string, ...string[]])).max(12)
+        : finding.shape.passageIds.max(0),
+    })).max(24),
+  });
+}
+
+/** null means no candidate; false means ambiguous. Change only the first ASCII
+ * letter and return the actual author-text slice, never case-folded prose. */
+function uniqueInitialCaseExcerpt(text: string, excerpt: string): string | false | null {
+  const index = excerpt.search(/[A-Za-z]/);
+  if (index < 0) return null;
+  const letter = excerpt[index];
+  const candidate = excerpt.slice(0, index) + (letter >= "a" && letter <= "z" ? letter.toUpperCase() : letter.toLowerCase()) + excerpt.slice(index + 1);
+  const start = text.indexOf(candidate);
+  if (start < 0) return null;
+  if (text.indexOf(candidate, start + 1) >= 0) return false;
+  return text.slice(start, start + candidate.length);
+}
 /** Provider-boundary correction only. A checker can count paragraphs without
  * headings; rebind its unchanged verbatim excerpt only when the intended full
- * body location is unambiguous. Stored checks and final gates stay strict. */
+ * body location is unambiguous. A first-letter case correction is restricted to
+ * its original location; it never enables cross-location case-folded matching.
+ * Stored checks and final gates stay strict. */
 function normalizeProviderFindingLocations(check: ReaderFirstCheckOutput, locations: Record<string, string>) {
   for (const finding of check.findings) {
-    if (locations[finding.location]?.includes(finding.excerpt)) continue;
+    const text = locations[finding.location];
+    if (text?.includes(finding.excerpt)) continue;
+    if (text !== undefined) {
+      const correction = uniqueInitialCaseExcerpt(text, finding.excerpt);
+      if (correction === false) continue;
+      if (correction !== null) {
+        // Another exact anchor makes case correction versus location correction
+        // ambiguous. Neither correction may choose the checker's intended text.
+        if (Object.entries(locations).some(([location, value]) => location !== finding.location && value.includes(finding.excerpt))) continue;
+        finding.excerpt = correction;
+        continue;
+      }
+    }
     if (!/^body\.\d+$/.test(finding.location) || !Object.hasOwn(locations, finding.location)) continue;
     const matches = Object.entries(locations).filter(([location, text]) => /^body\.\d+$/.test(location) && text.includes(finding.excerpt));
     if (matches.length === 1) finding.location = matches[0][0];
@@ -338,7 +383,7 @@ export async function checkReaderFirstArticle(input: ReaderFirstSelection & { dr
   if (readerFirstFingerprint(compiled) !== readerFirstFingerprint(input.draft)) invalid("Compile final article evidence before checking");
   const fingerprint = readerFirstArticleFingerprint(input, input.draft);
   const locations = articleLocations(input.draft.article!);
-  const result = await stage("check", { ...input, mode: "article", fingerprint, allowedLocations: Object.keys(locations) }, readerFirstCheckOutputSchema.extend({ fingerprint: z.literal(fingerprint) }), options, (output) => {
+  const result = await stage("check", { ...input, mode: "article", fingerprint, allowedLocations: Object.keys(locations) }, providerCheckSchema(fingerprint, locations, input.evidence), options, (output) => {
     normalizeProviderFindingLocations(output, locations);
     boundCheck(output, fingerprint, locations, input.evidence);
   });
@@ -351,7 +396,7 @@ export async function checkReaderFirstAnswer(input: ReaderFirstQuestion & { answ
   if (readerFirstFingerprint(compiled) !== readerFirstFingerprint(input.answer)) invalid("Compile final answer evidence before checking");
   const fingerprint = readerFirstAnswerFingerprint(input, input.answer);
   const locations = bodyLocations(input.answer.body);
-  const result = await stage("check", { ...input, mode: "answer", fingerprint, allowedLocations: Object.keys(locations) }, readerFirstCheckOutputSchema.extend({ fingerprint: z.literal(fingerprint) }), options, (output) => {
+  const result = await stage("check", { ...input, mode: "answer", fingerprint, allowedLocations: Object.keys(locations) }, providerCheckSchema(fingerprint, locations, input.evidence), options, (output) => {
     normalizeProviderFindingLocations(output, locations);
     boundCheck(output, fingerprint, locations, input.evidence);
   });
