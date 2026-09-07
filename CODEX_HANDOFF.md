@@ -15,7 +15,61 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
-### Qualified E12 recovery candidate — local proof complete, DB race gate pending
+### Current — direct apex live; saved-check recovery verified; reading quality unfinished
+
+Michael selected development and testing directly on **https://edisonreader.com**
+(D30). No staging setup or further generic rollout approval is needed. Live web
+source remains `6eb811b51e6fa243654cbdca43cb084a394e3f60`; live API source is
+`c64614276cc96cbdc8b1054d0273feedfcfc123e`, with the existing public API connector,
+enabled schedules, security controls, article allowance of eight and dollar caps.
+
+The qualified saved-check recovery passed 670 local tests, both typechecks,
+focused lint and independent review. Exact-source
+[CI 34074016183](https://github.com/michaelmcguiness/edison/actions/runs/34074016183)
+passed application and disposable-database jobs, including real independent-
+session admission races. The API deployment and health were verified. Ordinary
+Try again on the apex reused the saved write/check stages, retained the original
+failure receipt and accounting, and completed only the existing sole repair and
+fresh final check. It did not commission another article.
+
+The revised article passed its automated factual/verification checks but remained
+**withheld**: its batch-testing section did not explain the promised mechanism.
+No article was published. Useful reading, contextual Ask, changed-preference
+comparison and saved-reading return remain unverified. No further paid sampling,
+second repair, fourth ideas batch, terminal reset or new principal was performed.
+Detailed new production/accounting metadata remains in the CTO task; a detailed
+cross-task handoff was blocked by approval review. Shared records use the
+permitted non-sensitive outcome and public source/CI evidence, not an alternate
+route to that blocked packet.
+
+### Next version — v2.3 prepared and locally verified, not live
+
+CoS supplied the bounded refinement under D28: preserve accurate causal
+explanation while repairing unsupported claims or citation scope, and check what
+a relevant test establishes and cannot establish. CTO implemented it in
+`packages/ai/src/reader-first-prompts.ts`, preserving model settings, structured
+contracts, independent final checks and the sole repair. No extra stage, service
+or research allowance was added. Additional instruction text can affect input
+cost/latency; no real-output improvement or cost saving has been measured.
+
+All **680 local tests**, both full typechecks and owned lint/diff checks pass.
+Independent exact-prompt review found no material issue. Six reusable constructed
+sensor contrasts exercise missing payoff, useful scoped correction, unsupported
+current/high-stakes claims, wrong citations and correct citation-only repair.
+Injected judgments prove enforcement, not model judgment. Terminal replay adds
+no fifth stage; original drafts, audits and request snapshots stay unchanged.
+Three explicit previous-version regressions guard old checkpoint/cache identity.
+
+The shared prompt version also covers ideas and Ask. Saved v2.2 progress cannot
+resume under v2.3 or qualify for cached-check recovery; changing only a version
+label cannot bypass exact cached snapshots. Queued requests with no progress
+adopt the current version when first started. Historical published reads remain
+compatible. Check in-flight work before a future rollout; do not rewrite old
+progress, grant another repair, reopen terminal requests or manufacture a new
+principal. Live API remains c646142/v2.2. No further paid sampling or v2.3
+deployment occurred in this preparation.
+
+### Historical checkpoint — qualified E12 recovery candidate, DB gate pending
 
 The general saved-check recovery is implemented without changing prompts/models,
 wire schemas, quota caps, migrations or provider stages. It qualifies only an
@@ -41,7 +95,7 @@ same-request and daily/monthly fresh-admission races. Docker is unavailable on
 this host; actual disposable-DB execution must pass in CI before this recovery
 release. Live API remains106cc12; no actual E12 recovery has occurred yet.
 
-### E12 binding correction live; qualified recovery in progress
+### Historical checkpoint — E12 binding correction live; recovery in progress
 
 API `106cc1247fc84578f83de84f8584a85bd0de5f7a` is live in Ready Production
 `dpl_7zfEDhyXd6EMc7QHXzVcutGoZrzo`, unique

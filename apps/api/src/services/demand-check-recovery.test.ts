@@ -14,7 +14,8 @@ const ideaId = "00000000-0000-4000-8000-000000000803";
 const requestId = "00000000-0000-4000-8000-000000000804";
 const prose = "A thermostat compares the measured room temperature with a target before changing its heating output.";
 
-async function fixture(options: { check?: (check: ReaderFirstCheckOutput) => void; duplicate?: boolean } = {}): Promise<DemandCheckRecoveryInput> {
+async function fixture(options: { check?: (check: ReaderFirstCheckOutput) => void; duplicate?: boolean;
+  constructedCachedVersion?: "edison-reader-first-v2.2" } = {}): Promise<DemandCheckRecoveryInput> {
   const createdAt = new Date("2026-09-07T01:00:00Z");
   const context = { loopId, revision: 1, originalCuriosity: "How do thermostats work?", directions: [], declaredKnowledge: [],
     readingPreferences: [], preferences: { length: "brief", depth: 50 }, previousArticles: [], currentDate: "2026-09-07" };
@@ -45,7 +46,11 @@ async function fixture(options: { check?: (check: ReaderFirstCheckOutput) => voi
     }
     const response: OnDemandProviderResponse = { output, usage: { providerResponseId: `constructed-response-${call.stage}`, model: call.model,
       inputTokens: 100, cachedInputTokens: 0, outputTokens: 100, webSearchCalls: 0, webSearchToolCalls: 0, webSearchPricingStatus: "priced" } };
-    const identity = bindDemandResearchBudget(prepareDemandStage(request.id, principalId, call, environment).identity, 0);
+    // Constructed prior-version snapshots exercise cache identity, not historical
+    // model behavior. No production packet or provider is used by this fixture.
+    const recordedCall = options.constructedCachedVersion ? { ...call, promptVersion: options.constructedCachedVersion,
+      instructions: `Constructed prior-version ${call.stage} instructions; not a historical provider packet.` } : call;
+    const identity = bindDemandResearchBudget(prepareDemandStage(request.id, principalId, recordedCall, environment).identity, 0);
     const priced = demandStagePricing(response.usage, 10000);
     const id = `00000000-0000-4000-8000-00000000080${stages.length + 5}`;
     const time = new Date(createdAt.getTime() + (stages.length + 1) * 1000);
@@ -63,7 +68,8 @@ async function fixture(options: { check?: (check: ReaderFirstCheckOutput) => voi
   assert.equal(writing.state.phase, "check");
   await advanceReaderFirstPipeline({ request, state: writing.state }, { provider });
   request.status = "failed"; request.stage = "failed"; request.failureCode = "provider_invalid";
-  request.progress = { ...writing.state, phase: "failed", failureCode: "provider_invalid" };
+  request.progress = { ...writing.state, phase: "failed", failureCode: "provider_invalid",
+    ...(options.constructedCachedVersion ? { promptVersion: options.constructedCachedVersion } : {}) };
   return { principalId, principalActive: true, request, loop: { id: loopId, principalId },
     idea: { id: ideaId, loopId, principalId, articleRequestId: requestId, brief: idea }, stages, usage,
     now: new Date("2026-09-07T01:02:00Z") };
@@ -119,6 +125,34 @@ test("foreign, inactive, exhausted, repaired, stale and altered selected artifac
     assert.equal(await qualifyDemandCheckRecovery(input, environment), null, `mutation ${index}`);
   }
   assert.equal(await qualifyDemandCheckRecovery(original, { ...environment, OPENAI_UTILITY_MODEL: "gpt-5.6-terra" }), null);
+});
+
+test("saved literal v2.2 progress is not a current-version cached-check recovery", async () => {
+  assert.equal(READER_FIRST_PROMPT_VERSION, "edison-reader-first-v2.3");
+  const input = await fixture();
+  assert.ok(await qualifyDemandCheckRecovery(input, environment), "control fixture qualifies before the version change");
+  input.request.progress!.promptVersion = "edison-reader-first-v2.2";
+  const before = structuredClone(input);
+  assert.equal(await qualifyDemandCheckRecovery(input, environment), null);
+  assert.deepEqual(input, before, "qualification cannot relabel old progress or append a receipt");
+});
+
+test("relabeling saved progress cannot admit constructed v2.2 cached stage envelopes under v2.3", async () => {
+  const input = await fixture({ constructedCachedVersion: "edison-reader-first-v2.2" });
+  const before = structuredClone(input);
+  for (const stage of input.stages) {
+    assert.equal(stage.snapshot.promptVersion, "edison-reader-first-v2.2");
+    assert.equal(stage.requestFingerprint, demandFingerprint(stage.snapshot), "old snapshot has its own valid frozen fingerprint");
+  }
+  assert.equal(await qualifyDemandCheckRecovery(input, environment), null);
+  assert.deepEqual(input, before);
+  input.request.progress!.promptVersion = READER_FIRST_PROMPT_VERSION;
+  const relabeled = structuredClone(input);
+  assert.equal(await qualifyDemandCheckRecovery(input, environment), null,
+    "the current-version label cannot replace exact cached provider snapshot binding");
+  assert.deepEqual(input, relabeled);
+  assert.deepEqual(input.stages, before.stages, "raw cached envelopes remain unchanged");
+  assert.deepEqual(input.usage, before.usage, "the original charges remain unchanged");
 });
 
 test("extra, incomplete, unpriced, mismatched or fabricated provider and ledger rows reject recovery", async () => {

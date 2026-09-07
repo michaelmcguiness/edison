@@ -3,7 +3,71 @@
 Owner: CTO. Scope: D28 reader-first reading and D29/D30 direct-apex operation.
 The app is live; useful real-output acceptance is a separate unfinished check.
 
-## Qualified saved-check recovery candidate — no live recovery yet
+## Current completion — direct apex and qualified recovery verified live
+
+Owner: CTO. Live API source is `c64614276cc96cbdc8b1054d0273feedfcfc123e`;
+web remains `6eb811b51e6fa243654cbdca43cb084a394e3f60` at
+**https://edisonreader.com** and its retained host. The existing API connector
+and schedules remain enabled. Deployment identity and public health were checked.
+No staging environment, new service, migration or credential change was needed.
+
+All 670 local tests, both typechecks, focused lint and independent review passed.
+[Exact-source CI 34074016183](https://github.com/michaelmcguiness/edison/actions/runs/34074016183)
+passed both jobs. Its disposable PostgreSQL test exercised actual independent-
+session same-request and fresh-admission daily/monthly budget races, plus
+ownership, expiry, attempt/concurrency limits, unpriced-spend blocking and
+unchanged history/accounting. Provider responses there were constructed stubs;
+no real workflow or model was started by those tests.
+
+Separately, ordinary apex Try again completed the same saved article request,
+reusing the original write/check stages and preserving its failure receipt,
+identity, original reservation and daily counts. Only its already-allowed sole
+repair and fresh final check were added. The final result was
+**editorial_withheld**, not publication: factual/verification flags passed, but
+the repaired batch-testing explanation did not deliver the selected payoff.
+No additional repair or paid sample followed. Article/Ask acceptance, observable
+preference adaptation and saved-reading return remain unfinished.
+
+Only a non-sensitive operational summary was handed to CoS after approval review
+blocked detailed production metadata. These shared records do not forward the
+blocked packet or claim independent CoS inspection of the final article.
+
+### V2.3 preparation complete — not deployed or semantically evaluated
+
+Owner: CTO. CoS's explanation-preserving repair instruction is implemented in
+`packages/ai/src/reader-first-prompts.ts`. Writer/Ask explain what a relevant
+measurement establishes and its limits; repair keeps accurate causal background
+while correcting unsupported claims/citations. Final QA treats a missing central
+answer as payoff failure, not automatically a factual contradiction. Optional
+elaboration is not a material gate. Specific verification, citation accuracy,
+models, schemas and the sole repair remain unchanged; no provider stage was added.
+
+All **680 local tests**, both full no-emit typechecks and owned lint/diff checks
+pass. Independent exact-prompt review found no material issue. The new
+`tests/fixtures/reader-first-repair-calibration.ts` contains six authored sensor
+contrasts; `tests/reader-first-repair-calibration.test.ts` injects their judgments
+through the real pipeline/publication boundary. This verifies missing-payoff
+withholding, useful scope/citation repair, continuing required verification,
+preserved original outputs and zero additional calls on terminal replay. Three
+explicit v2.2 checkpoint/cache regressions and a prompt-contract test also pass.
+These are constructed cases, not real output or independent model grading.
+
+Method: task-specific contrasts and separate validation of judgment/enforcement,
+consistent with [official OpenAI evaluation guidance](https://developers.openai.com/api/docs/guides/evaluation-best-practices).
+No new evaluation service is introduced. Additional prompt text may affect input
+cost and latency; neither cost savings nor semantic improvement is measured.
+
+The version bump covers ideas and Ask too. Saved v2.2 progress fails compatibility
+under v2.3 and cannot qualify for cached-check recovery; relabeling it cannot
+replace the exact old stage snapshots. Queued requests with null progress begin
+with the version current at first claim. Published read compatibility remains.
+Before a future rollout, check in-flight work; do not reset or rewrite old work.
+Live remains v2.2 on c646142; no additional paid sample or v2.3 deployment occurred.
+Existing quotas, dollar limits, sole repair and historical results stay unchanged.
+The following sections preserve earlier checkpoints, not current instructions to
+repeat recovery or deployment.
+
+## Historical checkpoint — saved-check recovery candidate before live verification
 
 Owner: CTO. The bounded general product correction is implemented. It requires
 an active owned v2 article, exact failed pre-repair checkpoint, explicit cached
@@ -39,7 +103,7 @@ receipt/history preservation and zero-provider cached replay are also covered.
 Actual DB execution is unrun locally (Docker unavailable); the existing CI
 disposable database job now includes it, and must pass before recovery deploy.
 
-## E12 binding correction live — qualified recovery remains separate
+## Historical checkpoint — E12 binding correction live, recovery separate
 
 Source `106cc1247fc84578f83de84f8584a85bd0de5f7a` is committed/pushed and live
 in Ready Production API `dpl_7zfEDhyXd6EMc7QHXzVcutGoZrzo`, unique

@@ -4,15 +4,23 @@
 
 The reader-first app is live on `edisonreader.com` and retained
 `project-qlqve.vercel.app`; API remains `project-fjr95.vercel.app/v1`. Web is
-source `6eb811b`, API `106cc12`, with demand enabled and article allowance8.
+source `6eb811b`, API `c646142`, with demand enabled and article allowance8.
 Michael explicitly selected direct-apex development/testing; no private staging
 or pre-routing writing-acceptance hold remains. The first actual ideas response
 failed safely at discovery validation; v2.2's documented NCBI API retrieval fix
 is live. The display-whitespace fix recovered one approved idea through the
 normal same-request retry, with unchanged model stages/usage. Its first article
-was withheld because the checker misindexed paragraphs around headings; the
-bounded binding correction is now live. Qualified saved-request recovery remains
-in progress; no actual article/Ask acceptance is claimed.
+was initially withheld because the checker misindexed paragraphs around headings.
+The binding correction and qualified saved-request recovery are now live and
+verified through ordinary apex Try again. Original stages and history were
+preserved; only the sole repair and fresh final check were added. The revised
+article remained withheld for incomplete explanatory payoff despite passing
+factual/verification flags. No actual article/Ask acceptance is claimed.
+Exact API-source [CI 34074016183](https://github.com/michaelmcguiness/edison/actions/runs/34074016183)
+passed, including real disposable-database admission races; 670 local tests and
+both typechecks passed. Future v2.3 prompt refinement is prepared separately with
+680 local tests, both typechecks and owned lint passing; it is not deployed or
+measured as a real-output improvement. No further paid sampling is running.
 Use [the current execution record](ON_DEMAND_RELEASE_2026-09-06.md) for exact
 deployment IDs, checks and unfinished real reading acceptance. Preserve historical
 usage/data and existing security/dollar limits; do not repeat setup below.
