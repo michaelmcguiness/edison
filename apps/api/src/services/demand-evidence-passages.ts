@@ -256,7 +256,9 @@ export function selectDemandEvidencePassages(
   return selected.sort((a, b) => a.start - b.start).map(({ start, end, text }) => ({
     id: `p-${createHash("sha256").update(`${source.id}:${page.url}:${start}:${end}:${text}`).digest("hex").slice(0, 28)}`,
     sourceId: source.id, text,
-    locator: `Retrieved normalized page text, characters ${start + 1}–${end}`,
+    locator: page.retrievalUrl
+      ? `Retrieved normalized NCBI BioC text via ${page.retrievalUrl}, characters ${start + 1}–${end}`
+      : `Retrieved normalized page text, characters ${start + 1}–${end}`,
     provenance: "retrieved" as const, retrievedAt: page.retrievedAt,
   }));
 }

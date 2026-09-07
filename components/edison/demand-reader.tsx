@@ -291,6 +291,13 @@ function latestRequest(
     .toSorted((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
 }
 
+export function demandIdeasPendingLabel(request: DemandRequest | undefined, submitting: boolean) {
+  if (request?.status === "queued" || request?.status === "running") return requestStage(request.stage);
+  // A new submission can precede its workspace response. Do not borrow a
+  // previous request's terminal label for the new request's pending panel.
+  return submitting ? "Starting your ideas" : null;
+}
+
 export function demandIdeaAction(idea: DemandIdea, request?: DemandRequest) {
   if (!idea.articleRequestId || request?.status === "succeeded") return "Read article";
   if (request?.status === "failed") return "View status";
@@ -1761,9 +1768,8 @@ export function DemandReader({
     const newestBatchId = activeIdeas[0]?.batchRequestId;
     const currentIdeas = activeIdeas.filter(({ batchRequestId }) => batchRequestId === newestBatchId);
     const earlierIdeas = activeIdeas.filter(({ batchRequestId }) => batchRequestId !== newestBatchId);
-    const ideasPending = ideasSubmittingLoopId === activeLoop.id || Boolean(
-      ideasRequest && (ideasRequest.status === "queued" || ideasRequest.status === "running"),
-    );
+    const ideasPendingLabel = demandIdeasPendingLabel(ideasRequest, ideasSubmittingLoopId === activeLoop.id);
+    const ideasPending = ideasPendingLabel !== null;
     const canRetryIdeas = Boolean(ideasRequest?.failure?.retryable);
     const canRequestFreshIdeas = canRequestFreshIdeasAfter(ideasRequest?.failure?.code);
     return (
@@ -1779,7 +1785,7 @@ export function DemandReader({
         {ideasPending ? (
           <section className="demand-request-state" role="status" aria-live="polite">
             <EdisonMark />
-            <div><h2>{ideasRequest ? requestStage(ideasRequest.stage) : "Starting your ideas"}</h2><p>Distinct article ideas will appear here after they’ve been checked.</p></div>
+            <div><h2>{ideasPendingLabel}</h2><p>Distinct article ideas will appear here after they’ve been checked.</p></div>
           </section>
         ) : null}
         {ideasRequest?.status === "failed" && !ideasPending ? (

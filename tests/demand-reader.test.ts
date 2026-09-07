@@ -6,9 +6,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   demandWorkspaceSchema,
   demandAnswerSchema,
+  type DemandRequest,
   type DemandWorkspace,
 } from "@edison/contracts";
-import { DemandAnswerContent, demandIdeaAction, DemandReader, DemandReadingMetadata, DemandSourceList,
+import { DemandAnswerContent, demandIdeaAction, demandIdeasPendingLabel, DemandReader, DemandReadingMetadata, DemandSourceList,
   restoreDemandDialogFocus } from "../components/edison/demand-reader";
 import {
   DemandClientError,
@@ -120,6 +121,50 @@ test("the demand reader renders only persisted workspace ideas and truthful requ
   assert.doesNotMatch(html, /Opening your reading workspace/);
   assert.doesNotMatch(html, /Share/);
   assert.equal((html.match(/<main/g) ?? []).length, 1);
+});
+
+test("a fresh ideas submission never borrows the preceding request's terminal heading", () => {
+  const oldFailed: DemandRequest = { ...workspace.requests[0]!, id: olderBatchId, ideaId: null, kind: "ideas",
+    status: "failed", stage: "failed", failure: { code: "provider_invalid", message: "The earlier attempt failed.", retryable: false } };
+  const before = structuredClone(oldFailed);
+  assert.equal(demandIdeasPendingLabel(oldFailed, true), "Starting your ideas");
+  assert.equal(demandIdeasPendingLabel(oldFailed, false), null, "an idle terminal failure is not masked as pending");
+  assert.equal(demandIdeasPendingLabel({ ...oldFailed, status: "succeeded", stage: "ready", failure: null }, true), "Starting your ideas");
+  assert.equal(demandIdeasPendingLabel(undefined, true), "Starting your ideas");
+  assert.equal(demandIdeasPendingLabel(undefined, false), null);
+  assert.deepEqual(oldFailed, before, "the historical failure remains intact");
+});
+
+test("queued and running fresh ideas display the current request rather than an older failed snapshot", () => {
+  const oldFailed: DemandRequest = { ...workspace.requests[0]!, id: olderBatchId, ideaId: null, kind: "ideas",
+    status: "failed", stage: "failed", failure: { code: "provider_invalid", message: "The earlier attempt failed.", retryable: false },
+    createdAt: "2026-09-06T16:00:00.000Z" };
+  for (const [status, stage, label] of [
+    ["queued", "queued", "Queued"],
+    ["running", "queued", "Queued"],
+    ["running", "checking-ideas", "Checking the article ideas"],
+  ] as const) {
+    const current: DemandRequest = { ...oldFailed, id: newestBatchId, status, stage, failure: null,
+      createdAt: "2026-09-06T16:10:00.000Z", updatedAt: "2026-09-06T16:11:00.000Z" };
+    assert.equal(demandIdeasPendingLabel(current, true), label);
+    assert.equal(demandIdeasPendingLabel(current, false), label);
+    const value = { ...workspace, requests: [oldFailed, ...workspace.requests, current] };
+    const html = renderToStaticMarkup(createElement(DemandReader, { initialWorkspace: value }));
+    assert.ok(html.includes(`<h2>${label}</h2>`));
+    assert.match(html, /Distinct article ideas will appear here after they’ve been checked/);
+    assert.doesNotMatch(html, /Couldn’t finish|We couldn’t finish these ideas|The earlier attempt failed/);
+    assert.deepEqual(value.requests[0], oldFailed);
+  }
+});
+
+test("a latest terminal ideas failure retains its real error and fresh-ideas action when no submission is active", () => {
+  const failed: DemandRequest = { ...workspace.requests[0]!, id: newestBatchId, ideaId: null, kind: "ideas",
+    status: "failed", stage: "failed", failure: { code: "provider_invalid", message: "The latest attempt failed.", retryable: false } };
+  const html = renderToStaticMarkup(createElement(DemandReader, { initialWorkspace: { ...workspace, requests: [failed] } }));
+  assert.match(html, /We couldn’t finish these ideas/);
+  assert.match(html, /The latest attempt failed/);
+  assert.match(html, /Find fresh ideas/);
+  assert.doesNotMatch(html, /Starting your ideas|Distinct article ideas will appear here after they’ve been checked/);
 });
 
 test("the approved create and Curate language stays exact and topic-general", () => {

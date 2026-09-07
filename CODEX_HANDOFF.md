@@ -15,6 +15,28 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
+### D30 v2.1 live; E10 official-source retrieval correction ready locally
+
+API hotfix `f6de880f7b8f03b3b6d6181ae083f68a6e5b7553` is **live**, deployment
+`dpl_5CoTiDpnohopXJQwyERmKSNmxeiP`, with public API target and all three cron
+hosts verified. Web remains b2a5af2. CI34070125294 and626localtests pass.
+Same-apex retry `4059368d-f213-4e72-8733-be7a1ddd1ee0` cleared metadata validation
+but failed evidence checking: NCBI HTML fetches either failed or returned access
+challenges, not article text. Two completed stages cost $0.016678; no publication.
+
+The local v2.2 correction uses documented NCBI BioC APIs for exact PMC/PMID
+identities, preserves actual transport URLs in passage locators, and rejects
+access-check pages. Existing DNS/TLS, byte/time limits, source identity and
+independent factual checks remain; no fallback scraping/retry or new service/key.
+Read-only replay fetched all seven original sources and13substantive passages;
+it did not call a model, modify old requests or approve their prose. A narrow
+redirect-boundary review finding is fixed and independently rechecked. The pending
+UI label now distinguishes a fresh submission from the previous failed request.
+CoS-selected v2.2 prompts choose the explanation before sources and require complete
+preview copy, with deck included in independent checking. Final checks/deployment
+follow, then the same-session useful sample within the remaining one daily ideas
+batch (two failed batches already used). No quota reset/new identity/extra service.
+
 ### D30 live checkpoint and v2.1 discovery correction
 
 The requested direct-apex release is **live** at `edisonreader.com`: web

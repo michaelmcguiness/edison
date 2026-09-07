@@ -7,6 +7,7 @@ import {
   answerReaderFirstQuestion, compileReaderFirstAnswer, checkReaderFirstAnswer, repairReaderFirstAnswer,
   assertAcceptedReaderFirstAnswerCheck, readerFirstAnswerText, readerFirstArticleFingerprint,
   ReaderFirstDraftValidationError, READER_FIRST_PROMPT_VERSION, readerFirstWriterProviderSchema,
+  READER_FIRST_PROMPTS,
   readerFirstAnswerProviderSchema, readerFirstResearchOutputSchema, readerFirstCheckOutputSchema,
   readerFirstIdeaCandidateSchema,
   assertReaderFirstPreviousMessages,
@@ -21,6 +22,15 @@ import type { OnDemandEvidence, OnDemandProviderRequest, OnDemandProviderRespons
 // Constructed examples and injected verdicts test contract/routing safeguards.
 // They do NOT establish provider semantic accuracy or reader-first improvement.
 const empty = { sources: [], passages: [] };
+
+test("idea prompts choose the explanation first and check complete preview copy without waiving verification", () => {
+  assert.match(READER_FIRST_PROMPTS.ideas, /Choose the explanatory promise before choosing sources/);
+  assert.match(READER_FIRST_PROMPTS.ideas, /When those claims are necessary to the promise, verify them/);
+  assert.match(READER_FIRST_PROMPTS.ideas, /complete, readable preview within its length bound/);
+  assert.match(READER_FIRST_PROMPTS.ideas_check, /headline, deck, readerQuestion/);
+  assert.match(READER_FIRST_PROMPTS.ideas_check, /cut-off or unreadable deck fails fitsLoop/);
+  assert.match(READER_FIRST_PROMPTS.ideas_check, /Mark verificationPassed false when required support is absent/);
+});
 const context: ReaderFirstSelection["context"] = {
   loopId: "loop-1", revision: 1, originalCuriosity: "How do you program a cell?", directions: [], declaredKnowledge: [],
   readingPreferences: ["Use a concise concrete example"], preferences: { length: "brief", depth: 50 }, previousArticles: [], currentDate: "2026-09-06",

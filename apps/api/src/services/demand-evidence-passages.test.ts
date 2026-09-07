@@ -24,6 +24,16 @@ const abstract = "The reversible bridge assembly supports repeated adjustment of
 const mechanism = "Thermal expansion increases the length of steel members. Sliding joints accommodate that expansion because their overlapping plates can move along a guided track. Without that movement, restrained members transfer additional compression into the supports. The track requires regular cleaning so debris does not jam the mechanism. ";
 const tradeoff = "The comparison held initial load and span geometry equal across both structures. The benefit of sliding joints was reduced support compression, but the maintenance burden increased. These observations establish a tradeoff in the tested assemblies, not a universal superiority claim. ";
 
+test("API-retrieved passages retain the actual documented transport URL without rewriting canonical identity", () => {
+  const retrievalUrl = "https://www.ncbi.nlm.nih.gov/research/bionlp/RESTful/pubmed.cgi/BioC_json/41151575/unicode";
+  const fetched = { ...page(mechanism + tradeoff), retrievalUrl };
+  const passages = actualDemandPassages(source, fetched, research([mechanism]));
+  assert.ok(passages.length > 0);
+  assert.ok(passages.every((entry) => entry.locator.includes(retrievalUrl) && entry.locator.length <= 500));
+  assert.ok(passages.every((entry) => entry.sourceId === source.id && entry.provenance === "retrieved"));
+  assert.equal(fetched.url, source.url);
+});
+
 test("separate discovery leads retain abstract, mechanism and promised comparison context", () => {
   const text = abstract.repeat(2) + spacer.repeat(30) + mechanism.repeat(2) + spacer.repeat(30) + tradeoff.repeat(2);
   const result = actualDemandPassages(source, page(text), research([

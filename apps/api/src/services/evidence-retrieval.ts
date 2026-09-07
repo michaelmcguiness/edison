@@ -2,6 +2,8 @@ import { lookup } from "node:dns/promises";
 import { request as httpsRequest } from "node:https";
 import { BlockList, isIP } from "node:net";
 import type { Readable } from "node:stream";
+import { setTimeout as delay } from "node:timers/promises";
+import { ncbiEvidenceTarget, parseNcbiEvidence } from "./ncbi-evidence";
 
 // Retrieved pages are untrusted evidence, never executable instructions. Each
 // hop is resolved and pinned independently; fetch() alone would permit DNS
@@ -46,6 +48,42 @@ export function evidenceUrl(value: string): URL {
 // raw transfer, not retained model evidence (which has a separate packet cap).
 export const MAX_EVIDENCE_BODY_BYTES = 2 * 1024 * 1024;
 const TIMEOUT_MS = 15_000;
+
+// Conservative per-process courtesy limit, not a distributed global limit.
+// Calls are serialized, start no faster than twice per second and share the
+// existing whole-retrieval deadline. A 429 is a failure, never an automatic retry.
+let ncbiTail: Promise<void> = Promise.resolve();
+let nextNcbiStart = 0;
+function withNcbiSlot<T>(signal: AbortSignal, read: () => Promise<T>): Promise<T> {
+  const result = ncbiTail.then(async () => {
+    signal.throwIfAborted();
+    const wait = Math.max(0, nextNcbiStart - Date.now());
+    if (wait) await delay(wait, undefined, { signal });
+    signal.throwIfAborted();
+    nextNcbiStart = Date.now() + 500;
+    return read();
+  });
+  ncbiTail = result.then(() => undefined, () => undefined);
+  return result;
+}
+
+/** Access challenges are not article evidence, even when served with HTTP200. */
+export function isEvidenceAccessInterstitial(text: string, title: string | null): boolean {
+  if (/^(?:checking your browser|just a moment|access denied|attention required)(?:\b|\s|[.!–—-])/i.test(title ?? "")) return true;
+  return text.length < 2000 && /(?:checking your browser before accessing|verify (?:that )?you are (?:a )?human|enable javascript and cookies to continue|performing security verification)/i.test(text);
+}
+
+function evidenceContentTypeAllowed(contentType: string, url: URL): boolean {
+  if (/^(text\/(html|plain|markdown)|application\/xhtml\+xml)(;|$)/i.test(contentType)) return true;
+  // JSON is only meaningful at one of the explicitly documented BioC routes.
+  return /^application\/json(;|$)/i.test(contentType) && url.hostname === "www.ncbi.nlm.nih.gov" &&
+    /^\/research\/bionlp\/RESTful\/(?:pmcoa|pubmed)\.cgi\/BioC_json\/(?:PMC)?[1-9][0-9]*\/unicode$/.test(url.pathname) && !url.search;
+}
+
+function isNcbiInteractiveContent(url: URL): boolean {
+  return ["pmc.ncbi.nlm.nih.gov", "pubmed.ncbi.nlm.nih.gov"].includes(url.hostname) ||
+    (url.hostname === "www.ncbi.nlm.nih.gov" && /^\/(?:pmc|pubmed)(?:\/|$)/.test(url.pathname));
+}
 
 /** Stop on the first oversized chunk; never return a truncated source page. */
 export async function readBoundedEvidenceBody(
@@ -119,7 +157,7 @@ const transport: EvidenceTransport = {
       // Disable pooled connections and pin lookup; TLS still verifies the
       // original URL hostname. No cookies, bearer credentials, or referrer.
       lookup: (_host, _options, callback) => callback(null, address.address, address.family),
-      headers: { Accept: "text/html, text/plain;q=0.9", "Accept-Encoding": "identity",
+      headers: { Accept: "text/html, text/plain;q=0.9, application/json;q=0.8", "Accept-Encoding": "identity",
         "User-Agent": "EdisonReaderEvidence/1.0" },
     }, (response) => {
       const status = response.statusCode ?? 0;
@@ -130,7 +168,7 @@ const transport: EvidenceTransport = {
         resolve({ status, location, contentType, text: "" });
         return;
       }
-      if (status !== 200 || !/^(text\/(html|plain|markdown)|application\/xhtml\+xml)(;|$)/i.test(contentType) ||
+      if (status !== 200 || !evidenceContentTypeAllowed(contentType, url) ||
           (response.headers["content-encoding"] && response.headers["content-encoding"] !== "identity")) {
         response.destroy(); reject(new Error("evidence_content_unavailable")); return;
       }
@@ -145,15 +183,23 @@ const transport: EvidenceTransport = {
 export async function retrieveEvidencePage(
   value: string,
   dependencies: EvidenceTransport = transport,
-): Promise<{ url: string; text: string; title: string | null; retrievedAt: string }> {
+): Promise<{ url: string; text: string; title: string | null; retrievedAt: string; retrievalUrl?: string }> {
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => { controller.abort(); reject(new Error("evidence_timeout")); }, TIMEOUT_MS);
   });
   const retrieve = async () => {
-    let url = evidenceUrl(value);
+    const sourceUrl = evidenceUrl(value);
+    const ncbi = ncbiEvidenceTarget(sourceUrl.href);
+    // NCBI permits automated PMC retrieval through documented APIs, not its
+    // interactive article pages. Unsupported content URLs have no HTML fallback.
+    if (!ncbi && isNcbiInteractiveContent(sourceUrl)) {
+      throw new Error("evidence_content_unavailable");
+    }
+    let url = ncbi ? evidenceUrl(ncbi.retrievalUrl) : sourceUrl;
     for (let hop = 0; hop <= 3; hop += 1) {
+      if (!ncbi && isNcbiInteractiveContent(url)) throw new Error("evidence_content_unavailable");
       const host = url.hostname.replace(/^\[|\]$/g, "");
       const addresses = isIP(host) ? [{ address: host, family: isIP(host) }]
         : await dependencies.resolve(host);
@@ -161,21 +207,31 @@ export async function retrieveEvidencePage(
       if (!addresses.length || addresses.some(({ address }) => !isPublicEvidenceAddress(address))) {
         throw new Error("evidence_address_forbidden");
       }
-      const response = await dependencies.read(url, addresses[0], controller.signal);
+      const read = () => dependencies.read(url, addresses[0], controller.signal);
+      const response = await (ncbi ? withNcbiSlot(controller.signal, read) : read());
       if (response.status >= 300 && response.status < 400 && response.location) {
+        if (ncbi) throw new Error("evidence_content_unavailable");
         url = evidenceUrl(new URL(response.location, url).href);
         continue;
       }
-      if (response.status !== 200) throw new Error("evidence_content_unavailable");
+      if (response.status !== 200 || !evidenceContentTypeAllowed(response.contentType, url)) throw new Error("evidence_content_unavailable");
       // Keep the public transport seam subject to the same full-page bound.
       if (Buffer.byteLength(response.text, "utf8") > MAX_EVIDENCE_BODY_BYTES) {
         throw new Error("evidence_content_too_large");
       }
+      if (ncbi) {
+        if (!/^application\/json(;|$)/i.test(response.contentType)) throw new Error("evidence_content_unavailable");
+        const page = parseNcbiEvidence(ncbi, response.text);
+        if (page.text.length < 100 || isEvidenceAccessInterstitial(page.text, page.title)) throw new Error("evidence_content_unavailable");
+        return { ...page, retrievedAt: new Date().toISOString() };
+      }
+      if (/^application\/json(;|$)/i.test(response.contentType)) throw new Error("evidence_content_unavailable");
       const text = readableEvidenceText(response.text);
       if (text.length < 100) throw new Error("evidence_content_unavailable");
       const rawTitle = /(?:text\/html|application\/xhtml\+xml)/i.test(response.contentType)
         ? /<title\b[^>]*>([\s\S]*?)<\/title\s*>/i.exec(response.text)?.[1] : undefined;
       const title = rawTitle ? readableEvidenceText(rawTitle).slice(0, 300) || null : null;
+      if (isEvidenceAccessInterstitial(text, title)) throw new Error("evidence_access_interstitial");
       return { url: url.href, text, title, retrievedAt: new Date().toISOString() };
     }
     throw new Error("evidence_redirect_limit");

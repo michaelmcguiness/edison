@@ -3,6 +3,70 @@
 Owner: CTO. Scope: D28 reader-first reading and D29/D30 direct-apex operation.
 The app is live; useful real-output acceptance is a separate unfinished check.
 
+## E10 — v2.1 live, documented NCBI retrieval correction
+
+Hotfix `f6de880f7b8f03b3b6d6181ae083f68a6e5b7553` is committed/pushed and live
+in API `dpl_5CoTiDpnohopXJQwyERmKSNmxeiP`, unique
+`edison-yc681fda2-mike-michaelmcguis-projects.vercel.app`. Production target and
+all three original cron hosts match this exact Ready source. Web remains b2a5af2
+and its public connector is unchanged. Health/configuration/database/auth and
+unauthenticated me/workspace denial pass. [CI34070125294](https://github.com/michaelmcguiness/edison/actions/runs/34070125294)
+passed application/database gates. 626localtests/types/focusedlint passed.
+
+Same-principal retry `4059368d-f213-4e72-8733-be7a1ddd1ee0`, started
+2026-09-07T00:35:07.655563Z, failed `evidence_unavailable` after two completed
+provider stages, costing $0.016678 (15236+1442microUSD; one priced search action).
+All seven declared PubMed/PMC URLs had actual tool provenance. The first four
+retrievals failed; the other three retained only “Checking your browser” challenge
+text. The independent checker correctly withheld all four premises. No idea or
+article was published; historical raw output, failed status and usage are preserved.
+Exact capture: `/private/tmp/edison-calibration-capture.orn8n1`.
+
+**Bounded implemented correction, pending release:**
+
+- Exact modern/legacy PMC and PubMed article URLs use fixed documented
+  [PMC BioC](https://www.ncbi.nlm.nih.gov/research/bionlp/APIs/BioC-PMC/) and
+  [PubMed BioC](https://www.ncbi.nlm.nih.gov/research/bionlp/APIs/BioC-PubMed/)
+  APIs. [NCBI permits automated PMC retrieval through these APIs](https://pmc.ncbi.nlm.nih.gov/tools/developers/),
+  not systematic interactive-page scraping; availability and reuse terms vary.
+  No API key, service purchase, ID conversion or guessed URL equivalence is added.
+- The parser verifies one exact record and matching identity metadata, extracts
+  actual substantive title/abstract/body text, and excludes reference/supplement
+  shells. Original canonical article identity remains; the actual transport URL
+  is retained in each new passage locator. No publication dates are invented.
+- Transport keeps pinned public DNS, hostname-verifying TLS,2MiB byte cap and
+ 15second total deadline. API requests are serialized with500ms start spacing
+  per process, not a distributed global rate guarantee. 429/redirect/malformed
+  response fails without automatic retry or fallback. Generic redirects into
+  interactive NCBI content also fail before the next read; this review finding
+  was independently reproduced, fixed and regression-verified.
+- HTTP200 access-check HTML is explicitly rejected as non-evidence. A normal
+  explanatory page mentioning CAPTCHA remains eligible.
+- Exact E10 discovery replay with the corrected real retriever fetched all7
+  original sources and retained13substantive passages,0failures,0modelcalls.
+  `/private/tmp/edison-live-d30.YMyC4B/ncbi-retrieval-replay.json` records new
+  retrieval, not a rewrite or reapproval of the historical failed request. No
+  independent model checker was invoked in that read-only experiment.
+- Pending UI label no longer borrows a prior terminal failure during a fresh
+  submission. Three regressions cover old failed/succeeded snapshots, actual
+  queued/running state and unchanged terminal errors.
+- CoS reviewed E10's actual pitches and selected a narrow v2.2 principle:
+  choose the explanatory promise before sources; don't manufacture clinical
+  performance/status claims just to make a familiar concept relevant. Necessary
+  claims still need verification. Preview decks must be complete within their
+  bound; ideas_check now explicitly examines deck and rejects cut-off prose.
+  These prompts are not evidence of measured writing improvement.
+
+Continue the ordinary same apex session after release. Two failed ideas batches
+count normally, leaving one within the existing daily3 limit; two articles may
+come from that batch with explicit preference applied before the second. No
+fourth batch, new principal or reset is authorized by this correction.
+
+Final local verification:644tests (462web/182API), both standalone typechecks,
+owned-file lint and diff checks pass. Independent review's sole redirect finding
+is closed. Deploy matching web/API from the clean committed source; web changes
+only the pending-status label, not design or saved reader data.
+
 ## D30 live on the existing apex — first request correction
 
 At exact source `b2a5af2d1fdc11ad24e553498a30acc3fd3a1c9c`, both authorized
