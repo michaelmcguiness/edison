@@ -3,6 +3,48 @@
 Owner: CTO. Scope: D28 reader-first reading and D29/D30 direct-apex operation.
 The app is live; useful real-output acceptance is a separate unfinished check.
 
+## Latest — D32 $10 daily admission ceiling live
+
+Owner: CTO, September 7. Michael explicitly raised the daily API spending ceiling
+to $10 while reliability is being completed, with a warning against wasteful
+testing. Previous deployed source `0b7611f9e737fb76c982e426a7bb67d1f00e1f37`
+had no daily/monthly overrides, so effective defaults were $4/$40. CTO added only
+Production `EDISON_DEMAND_DAILY_MICROUSD=10000000` to the existing API project;
+the selected per-variable readback confirmed the exact non-secret value. No other
+variable was changed and the monthly override remains absent.
+
+One active v2.5 request was allowed to finish; the subsequent read-only aggregate
+was empty. The clean identical API source, already covered by successful
+[CI 34118061228](https://github.com/michaelmcguiness/edison/actions/runs/34118061228),
+was rebuilt as `dpl_G7KPS1UV5VitkgA2fcHSDj24Bos9`, Ready at 11:58:43.458 UTC,
+at `edison-q6haaitug-mike-michaelmcguis-projects.vercel.app`. At 11:59:17 UTC,
+verification confirmed the setting predates this deployment and its runtime-key
+snapshot includes it; no monthly override is included. Exact source, public
+`project-fjr95.vercel.app` alias, production target and all three enabled schedule
+hosts match. Public configuration/database/Auth health returned 200, exact-apex
+CORS 204 and each unauthenticated cron 401. No authorized cron was triggered.
+Web `6eb811b` / `dpl_CeUv9T9DQCyxQeiQqDfFirXVmyuP` remains unchanged.
+
+Independent offline checks of the unchanged production admission functions accept
+exactly $10 combined daily capacity and reject $10.000001 for each reservation
+type. Monthly $40 boundaries, legacy totals, unpriced/outstanding-work protections
+and concurrency remain enforced. The limit is Edison-wide trailing 24-hour usage
+plus unused held reservations and legacy charges, not a calendar-day reset or
+per-reader budget. Monthly accounting remains calendar-month-to-date plus holds.
+It is not an OpenAI-account hard cap and does not control spending outside Edison;
+already-issued provider calls can incur actual charges that must still be recorded.
+Hosted evidence is config/build/readiness plus offline admission checks, not a
+paid live request at the spending boundary.
+
+No source/schema/model/prompt/UI/history change, paid sample, monthly increase or
+provider billing action. Six ideas/eight articles, other reader allowances,
+reservations and concurrency remain. This is a ceiling, not a testing target:
+prefer saved-response replay and focused offline checks; use small live samples
+only for specific unresolved acceptance questions, stopping repeat paid attempts
+on deterministic defects. Review the temporary cap at the daily-use milestone;
+no automatic expiry or rollback was selected. The prior deployment retains the
+$4 setting; any rollback must explicitly account for this configuration difference.
+
 ## Latest — v2.5 checker-contract prevention live
 
 Owner: CTO, September 7. Exact source

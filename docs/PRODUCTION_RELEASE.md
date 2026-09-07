@@ -6,7 +6,17 @@ launching; they can change without a code release.
 
 ## Decision and current status
 
-**Current — v2.5 live, September 7:** API source
+**Current — D32 configuration live, September 7:** API source remains `0b7611f`
+(v2.5), rebuilt as `dpl_G7KPS1UV5VitkgA2fcHSDj24Bos9`, Ready at 11:58:43 UTC.
+Only the Edison-wide rolling-24-hour admission ceiling changed from default $4
+to explicit $10; exact configuration/deployment inclusion, source/alias/schedules,
+health and access checks passed at 11:59:17 UTC. Monthly default $40, per-reader
+allowances, concurrency, history and web remain unchanged. No source edit or paid
+sample. This is an Edison ledger/admission ceiling, not provider-account billing
+configuration. Reuse saved outputs and focused offline tests; do not treat the
+ceiling as a spending target. See the [execution record](ON_DEMAND_RELEASE_2026-09-06.md).
+
+**Previous — v2.5 code release, September 7:** API source
 `0b7611f9e737fb76c982e426a7bb67d1f00e1f37` passed exact-source
 [CI 34118061228](https://github.com/michaelmcguiness/edison/actions/runs/34118061228)
 and deployed as `dpl_EGjCTJSkjoWsuzhBQteoRn88TWPq`, Ready at 11:49:31 UTC.

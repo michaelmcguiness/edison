@@ -15,6 +15,22 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
+### September 7 — D32 $10 daily Edison ceiling live
+
+Michael authorized a $10 daily API ceiling while reliability is being completed,
+with explicit instructions not to waste tokens testing. CTO changed only Production
+`EDISON_DEMAND_DAILY_MICROUSD` from absent/default $4 to `10000000`, rebuilding
+unchanged API source `0b7611f`. Deployment `dpl_G7KPS1UV5VitkgA2fcHSDj24Bos9`
+was Ready at 11:58:43 UTC; exact setting, deployment inclusion, source, public alias,
+three enabled schedules, health and access checks passed at 11:59:17 UTC.
+Web remains `6eb811b`. This is global rolling-24-hour Edison admission accounting,
+including held reservations and legacy usage, not an OpenAI-account billing cap.
+The $40 monthly default, reader allowances, concurrency, history and all other
+controls remain. No paid sample or source edit. Prefer saved-output/offline checks;
+small live samples need a specific unresolved acceptance question. Review this
+temporary ceiling at the daily-use milestone; no automatic expiry was selected.
+See [D32 execution evidence](docs/ON_DEMAND_RELEASE_2026-09-06.md).
+
 ### September 7 — v2.5 checker-contract prevention live
 
 Owner: CTO. Exact API source `0b7611f9e737fb76c982e426a7bb67d1f00e1f37`

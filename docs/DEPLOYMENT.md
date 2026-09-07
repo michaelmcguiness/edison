@@ -1,5 +1,16 @@
 # Edison deployment
 
+## Latest configuration rollout — D32, September 7, 2026
+
+Only API Production `EDISON_DEMAND_DAILY_MICROUSD=10000000` was added, raising
+the existing $4 fallback to $10 across rolling 24 hours. Unchanged source `0b7611f`
+is Ready as `dpl_G7KPS1UV5VitkgA2fcHSDj24Bos9` at 11:58:43 UTC. Exact non-secret
+value/deployment inclusion, public alias/source/schedules, health 200, apex CORS
+204 and all negative cron 401 checks passed at 11:59:17 UTC. Web `6eb811b` and
+the $40 monthly default/other limits remain. No paid generation or live admission
+mutation was used to verify this config-only change. Full evidence and accounting
+limits are in [the execution record](ON_DEMAND_RELEASE_2026-09-06.md).
+
 ## Latest API rollout — v2.5, September 7, 2026
 
 API source `0b7611f9e737fb76c982e426a7bb67d1f00e1f37` is Ready/Production;
