@@ -1,5 +1,21 @@
 # Edison deployment
 
+## Prepared D34 release — migration authorization paused, September 7
+
+Candidate `27c9944eb268b2ecc8a1735ac79322089effa294` implements approved v10.
+[CI34128662833](https://github.com/michaelmcguiness/edison/actions/runs/34128662833)
+passed772 application tests/builds/types/lint,279 pgTAP assertions and disposable
+DB integration checks. Design and actual constructed-data browser checks passed
+at the documented scope. No paid AI sample was used.
+
+The three new additive migrations passed read-only dry-run review; automatic
+review rejected their live application before execution over the older explicit
+migration stop. Chief of Staff owns the single narrow founder confirmation.
+No D34 migration or deployment occurred; existing live API7f7c6cf and web6eb811b
+remain unchanged. After this specific hold is cleared, apply the reviewed schema,
+deploy exact27c9944 API then web, and verify source/aliases/schedules/health/access
+and retained spending limits. See [the D34 release record](V10_READING_RELEASE_2026-09-07.md).
+
 ## Latest API rollout — D33 six titles per batch
 
 Live source `7f7c6cf6cbe26e6ab21674617399456fc5e8c906` requests six briefs for newly admitted first/fresh

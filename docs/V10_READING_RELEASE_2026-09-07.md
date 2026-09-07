@@ -1,6 +1,8 @@
 # D34 — approved v10 reading release
 
-Owner: CTO. September 7, 2026. **Implemented; release verification in progress.**
+Owner: CTO. September 7, 2026. **Implemented and verified at the scope below; live migration/deployment paused by automatic review.**
+
+Application candidate: `27c9944eb268b2ecc8a1735ac79322089effa294`, pushed on `codex/production-release-candidate`. No D34 migration, API deployment or web deployment has occurred. Existing live API remains `7f7c6cf6cbe26e6ab21674617399456fc5e8c906`; live web remains `6eb811b51e6fa243654cbdca43cb084a394e3f60`.
 
 Selected source: [approved v10 handoff](brand/APPROVED_V10_READING_CTO_HANDOFF_2026-09-07.md), frozen design SHA256 `4e773d5d8be43bcf1cb88cd3cf1fe99ae3babd6554ef35633a45df35714a579a`. Michael's D34 approval and existing D30 authority cover implementation and rollout on edisonreader.com. P10 generation-policy simplification is not selected.
 
@@ -29,12 +31,43 @@ Run migrated disposable-Postgres tests and exact-source application CI before li
 
 Deployment verification must match source/production target/public aliases/all three API schedule hosts; health includes the new schema/grant checks. Retain D32 daily10000000microUSD and the unchanged monthly40000000 default, v2.5 checks and sole repair, and D33 saved requested counts. Do not issue authenticated cron calls or fresh AI work merely to verify deployment.
 
-## Verification evidence and remaining work
+## Exact-source verification
 
-Current local evidence:744 automated application tests passed before final UI recovery regressions; both typechecks and lint subsequently passed. Focused owner/cursor/privacy/revision tests and independent backend source review passed. Final exact-source totals will be recorded at completion.
+[CI34128662833](https://github.com/michaelmcguiness/edison/actions/runs/34128662833) passed at exact `27c9944eb268b2ecc8a1735ac79322089effa294` on September7, completing at13:43:40UTC. Application:540 web +232 API =772 tests, zero failures, lint, both typechecks and production builds. Root's final local full suite also passed772/772. Database:10 pgTAP files,279 assertions, all five disposable integration checks and schema lint passed. CoS and the independent CI reviewer verified both exact-source jobs.
 
-`scripts/check-demand-v10-local-db.ts` is hardwired to the named disposable local Postgres container; it refuses inherited live credentials/configuration. It checks actual separate-session sharing races, exact replay,121-turn microsecond pagination, owner isolation, archive/reading/chat/share retention, and active-loop capacity. The local machine lacks Docker, so actual DB execution is an explicit CI gate, not a claimed local result. New pgTAP checks cover21 loop-management and24 sharing assertions.
+`scripts/check-demand-v10-local-db.ts` is hardwired to the named disposable local Postgres container and refuses inherited live credentials/configuration. CI ran actual separate-session same/different-key sharing races, replay/rebinding denial,121-turn microsecond pagination, owner isolation, edited/archived loop reading/chat/share retention, archive access beyond the workspace window and30-active-loop capacity. The local machine lacks Docker; these are actual CI database results, not local database or hosted-production claims. New pgTAP checks cover21 loop-management and24 sharing assertions.
 
-`scripts/demand-v10-browser-fixture.ts` is an opt-in localhost-only synthetic HTTP service, never an app route or production backend. It has no provider/database calls, uses constructed reading and125 prior questions, and changes lifecycle only through explicit local test controls. Browser evidence against it establishes actual application interaction/rendering with deterministic data, not live generation or database durability.
+Independent bounded Design review source-closed R1–R7, deletion copy and the longer `Dr.` naming case at the final candidate. These include retained source/page origins across Next/reload, selected-loop visibility, completed-batch recovery, identity-guarded late edit responses and exact older-conversation polling. Deferred late-A success/rejection tests establish the persisted B identity guard; they are not a mounted-browser race test. See Design-owned `docs/brand/V10_IMPLEMENTATION_DESIGN_REVIEW_2026-09-07.md`.
 
-Still required: exact-source CI/migrations; desktop/phone/keyboard/zoom/reduced-motion/return/reload/recipient verification and independent Design review; production rollout and read-only health/access checks. No v10 deployment or new paid sample is established by this preparation record.
+## Actual local browser evidence
+
+The real Next application ran at `http://localhost:4310` against `scripts/demand-v10-browser-fixture.ts`, an opt-in localhost-only constructed HTTP service on4311. It is not a production app route, uses no database or provider, and advances lifecycle only through explicit local operator controls. The isolated checkout has the final application source. Its development runtime needed `NODE_PATH` pointed at its copied pnpm dependency store; no app dependency, production configuration, authentication or browser-origin check was weakened. This evidence establishes actual application interactions with deterministic data, not live generation or database durability.
+
+CTO directly verified:
+
+- Legible article rendering at320/390/760/1024/1440 widths, compact Ask at390 and1440, conversation at390 and public recipient at390/1280. Checked document widths match tested viewports. At1440 the compact Ask panel starts24px beyond the prose edge; the focused composer has one rounded ring. Design directly inspected the final frames with no remaining material visual finding.
+- Question draft close/reopen and reload retention, Ask focus return, and full actual conversation with answer-owned sources. A deliberately lost question response reconciled under the same key to one pending question, then its constructed completed answer; no duplicate admission.
+- For You → ready A → Next B → reload → Back restored For You and original A focus. A pending next article immediately acquired its exact idea URL; reload and browser Back did not commission another article.
+- Older Library page2 → A → reload → Back, and page2 → A → Next B → reload → Back restored the same seven older cards, original A focus and scrollY597.
+- Lost edit A response → close/reopen → newer draft B → Check change status retained B exactly, including whitespace/newline, and kept it across another reopen. Saving B then confirming deletion archived only the constructed loop; its exact article link and Ask entry still opened, retaining the local question draft.
+- Native button End/Home/ArrowRight/Enter moved focus to the last loop, back to For You, then selected Architecture. The last focused loop stayed inside the viewport. Source review also verified reduced-motion handling, finite overflow/selected reveal and bounded responsive panels.
+- More articles retained six existing cards while queued, then appended exactly three constructed accepted ideas. The notice said `3 new articles added`; View new articles focused card index6, the first new card. The fixture deliberately reuses title text and is not a semantic originality evaluation.
+- Explicit Create public link produced an immutable constructed recipient; Copy link reported success and matched actual clipboard content. The separate public page had article title/deck metadata and no private instructions, rationale or conversation text. No real private article was published.
+
+Screenshot directory: `/private/tmp/edison-v10-browser-evidence.0et2BK`. Final corrected files are `article-390.png`390×844, `article-1024.png`1024×900, `ask-390.png`390×844, `recipient-390.png`390×844 and `ask-desktop-final.png`1440×1000. Earlier mislabeled/scaled captures were replaced with settled, same-byte saved/viewed screenshots; those earlier bytes are excluded evidence. Other valid frames: article320/760/1440, conversation390 and recipient1280.
+
+Limits: no physical iOS/Android device or software keyboard, rendered200% zoom, OS reduced-motion toggle, screen-reader or contrast certification. Reduced-motion/keyboard-height behavior has source checks, not device acceptance. Native Share cancellation and exact older failed-turn retry were not driven in the browser; focused code/tests and actual disposable database checks cover the latter persistence paths. Constructed screenshots establish no AI-writing quality or hosted durability. No new paid AI/workflow call was made for D34.
+
+## Production preflight and exact pause
+
+Read-only linked dry runs listed only the three reviewed migrations above. Fresh aggregate active-work query returned no queued/running requests. Latest inspected physical backup1601031663 is COMPLETED at2026-09-07T04:40:27.146Z, us-east-1; WAL-G enabled, PITR false. A restoration rehearsal remains unperformed.
+
+Migration SHA256s:
+
+- `20260907000100`: `c513b437a59e31ca3fadeffda133fbdf70e7603a84d3793c8275deb693f462de`
+- `20260907000200`: `c17ab5684b01f98de4b695f6c5ff15c740ddc1b385217a3af216dc966c989e46`
+- `20260907000300`: `2b4affe3ec98e06b472d4ce8037a4bdf013f641b611005d704356236e49ed94a`
+
+Automatic review rejected `supabase db push --linked --yes` **before execution**, citing Michael's earliest explicit stop-before-live-migrations and finding later general deployment approval insufficient to clearly revoke that specific restriction. No retry, alternate migration route, secret access or downstream deployment followed. Targeted authority-record checks found no separately unambiguous direct approval of these three new schema updates. This is an execution-authorization hold, not a new design/staging requirement or a failed migration.
+
+Chief of Staff owns the single narrow founder confirmation for these three tested updates on project `bcxxnntastmnormcmxbq` and subsequent existing-apex rollout; CTO must not duplicate the question. Once explicitly cleared, rerun the read-only preflight if stale, apply only these migrations, deploy API then web from exact27c9944, and verify source/production aliases/all three schedule hosts/schema readiness/CORS/negative access and retained D32/D33 controls. The clean deployment checkout is `/private/tmp/edison-release-v20.LH5FOY/candidate`; `verify-v10-release.mjs` beside it accepts exact API/web deployment IDs and source SHAs. Do not claim live completion until those checks pass.

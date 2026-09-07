@@ -15,6 +15,28 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
+### September 7 — D34 v10 verified candidate; migration authorization paused
+
+The approved v10 reading/loop editing/conversation/public-share implementation is
+pushed at `27c9944eb268b2ecc8a1735ac79322089effa294`. Exact-source
+[CI34128662833](https://github.com/michaelmcguiness/edison/actions/runs/34128662833)
+passed772 application tests, both production builds and types/lint,279 pgTAP
+assertions and all disposable DB integration checks. Independent Design review
+source-closed R1–R7 and visually closed the final desktop/phone findings. Actual
+localhost checks cover draft/recovery/origin/keyboard/append/share behavior;
+constructed data is not live generation or mobile-device acceptance.
+
+No D34 migration or API/web deployment occurred. Automatic review rejected the
+live migration command before execution because the earliest explicit migration
+stop was not clearly revoked by later general deployment wording. No workaround
+or retry followed. Chief of Staff owns one narrow founder confirmation for the
+three reviewed `20260907000100`–`20260907000300` database updates and existing-apex
+rollout; do not ask a duplicate or a generic design/staging question. The current
+live API/web remain7f7c6cf/6eb811b with D32/D33 intact. Resume exact27c9944 only
+after this specific execution hold is cleared. See
+[D34 evidence and rollout checkpoint](docs/V10_READING_RELEASE_2026-09-07.md)
+for migration hashes, backup, clean checkout, browser evidence and honest limits.
+
 ### September 7 — D33 six titles in each new loop batch live
 
 Michael selected six titles per normal first/new ideas batch. Live API source

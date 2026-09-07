@@ -6,6 +6,20 @@ launching; they can change without a code release.
 
 ## Decision and current status
 
+**Prepared D34 v10 — not live:** application candidate
+`27c9944eb268b2ecc8a1735ac79322089effa294` passed exact-source
+[CI34128662833](https://github.com/michaelmcguiness/edison/actions/runs/34128662833)
+(772 application tests, builds/types/lint,279 pgTAP assertions and actual
+disposable database integrations). Design source/visual closure and bounded
+constructed-data browser checks are recorded in
+[the D34 execution record](V10_READING_RELEASE_2026-09-07.md).
+Automatic review rejected the live migration command before execution, citing
+the earliest explicit migration stop; no alternate route or downstream deployment
+followed. Chief of Staff owns one narrow confirmation for the three reviewed new
+database updates and existing-apex rollout. Source/backup/dry-run preparation is
+complete, not proof of live schema. Existing production remains the D33 checkpoint
+below. No paid AI sample or budget/policy expansion occurred.
+
 **Current — D33 six titles per new batch live:** API source `7f7c6cf` pins six for new
 requests and preserve historical four-count retries; semantic gates/actual count
 and bodies-on-selection remain. All 707 local tests, types, lint and independent
