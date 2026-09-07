@@ -71,5 +71,8 @@ jobs:
       - name: Verify v2 provider allocation, accounting and replay in disposable Postgres
         run: pnpm exec tsx scripts/check-demand-provider-local-db.ts
 
+      - name: Verify exact saved-check recovery and admission races in disposable Postgres
+        run: pnpm exec tsx scripts/check-demand-check-recovery-local-db.ts
+
       - name: Lint migrated application schemas
         run: pnpm exec supabase db lint --local --schema public,private,edison_public_api --level warning --fail-on warning

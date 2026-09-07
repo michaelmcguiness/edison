@@ -3,6 +3,60 @@
 Owner: CTO. Scope: D28 reader-first reading and D29/D30 direct-apex operation.
 The app is live; useful real-output acceptance is a separate unfinished check.
 
+## Qualified saved-check recovery candidate — no live recovery yet
+
+Owner: CTO. The bounded general product correction is implemented. It requires
+an active owned v2 article, exact failed pre-repair checkpoint, explicit cached
+repair verdict, exactly two succeeded/priced write/check envelopes, matching
+snapshot/model/prompt/provider identities and matching usage ledger. Local replay
+must reach repair with only uniquely exact finding locations corrected. It cannot
+publish, erase findings or make arbitrary provider_invalid retryable.
+
+The private progress record preserves a failure receipt with original status,
+code/time/workflow/attempts and exact progress/stage/envelope/usage fingerprints.
+This is application append-preservation, not a new DB-enforced audit journal.
+Normal worker replay keeps the receipt and existing one-repair/four-stage/eight-
+tool budgets. All previous request identity/timestamps/reservation/usage remain;
+no count reset or new principal/request is created.
+
+Fresh reservations and retries share the same global advisory lock then principal
+lock. Under these locks, recovery proves exact input and readmits only the unused
+released reservation against current global daily/monthly totals, legacy usage,
+unpriced/outstanding conditions and per-reader concurrency. Ordinary recoverable
+transport failures already retain their hold, so do not reserve it twice. The
+UI affordance is privately qualified and advisory; POST rechecks atomically.
+
+670localtests, API typecheck and focused lint pass. Exact E12 offline proof
+qualifies at1148179microUSD with phasecheck/repairAttemptedfalse, original raw
+files and all inputs unchanged, zero provider/network/DB calls. Independent
+runtime review found no residual. The new integration script refuses inherited
+provider/database settings and permits only the named disposable localhost
+Supabase database. Two independent OS processes are required because a single
+application pool has max1connection. Tests observe both PostgreSQL sessions
+waiting on the actual admission lock before releasing real same-request and
+daily/monthly budget races; foreign/expired/attempt/concurrency/unpriced cases,
+receipt/history preservation and zero-provider cached replay are also covered.
+Actual DB execution is unrun locally (Docker unavailable); the existing CI
+disposable database job now includes it, and must pass before recovery deploy.
+
+## E12 binding correction live — qualified recovery remains separate
+
+Source `106cc1247fc84578f83de84f8584a85bd0de5f7a` is committed/pushed and live
+in Ready Production API `dpl_7zfEDhyXd6EMc7QHXzVcutGoZrzo`, unique
+`edison-haksh0jv9-mike-michaelmcguis-projects.vercel.app`. Exact source metadata,
+public project target and all three unchanged cron hosts are verified. Web
+remains6eb811b. [CI34072773689](https://github.com/michaelmcguiness/edison/actions/runs/34072773689)
+passed application/database jobs;652localtests/types/focusedlint pass.
+Health/configuration/database/auth, three negative cron401 checks and exact-apex
+CORS204 pass. Apex200/CSP/HSTS and www308 were checked with the unchanged web.
+
+No further provider call or request reopening occurred. A general, narrowly
+qualified saved-check recovery is being implemented separately with independent
+review and disposable-Postgres race checks. It must preserve the historical
+failure, exact cached envelopes/charges, original reservation/counts and sole
+repair allowance while atomically readmitting released budget. Deployment is
+complete; actual article/Ask/adaptation/return acceptance is still unfinished.
+
 ## E12 — exact draft retained; checker misindexed paragraphs
 
 The first selected article request `5502ae41-f3a2-49ba-8c0c-997b7e20af23`

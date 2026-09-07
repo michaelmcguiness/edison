@@ -15,6 +15,49 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
+### Qualified E12 recovery candidate — local proof complete, DB race gate pending
+
+The general saved-check recovery is implemented without changing prompts/models,
+wire schemas, quota caps, migrations or provider stages. It qualifies only an
+active owner's exact failed v2 article, before its sole repair, with exactly two
+priced successful cached write/check envelopes and matching frozen input/ledger.
+The original checker must explicitly request repair; only uniquely exact body
+location corrections may differ after offline replay. An application-preserved
+failure receipt is appended privately. Arbitrary provider_invalid stays terminal.
+
+Fresh work and retry now share global admission→principal locking. Conditional
+recovery atomically readmits only the unused released hold under current
+daily/monthly/legacy/unpriced/concurrency limits. UUID, creation time, original
+reservation, daily count, cached stages/charges and max3attempts remain unchanged.
+Workspace/detail expose Try again only after private qualification; POST proves
+eligibility again under locks. No raw draft, evidence or receipt enters the DTO.
+
+670localtests, API types and focused lint pass. Exact E12 offline qualification
+returns phasecheck/repairAttemptedfalse and1148179microUSD released hold, with
+original inputs and capture files unchanged,0modelcalls. Independent review
+found no residual issue. New local-only CI integration uses independent OS/DB
+clients and observes both waiting on the real admission lock before testing
+same-request and daily/monthly fresh-admission races. Docker is unavailable on
+this host; actual disposable-DB execution must pass in CI before this recovery
+release. Live API remains106cc12; no actual E12 recovery has occurred yet.
+
+### E12 binding correction live; qualified recovery in progress
+
+API `106cc1247fc84578f83de84f8584a85bd0de5f7a` is live in Ready Production
+`dpl_7zfEDhyXd6EMc7QHXzVcutGoZrzo`, unique
+`edison-haksh0jv9-mike-michaelmcguis-projects.vercel.app`; public target and all3
+existing cron hosts match. Web stays6eb811b at edisonreader.com. CI34072773689
+passed both application/database jobs. All652localtests/types/lint pass.
+Health/configuration/database/auth, all3unauthenticated cron401 and exact-apex
+CORS204 pass; public apex200/CSP and www308 were also checked.
+
+No provider call or recovery has occurred after E12. Its checker now replays
+offline into the intended repair with all6 findings preserved, not acceptance.
+The separate conditional recovery correction must prove exact cache identity,
+retain the failed event, and atomically readmit the unused hold. It is currently
+being implemented and independently tested with real disposable-DB races in CI;
+do not expose arbitrary provider_invalid retries or change the live row by hand.
+
 ### E12 — article withheld at checker location binding
 
 The first actual article request `5502ae41-f3a2-49ba-8c0c-997b7e20af23` is

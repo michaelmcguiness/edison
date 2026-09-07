@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { and, asc, count, desc, eq, gt, gte, inArray, sql } from "drizzle-orm";
 import {
-  demandEvents, demandIdeas, demandLoops, demandMutations, demandPrincipals, demandRequests,
+  demandEvents, demandIdeas, demandLoops, demandMutations, demandRequests,
   withDemandDb, withDemandWorkerDb, type DemandTransaction,
 } from "@edison/db";
 import {
@@ -14,10 +14,12 @@ import {
 } from "@edison/domain";
 import { type OnDemandContext } from "@edison/ai";
 import { HttpError } from "../http/errors";
-import { assertDemandPrincipalActive, type DemandPrincipal } from "../auth/verify-demand-principal";
+import { type DemandPrincipal } from "../auth/verify-demand-principal";
 import { demandFailure, demandLimits, demandReservationMicrousd } from "./demand-configuration";
 import { demandPreviousArticleContext, demandQuestionMaterial } from "./demand-result-compatibility";
 import { demandQuestionHistory } from "./demand-question-history";
+import { assertDemandAdmissionCapacity, lockDemandAdmission as lockAdmission } from "./demand-admission";
+import { recoverableDemandCheckIds } from "./demand-check-recovery";
 
 export type DemandLoopRow = typeof demandLoops.$inferSelect;
 export type DemandRequestRow = typeof demandRequests.$inferSelect;
@@ -72,6 +74,13 @@ export function demandRequestDto(request: Pick<DemandRequestRow,
   });
 }
 
+export function demandRequestWithRecovery(request: ReturnType<typeof demandRequestDto>, qualified: boolean) {
+  return qualified && request.status === "failed" && request.failure?.code === "provider_invalid"
+    ? { ...request, failure: { ...request.failure, retryable: true,
+      message: "This check can resume from saved work and use its remaining repair allowance. Nothing has been published." } }
+    : request;
+}
+
 export function demandIdeaDto(idea: Pick<DemandIdeaRow,
   "id" | "loopId" | "batchRequestId" | "batchRevision" | "rank" | "title" | "deck" | "articleRequestId" | "saved" | "createdAt"
 >) {
@@ -96,17 +105,20 @@ export function rejectDistinctPendingIdeasRequest(
 }
 
 export async function demandWorkspace(principal: DemandPrincipal): Promise<DemandWorkspace> {
-  return withDemandDb(principal.id, async (tx) => {
+  const workspace = await withDemandDb(principal.id, async (tx) => {
     const loops = await tx.select().from(demandLoops).where(eq(demandLoops.principalId, principal.id)).orderBy(demandLoops.createdAt).limit(30);
     const ideas = await tx.select(demandIdeaSummarySelection).from(demandIdeas).where(eq(demandIdeas.principalId, principal.id)).orderBy(desc(demandIdeas.createdAt), asc(demandIdeas.rank)).limit(360);
     const requests = await tx.select(demandRequestSummarySelection).from(demandRequests).where(eq(demandRequests.principalId, principal.id)).orderBy(desc(demandRequests.createdAt)).limit(120);
     return demandWorkspaceSchema.parse({ workspaceId: principal.id, readerKind: principal.accountUserId ? "account" : "guest",
       loops: loops.map(demandLoopDto), ideas: ideas.map(demandIdeaDto), requests: requests.map(demandRequestDto) });
   });
+  const eligible = await recoverableDemandCheckIds(principal.id,
+    workspace.requests.filter((request) => request.failure?.code === "provider_invalid").map((request) => request.id));
+  return { ...workspace, requests: workspace.requests.map((request) => demandRequestWithRecovery(request, eligible.has(request.id))) };
 }
 
 export async function demandRequestResult(principal: DemandPrincipal, id: string) {
-  return withDemandDb(principal.id, async (tx) => {
+  const result = await withDemandDb(principal.id, async (tx) => {
     const [request] = await tx.select().from(demandRequests).where(and(eq(demandRequests.id, id), eq(demandRequests.principalId, principal.id))).limit(1);
     if (!request) throw new HttpError(404, "request_not_found", "That reading request was not found.");
     return demandResultSchema.parse({ request: demandRequestDto(request),
@@ -114,15 +126,8 @@ export async function demandRequestResult(principal: DemandPrincipal, id: string
       answer: request.status === "succeeded" && request.kind === "question" ? request.result?.answer ?? null : null,
     });
   });
-}
-
-async function lockAdmission(tx: DemandTransaction, principalId: string) {
-  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended('edison-demand-admission', 0))`);
-  const [principal] = await tx.select().from(demandPrincipals).where(eq(demandPrincipals.id, principalId)).for("update").limit(1);
-  if (!principal) throw new HttpError(401, "reading_session_required", "That reading session is unavailable.");
-  assertDemandPrincipalActive(principal);
-  const active = await tx.execute(sql`select private.demand_principal_is_active(${principalId}::uuid) as active`);
-  if (active[0]?.active !== true) throw new HttpError(401, "reading_session_required", "That reading session is unavailable.");
+  const eligible = result.request.failure?.code === "provider_invalid" ? await recoverableDemandCheckIds(principal.id, [id]) : new Set<string>();
+  return { ...result, request: demandRequestWithRecovery(result.request, eligible.has(id)) };
 }
 
 async function loopForUpdate(tx: DemandTransaction, principalId: string, loopId: string) {
@@ -186,43 +191,8 @@ async function reserveRequest(tx: DemandTransaction, input: {
   if (recent.filter((row) => row.kind === input.kind).length + oldCount >= ceiling) {
     throw new HttpError(429, "daily_reading_limit", "This reading session's daily allowance is used up. Existing reading remains available.");
   }
-  const [{ outstanding }] = await tx.select({ outstanding: count() }).from(demandRequests)
-    .where(and(eq(demandRequests.principalId, input.principalId), inArray(demandRequests.status, ["queued", "running"])));
-  if (outstanding >= limits.maxConcurrent) {
-    throw new HttpError(429, "reading_busy", "Two requests are already being prepared. You can keep reading while they finish.");
-  }
-  // Global admission remains effective even if someone farms fresh guest
-  // sessions. Unknown/ambiguous spend keeps its full reservation; known terminal
-  // work releases only unused capacity, never deletes accounting or daily jobs.
-  const totals = await tx.execute(sql`
-    with costs as (
-      select greatest(0, case when r.status in ('queued','running')
-        or (r.status='failed' and r.failure_code in ('worker_interrupted','workflow_dispatch_failed') and r.attempts < 3)
-        or exists (
-          select 1 from private.demand_stages s where s.request_id=r.id and s.status in ('reserved','uncertain')
-        ) then r.reserved_microusd-coalesce(u.cost,0) else 0 end) as held,
-        coalesce(u.monthly,0) as monthly, coalesce(u.daily,0) as daily,
-        coalesce(u.unpriced, false) as unpriced
-      from private.demand_requests r
-      left join lateral (
-        select sum(cost_microusd) as cost,
-          sum(cost_microusd) filter (where created_at >= date_trunc('month', now())) as monthly,
-          sum(cost_microusd) filter (where created_at >= now()-interval '24 hours') as daily,
-          bool_or(pricing_status='unpriced') as unpriced
-        from private.demand_usage where request_id=r.id
-      ) u on true
-    ) select coalesce(sum(monthly+held),0)::text as monthly,
-      coalesce(sum(daily+held),0)::text as daily,
-      coalesce(bool_or(unpriced),false) as unpriced from costs
-  `);
-  const total = totals[0] as { monthly: string; daily: string; unpriced: boolean };
-  const [legacy] = await tx.execute<{ monthly: string; daily: string; unpriced: boolean; outstanding: boolean }>(sql`select * from private.demand_legacy_budget()`);
   const reservedMicrousd = demandReservationMicrousd[input.kind];
-  if (!legacy || total.unpriced || legacy.unpriced || legacy.outstanding ||
-      Number(total.monthly) + Number(legacy.monthly) + reservedMicrousd > limits.monthlyMicrousd ||
-      Number(total.daily) + Number(legacy.daily) + reservedMicrousd > limits.dailyMicrousd) {
-    throw new HttpError(429, "reading_budget_reached", "New reading is at its current spending limit. Saved articles remain available.");
-  }
+  await assertDemandAdmissionCapacity(tx, { principalId: input.principalId, additionalMicrousd: reservedMicrousd });
   const [created] = await tx.insert(demandRequests).values({ ...input, stage: "queued", reservedMicrousd }).returning();
   if (!created) throw new Error("demand_request_not_created");
   return created;

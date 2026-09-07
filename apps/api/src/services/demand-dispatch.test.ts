@@ -76,6 +76,18 @@ test("only failures known to precede or safely resume provider work are retryabl
   }
 });
 
+test("retry preparation shares admission ordering and keeps narrow recovery separate from workflow dispatch", () => {
+  const source = readFileSync(new URL("./demand-dispatch.ts", import.meta.url), "utf8");
+  const prepare = source.slice(source.indexOf("export async function prepareDemandRetry"), source.indexOf("export async function retryDemandRequest"));
+  assert.ok(prepare.indexOf("lockDemandAdmission(tx, principalId)") < prepare.indexOf('.from(demandRequests)'));
+  assert.ok(prepare.indexOf("loadDemandCheckRecovery(tx, principalId, current, true)") < prepare.indexOf("assertDemandAdmissionCapacity(tx"));
+  assert.ok(prepare.indexOf("assertDemandAdmissionCapacity(tx") < prepare.indexOf(".update(demandRequests)"));
+  assert.doesNotMatch(prepare, /await start\(|dispatchDemandRequest\(/);
+  assert.match(prepare, /additionalMicrousd: recovery\?\.releasedHoldMicrousd \?\? 0/);
+  assert.match(prepare, /progress: recovery\.checkpoint/);
+  assert.doesNotMatch(prepare, /attempts:\s*0|reservedMicrousd:|snapshot:|createdAt:/);
+});
+
 test("attempt exhaustion never cancels a live dispatch lease", () => {
   const now = new Date("2026-09-06T18:00:00.000Z");
   const exhausted = {

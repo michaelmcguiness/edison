@@ -21,6 +21,9 @@ import { start } from "workflow/api";
 import { onDemandReadingWorkflow } from "../../workflows/on-demand-reading";
 import { HttpError } from "../http/errors";
 import { safeCaughtErrorMetadata } from "../observability/safe-error";
+import { assertDemandAdmissionCapacity, lockDemandAdmission } from "./demand-admission";
+import { loadDemandCheckRecovery } from "./demand-check-recovery";
+import type { DemandRequestRow } from "./demand-reading";
 
 const DISPATCH_LEASE_MS = 5 * 60 * 1000;
 const DISPATCH_RETRY_MS = 60 * 1000;
@@ -406,15 +409,17 @@ export async function dispatchDemandRequest(
 }
 
 /**
- * Requeues only an explicitly retryable failed request owned by this reader.
- * Provider-uncertain or terminal provider stages are never replayed.
+ * Requeues owned safe interruptions or a proved check-binding failure. Failed
+ * or uncertain provider stages are never recommissioned; qualified
+ * postvalidation recovery replays only the two succeeded cached responses.
  */
-export async function retryDemandRequest(
+export async function prepareDemandRetry(
   principalId: string,
   requestId: string,
-): Promise<DemandDispatchResult> {
+): Promise<{ outcome: "current" | "requeued"; request: DemandRequestRow } | { outcome: "provider-uncertain" }> {
   const now = new Date();
-  const preparation = await withDemandWorkerDb(async (tx) => {
+  return withDemandWorkerDb(async (tx) => {
+    await lockDemandAdmission(tx, principalId);
     const [current] = await tx
       .select()
       .from(demandRequests)
@@ -448,19 +453,18 @@ export async function retryDemandRequest(
     if (current.status !== "failed") {
       return { outcome: "current" as const, request: current };
     }
-    if (!isRetryableDemandFailure(current.failureCode)) {
-      throw new HttpError(
-        409,
-        "request_not_retryable",
-        "That request cannot be safely retried.",
-      );
-    }
     if (current.attempts >= MAX_DISPATCH_ATTEMPTS) {
       throw new HttpError(
         409,
         "request_retry_exhausted",
         "That request has used its safe retry attempts.",
       );
+    }
+
+    const recovery = current.failureCode === "provider_invalid"
+      ? await loadDemandCheckRecovery(tx, principalId, current, true) : null;
+    if (!recovery && !isRetryableDemandFailure(current.failureCode)) {
+      throw new HttpError(409, "request_not_retryable", "That request cannot be safely retried.");
     }
 
     const stages = await tx
@@ -513,6 +517,10 @@ export async function retryDemandRequest(
       );
     }
 
+    // Ordinary interrupted work already holds its unused reservation. Only a
+    // proved terminal postvalidation failure must reacquire released capacity.
+    await assertDemandAdmissionCapacity(tx, { principalId, additionalMicrousd: recovery?.releasedHoldMicrousd ?? 0 });
+
     const [requeued] = await tx
       .update(demandRequests)
       .set({
@@ -522,6 +530,7 @@ export async function retryDemandRequest(
         leaseExpiresAt: null,
         nextAttemptAt: now,
         failureCode: null,
+        ...(recovery ? { progress: recovery.checkpoint } : {}),
       })
       .where(
         and(
@@ -542,6 +551,16 @@ export async function retryDemandRequest(
     }
     return { outcome: "requeued" as const, request: requeued };
   });
+}
+
+/** Dispatch is injectable for disposable-database verification. Preparation
+ * itself never starts a Workflow or calls a provider. */
+export async function retryDemandRequest(
+  principalId: string,
+  requestId: string,
+  dispatch: typeof dispatchDemandRequest = dispatchDemandRequest,
+): Promise<DemandDispatchResult> {
+  const preparation = await prepareDemandRetry(principalId, requestId);
 
   if (preparation.outcome === "provider-uncertain") {
     throw new HttpError(
@@ -557,7 +576,7 @@ export async function retryDemandRequest(
       ? { outcome: "already-dispatched", runId: request.workflowRunId }
       : { outcome: "skipped" };
   }
-  return dispatchDemandRequest(requestId, principalId);
+  return dispatch(requestId, principalId);
 }
 
 type StaleDemandRecoveryOutcome =
