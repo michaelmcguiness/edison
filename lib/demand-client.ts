@@ -11,12 +11,16 @@ import {
   demandHistoryQuerySchema,
   demandHistorySchema,
   demandIdeaResultSchema,
+  demandArticleResultSchema, demandConversationSchema, demandConversationQuerySchema,
+  createDemandArticleShareSchema, demandArticleShareReceiptSchema,
+  editDemandLoopSchema, archiveDemandLoopSchema, type EditDemandLoop, type ArchiveDemandLoop,
   requestDemandArticleSchema,
   requestDemandIdeasSchema,
   uuidSchema,
   type DemandResult,
   type DemandWorkspace,
   type DemandHistoryQuery,
+  type DemandConversationQuery,
 } from "@edison/contracts";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -205,6 +209,34 @@ export async function getDemandIdea(ideaId: string) {
     code: "invalid_response", message: "Edison returned an invalid article idea.", status: 502,
   });
   return result.data;
+}
+
+export async function getDemandArticle(articleId: string) {
+  return demandArticleResultSchema.parse(await demandFetch(`articles/${uuidSchema.parse(articleId)}`));
+}
+
+export async function getDemandConversation(articleId: string, input: DemandConversationQuery = {}) {
+  const query = demandConversationQuerySchema.parse(input);
+  const suffix = query.cursor ? `?${new URLSearchParams({ cursor: query.cursor })}` : "";
+  return demandConversationSchema.parse(await demandFetch(`articles/${uuidSchema.parse(articleId)}/conversation${suffix}`));
+}
+
+export async function createDemandShare(articleId: string, input: { idempotencyKey: string; confirmPublic: true }) {
+  const body = createDemandArticleShareSchema.parse(input);
+  const receipt = demandArticleShareReceiptSchema.parse(await demandFetch(`articles/${uuidSchema.parse(articleId)}/share`, {
+    method: "POST", body: JSON.stringify(body),
+  }));
+  return { url: `https://edisonreader.com/s/demand/${receipt.token}`, shareId: receipt.token, articleVersion: articleId };
+}
+
+export async function editDemandLoop(loopId: string, input: EditDemandLoop) {
+  const body = editDemandLoopSchema.parse(input);
+  return mutationEnvelope(await demandFetch(`loops/${uuidSchema.parse(loopId)}/edit`, { method: "POST", body: JSON.stringify(body) }));
+}
+
+export async function deleteDemandLoop(loopId: string, input: ArchiveDemandLoop) {
+  const body = archiveDemandLoopSchema.parse(input);
+  return mutationEnvelope(await demandFetch(`loops/${uuidSchema.parse(loopId)}/archive`, { method: "POST", body: JSON.stringify(body) }));
 }
 
 export async function createDemandLoop(input: {

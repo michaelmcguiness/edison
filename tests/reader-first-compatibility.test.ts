@@ -108,9 +108,22 @@ test("new Ask snapshots use current loop knowledge and preferences without chang
   assert.equal(onDemandContextSchema.parse(input.articleContext).revision, context.revision);
   for (const invalid of [{ ...currentContext, loopId: "another-loop" },
     { ...currentContext, revision: context.revision - 1 },
-    { ...currentContext, originalCuriosity: "A different question" }]) {
+    { ...currentContext, revision: context.revision, originalCuriosity: "Unversioned replacement" }]) {
     assert.throws(() => demandQuestionMaterial(questionInput({ currentContext: invalid })), /pipeline_snapshot_invalid/);
   }
+});
+
+test("explicit revisioned instruction replacement keeps saved article conversation readable without restoring removed direction", () => {
+  const currentContext = { ...context, revision: context.revision + 1, originalCuriosity: "Signals",
+    directions: [], declaredKnowledge: [], readingPreferences: [] };
+  const input = questionInput({ currentContext });
+  const before = structuredClone(input);
+  const material = demandQuestionMaterial(input);
+  assert.equal(material.context.originalCuriosity, "Signals");
+  assert.deepEqual(material.context.directions, []);
+  assert.deepEqual(material.storedDraft, currentDraft);
+  assert.deepEqual(material.evidence, evidence("final"));
+  assert.deepEqual(input, before);
 });
 
 test("an intentionally source-less final article never borrows old idea research", () => {

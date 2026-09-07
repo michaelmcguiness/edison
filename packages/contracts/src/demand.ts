@@ -13,6 +13,8 @@ export const demandLoopSchema = z.object({
   id: uuidSchema,
   title: z.string().min(1).max(120),
   originalCuriosity: z.string().min(1).max(500),
+  instructions: z.string().max(500).optional(),
+  archivedAt: z.string().datetime().nullable().optional(),
   revision: z.number().int().nonnegative(),
   principles: z.array(demandPrincipleSchema).max(20),
   lastMutationId: uuidSchema.nullable(),
@@ -54,7 +56,8 @@ export const demandWorkspaceSchema = z.object({
   // switch. This is not a credential and cannot authorize API access.
   workspaceId: uuidSchema,
   readerKind: z.enum(["guest", "account"]),
-  loops: z.array(demandLoopSchema).max(30),
+  // Up to 30 visible loops plus a bounded recent archived-context window.
+  loops: z.array(demandLoopSchema).max(60),
   ideas: z.array(demandIdeaSchema).max(360),
   requests: z.array(demandRequestSchema).max(120),
 }).strict();

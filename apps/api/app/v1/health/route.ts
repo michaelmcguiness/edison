@@ -332,6 +332,24 @@ async function databaseIsReady() {
         and to_regclass('private.demand_usage_response_unique') is not null
         and to_regclass('private.demand_requests_article_idea_unique') is not null
         and to_regclass('private.demand_stages_provider_response_unique') is not null
+        and (select count(*) from pg_catalog.pg_attribute where attrelid=to_regclass('private.demand_loops')
+          and attname in ('editor_instructions','archived_at') and not attisdropped) = 2
+        and to_regclass('private.demand_requests_conversation_idx') is not null
+        and (select count(*) from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid=c.relnamespace
+          where n.nspname='private' and c.relname in ('demand_loop_edits','demand_public_shares','demand_share_operations')
+          and c.relrowsecurity and c.relforcerowsecurity
+          and has_table_privilege('edison_demand_worker',c.oid,'SELECT')
+          and has_table_privilege('edison_demand_worker',c.oid,'INSERT')
+          and not has_table_privilege('edison_demand_worker',c.oid,'UPDATE')
+          and not has_table_privilege('edison_demand_worker',c.oid,'DELETE')
+          and not has_table_privilege('edison_public',c.oid,'SELECT')
+          and not has_table_privilege('authenticated',c.oid,'SELECT')
+          and not has_table_privilege('anon',c.oid,'SELECT')) = 3
+        and exists (select 1 from pg_catalog.pg_proc p where p.oid=to_regprocedure('edison_public_api.read_demand_article_share(text)')
+          and p.prosecdef and p.proconfig @> array['search_path=pg_catalog']::text[]
+          and has_function_privilege('edison_public',p.oid,'execute')
+          and not has_function_privilege('anon',p.oid,'execute'))
+        and not has_table_privilege('edison_demand_worker','private.demand_loops','DELETE')
         and (select count(*) from pg_catalog.pg_trigger where tgname in ('demand_requests_identity_immutable','demand_stages_identity_immutable')
           and tgrelid in (to_regclass('private.demand_requests'),to_regclass('private.demand_stages')) and not tgisinternal) = 2
         as ready

@@ -1,9 +1,10 @@
-import { demandWorkspaceSchema, parseDemandHistoryQuery } from "@edison/contracts";
+import { demandWorkspaceSchema, parseDemandHistoryQuery, parseDemandConversationQuery } from "@edison/contracts";
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
 const routes: Record<string, RegExp[]> = {
-  GET: [/^workspace$/, /^history$/, new RegExp(`^ideas/${UUID}$`), new RegExp(`^requests/${UUID}$`)],
-  POST: [/^session$/, /^loops$/, new RegExp(`^loops/${UUID}/(?:ideas|feedback)$`),
+  GET: [/^workspace$/, /^history$/, new RegExp(`^ideas/${UUID}$`), new RegExp(`^requests/${UUID}$`),
+    new RegExp(`^articles/${UUID}(?:/conversation)?$`)],
+  POST: [/^session$/, /^loops$/, new RegExp(`^loops/${UUID}/(?:ideas|feedback|edit|archive)$`), new RegExp(`^articles/${UUID}/share$`),
     new RegExp(`^ideas/${UUID}/(?:article|questions)$`), new RegExp(`^requests/${UUID}/retry$`)],
   PUT: [new RegExp(`^ideas/${UUID}/events$`)],
 };
@@ -26,8 +27,9 @@ export async function proxyDemandRequest(request: Request, path: string, options
   if (!isDemandProxyPath(request.method, path)) return fail(404, "not_found", "That reading resource was not found.");
   const ownUrl = new URL(request.url);
   if (ownUrl.search) {
-    if (path !== "history") return fail(400, "invalid_request", "Query parameters are not supported here.");
-    try { parseDemandHistoryQuery(ownUrl.searchParams); }
+    const conversation = request.method === "GET" && new RegExp(`^articles/${UUID}/conversation$`).test(path);
+    if (path !== "history" && !conversation) return fail(400, "invalid_request", "Query parameters are not supported here.");
+    try { if (conversation) parseDemandConversationQuery(ownUrl.searchParams); else parseDemandHistoryQuery(ownUrl.searchParams); }
     catch { return fail(400, "invalid_request", "That reading history request is not valid."); }
   }
   const origin = request.headers.get("origin");

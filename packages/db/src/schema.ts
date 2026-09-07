@@ -16,6 +16,7 @@ import {
   smallint,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
   type AnyPgColumn,
@@ -1177,6 +1178,8 @@ export const demandLoops = privateSchema.table(
       .references(() => demandPrincipals.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     originalCuriosity: text("original_curiosity").notNull(),
+    editorInstructions: text("editor_instructions"),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
     revision: integer("revision").notNull().default(0),
     principles: jsonb("principles")
       .$type<Record<string, unknown>>()
@@ -1202,6 +1205,7 @@ export const demandLoops = privateSchema.table(
       sql`${table.originalCuriosity} = btrim(${table.originalCuriosity}) and char_length(${table.originalCuriosity}) between 1 and 500`,
     ),
     check("demand_loops_revision_nonnegative", sql`${table.revision} >= 0`),
+    check("demand_loops_editor_instructions_length", sql`${table.editorInstructions} is null or char_length(${table.editorInstructions}) <= 500`),
     check(
       "demand_loops_principles_valid",
       sql`jsonb_typeof(${table.principles}) = 'object' and pg_column_size(${table.principles}) <= 65536`,
@@ -1270,6 +1274,8 @@ export const demandRequests = privateSchema.table(
       table.createdAt,
     ),
     index("demand_requests_created_idx").on(table.createdAt),
+    index("demand_requests_conversation_idx").on(table.principalId, table.ideaId, table.createdAt.desc(), table.id.desc())
+      .where(sql`${table.kind} = 'question'`),
     foreignKey({
       columns: [table.principalId, table.loopId],
       foreignColumns: [demandLoops.principalId, demandLoops.id],
@@ -1673,3 +1679,65 @@ export const demandUsage = privateSchema.table(
     `),
   ],
 );
+
+// D34 audit/publication tables. SQL migrations additionally own forced RLS,
+// exact role grants, immutable triggers and the anonymous projection function.
+export const demandLoopEdits = privateSchema.table("demand_loop_edits", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  principalId: uuid("principal_id").notNull().references(() => demandPrincipals.id, { onDelete: "restrict" }),
+  loopId: uuid("loop_id").notNull(),
+  idempotencyKey: text("idempotency_key").notNull(),
+  requestFingerprint: text("request_fingerprint").notNull(),
+  operation: text("operation").$type<"edit" | "archive">().notNull(),
+  receipt: jsonb("receipt").$type<Record<string, unknown>>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("demand_loop_edits_principal_key_unique").on(table.principalId, table.idempotencyKey),
+  index("demand_loop_edits_loop_created_idx").on(table.principalId, table.loopId, table.createdAt),
+  foreignKey({ name: "demand_loop_edits_owner_fk", columns: [table.principalId, table.loopId],
+    foreignColumns: [demandLoops.principalId, demandLoops.id] }).onDelete("restrict"),
+  check("demand_loop_edits_key_valid", sql`char_length(${table.idempotencyKey}) between 8 and 128 and ${table.idempotencyKey} ~ '^[A-Za-z0-9._:-]+$'`),
+  check("demand_loop_edits_fingerprint_valid", sql`${table.requestFingerprint} ~ '^[a-f0-9]{64}$'`),
+  check("demand_loop_edits_operation_valid", sql`${table.operation} in ('edit','archive')`),
+  check("demand_loop_edits_receipt_valid", sql`jsonb_typeof(${table.receipt}) = 'object' and pg_column_size(${table.receipt}) <= 262144`),
+]);
+
+export const demandPublicShares = privateSchema.table("demand_public_shares", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  principalId: uuid("principal_id").notNull().references(() => demandPrincipals.id, { onDelete: "restrict" }),
+  articleRequestId: uuid("article_request_id").notNull(),
+  token: text("token").notNull().unique(),
+  snapshot: jsonb("snapshot").$type<Record<string, unknown>>().notNull(),
+  snapshotFingerprint: text("snapshot_fingerprint").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+}, (table) => [
+  unique("demand_public_shares_article_unique").on(table.principalId, table.articleRequestId),
+  unique("demand_public_shares_owner_id_unique").on(table.principalId, table.articleRequestId, table.id),
+  index("demand_public_shares_principal_created_idx").on(table.principalId, table.createdAt),
+  foreignKey({ name: "demand_public_shares_request_owner_fk", columns: [table.principalId, table.articleRequestId],
+    foreignColumns: [demandRequests.principalId, demandRequests.id] }).onDelete("restrict"),
+  check("demand_public_shares_token_check", sql`${table.token} ~ '^[0-9a-f]{64}$'`),
+  check("demand_public_shares_snapshot_fingerprint_check", sql`${table.snapshotFingerprint} ~ '^[0-9a-f]{64}$'`),
+  check("demand_public_shares_revocation_valid", sql`${table.revokedAt} is null or ${table.revokedAt} >= ${table.createdAt}`),
+  check("demand_public_shares_snapshot_valid", sql`jsonb_typeof(${table.snapshot}) = 'object' and octet_length(${table.snapshot}::text) <= 262144
+    and ${table.snapshot}->>'version' = '1'
+    and ${table.snapshot} ?& array['version','title','deck','body','sources','sourceCount','basis','researchedAt','readingMinutes','publishedAt','correction']
+    and ${table.snapshot} - array['version','title','deck','body','sources','sourceCount','basis','researchedAt','readingMinutes','publishedAt','correction'] = '{}'::jsonb
+    and jsonb_typeof(${table.snapshot}->'body') = 'array' and jsonb_typeof(${table.snapshot}->'sources') = 'array'`),
+]);
+
+export const demandShareOperations = privateSchema.table("demand_share_operations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  principalId: uuid("principal_id").notNull(),
+  articleRequestId: uuid("article_request_id").notNull(),
+  shareId: uuid("share_id").notNull(),
+  idempotencyKey: text("idempotency_key").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique("demand_share_operations_key_unique").on(table.principalId, table.idempotencyKey),
+  index("demand_share_operations_principal_created_idx").on(table.principalId, table.createdAt),
+  foreignKey({ name: "demand_share_operations_share_owner_fk", columns: [table.principalId, table.articleRequestId, table.shareId],
+    foreignColumns: [demandPublicShares.principalId, demandPublicShares.articleRequestId, demandPublicShares.id] }).onDelete("restrict"),
+  check("demand_share_operations_idempotency_key_check", sql`char_length(${table.idempotencyKey}) between 8 and 128 and ${table.idempotencyKey} ~ '^[A-Za-z0-9._:-]+$'`),
+]);

@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { and, asc, count, desc, eq, gt, gte, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, gte, inArray, isNull, isNotNull, sql } from "drizzle-orm";
 import {
   demandEvents, demandIdeas, demandLoops, demandMutations, demandRequests,
   withDemandDb, withDemandWorkerDb, type DemandTransaction,
@@ -20,6 +20,7 @@ import { demandPreviousArticleContext, demandQuestionMaterial } from "./demand-r
 import { demandQuestionHistory } from "./demand-question-history";
 import { assertDemandAdmissionCapacity, lockDemandAdmission as lockAdmission } from "./demand-admission";
 import { recoverableDemandCheckIds } from "./demand-check-recovery";
+import { conciseDemandLoopName, effectiveDemandLoopInstructions, contextDemandLoopCuriosity } from "./demand-loop-management";
 
 export type DemandLoopRow = typeof demandLoops.$inferSelect;
 export type DemandRequestRow = typeof demandRequests.$inferSelect;
@@ -55,6 +56,7 @@ export function demandLoopDto(loop: DemandLoopRow) {
   const state = demandPrincipleState(loop);
   return demandLoopSchema.parse({
     id: loop.id, title: loop.title, originalCuriosity: loop.originalCuriosity, revision: loop.revision,
+    instructions: effectiveDemandLoopInstructions(loop), archivedAt: loop.archivedAt?.toISOString() ?? null,
     principles: state.principles.filter((item) => item.status === "active").map((item) => ({
       id: item.id, kind: item.kind, instruction: item.instruction, source: "reader",
     })),
@@ -106,7 +108,9 @@ export function rejectDistinctPendingIdeasRequest(
 
 export async function demandWorkspace(principal: DemandPrincipal): Promise<DemandWorkspace> {
   const workspace = await withDemandDb(principal.id, async (tx) => {
-    const loops = await tx.select().from(demandLoops).where(eq(demandLoops.principalId, principal.id)).orderBy(demandLoops.createdAt).limit(30);
+    const activeLoops = await tx.select().from(demandLoops).where(and(eq(demandLoops.principalId, principal.id), isNull(demandLoops.archivedAt))).orderBy(demandLoops.createdAt).limit(30);
+    const archivedLoops = await tx.select().from(demandLoops).where(and(eq(demandLoops.principalId, principal.id), isNotNull(demandLoops.archivedAt))).orderBy(desc(demandLoops.archivedAt)).limit(30);
+    const loops = [...activeLoops, ...archivedLoops];
     const ideas = await tx.select(demandIdeaSummarySelection).from(demandIdeas).where(eq(demandIdeas.principalId, principal.id)).orderBy(desc(demandIdeas.createdAt), asc(demandIdeas.rank)).limit(360);
     const requests = await tx.select(demandRequestSummarySelection).from(demandRequests).where(eq(demandRequests.principalId, principal.id)).orderBy(desc(demandRequests.createdAt)).limit(120);
     return demandWorkspaceSchema.parse({ workspaceId: principal.id, readerKind: principal.accountUserId ? "account" : "guest",
@@ -134,6 +138,10 @@ async function loopForUpdate(tx: DemandTransaction, principalId: string, loopId:
   const [loop] = await tx.select().from(demandLoops).where(and(eq(demandLoops.id, loopId), eq(demandLoops.principalId, principalId))).for("update").limit(1);
   if (!loop) throw new HttpError(404, "loop_not_found", "That learning loop was not found.");
   return loop;
+}
+
+export function assertDemandLoopOpen(loop: Pick<DemandLoopRow, "archivedAt">) {
+  if (loop.archivedAt) throw new HttpError(409, "loop_archived", "This loop has been deleted. Its existing reading and conversation remain available.");
 }
 
 async function replayRequest(tx: DemandTransaction, principalId: string, key: string, fingerprint: string) {
@@ -168,7 +176,8 @@ export async function assembleDemandContext(tx: DemandTransaction, loop: DemandL
       eq(demandRequests.kind, "article"), eq(demandRequests.status, "succeeded"), inArray(demandRequests.ideaId, openedIds)))
     .orderBy(desc(demandRequests.createdAt)).limit(20) : [];
   return {
-    loopId: loop.id, revision: loop.revision, originalCuriosity: loop.originalCuriosity,
+    loopId: loop.id, revision: loop.revision,
+    originalCuriosity: contextDemandLoopCuriosity(loop),
     directions: context.context.principles.directions.map((item) => item.instruction),
     declaredKnowledge: context.context.principles.knowledge.map((item) => item.instruction),
     readingPreferences: context.context.principles.preferences.map((item) => item.instruction),
@@ -204,11 +213,11 @@ export async function createDemandLoop(principal: DemandPrincipal, input: { curi
     await lockAdmission(tx, principal.id);
     const replay = await replayRequest(tx, principal.id, input.idempotencyKey, fingerprint);
     if (replay) return replay;
-    const [{ size }] = await tx.select({ size: count() }).from(demandLoops).where(eq(demandLoops.principalId, principal.id));
+    const [{ size }] = await tx.select({ size: count() }).from(demandLoops).where(and(eq(demandLoops.principalId, principal.id), isNull(demandLoops.archivedAt)));
     if (size >= 30) throw new HttpError(409, "loop_limit", "This reading session has reached its loop limit.");
     const id = randomUUID();
     const [loop] = await tx.insert(demandLoops).values({ id, principalId: principal.id,
-      title: input.curiosity.slice(0, 120).trim(), originalCuriosity: input.curiosity,
+      title: conciseDemandLoopName(input.curiosity), originalCuriosity: input.curiosity,
       principles: { ...createEmptyLoopPrincipleState({ loopId: id, originalCuriosity: input.curiosity }) },
     }).returning();
     const context = await assembleDemandContext(tx, loop);
@@ -224,6 +233,7 @@ export async function requestDemandIdeas(principal: DemandPrincipal, loopId: str
     const replay = await replayRequest(tx, principal.id, input.idempotencyKey, fingerprint);
     if (replay) return replay;
     const loop = await loopForUpdate(tx, principal.id, loopId);
+    assertDemandLoopOpen(loop);
     if (loop.revision !== input.baseRevision) throw new HttpError(409, "loop_changed", "The loop changed. Reload its current settings and try again.");
     const [pending] = await tx.select().from(demandRequests).where(and(eq(demandRequests.principalId, principal.id), eq(demandRequests.loopId, loopId),
       eq(demandRequests.kind, "ideas"), inArray(demandRequests.status, ["queued", "running"]))).limit(1);
@@ -250,6 +260,7 @@ export async function requestDemandArticle(principal: DemandPrincipal, ideaId: s
       return existing;
     }
     const loop = await loopForUpdate(tx, principal.id, idea.loopId);
+    assertDemandLoopOpen(loop);
     const request = await reserveRequest(tx, { principalId: principal.id, loopId: loop.id, ideaId, kind: "article", idempotencyKey: input.idempotencyKey,
       requestFingerprint: fingerprint, snapshot: { version: 2, context: await assembleDemandContext(tx, loop), principleState: loop.principles,
         selection: { idea: idea.brief, evidence: idea.evidence } } });
@@ -268,6 +279,7 @@ export async function requestDemandFeedback(principal: DemandPrincipal, loopId: 
     const replay = await replayRequest(tx, principal.id, input.idempotencyKey, fingerprint);
     if (replay) return replay;
     const loop = await loopForUpdate(tx, principal.id, loopId);
+    assertDemandLoopOpen(loop);
     if (loop.revision !== input.baseRevision) throw new HttpError(409, "loop_changed", "The loop changed. Review its current settings and try again.");
     if (input.operation === "undo") {
       const mutationId = randomUUID();

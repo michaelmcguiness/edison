@@ -7,3 +7,6 @@ export * from "./loops";
 export * from "./publication";
 export * from "./users";
 export * from "./demand";
+export * from "./demand-conversation";
+export * from "./demand-loop-management";
+export * from "./demand-sharing";

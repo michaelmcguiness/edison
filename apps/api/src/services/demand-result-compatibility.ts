@@ -53,8 +53,10 @@ export function demandQuestionMaterial(input: {
   const context = onDemandContextSchema.parse({
     ...onDemandContextSchema.parse(input.currentContext), currentDate: input.currentDate,
   });
+  // Explicit instruction replacement is revisioned. It must not invalidate
+  // the saved article or its conversation, nor mutate its original evidence.
   if (context.loopId !== originalContext.loopId || context.revision < originalContext.revision ||
-    context.originalCuriosity !== originalContext.originalCuriosity) throw new Error("pipeline_snapshot_invalid");
+    (context.revision === originalContext.revision && context.originalCuriosity !== originalContext.originalCuriosity)) throw new Error("pipeline_snapshot_invalid");
   return { context, articleVersion: input.articleId, draft, evidence,
     storedDraft: structuredClone(input.articleResult.draft) };
 }

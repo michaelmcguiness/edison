@@ -48,6 +48,11 @@ export type DemandRoute =
   | { kind: "workspace" }
   | { kind: "history" }
   | { kind: "idea-result"; ideaId: string }
+  | { kind: "article-result"; articleId: string }
+  | { kind: "conversation"; articleId: string }
+  | { kind: "share"; articleId: string }
+  | { kind: "edit-loop"; loopId: string }
+  | { kind: "archive-loop"; loopId: string }
   | { kind: "create-loop" }
   | { kind: "ideas"; loopId: string }
   | { kind: "feedback"; loopId: string }
@@ -83,6 +88,23 @@ export function matchDemandRoute(
   }
   if (method === "POST" && path.length === 1 && path[0] === "loops") {
     return { kind: "create-loop" };
+  }
+  if (path.length === 2 && path[0] === "articles" && method === "GET") {
+    const articleId = parsedUuid(path[1]);
+    return articleId ? { kind: "article-result", articleId } : null;
+  }
+  if (path.length === 3 && path[0] === "articles") {
+    const articleId = parsedUuid(path[1]);
+    if (!articleId) return null;
+    if (method === "GET" && path[2] === "conversation") return { kind: "conversation", articleId };
+    if (method === "POST" && path[2] === "share") return { kind: "share", articleId };
+    return null;
+  }
+  if (path.length === 3 && path[0] === "loops" && method === "POST") {
+    const loopId = parsedUuid(path[1]);
+    if (!loopId) return null;
+    if (path[2] === "edit") return { kind: "edit-loop", loopId };
+    if (path[2] === "archive") return { kind: "archive-loop", loopId };
   }
   if (method === "GET" && path.length === 2 && path[0] === "requests") {
     const requestId = parsedUuid(path[1]);

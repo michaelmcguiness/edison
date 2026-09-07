@@ -74,5 +74,8 @@ jobs:
       - name: Verify exact saved-check recovery and admission races in disposable Postgres
         run: pnpm exec tsx scripts/check-demand-check-recovery-local-db.ts
 
+      - name: Verify v10 conversation retention and concurrent sharing in disposable Postgres
+        run: pnpm exec tsx scripts/check-demand-v10-local-db.ts
+
       - name: Lint migrated application schemas
         run: pnpm exec supabase db lint --local --schema public,private,edison_public_api --level warning --fail-on warning

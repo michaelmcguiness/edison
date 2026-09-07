@@ -9,7 +9,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type FormEvent,
   type MutableRefObject,
 } from "react";
 import type {
@@ -30,12 +29,17 @@ import {
   LoaderCircle,
   MessageCircle,
   X,
+  Share2,
 } from "lucide-react";
+import { ReaderShell } from "@/components/edison/demand-v10/reader-shell";
+import { LoopEditor } from "@/components/edison/demand-v10/loop-editor";
+import { ArticleConversation } from "@/components/edison/demand-v10/article-conversation";
+import { SharePanel } from "@/components/edison/demand-v10/share-panel";
+import { appendStableIdeas, articlePreparationLabel, type LoopEditDraft } from "@/components/edison/demand-v10/reader-state";
 import { EdisonMark } from "@/components/edison/brand";
 import { useEditorialDialogViewport } from "@/components/edison/editorial-composer";
 import {
   PULSE_FOR_YOU_ID,
-  PulseShell,
 } from "@/components/edison/pulse-shell";
 import {
   Dialog,
@@ -47,6 +51,11 @@ import {
 import {
   applyDemandFeedback,
   askDemandQuestion,
+  editDemandLoop,
+  deleteDemandLoop,
+  createDemandShare,
+  getDemandArticle,
+  getDemandConversation,
   createDemandLoop,
   getDemandResult,
   getDemandWorkspace,
@@ -68,6 +77,11 @@ import { demandHistoryRecords, demandHistoryScopeKey, DemandReaderHistory, type 
 export const browserDemandReaderClient = {
   applyDemandFeedback,
   askDemandQuestion,
+  editDemandLoop,
+  deleteDemandLoop,
+  createDemandShare,
+  getDemandArticle,
+  getDemandConversation,
   createDemandLoop,
   getDemandResult,
   getDemandWorkspace,
@@ -374,9 +388,8 @@ function IdeaCard({
       />
       <div className="demand-idea-copy">
         <p className="demand-idea-meta">
-          <span>Article idea</span>
           {request && request.status !== "succeeded" ? (
-            <><span aria-hidden="true"> · </span><span>{requestStage(request.stage)}</span></>
+            <span>{requestStage(request.stage)}</span>
           ) : null}
         </p>
         <h2 id={titleId}>{idea.title}</h2>
@@ -495,179 +508,6 @@ function CreateLoopDialog({
   );
 }
 
-function CurateLoopDialog({
-  loop,
-  loops,
-  chooseLoop,
-  onChooseLoop,
-  open,
-  draft,
-  pending,
-  error,
-  status,
-  onOpenChange,
-  onDraftChange,
-  onSubmit,
-  onUndo,
-  openerRef,
-  fallbackRef,
-}: DialogFocusProps & {
-  loop: DemandLoop | null;
-  loops: DemandLoop[];
-  chooseLoop: boolean;
-  onChooseLoop: (id: string) => void;
-  open: boolean;
-  draft: string;
-  pending: boolean;
-  error: string;
-  status: string;
-  onOpenChange: (open: boolean) => void;
-  onDraftChange: (draft: string) => void;
-  onSubmit: () => void;
-  onUndo: () => void;
-}) {
-  const id = useId();
-  const textarea = useDemandGrowingTextarea(draft, open, 96);
-  const content = useEditorialDialogViewport(open);
-  const selector = useRef<HTMLSelectElement>(null);
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        ref={content}
-        className="demand-dialog demand-curate-dialog"
-        showCloseButton={false}
-        aria-describedby={`${id}-scope${error ? ` ${id}-error` : ""}`}
-        onOpenAutoFocus={(event) => {
-          event.preventDefault();
-          (loop ? textarea.current : selector.current)?.focus({ preventScroll: true });
-        }}
-        onCloseAutoFocus={(event) => {
-          event.preventDefault();
-          restoreDemandDialogFocus(openerRef.current, fallbackRef.current);
-        }}
-      >
-        <DialogClose className="demand-dialog-close" aria-label="Close Curate">
-          <X aria-hidden="true" />
-        </DialogClose>
-        <p className="demand-dialog-scope" id={`${id}-scope`}>{loop?.title ?? "Choose the loop to update"}</p>
-        <DialogTitle>How can we improve this loop for you?</DialogTitle>
-        <DialogDescription className="demand-visually-hidden">
-          Review and update the explicit principles shaping this loop.
-        </DialogDescription>
-        {chooseLoop ? <div className="demand-loop-selector"><label htmlFor={`${id}-loop`}>Which loop?</label><select ref={selector} id={`${id}-loop`} value={loop?.id ?? ""} disabled={pending} onChange={(event) => onChooseLoop(event.target.value)}><option value="" disabled>Choose a loop</option>{loops.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></div> : null}
-        {loop ? <><section className="demand-principles" aria-labelledby={`${id}-principles`}>
-          <h3 id={`${id}-principles`}>What’s shaping this loop</h3>
-          <ul>
-            {loop?.principles.map((principle) => (
-              <li key={principle.id}>
-                {principle.instruction}{" "}
-                <span>— {principle.kind === "knowledge" ? "your declared knowledge" : principle.kind === "preference" ? "your preference" : "your direction"}</span>
-              </li>
-            ))}
-            <li>Explanations are checked for accuracy and useful detail <span>— Edison default</span></li>
-          </ul>
-        </section>
-        <form
-          aria-busy={pending}
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (draft.trim() && !pending) onSubmit();
-          }}
-        >
-          <label htmlFor={`${id}-feedback`}>Tell us what to change</label>
-          <textarea
-            id={`${id}-feedback`}
-            ref={textarea}
-            value={draft}
-            rows={3}
-            maxLength={500}
-            required
-            readOnly={pending}
-            aria-invalid={Boolean(error)}
-            placeholder="e.g. Make articles shorter and include more examples"
-            onChange={(event) => onDraftChange(event.target.value)}
-          />
-          <p className="demand-feedback-scope">For future ideas and articles in this loop.</p>
-          {pending ? <p className="demand-dialog-status" role="status">Updating this loop…</p> : null}
-          {!pending && (status || (loop?.canUndo && loop.lastMutationId)) ? (
-            <p className="demand-dialog-status" role="status">
-              {status || "Your latest loop update is saved."}
-              {loop?.canUndo && loop.lastMutationId ? (
-                <button type="button" onClick={onUndo}>Undo</button>
-              ) : null}
-            </p>
-          ) : null}
-          {error ? <p id={`${id}-error`} className="demand-dialog-error" role="alert">{error}</p> : null}
-          <div className="demand-dialog-footer">
-            <button type="submit" className="demand-primary" disabled={!draft.trim() || pending}>
-              {pending ? "Updating…" : "Update loop"}<ArrowRight aria-hidden="true" />
-            </button>
-          </div>
-        </form></> : null}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function ArticleQuestionDialog({
-  open, article, draft, pending, status, error, answer, loadFailed,
-  onOpenChange, onDraftChange, onSubmit, onLoadAgain, openerRef, fallbackRef,
-}: DialogFocusProps & {
-  open: boolean;
-  article: DemandArticle | null;
-  draft: string;
-  pending: boolean;
-  status: string;
-  error: string;
-  answer: DemandAnswer | null;
-  loadFailed: boolean;
-  onOpenChange: (open: boolean) => void;
-  onDraftChange: (draft: string) => void;
-  onSubmit: (event: FormEvent) => void;
-  onLoadAgain: () => void;
-}) {
-  const id = useId();
-  const textarea = useDemandGrowingTextarea(draft, open, 68);
-  const content = useEditorialDialogViewport(open);
-  return (
-    <Dialog open={open && Boolean(article)} onOpenChange={onOpenChange}>
-      <DialogContent
-        ref={content}
-        className="demand-dialog demand-question-dialog"
-        showCloseButton={false}
-        aria-describedby={`${id}-article${error ? ` ${id}-error` : ""}`}
-        onOpenAutoFocus={(event) => {
-          event.preventDefault();
-          textarea.current?.focus({ preventScroll: true });
-        }}
-        onCloseAutoFocus={(event) => {
-          event.preventDefault();
-          restoreDemandDialogFocus(openerRef.current, fallbackRef.current);
-        }}
-      >
-        <DialogClose className="demand-dialog-close" aria-label="Close article question"><X aria-hidden="true" /></DialogClose>
-        <DialogTitle>Ask about this article</DialogTitle>
-        <DialogDescription id={`${id}-article`} className="demand-question-context">{article?.title}</DialogDescription>
-        <form aria-busy={pending} onSubmit={onSubmit}>
-          <label className="demand-visually-hidden" htmlFor={`${id}-question`}>Your question</label>
-          <textarea id={`${id}-question`} ref={textarea} value={draft} maxLength={1000} rows={2}
-            readOnly={pending} aria-invalid={Boolean(error)} placeholder="Ask a question about this article"
-            onChange={(event) => onDraftChange(event.target.value)} />
-          <div className="demand-dialog-footer">
-            <button className="demand-primary" type="submit" disabled={!draft.trim() || pending}>
-              {pending ? status : "Ask Edison"}<ArrowRight aria-hidden="true" />
-            </button>
-          </div>
-        </form>
-        {pending ? <p className="demand-dialog-status" role="status">{status}</p> : null}
-        {error ? <p id={`${id}-error`} className="demand-dialog-error" role="alert">{error}</p> : null}
-        {loadFailed ? <button type="button" className="demand-text-action" onClick={onLoadAgain}>Load answer again</button> : null}
-        {answer ? <DemandAnswerContent answer={answer} articleSources={article?.sources ?? []} pending={pending} /> : null}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function CitationLinks({
   block,
   sources,
@@ -734,11 +574,13 @@ export function DemandAnswerContent({ answer, articleSources, pending = false }:
 export function DemandReader({
   client = browserDemandReaderClient,
   initialWorkspace = null,
+  initialArticleId = null,
 }: {
   client?: DemandReaderClient;
   initialWorkspace?: DemandWorkspace | null;
+  initialArticleId?: string | null;
 }) {
-  const initialLoop = initialWorkspace?.loops[0];
+  const initialLoop = initialWorkspace?.loops.find((loop) => !loop.archivedAt);
   const [workspace, setWorkspace] = useState<DemandWorkspace | null>(initialWorkspace);
   const [workspaceResponses] = useState(() => new DemandWorkspaceResponses(initialWorkspace));
   const [historyReader] = useState(() => { const reader = new DemandReaderHistory(); if (initialWorkspace) reader.reset(initialWorkspace.workspaceId); return reader; });
@@ -755,7 +597,6 @@ export function DemandReader({
   const [createError, setCreateError] = useState("");
   const [curateOpen, setCurateOpen] = useState(false);
   const [curateLoopId, setCurateLoopId] = useState<string | null>(null);
-  const [chooseCurateLoop, setChooseCurateLoop] = useState(false);
   const [feedbackDraft, setFeedbackDraft] = useState("");
   const [feedbackRequestId, setFeedbackRequestId] = useState<string | null>(null);
   const [feedbackSubmittingLoopId, setFeedbackSubmittingLoopId] = useState<string | null>(null);
@@ -764,18 +605,18 @@ export function DemandReader({
   const [selectedIdeaId, setSelectedIdeaId] = useState<string | null>(null);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<DemandArticle | null>(null);
+  const [recoveredLoop, setRecoveredLoop] = useState<DemandLoop | null>(null);
   const [askOpen, setAskOpen] = useState(false);
-  const [question, setQuestion] = useState("");
-  const [questionRequestId, setQuestionRequestId] = useState<string | null>(null);
-  const [questionSubmittingIdeaId, setQuestionSubmittingIdeaId] = useState<string | null>(null);
-  const [answer, setAnswer] = useState<DemandAnswer | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const shareOpenerRef = useRef<HTMLElement | null>(null);
+  const stableIdeasRef = useRef<{ workspaceId: string; ideas: DemandIdea[] } | null>(null);
+  const requestedBatches = useRef(new Map<string, { ids: Set<string>; previousRequestId: string | null }>());
+  const [newIdeas, setNewIdeas] = useState(new Map<string, string[]>());
   const [savingIdeas, setSavingIdeas] = useState<Set<string>>(() => new Set());
   const [ideasSubmittingLoopId, setIdeasSubmittingLoopId] = useState<string | null>(null);
   const [retryingRequestId, setRetryingRequestId] = useState<string | null>(null);
   const [resultLoadNonce, setResultLoadNonce] = useState(0);
-  const [answerLoadNonce, setAnswerLoadNonce] = useState(0);
   const [resultLoadFailed, setResultLoadFailed] = useState(false);
-  const [answerLoadFailed, setAnswerLoadFailed] = useState(false);
   const [returnTarget, setReturnTarget] = useState<ReturnTarget | null>(null);
   const [pageError, setPageError] = useState("");
   const [loading, setLoading] = useState(initialWorkspace === null);
@@ -784,7 +625,6 @@ export function DemandReader({
   const activeLoopRef = useRef(activeLoopId);
   const createAttemptRef = useRef<ClientAttempt | null>(null);
   const feedbackAttemptRefs = useRef(new Map<string, ClientAttempt>());
-  const questionAttemptRefs = useRef(new Map<string, ClientAttempt>());
   const ideasAttemptRefs = useRef(new Map<string, ClientAttempt>());
   const articleAttemptRefs = useRef(new Map<string, ClientAttempt>());
   const retryingRequestIds = useRef(new Set<string>());
@@ -802,6 +642,7 @@ export function DemandReader({
   const submittedFeedbackRefs = useRef(new Map<string, SubmittedDemandFeedback>());
   const workspaceIdentityRef = useRef(initialWorkspace?.workspaceId ?? null);
   const curateLoopRef = useRef<string | null>(null);
+  const directArticleRef = useRef(initialArticleId);
 
   const publishWorkspace = useCallback((next: DemandWorkspace | null) => {
     if (!next) return false;
@@ -814,21 +655,20 @@ export function DemandReader({
       setContinuityFailure("");
       selectedIdeaRef.current = null;
       curateLoopRef.current = null;
-      activeLoopRef.current = next.loops[0]?.id ?? PULSE_FOR_YOU_ID;
+      activeLoopRef.current = next.loops.find((loop) => !loop.archivedAt)?.id ?? PULSE_FOR_YOU_ID;
       setActiveLoopId(activeLoopRef.current);
-      setView(next.loops.length ? "loop" : "home");
+      setView(next.loops.some((loop) => !loop.archivedAt) ? "loop" : "home");
       setSelectedIdeaId(null);
       setSelectedRequestId(null);
       setSelectedArticle(null);
+      setRecoveredLoop(null);
       setReturnTarget(null);
-      setQuestion("");
-      setAnswer(null);
-      setQuestionRequestId(null);
       setFeedbackDraft("");
       setFeedbackRequestId(null);
       setCurateLoopId(null);
       setCurateOpen(false);
       setAskOpen(false);
+      setShareOpen(false);
       setCreateOpen(false);
       setCreateDraft("");
       setPageError("");
@@ -871,6 +711,43 @@ export function DemandReader({
       return null;
     }
   }, [client, historyReader]);
+  const restoreArticleRoute = useCallback(async (articleId: string, next: DemandWorkspace, intent: number) => {
+    setRecoveringContinuity(true);
+    setContinuityFailure("");
+    try {
+      const result = await client.getDemandArticle(articleId);
+      if (navigationIntentRef.current !== intent || workspaceIdentityRef.current !== next.workspaceId) return;
+      if (result.workspaceId !== next.workspaceId || result.article.id !== articleId) throw new Error("This article belongs to a different reading workspace.");
+      historyReader.seed({ workspaceId: result.workspaceId, idea: result.idea, request: result.request });
+      setHistory(historyReader.snapshot());
+      selectedIdeaRef.current = result.idea.id;
+      activeLoopRef.current = result.idea.loopId;
+      setSelectedIdeaId(result.idea.id);
+      setSelectedRequestId(result.request.id);
+      setActiveLoopId(result.idea.loopId);
+      setSelectedArticle(result.article);
+      setRecoveredLoop(result.loop);
+      setCreateOpen(false);
+      setAskOpen(false);
+      setShareOpen(false);
+      articlePositionRef.current = demandReadingPositionForIdea(readingPositionsRef.current, next.workspaceId, result.idea);
+      restoringArticleRef.current = result.idea.id;
+      const loop = next.loops.find(({ id, archivedAt }) => id === result.idea.loopId && !archivedAt);
+      const routeOrigin: unknown = window.history.state?.demandOrigin;
+      const candidate = routeOrigin && typeof routeOrigin === "object" ? routeOrigin as Partial<ReturnTarget> : null;
+      const validOrigin = window.history.state?.demandWorkspaceId === next.workspaceId && candidate &&
+        ["home", "library", "loop"].includes(candidate.view ?? "") && candidate.ideaId === result.idea.id &&
+        typeof candidate.scrollY === "number" && Number.isFinite(candidate.scrollY) && candidate.scrollY >= 0 &&
+        (candidate.view !== "loop" || next.loops.some(({ id, archivedAt }) => id === candidate.loopId && !archivedAt));
+      setReturnTarget(validOrigin ? candidate as ReturnTarget : { view: loop ? "loop" : "home", loopId: loop?.id ?? null, ideaId: result.idea.id, scrollY: 0 });
+      setView("article");
+      continuityRestored.current = true;
+      setRecoveringContinuity(false);
+    } catch (error) {
+      if (navigationIntentRef.current !== intent || workspaceIdentityRef.current !== next.workspaceId) return;
+      setContinuityFailure(readableError(error)); setRecoveringContinuity(false);
+    }
+  }, [client, historyReader]);
   const readingRecords = useMemo(() => demandHistoryRecords(workspace, history), [workspace, history]);
   const historyQuery: HistoryScope | null = view === "library" ? { scope: "saved" }
     : view === "home" ? { scope: "all" } : view === "loop" ? { scope: "all", loopId: activeLoopId } : null;
@@ -909,6 +786,12 @@ export function DemandReader({
         positions = localStorage.getItem("edison:demand:reading-positions:v1");
       } catch { /* A fresh session remains usable. */ }
       readingPositionsRef.current = restoreDemandReadingPositions(positions, next.workspaceId);
+      const routeId = window.location.pathname.match(/^\/articles\/([0-9a-f-]{36})\/?$/)?.[1] ?? directArticleRef.current;
+      if (routeId) {
+        directArticleRef.current = routeId;
+        await restoreArticleRoute(routeId, next, continuityIntent);
+        return;
+      }
       setContinuityFailure("");
       setRecoveringContinuity(true);
       await restoreCurrentDemandContinuity({ raw, workspace: next, getIdea: client.getDemandIdea,
@@ -932,20 +815,13 @@ export function DemandReader({
             const restoredPosition = restoredDemandArticlePosition(saved);
             articlePositionRef.current = restoredPosition ?? 0;
             restoringArticleRef.current = restoredPosition !== null ? saved.selectedIdeaId : null;
-            if (idea) {
-              setQuestion(readDraft("question", idea.id, 1000));
-              const pending = readPendingRequest("question", idea.id);
-              const previous = next.requests.filter((request) => request.ideaId === idea.id && request.kind === "question")
-                .toSorted((a, b) => b.createdAt.localeCompare(a.createdAt));
-              setQuestionRequestId(previous.find(({ id }) => id === pending)?.id ?? previous[0]?.id ?? null);
-            }
             if (saved.history ?? saved.origin?.history) {
               const { cursor, ...query } = (saved.history ?? saved.origin!.history)!;
               void loadHistoryPage(query, cursor);
             } else if (saved.view === "library") void loadHistoryPage({ scope: "saved" }, null);
-          } else if (next.loops.length) {
-            activeLoopRef.current = next.loops[0]!.id;
-            setActiveLoopId(next.loops[0]!.id);
+          } else if (next.loops.some((loop) => !loop.archivedAt)) {
+            activeLoopRef.current = next.loops.find((loop) => !loop.archivedAt)!.id;
+            setActiveLoopId(activeLoopRef.current);
             setView("loop");
           } else {
             setCreateOpen(true);
@@ -967,7 +843,38 @@ export function DemandReader({
     return () => {
       current = false;
     };
-  }, [client, continuityIntent, historyReader, initialWorkspace, loadHistoryPage, publishWorkspace, workspaceResponses]);
+  }, [client, continuityIntent, historyReader, initialWorkspace, loadHistoryPage, publishWorkspace, restoreArticleRoute, workspaceResponses]);
+
+  useEffect(() => {
+    if (!workspace) return;
+    const onPopState = () => {
+      const intent = ++navigationIntentRef.current;
+      setAskOpen(false); setShareOpen(false); setCurateOpen(false);
+      const routeId = window.location.pathname.match(/^\/articles\/([0-9a-f-]{36})\/?$/)?.[1];
+      directArticleRef.current = routeId ?? null;
+      if (routeId) { void restoreArticleRoute(routeId, workspace, intent); return; }
+      continuityRestored.current = true; setRecoveringContinuity(false); setContinuityFailure("");
+      selectedIdeaRef.current = null;
+      const saved = window.history.state?.demandFeed;
+      const loop = workspace.loops.find(({ id, archivedAt }) => id === saved?.loopId && !archivedAt);
+      const destination = saved?.view === "library" ? "library" : saved?.view === "loop" && loop ? "loop" : "home";
+      activeLoopRef.current = loop?.id ?? PULSE_FOR_YOU_ID; setActiveLoopId(activeLoopRef.current); setView(destination);
+      if (destination === "library") void loadHistoryPage({ scope: "saved" }, null);
+      requestAnimationFrame(() => {
+        window.scrollTo(0, typeof saved?.scrollY === "number" && Number.isFinite(saved.scrollY) ? Math.max(0, saved.scrollY) : 0);
+        readingSurfaceRef.current?.focus({ preventScroll: true });
+      });
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [loadHistoryPage, restoreArticleRoute, workspace]);
+
+  useEffect(() => {
+    if (view !== "article" || !selectedArticle || !workspace || recoveringContinuity) return;
+    const path = `/articles/${selectedArticle.id}`;
+    if (window.location.pathname !== path) window.history.pushState({ ...window.history.state, demandOrigin: returnTarget, demandWorkspaceId: workspace.workspaceId }, "", path);
+    directArticleRef.current = selectedArticle.id;
+  }, [recoveringContinuity, returnTarget, selectedArticle, view, workspace]);
 
   useEffect(() => {
     if (!workspace || !continuityRestored.current) return;
@@ -1092,58 +999,6 @@ export function DemandReader({
     };
   }, [client, publishWorkspace, resultLoadNonce, selectedIdeaId, selectedRequestIdeaId, selectedRequestStatus, selectedRequestId, view, workspaceResponses]);
 
-  const questionRequest = workspace?.requests.find(({ id }) => id === questionRequestId);
-  useEffect(() => {
-    if (
-      questionRequestId &&
-      questionRequest?.ideaId === selectedIdeaId &&
-      questionRequest.status === "failed"
-    ) {
-      queueMicrotask(() => {
-        if (selectedIdeaRef.current !== questionRequest.ideaId) return;
-        if (questionRequest.ideaId) {
-          writePendingRequest("question", questionRequest.ideaId, null);
-          writeStoredAttempt("question", questionRequest.ideaId, null);
-        }
-        setPageError(questionRequest.failure?.message ?? "Edison couldn’t answer that question. Your draft is still here.");
-        setQuestionRequestId(null);
-      });
-      return;
-    }
-    if (
-      !questionRequestId ||
-      !questionRequest?.ideaId ||
-      questionRequest?.ideaId !== selectedIdeaId ||
-      questionRequest.status !== "succeeded"
-    ) return;
-    const resultIdeaId = questionRequest.ideaId;
-    let current = true;
-    void client.getDemandResult(questionRequestId)
-      .then((result) => {
-        if (!result.answer) throw new Error("Edison returned a ready request without its answer.");
-        if (!current || selectedIdeaRef.current !== resultIdeaId) return;
-        setAnswer(result.answer);
-        setAnswerLoadFailed(false);
-        const submitted = readPendingRequest("question", resultIdeaId) === questionRequestId
-          ? readStoredAttempt("question", resultIdeaId) : null;
-        const isAppliedDraft = (draft: string) => submitted?.fingerprint === JSON.stringify([resultIdeaId, draft.trim()]);
-        setQuestion((draft) => isAppliedDraft(draft) ? "" : draft);
-        if (isAppliedDraft(readDraft("question", resultIdeaId, 1000))) writeDraft("question", resultIdeaId, "");
-        writePendingRequest("question", resultIdeaId, null);
-        writeStoredAttempt("question", resultIdeaId, null);
-        setPageError("");
-        setQuestionRequestId(null);
-      })
-      .catch((error) => {
-        if (!current || selectedIdeaRef.current !== resultIdeaId) return;
-        setAnswerLoadFailed(true);
-        setPageError(readableError(error));
-      });
-    return () => {
-      current = false;
-    };
-  }, [answerLoadNonce, client, questionRequest?.failure?.message, questionRequest?.ideaId, questionRequest?.status, questionRequestId, selectedIdeaId]);
-
   const feedbackRequest = workspace?.requests.find(({ id }) => id === feedbackRequestId);
   useEffect(() => {
     if (
@@ -1192,15 +1047,6 @@ export function DemandReader({
       writePendingRequest("feedback", loop.id, null);
       writeStoredAttempt("feedback", loop.id, null);
     }
-    for (const idea of workspace.ideas) {
-      const requestId = readPendingRequest("question", idea.id);
-      if (!requestId) continue;
-      const request = workspace.requests.find(({ id }) => id === requestId);
-      if (request?.status === "failed") {
-        writePendingRequest("question", idea.id, null);
-        writeStoredAttempt("question", idea.id, null);
-      }
-    }
   }, [workspace]);
 
   useEffect(() => {
@@ -1236,28 +1082,28 @@ export function DemandReader({
     return () => window.removeEventListener("scroll", reportProgress);
   }, [client, selectedArticle, selectedIdeaId, view]);
 
-  const activeLoop = workspace?.loops.find(({ id }) => id === activeLoopId) ?? null;
+  const activeLoop = workspace?.loops.find(({ id }) => id === activeLoopId) ?? (recoveredLoop?.id === activeLoopId ? recoveredLoop : null);
   const curateLoop = workspace?.loops.find(({ id }) => id === curateLoopId) ?? null;
-  const combinedIdeas = useMemo(
-    () => {
-      const ideas = workspace?.ideas ?? [];
-      const batchCreatedAt = new Map<string, string>();
-      for (const idea of ideas) {
-        const previous = batchCreatedAt.get(idea.batchRequestId);
-        if (!previous || idea.createdAt > previous) {
-          batchCreatedAt.set(idea.batchRequestId, idea.createdAt);
-        }
-      }
-      return ideas.toSorted((left, right) => {
-        const batchOrder = (batchCreatedAt.get(right.batchRequestId) ?? right.createdAt)
-          .localeCompare(batchCreatedAt.get(left.batchRequestId) ?? left.createdAt);
-        if (batchOrder) return batchOrder;
-        if (left.batchRequestId === right.batchRequestId) return left.rank - right.rank;
-        return right.batchRequestId.localeCompare(left.batchRequestId);
-      });
-    },
-    [workspace?.ideas],
-  );
+  const combinedIdeas = useMemo(() => {
+    if (!workspace) return [];
+    const previous = stableIdeasRef.current?.workspaceId === workspace.workspaceId ? stableIdeasRef.current.ideas : [];
+    const ideas = appendStableIdeas(previous, workspace.ideas).map((idea) => readingRecords.ideas.find(({ id }) => id === idea.id) ?? idea);
+    const activeIds = new Set(workspace.loops.filter((loop) => !loop.archivedAt).map((loop) => loop.id));
+    return ideas.filter((idea) => activeIds.has(idea.loopId));
+  }, [readingRecords.ideas, workspace]);
+  useEffect(() => {
+    if (workspace) stableIdeasRef.current = { workspaceId: workspace.workspaceId, ideas: combinedIdeas };
+  }, [combinedIdeas, workspace]);
+  useEffect(() => {
+    if (!workspace) return;
+    for (const [loopId, previous] of requestedBatches.current) {
+      const request = latestRequest(workspace, loopId, "ideas");
+      if (!request || request.id === previous.previousRequestId || request.status === "queued" || request.status === "running") continue;
+      const added = combinedIdeas.filter((idea) => idea.loopId === loopId && !previous.ids.has(idea.id)).map((idea) => idea.id);
+      if (request.status === "succeeded") setNewIdeas((current) => new Map(current).set(loopId, added));
+      requestedBatches.current.delete(loopId);
+    }
+  }, [combinedIdeas, workspace]);
   const activeIdeas = combinedIdeas.filter(({ loopId: owner }) => owner === activeLoopId);
   const ideaById = new Map(readingRecords.ideas.map((idea) => [idea.id, idea]));
   const requestById = new Map(readingRecords.requests.map((request) => [request.id, request]));
@@ -1275,6 +1121,7 @@ export function DemandReader({
     setRecoveringContinuity(false);
     setContinuityFailure("");
     setPageError("");
+    directArticleRef.current = null;
   }
 
   function retryContinuityRestoration() {
@@ -1297,6 +1144,8 @@ export function DemandReader({
       ideasAttemptRefs.current.set(loop.id, attempt);
     }
     attempt.inFlight = true;
+    requestedBatches.current.set(loop.id, { ids: new Set(combinedIdeas.filter((idea) => idea.loopId === loop.id).map((idea) => idea.id)), previousRequestId: workspace ? latestRequest(workspace, loop.id, "ideas")?.id ?? null : null });
+    setNewIdeas((current) => { const next = new Map(current); next.delete(loop.id); return next; });
     setIdeasSubmittingLoopId(loop.id);
     setPageError("");
     const ticket = workspaceResponses.beginMutation();
@@ -1372,7 +1221,11 @@ export function DemandReader({
     const idea = demandHistoryRecords(workspace, historyReader.snapshot()).ideas.find(({ id }) => id === inputIdea.id) ?? inputIdea;
     rememberCurrentReadingPosition();
     beginNavigation();
+    if (view === "home" || view === "loop" || view === "library") {
+      window.history.replaceState({ ...window.history.state, demandFeed: { view, loopId: activeLoopId, scrollY: window.scrollY }, demandWorkspaceId: workspace?.workspaceId }, "", window.location.href);
+    }
     setAskOpen(false);
+    setShareOpen(false);
     if ((view === "loop" && activeLoopId === idea.loopId) || view === "library" || view === "home") {
       setReturnTarget({ view, loopId: view === "loop" ? idea.loopId : null, scrollY: window.scrollY, ideaId: idea.id,
         ...(visibleHistory ? { history: { ...visibleHistory.query, cursor: visibleHistory.cursor } } : {}) });
@@ -1391,17 +1244,6 @@ export function DemandReader({
     setSelectedRequestId(idea.articleRequestId);
     setSelectedArticle(null);
     setResultLoadFailed(false);
-    setAnswerLoadFailed(false);
-    const savedQuestionDraft = readDraft("question", idea.id, 1000);
-    setQuestion(savedQuestionDraft);
-    setAnswer(null);
-    const questionRequests = workspace?.requests
-      .filter(({ ideaId, kind }) => ideaId === idea.id && kind === "question")
-      .toSorted((left, right) => right.createdAt.localeCompare(left.createdAt)) ?? [];
-    const markedQuestionId = readPendingRequest("question", idea.id);
-    const priorQuestion = questionRequests.find(({ id }) => id === markedQuestionId) ??
-      questionRequests.find(({ status }) => !savedQuestionDraft || status !== "succeeded");
-    setQuestionRequestId(priorQuestion?.id ?? null);
     setPageError("");
     setActiveLoopId(idea.loopId);
     window.scrollTo(0, 0);
@@ -1548,41 +1390,6 @@ export function DemandReader({
     }
   }
 
-  async function submitQuestion(event: FormEvent) {
-    event.preventDefault();
-    if (!selectedIdea || !question.trim() || questionSubmittingIdeaId === selectedIdea.id ||
-        (questionRequestId && questionRequest?.ideaId === selectedIdea.id)) return;
-    const fingerprint = JSON.stringify([selectedIdea.id, question.trim()]);
-    if (!questionAttemptRefs.current.has(selectedIdea.id)) {
-      const stored = readStoredAttempt("question", selectedIdea.id);
-      if (stored) questionAttemptRefs.current.set(selectedIdea.id, stored);
-    }
-    const attempt = beginScopedAttempt(questionAttemptRefs, selectedIdea.id, fingerprint, "question");
-    if (!attempt) return;
-    writeStoredAttempt("question", selectedIdea.id, attempt);
-    setQuestionSubmittingIdeaId(selectedIdea.id);
-    setPageError("");
-    let accepted = false;
-    const ticket = workspaceResponses.beginMutation();
-    try {
-      const response = await client.askDemandQuestion(selectedIdea.id, {
-        question,
-        idempotencyKey: attempt.idempotencyKey,
-      });
-      if (!publishWorkspace(workspaceResponses.acceptMutation(ticket, response.workspace))) return;
-      if (!response.requestId) throw new Error("Edison did not return the question request.");
-      accepted = true;
-      writePendingRequest("question", selectedIdea.id, response.requestId);
-      if (selectedIdeaRef.current === selectedIdea.id) setQuestionRequestId(response.requestId);
-    } catch (error) {
-      if (selectedIdeaRef.current === selectedIdea.id) setPageError(readableError(error));
-    } finally {
-      workspaceResponses.finishMutation(ticket);
-      finishScopedAttempt(questionAttemptRefs, selectedIdea.id, attempt, accepted);
-      setQuestionSubmittingIdeaId((current) => current === selectedIdea.id ? null : current);
-    }
-  }
-
   async function retryRequest(request: DemandRequest) {
     if (retryingRequestIds.current.has(request.id)) return;
     retryingRequestIds.current.add(request.id);
@@ -1626,6 +1433,7 @@ export function DemandReader({
     historyReader.close();
     setHistory(historyReader.snapshot());
     setAskOpen(false);
+    setShareOpen(false);
     selectedIdeaRef.current = null;
     activeLoopRef.current = loopId;
     setActiveLoopId(loopId);
@@ -1633,6 +1441,7 @@ export function DemandReader({
     setSelectedIdeaId(null);
     setSelectedRequestId(null);
     setView("loop");
+    if (window.location.pathname.startsWith("/articles/")) window.history.pushState({ ...window.history.state, demandFeed: { view: "loop", loopId, scrollY: 0 } }, "", "/");
   }
 
   function returnFromReading() {
@@ -1641,6 +1450,7 @@ export function DemandReader({
     beginNavigation();
     pendingHistoryReturn.current = target?.history ? target : null;
     setAskOpen(false);
+    setShareOpen(false);
     selectedIdeaRef.current = null;
     if (target?.view === "loop" && target.loopId) {
       activeLoopRef.current = target.loopId;
@@ -1650,6 +1460,7 @@ export function DemandReader({
       setActiveLoopId(PULSE_FOR_YOU_ID);
     }
     setView(target?.view ?? "loop");
+    if (window.location.pathname.startsWith("/articles/")) window.history.pushState({ ...window.history.state, demandFeed: { view: target?.view ?? "home", loopId: target?.loopId, scrollY: target?.scrollY ?? 0 } }, "", "/");
     requestAnimationFrame(() => {
       window.scrollTo(0, target?.scrollY ?? 0);
       if (target) {
@@ -1667,12 +1478,14 @@ export function DemandReader({
     if (next === "library") void loadHistoryPage({ scope: "saved" }, null);
     else { historyReader.close(); setHistory(historyReader.snapshot()); }
     setAskOpen(false);
+    setShareOpen(false);
     selectedIdeaRef.current = null;
     if (next === "home") {
       activeLoopRef.current = PULSE_FOR_YOU_ID;
       setActiveLoopId(PULSE_FOR_YOU_ID);
     }
     setView(next);
+    if (window.location.pathname.startsWith("/articles/")) window.history.pushState({ ...window.history.state, demandFeed: { view: next, scrollY: 0 } }, "", "/");
   }
 
   function openCreate(event?: { currentTarget: EventTarget | null }) {
@@ -1684,6 +1497,7 @@ export function DemandReader({
   function openAsk(event?: { currentTarget: EventTarget | null }) {
     if (!selectedIdea || !selectedArticle) return;
     askOpenerRef.current = dialogOpener(event);
+    setShareOpen(false);
     setAskOpen(true);
   }
 
@@ -1709,17 +1523,28 @@ export function DemandReader({
   function openCurate(event?: { currentTarget: EventTarget | null }) {
     if (!workspace?.loops.length) { openCreate(event); return; }
     curateOpenerRef.current = dialogOpener(event);
-    const requiresChoice = view === "home" || !activeLoop;
-    setChooseCurateLoop(requiresChoice);
-    if (requiresChoice) {
-      curateLoopRef.current = null;
-      setCurateLoopId(null);
-      setFeedbackDraft("");
-      setFeedbackRequestId(null);
-      setFeedbackError("");
-      setFeedbackStatus("");
-    } else chooseFeedbackLoop(activeLoop.id);
+    if (!activeLoop || activeLoop.archivedAt) return;
+    chooseFeedbackLoop(activeLoop.id);
     setCurateOpen(true);
+  }
+
+  async function editLoop(draft: LoopEditDraft, key: string, baseRevision: number) {
+    if (!curateLoop) throw new Error("This loop is no longer available.");
+    const ticket = workspaceResponses.beginMutation();
+    try {
+      const response = await client.editDemandLoop(curateLoop.id, { name: draft.name, instructions: draft.instructions, baseRevision, idempotencyKey: key });
+      if (!publishWorkspace(workspaceResponses.acceptMutation(ticket, response.workspace))) throw new Error("Your reading workspace changed. Please reopen the editor.");
+    } finally { workspaceResponses.finishMutation(ticket); }
+  }
+
+  async function deleteLoop(key: string, baseRevision: number) {
+    if (!curateLoop) throw new Error("This loop is no longer available.");
+    const ticket = workspaceResponses.beginMutation();
+    try {
+      const response = await client.deleteDemandLoop(curateLoop.id, { baseRevision, idempotencyKey: key, confirmed: true });
+      if (!publishWorkspace(workspaceResponses.acceptMutation(ticket, response.workspace))) throw new Error("Your reading workspace changed.");
+      openWorkspaceView("home");
+    } finally { workspaceResponses.finishMutation(ticket); }
   }
 
   function ideaSaveBlocked(ideaId: string) {
@@ -1765,23 +1590,26 @@ export function DemandReader({
     if (!workspace || !activeLoop) return null;
     if (visibleHistory) return <main ref={readingSurfaceRef} tabIndex={-1} className="demand-feed"><h1>{activeLoop.title}</h1><p className="demand-intro">Choose an article. We’ll write it for you.</p>{renderHistoryPage()}</main>;
     const ideasRequest = latestRequest(workspace, activeLoop.id, "ideas");
-    const newestBatchId = activeIdeas[0]?.batchRequestId;
-    const currentIdeas = activeIdeas.filter(({ batchRequestId }) => batchRequestId === newestBatchId);
-    const earlierIdeas = activeIdeas.filter(({ batchRequestId }) => batchRequestId !== newestBatchId);
     const ideasPendingLabel = demandIdeasPendingLabel(ideasRequest, ideasSubmittingLoopId === activeLoop.id);
     const ideasPending = ideasPendingLabel !== null;
     const canRetryIdeas = Boolean(ideasRequest?.failure?.retryable);
     const canRequestFreshIdeas = canRequestFreshIdeasAfter(ideasRequest?.failure?.code);
     return (
       <main ref={readingSurfaceRef} tabIndex={-1} className="demand-feed" aria-labelledby="demand-loop-heading">
-        <h1 id="demand-loop-heading">{activeLoop.title}</h1>
-        <p className="demand-intro">{activeLoop.originalCuriosity}</p>
-        {activeLoop.principles.length ? (
+        <div className="demand-feed-heading"><h1 id="demand-loop-heading">{activeLoop.title}</h1><button type="button" className="demand-more-articles" disabled={ideasPending} onClick={() => void askForIdeas(activeLoop)}>{ideasPending ? "Finding articles…" : "More articles"}<ArrowRight aria-hidden="true" /></button></div>
+
+        {activeLoop.principles.length || activeLoop.instructions || activeLoop.originalCuriosity ? (
           <button type="button" className="demand-direction-link" onClick={openCurate}>
-            What’s shaping this loop · {activeLoop.principles.length} {activeLoop.principles.length === 1 ? "principle" : "principles"}
+            What’s shaping this loop
           </button>
         ) : null}
         {activeIdeas.length ? <p className="demand-choice-hint">Choose an article. We’ll write it for you.</p> : null}
+        {newIdeas.has(activeLoop.id) ? <p className="demand-batch-arrival" role="status">{newIdeas.get(activeLoop.id)!.length} new {newIdeas.get(activeLoop.id)!.length === 1 ? "article" : "articles"} added
+          {newIdeas.get(activeLoop.id)!.length ? <> · <button type="button" onClick={() => {
+            const first = newIdeas.get(activeLoop.id)?.[0];
+            const card = Array.from(document.querySelectorAll<HTMLElement>("[data-idea-id]")).find((element) => element.dataset.ideaId === first);
+            card?.scrollIntoView({ block: "start" }); card?.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true });
+          }}>View new articles</button></> : null}</p> : null}
         {ideasPending ? (
           <section className="demand-request-state" role="status" aria-live="polite">
             <EdisonMark />
@@ -1806,52 +1634,13 @@ export function DemandReader({
         ) : null}
         {pageError ? <p className="demand-page-error" role="alert">{pageError}</p> : null}
         {renderIdeaRecoveryErrors(activeIdeas)}
-        {currentIdeas.length ? (
-          <div className="demand-idea-grid">
-            {currentIdeas.map((idea) => (
-              <IdeaCard
-                key={idea.id}
-                idea={idea}
-                request={idea.articleRequestId ? requestById.get(idea.articleRequestId) : undefined}
-                saving={ideaSaveBlocked(idea.id)}
-                onOpen={() => void openIdea(idea)}
-                onSave={() => void toggleIdeaSave(idea)}
-              />
-            ))}
-          </div>
-        ) : null}
-        {earlierIdeas.length ? (
-          <section className="demand-earlier" aria-labelledby="demand-earlier-heading">
-            <h2 id="demand-earlier-heading">Earlier ideas</h2>
-            <div className="demand-idea-grid">
-              {earlierIdeas.map((idea) => (
-                <IdeaCard
-                  key={idea.id}
-                  idea={idea}
-                  request={idea.articleRequestId ? requestById.get(idea.articleRequestId) : undefined}
-                  saving={ideaSaveBlocked(idea.id)}
-                  onOpen={() => void openIdea(idea)}
-                  onSave={() => void toggleIdeaSave(idea)}
-                />
-              ))}
-            </div>
-          </section>
-        ) : null}
-        {activeIdeas.length && !ideasPending && ideasRequest?.status !== "failed" ? (
-          <div className="demand-feed-action">
-            <button type="button" className="demand-primary" onClick={() => void askForIdeas(activeLoop)}>
-              Find fresh ideas<ArrowRight />
-            </button>
-          </div>
-        ) : !ideasPending && ideasRequest?.status !== "failed" ? (
-          <section className="demand-empty">
-            <h2>Find something worth reading next.</h2>
-            <p>Edison will prepare distinct article ideas before writing the explanation you choose.</p>
-            <button type="button" className="demand-primary" disabled={ideasSubmittingLoopId === activeLoop.id} onClick={() => void askForIdeas(activeLoop)}>
-              {ideasSubmittingLoopId === activeLoop.id ? "Starting…" : "Find article ideas"}<ArrowRight />
-            </button>
-          </section>
-        ) : null}
+        {activeIdeas.length ? <div className="demand-idea-grid">
+          {activeIdeas.map((idea) => <IdeaCard key={idea.id} idea={idea} request={idea.articleRequestId ? requestById.get(idea.articleRequestId) : undefined}
+            saving={ideaSaveBlocked(idea.id)} onOpen={() => void openIdea(idea)} onSave={() => void toggleIdeaSave(idea)} />)}
+        </div> : !ideasPending && ideasRequest?.status !== "failed" ? <section className="demand-empty"><h2>Find something worth reading next.</h2><p>Edison will prepare distinct article ideas before writing the explanation you choose.</p></section> : null}
+        <div className="demand-feed-action"><button type="button" className="demand-primary" disabled={ideasPending} onClick={() => void askForIdeas(activeLoop)}>
+          {ideasPending ? "Finding articles…" : "More articles"}<ArrowRight aria-hidden="true" />
+        </button></div>
         {historyEntry({ scope: "all", loopId: activeLoop.id })}
       </main>
     );
@@ -1864,17 +1653,16 @@ export function DemandReader({
     return (
       <main ref={readingSurfaceRef} tabIndex={-1} className="demand-preparation">
         <button type="button" className="demand-text-action" onClick={returnFromReading}>
-          <ChevronLeft />Browse other ideas
+          <ChevronLeft />Back to your loops
         </button>
-        <p className="demand-kicker">Selected article</p>
         <h1>{idea.title}</h1>
         <p className="demand-intro">{idea.deck}</p>
         <section className={`demand-request-state${request?.status === "failed" ? " demand-request-failed" : ""}`} role={request?.status === "failed" ? "alert" : "status"}>
           {request?.status !== "failed" ? <EdisonMark /> : null}
           <div>
-            <h2>{request ? requestStage(request.stage) : "Starting your article"}</h2>
+            <h2>{request?.status === "failed" ? "We couldn’t finish this article." : articlePreparationLabel(request)}</h2>
             <p>{request?.status === "failed"
-              ? request.failure?.message ?? "Your idea is saved. Try again, or explore another."
+              ? "Nothing was published."
               : "You can browse other ideas. This article will stay attached to this idea when it’s ready."}</p>
           </div>
           {request?.status === "failed" ? (
@@ -1883,7 +1671,7 @@ export function DemandReader({
               disabled={retryingRequestId === request.id}
               onClick={() => void (request.failure?.retryable ? retryRequest(request) : returnFromReading())}
             >
-              {request.failure?.retryable ? "Try again" : "Browse other ideas"}
+              {request.failure?.retryable ? "Try again" : "Back to your loops"}
             </button>
           ) : null}
           {(!request || request.status === "succeeded") && !selectedArticle && resultLoadFailed ? (
@@ -1894,24 +1682,25 @@ export function DemandReader({
         </section>
         {pageError ? <p className="demand-page-error" role="alert">{pageError}</p> : null}
         {renderIdeaRecoveryErrors([idea])}
+        {request?.status !== "failed" && !resultLoadFailed ? <div className="demand-article-skeleton" aria-hidden="true">{[0, 1, 2].map((group) => <div key={group}><span /><span /><span /><span /></div>)}</div> : null}
       </main>
     );
   }
 
   function renderArticle() {
-    if (!selectedArticle || !selectedIdea || !activeLoop) return renderRequest();
+    if (!selectedArticle || !selectedIdea) return renderRequest();
     const readingIdeas = returnTarget?.history && history.window?.page ? history.window.page.ideas : returnTarget?.view === "home" ? combinedIdeas
       : returnTarget?.view === "library" ? combinedIdeas.filter(({ saved }) => saved) : activeIdeas;
     const currentIndex = readingIdeas.findIndex(({ id }) => id === selectedIdea.id);
     const nextIdea = currentIndex >= 0 ? readingIdeas[currentIndex + 1] ?? null : null;
     const nextRequest = nextIdea?.articleRequestId ? requestById.get(nextIdea.articleRequestId) : undefined;
-    const backLabel = returnTarget?.view === "home" ? "For You" : returnTarget?.view === "library" ? "Library" : activeLoop.title;
+    const backLabel = returnTarget?.view === "home" ? "For You" : returnTarget?.view === "library" ? "Library" : activeLoop?.title ?? "your loops";
     return (
       <main ref={readingSurfaceRef} tabIndex={-1} className="demand-article">
         <div className="demand-article-toolbar">
-          <button type="button" onClick={returnFromReading}><ChevronLeft />Back to {backLabel}</button>
+          <button type="button" onClick={returnFromReading}><ChevronLeft />Back to your loops</button>
           <div>
-            <button type="button" aria-haspopup="dialog" aria-expanded={askOpen} onClick={openAsk}><MessageCircle aria-hidden="true" />Ask</button>
+            <button type="button" aria-haspopup="dialog" aria-expanded={shareOpen} onClick={(event) => { shareOpenerRef.current = event.currentTarget; setAskOpen(false); setShareOpen(true); }}><Share2 aria-hidden="true" />Share</button>
             <button type="button" aria-label={selectedIdea.saved ? "Remove from saved reading" : "Save article"} aria-pressed={selectedIdea.saved} disabled={ideaSaveBlocked(selectedIdea.id)} onClick={() => void toggleIdeaSave(selectedIdea)}>
               <Bookmark fill={selectedIdea.saved ? "currentColor" : "none"} />
             </button>
@@ -1936,8 +1725,9 @@ export function DemandReader({
         <DemandSourceList sources={selectedArticle.sources} />
         <nav className="demand-next" aria-label="Continue reading">
           {nextIdea ? <><p>Up next · {backLabel}</p><button type="button" onClick={() => void openIdea(nextIdea)}><span>{!nextIdea.articleRequestId ? "Write next article" : nextRequest?.status === "succeeded" ? "Next article" : "View next article"}: {nextIdea.title}</span><ArrowRight /></button></> : null}
-          <button type="button" className="demand-end-back" onClick={returnFromReading}><ChevronLeft aria-hidden="true" />Back to {backLabel}</button>
+          <button type="button" className="demand-end-back" onClick={returnFromReading}><ChevronLeft aria-hidden="true" />Back to your loops</button>
         </nav>
+        <button type="button" className="pulse-curate-fab demand-ask-fab" aria-haspopup="dialog" aria-expanded={askOpen} onClick={openAsk}><MessageCircle aria-hidden="true" />Ask</button>
       </main>
     );
   }
@@ -1952,33 +1742,53 @@ export function DemandReader({
     if (view === "library") {
       return <main ref={readingSurfaceRef} tabIndex={-1} className="demand-feed"><h1>Library</h1><p className="demand-intro">Ideas and articles you save stay with this reading workspace.</p>{pageError ? <p className="demand-page-error" role="alert">{pageError}</p> : null}{visibleHistory ? renderHistoryPage() : <button type="button" className="demand-text-action" onClick={() => void loadHistoryPage({ scope: "saved" }, null)}>Load saved reading</button>}</main>;
     }
-    if (view === "profile") return <main ref={readingSurfaceRef} tabIndex={-1} className="demand-feed"><h1>Your publication</h1><p className="demand-intro">{workspace.readerKind === "guest" ? "This private guest workspace stays with this browser. Use Curate in a loop to shape its future reading." : "Your loops and pending work are connected to your Edison account."}</p>{workspace.readerKind === "account" ? <Link className="demand-text-action" href="/?view=profile">Account reading preferences</Link> : null}<section className="demand-profile-card"><strong>{workspace.loops.length}</strong><span>{workspace.loops.length === 1 ? "learning loop" : "learning loops"}</span></section></main>;
+    if (view === "profile") return <main ref={readingSurfaceRef} tabIndex={-1} className="demand-feed"><h1>Your publication</h1><p className="demand-intro">{workspace.readerKind === "guest" ? "This private guest workspace stays with this browser. Use Edit loop to shape its future reading." : "Your loops and pending work are connected to your Edison account."}</p>{workspace.readerKind === "account" ? <Link className="demand-text-action" href="/?view=profile">Account reading preferences</Link> : null}<section className="demand-profile-card"><strong>{workspace.loops.length}</strong><span>{workspace.loops.length === 1 ? "learning loop" : "learning loops"}</span></section></main>;
     return <main ref={readingSurfaceRef} tabIndex={-1} className="demand-feed"><h1>For You</h1><p className="demand-intro">Choose an article. We’ll write it for you.</p>{pageError ? <p className="demand-page-error" role="alert">{pageError}</p> : null}{visibleHistory ? renderHistoryPage() : <>{renderIdeaRecoveryErrors(combinedIdeas)}{combinedIdeas.length ? <div className="demand-idea-grid">{combinedIdeas.map((idea) => <IdeaCard key={idea.id} idea={idea} request={idea.articleRequestId ? requestById.get(idea.articleRequestId) : undefined} saving={ideaSaveBlocked(idea.id)} onOpen={() => void openIdea(idea)} onSave={() => void toggleIdeaSave(idea)} />)}</div> : <section className="demand-empty"><h2>What do you want to learn about?</h2><p>Your loops’ article ideas will appear together here.</p><button type="button" className="demand-primary" onClick={openCreate}>Create loop<ArrowRight /></button></section>}{historyEntry({ scope: "all" })}</>}</main>;
   }
 
   return (
     <>
-      <PulseShell
-        loops={workspace?.loops ?? []}
+      <ReaderShell
+        loops={workspace?.loops.filter((loop) => !loop.archivedAt) ?? []}
         activeLoopId={view === "home" ? PULSE_FOR_YOU_ID : activeLoopId}
         onSelectLoop={(loop) => loop === PULSE_FOR_YOU_ID ? openWorkspaceView("home") : openLoop(loop)}
         onAddLoop={openCreate}
         onOpenHome={() => openWorkspaceView("home")}
         onOpenLibrary={() => openWorkspaceView("library")}
         onOpenProfile={() => openWorkspaceView("profile")}
-        onOpenCurate={openCurate}
+        onEditLoop={openCurate}
         showLoopNavigation={view !== "article" && view !== "request"}
-        showCurate={view === "loop" || view === "home"}
+        showEditLoop={view === "loop" && Boolean(activeLoop && !activeLoop.archivedAt)}
       >
         {content()}
-      </PulseShell>
+      </ReaderShell>
       <CreateLoopDialog openerRef={createOpenerRef} fallbackRef={readingSurfaceRef} open={createOpen} draft={createDraft} pending={createPending} error={createError} onOpenChange={setCreateOpen} onDraftChange={(draft) => { setCreateDraft(draft); setCreateError(""); if (createAttemptRef.current?.fingerprint !== draft.trim()) createAttemptRef.current = null; }} onSubmit={() => void createLoopAndIdeas()} />
-      <CurateLoopDialog openerRef={curateOpenerRef} fallbackRef={readingSurfaceRef} loop={curateLoop} loops={workspace?.loops ?? []} chooseLoop={chooseCurateLoop} onChooseLoop={chooseFeedbackLoop} open={curateOpen} draft={feedbackDraft} pending={feedbackSubmittingLoopId === curateLoop?.id || Boolean(feedbackRequestId && feedbackRequest?.loopId === curateLoop?.id)} error={feedbackError} status={feedbackStatus} onOpenChange={setCurateOpen} onDraftChange={(draft) => { setFeedbackDraft(draft); setFeedbackError(""); if (curateLoop) writeDraft("feedback", curateLoop.id, draft); }} onSubmit={() => void submitFeedback("apply")} onUndo={() => void submitFeedback("undo")} />
-      <ArticleQuestionDialog openerRef={askOpenerRef} fallbackRef={readingSurfaceRef} open={askOpen && view === "article"} article={selectedArticle} draft={question} answer={answer}
-        pending={Boolean(selectedIdeaId && (questionSubmittingIdeaId === selectedIdeaId || (questionRequestId && questionRequest?.ideaId === selectedIdeaId)))}
-        status={requestStage(questionRequest?.stage ?? "queued")} error={pageError} loadFailed={answerLoadFailed}
-        onOpenChange={setAskOpen} onDraftChange={(draft) => { setQuestion(draft); if (selectedIdeaId) writeDraft("question", selectedIdeaId, draft); }}
-        onSubmit={(event) => void submitQuestion(event)} onLoadAgain={() => { setAnswerLoadFailed(false); setAnswerLoadNonce((value) => value + 1); }} />
+      {curateOpen && curateLoop && workspace ? <LoopEditor key={`${workspace.workspaceId}:${curateLoop.id}`} loop={curateLoop} workspaceId={workspace.workspaceId}
+        instructions={curateLoop.instructions ?? curateLoop.originalCuriosity}
+        onSave={(draft, key, revision) => editLoop(draft, key, revision)} onDelete={(key, revision) => deleteLoop(key, revision)}
+        onUndo={curateLoop.canUndo && curateLoop.lastMutationId ? () => submitFeedback("undo") : undefined}
+        pendingUndo={feedbackSubmittingLoopId === curateLoop.id || Boolean(feedbackRequestId)} status={feedbackStatus} error={feedbackError}
+        onClose={() => { setCurateOpen(false); restoreDemandDialogFocus(curateOpenerRef.current, readingSurfaceRef.current); }} /> : null}
+      {selectedArticle && selectedIdea && workspace && view === "article" ? <ArticleConversation key={`${workspace.workspaceId}:${selectedArticle.id}`} article={selectedArticle}
+        workspaceId={workspace.workspaceId} open={askOpen}
+        getConversation={(cursor) => client.getDemandConversation(selectedArticle.id, cursor ? { cursor } : {})}
+        ask={async (question, key) => {
+          const ticket = workspaceResponses.beginMutation();
+          try { const result = await client.askDemandQuestion(selectedIdea.id, { question, idempotencyKey: key }); publishWorkspace(workspaceResponses.acceptMutation(ticket, result.workspace)); return result; }
+          finally { workspaceResponses.finishMutation(ticket); }
+        }}
+        retry={async (requestId) => {
+          const ticket = workspaceResponses.beginMutation();
+          try { const result = await client.retryDemandRequest(requestId); publishWorkspace(workspaceResponses.acceptMutation(ticket, result.workspace)); return result; }
+          finally { workspaceResponses.finishMutation(ticket); }
+        }}
+        renderAnswer={(answer) => <DemandAnswerContent answer={answer} articleSources={selectedArticle.sources} />}
+        onClose={() => { setAskOpen(false); requestAnimationFrame(() => restoreDemandDialogFocus(askOpenerRef.current, readingSurfaceRef.current)); }}
+        onLibrary={() => openWorkspaceView("library")} /> : null}
+      {shareOpen && selectedArticle && workspace && view === "article" ? <SharePanel key={`${workspace.workspaceId}:${selectedArticle.id}`} articleId={selectedArticle.id}
+        workspaceId={workspace.workspaceId} title={selectedArticle.title}
+        createLink={(key) => client.createDemandShare(selectedArticle.id, { idempotencyKey: key, confirmPublic: true })}
+        onClose={() => { setShareOpen(false); restoreDemandDialogFocus(shareOpenerRef.current, readingSurfaceRef.current); }} /> : null}
     </>
   );
 }

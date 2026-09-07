@@ -8,6 +8,7 @@ import {
   parseDemandHistoryQuery,
   requestDemandArticleSchema,
   requestDemandIdeasSchema,
+  editDemandLoopSchema, archiveDemandLoopSchema, createDemandArticleShareSchema, parseDemandConversationQuery,
 } from "@edison/contracts";
 import { resolveDemandPrincipal } from "../../../../src/auth/verify-demand-principal";
 import {
@@ -34,6 +35,9 @@ import {
 } from "../../../../src/services/demand-reading";
 import type { DemandPrincipal } from "../../../../src/auth/verify-demand-principal";
 import { demandHistory, demandIdeaResult } from "../../../../src/services/demand-history";
+import { demandArticleResult, demandConversation } from "../../../../src/services/demand-conversation";
+import { editDemandLoop, archiveDemandLoop } from "../../../../src/services/demand-loop-management";
+import { createDemandArticleShare } from "../../../../src/services/demand-sharing";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -74,7 +78,7 @@ async function handleDemandRoute(request: Request, context: RouteContext) {
       );
     }
     const params = new URL(request.url).searchParams;
-    if (params.size && route.kind !== "history") {
+    if (params.size && route.kind !== "history" && route.kind !== "conversation") {
       throw new HttpError(400, "invalid_request", "Query parameters are not supported here.");
     }
 
@@ -96,6 +100,23 @@ async function handleDemandRoute(request: Request, context: RouteContext) {
     }
 
     const { principal } = await resolveDemandPrincipal(request);
+    if (route.kind === "article-result") return json(await demandArticleResult(principal, route.articleId));
+    if (route.kind === "conversation") {
+      let input;
+      try { input = parseDemandConversationQuery(params); }
+      catch { throw new HttpError(400, "invalid_request", "That conversation request is not valid."); }
+      return json(await demandConversation(principal, route.articleId, input));
+    }
+    if (route.kind === "share") {
+      const result = await createDemandArticleShare(principal, route.articleId, createDemandArticleShareSchema.parse(await parsedBody(request)));
+      return json(result, { status: result.created ? 201 : 200 });
+    }
+    if (route.kind === "edit-loop" || route.kind === "archive-loop") {
+      if (route.kind === "edit-loop") await editDemandLoop(principal, route.loopId, editDemandLoopSchema.parse(await parsedBody(request)));
+      else await archiveDemandLoop(principal, route.loopId, archiveDemandLoopSchema.parse(await parsedBody(request)));
+      // Replays return current workspace rather than an old receipt snapshot.
+      return json({ workspace: await demandWorkspace(principal) });
+    }
     if (route.kind === "history") {
       let input;
       try { input = parseDemandHistoryQuery(params); }
