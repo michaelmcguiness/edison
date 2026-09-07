@@ -6,7 +6,22 @@ launching; they can change without a code release.
 
 ## Decision and current status
 
-**Current — v2.4 live, September 7:** API `a38b535` has passed exact-source
+**Current — v2.5 live, September 7:** API source
+`0b7611f9e737fb76c982e426a7bb67d1f00e1f37` passed exact-source
+[CI 34118061228](https://github.com/michaelmcguiness/edison/actions/runs/34118061228)
+and deployed as `dpl_EGjCTJSkjoWsuzhBQteoRn88TWPq`, Ready at 11:49:31 UTC.
+The predeploy aggregate found no active requests. Source identity, retained
+public API alias/target and all three enabled schedules match; readiness health,
+exact-apex CORS and all unauthenticated cron-denial checks passed at 11:50:43 UTC.
+Web `6eb811b` is unchanged. The bounded checker-contract prevention preserves
+actual evidence/excerpt identity, original envelopes and every substantive finding;
+the sole repair and strict saved acceptance remain. All 699 local tests, both
+typechecks, owned lint and independent focused review passed. No new paid sample
+or measured provider-quality claim, historical recovery/reset, model, generation
+prompt wording, budget, UI, configuration or migration change. The broader
+generation recommendation remains proposed, not selected implementation.
+
+**Previous — v2.4, September 7:** API `a38b535` has passed exact-source
 [CI 34114058927](https://github.com/michaelmcguiness/edison/actions/runs/34114058927)
 and hosted target/schedule/health/access checks. Web remains `6eb811b` at apex.
 The short-complete-preview instruction is live with six/eight allowances and
@@ -19,7 +34,8 @@ answer rendered after reload and reading-history reopen; Back restored its loop
 and card, and closing Ask restored opener focus. No extra generation or bookmark
 action. This is not a full conversation-history or mobile/scroll acceptance claim.
 Two later owner-reported football failures are diagnosed separately; a bounded
-prospective v2.5 checker-contract fix is prepared, not deployed: 699 local tests,
+prospective v2.5 checker-contract fix was prepared and subsequently deployed above:
+699 local tests,
 both typechecks, lint and independent focused review pass. The larger
 single-pass generation recommendation remains proposed, not an active policy.
 

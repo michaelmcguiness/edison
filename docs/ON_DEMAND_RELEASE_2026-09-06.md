@@ -3,7 +3,38 @@
 Owner: CTO. Scope: D28 reader-first reading and D29/D30 direct-apex operation.
 The app is live; useful real-output acceptance is a separate unfinished check.
 
-## Latest — v2.4 live; normal preference and ideas evidence
+## Latest — v2.5 checker-contract prevention live
+
+Owner: CTO, September 7. Exact source
+`0b7611f9e737fb76c982e426a7bb67d1f00e1f37` passed
+[CI 34118061228](https://github.com/michaelmcguiness/edison/actions/runs/34118061228),
+including application builds and all disposable-database gates. The clean isolated
+source copy was deployed only to the existing `edison-api` project after a fresh
+read-only aggregate found no queued/running requests. Deployment
+`dpl_EGjCTJSkjoWsuzhBQteoRn88TWPq` became Ready/Production at 11:49:31.082 UTC,
+at `edison-4x87493zx-mike-michaelmcguis-projects.vercel.app`. Its recorded CLI
+`gitCommitSha` exactly matches the CI source. The retained public alias
+`project-fjr95.vercel.app`, production target and all three enabled schedule hosts
+match this deployment. At 11:50:43 UTC, configuration/database/Auth health was
+200, exact `https://edisonreader.com` preflight was 204 and all three unauthenticated
+cron routes returned 401. No authenticated cron was triggered.
+
+Web remains exact `6eb811b51e6fa243654cbdca43cb084a394e3f60`, deployment
+`dpl_CeUv9T9DQCyxQeiQqDfFirXVmyuP`. No migration, configuration, secret, model,
+generation-prompt wording, UI, spending allowance or historical data change.
+The original failure records and accounted usage remain intact; no extra repair
+or automatic regeneration. No new browser action or paid provider sample followed
+this API-only release. Prior 699 local tests, both full typechecks, owned lint
+and independent 58-test review cover mechanical behavior; readiness and deployment
+identity do not establish real-provider schema acceptance or a measured improvement
+in article reliability/quality. The broader generation proposal is not selected.
+
+Rollback point: previous API source `a38b535`, deployment
+`dpl_79XQaPgbST5hSismatgQihAAvps5`, remains retained. Recheck active work and
+version compatibility before any rollback; never relabel or reset requests to
+make them compatible. Web rollback is not part of this API-only change.
+
+## Previous — v2.4 live; normal preference and ideas evidence
 
 Owner: CTO, September 7. Exact API source
 `a38b535dddb5e5aefc83af219aca7c151fa4c3ac` is Ready/Production; web `6eb811b`
@@ -69,7 +100,8 @@ provider request or live state change was involved. Neither old failed request
 qualifies for the existing location-only recovery path. They must not be reset,
 relabelled, granted another repair or automatically regenerated.
 
-CoS authorized a bounded prospective checker-contract correction. v2.5 is prepared:
+CoS authorized a bounded prospective checker-contract correction. v2.5 was prepared
+and is now live as recorded above:
 allowed reference/location values at generation, strict actual evidence
 binding, narrowly unique same-location initial-letter excerpt correction, original
 envelopes and every substantive finding retained. An exact competing anchor at
@@ -86,8 +118,8 @@ raw envelopes and strict saved acceptance/repair. Explicit old-version tests now
 include v2.4 alongside v2.2/v2.3 for checkpoint/cache/relabel rejection. These are
 local enforcement checks, not measured provider quality or live schema acceptance.
 No full generation prompt wording changed; the shared version is advanced to
-isolate new wire schemas. Exact-source CI and a fresh active-work check must pass
-before the API-only rollout. Historical failures and usage remain unchanged.
+isolate new wire schemas. Exact-source CI and a fresh active-work check passed
+before the API-only rollout above. Historical failures and usage remain unchanged.
 
 The current [official Structured Outputs guide](https://developers.openai.com/api/docs/guides/structured-outputs)
 supports enums and bounded arrays; the generated schemas stay within documented

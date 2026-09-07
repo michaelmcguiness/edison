@@ -1,6 +1,24 @@
 # Edison deployment
 
-## Latest API rollout — v2.4, September 7, 2026
+## Latest API rollout — v2.5, September 7, 2026
+
+API source `0b7611f9e737fb76c982e426a7bb67d1f00e1f37` is Ready/Production;
+deployment `dpl_EGjCTJSkjoWsuzhBQteoRn88TWPq`, Ready at 11:49:31 UTC.
+[CI 34118061228](https://github.com/michaelmcguiness/edison/actions/runs/34118061228)
+passed both jobs. No active queued/running requests preceded rollout. Exact
+source, public API alias/target and all three enabled schedules match; health
+200, apex CORS 204 and unauthenticated cron 401 checks passed at 11:50:43 UTC.
+Web `6eb811b` remains unchanged on edisonreader.com.
+
+This is prospective checker-contract prevention only: allowed evidence/location
+references and narrow exact-excerpt metadata correction, with unchanged findings,
+raw responses, strict saved gates and sole repair. All 699 local tests, both
+typechecks, owned lint and independent focused review pass. No fresh provider
+sample, historical-request recovery, model/prompt-wording/budget/UI/configuration
+change or migration. Live provider quality is unmeasured by these release checks.
+See [the execution record](ON_DEMAND_RELEASE_2026-09-06.md).
+
+## Previous API rollout — v2.4, September 7, 2026
 
 Source `a38b535` is Ready/Production at the existing API connector; web `6eb811b`
 remains on edisonreader.com. [CI 34114058927](https://github.com/michaelmcguiness/edison/actions/runs/34114058927)
@@ -14,7 +32,8 @@ Back and Ask-close focus restoration passed; no new generation or bookmark actio
 Ask displays the latest answer, not a browsable conversation transcript. A bounded
 checker-contract correction for the separately reported football failures is
 prepared as v2.5; 699 tests, both typechecks, lint and independent focused review
-pass. It is not deployed. Existing failed attempts remain unchanged.
+pass. It subsequently passed the v2.5 rollout above. Existing failed attempts
+remain unchanged.
 See [the execution record](ON_DEMAND_RELEASE_2026-09-06.md) for verification limits.
 
 ## Previous release — D31, September 7, 2026

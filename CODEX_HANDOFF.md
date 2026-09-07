@@ -15,7 +15,30 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
-### September 7 — v2.4 live; preference persistence and concept ideas verified
+### September 7 — v2.5 checker-contract prevention live
+
+Owner: CTO. Exact API source `0b7611f9e737fb76c982e426a7bb67d1f00e1f37`
+passed [CI 34118061228](https://github.com/michaelmcguiness/edison/actions/runs/34118061228)
+(application and disposable-database jobs) and is Ready/Production behind
+**edisonreader.com**. Deployment `dpl_EGjCTJSkjoWsuzhBQteoRn88TWPq` was Ready
+at 11:49:31 UTC. A fresh predeploy aggregate found no queued/running requests.
+Exact source, retained public API alias, production target and all three enabled
+schedule hosts match. Configuration/database/Auth health 200, exact-apex CORS
+204 and all unauthenticated cron 401 checks passed at 11:50:43 UTC. Web remains
+`6eb811b51e6fa243654cbdca43cb084a394e3f60`; no web release or browser action.
+
+The bounded fix constrains checker locations/retrieved passage IDs and preserves
+exact excerpt identity with narrowly unambiguous same-location initial-letter
+metadata correction. Raw responses, substantive findings, strict saved gates and
+the sole repair remain intact. All 699 local tests, both full typechecks and
+owned lint/diff checks passed; independent review passed 58 focused tests. No
+paid provider sample was added, so real-provider schema acceptance and failure-rate
+or writing-quality improvement are not established. Historical football failures
+remain terminal. No model, generation-prompt wording, budget, UI, configuration or
+database change; the larger pipeline recommendation remains proposed.
+See [the execution record](docs/ON_DEMAND_RELEASE_2026-09-06.md) for scope and limits.
+
+### Previous — v2.4 preference persistence and concept ideas verified
 
 Exact API source `a38b535dddb5e5aefc83af219aca7c151fa4c3ac` is Ready/Production on
 the existing service behind **edisonreader.com**. Web remains `6eb811b`.
@@ -56,7 +79,8 @@ The current priority is the two owner-reported football failures, diagnosed from
 their existing records. One stopped at malformed checker metadata before repair;
 the other remained unsupported on a current player-usage claim after its sole
 repair and final check. Exact saved-response replay confirmed these distinct paths.
-A bounded prospective v2.5 checker-contract correction is prepared, not live.
+A bounded prospective v2.5 checker-contract correction was prepared and has since
+passed the API-only rollout recorded above.
 All 699 local tests, both full typechecks and owned lint/diff checks pass;
 independent review passed 58 focused tests and closed the ambiguous-anchor case.
 Historical failures remain terminal; no reset, fuzzy source remapping, additional
