@@ -40,6 +40,10 @@ select is((select snapshot->'context'->>'originalCuriosity' from private.demand_
 select throws_ok($$update private.demand_loops set archived_at=null where id='70000000-0000-4000-8000-000000000011'$$,
   '23514',null,'archive cannot be silently undone');
 
+-- pgTAP lives in extensions, which is deliberately not a worker runtime grant.
+-- Give this role access only inside the rolled-back test transaction so the
+-- assertions execute as the actual least-privilege application role.
+grant usage on schema extensions to edison_demand_worker;
 set local role edison_demand_worker;
 select lives_ok($$insert into private.demand_loop_edits (principal_id,loop_id,idempotency_key,request_fingerprint,operation,receipt)
   values ('70000000-0000-4000-8000-000000000001','70000000-0000-4000-8000-000000000011','synthetic-edit-1',repeat('a',64),'archive','{"originalCuriosity":"Explain sensor mechanisms."}')$$,
