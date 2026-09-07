@@ -15,34 +15,31 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
-### September 7 — D34 v10 verified candidate; migration authorization paused
+### September 7 — D34/D35 v10 live on edisonreader.com
 
-**Latest16:05UTC:** D35 records Michael's specific approval in CoS. Fresh preflight
-again passed, but automatic review rejected the normal migration command before
-execution because the approval was relayed through tool content, not direct user
-input in this CTO task. No schema/deployment change or workaround occurred.
-Michael must confirm here; this supersedes the older CoS-only confirmation owner
-below. Preserve D35 as selected without claiming it executed.
-
-The approved v10 reading/loop editing/conversation/public-share implementation is
-pushed at `27c9944eb268b2ecc8a1735ac79322089effa294`. Exact-source
+Both API and web now run `27c9944eb268b2ecc8a1735ac79322089effa294`.
+API `dpl_GesKd8nJZi9d21ne4qrA7QLDxUmP` was Ready16:10:58.747UTC;
+web `dpl_B6CTpmmg7M319mswhadVFL6yTVHQ` Ready16:13:13.790UTC. Exact-source
 [CI34128662833](https://github.com/michaelmcguiness/edison/actions/runs/34128662833)
-passed772 application tests, both production builds and types/lint,279 pgTAP
-assertions and all disposable DB integration checks. Independent Design review
-source-closed R1–R7 and visually closed the final desktop/phone findings. Actual
-localhost checks cover draft/recovery/origin/keyboard/append/share behavior;
-constructed data is not live generation or mobile-device acceptance.
+passed772 app tests, builds/types/lint,279 pgTAP assertions and all DB integrations.
+Design closed the bounded source and final desktop/phone findings.
 
-No D34 migration or API/web deployment occurred. Automatic review rejected the
-live migration command before execution because the earliest explicit migration
-stop was not clearly revoked by later general deployment wording. No workaround
-or retry followed. Chief of Staff owns one narrow founder confirmation for the
-three reviewed `20260907000100`–`20260907000300` database updates and existing-apex
-rollout; do not ask a duplicate or a generic design/staging question. The current
-live API/web remain7f7c6cf/6eb811b with D32/D33 intact. Resume exact27c9944 only
-after this specific execution hold is cleared. See
-[D34 evidence and rollout checkpoint](docs/V10_READING_RELEASE_2026-09-07.md)
-for migration hashes, backup, clean checkout, browser evidence and honest limits.
+CoS applied exactly the three D35-approved migrations through accepted normal
+review in the task containing Michael's direct approval. CTO independently
+verified up-to-date schema, exact functions/grants/RLS/triggers/index. The earlier
+approval-channel hold and CTO confirmation request are resolved: do not repeat
+either the question or migrations. API then web deployed from the clean exact
+candidate. Source/aliases/all three schedule hosts and cadences, health/access,
+nonce CSP and $10 daily/$40 monthly controls passed at16:13:44.499UTC; CoS's
+independent repeat passed16:17:46.702UTC. D33 and P10's unselected status remain.
+
+The actual live same-session article and saved conversation loaded; Ask, Back,
+source history/focus, existing loop settings and current feed were checked without
+new generation, edit, save, archive or publication. Local constructed-data recovery,
+append and phone-width checks remain distinct from hosted or physical-device proof.
+No new paid AI test or historical failure reset. The broader writing-quality,
+physical-mobile and restore-rehearsal limitations are not closed by this release.
+See [the final D34/D35 receipt](docs/V10_READING_RELEASE_2026-09-07.md).
 
 ### September 7 — D33 six titles in each new loop batch live
 

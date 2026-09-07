@@ -1,27 +1,25 @@
 # Edison deployment
 
-## Prepared D34 release — migration authorization paused, September 7
+## Live D34/D35 release — September 7
 
-Latest16:05UTC: D35's explicit approval was received through CoS, but automatic
-review rejected the normal command before execution because the approval was
-relayed rather than direct user input in CTO. Fresh exact preflight passed;
-production remains unchanged. The remaining confirmation must be in CTO.
-
-Candidate `27c9944eb268b2ecc8a1735ac79322089effa294` implements approved v10.
+Both production apps use `27c9944eb268b2ecc8a1735ac79322089effa294`:
+API `dpl_GesKd8nJZi9d21ne4qrA7QLDxUmP` Ready16:10:58.747UTC;
+web `dpl_B6CTpmmg7M319mswhadVFL6yTVHQ` Ready16:13:13.790UTC.
 [CI34128662833](https://github.com/michaelmcguiness/edison/actions/runs/34128662833)
-passed772 application tests/builds/types/lint,279 pgTAP assertions and disposable
-DB integration checks. Design and actual constructed-data browser checks passed
-at the documented scope. No paid AI sample was used.
+passed772 application tests/builds/types/lint,279 pgTAP assertions and DB integrations.
+CoS applied exactly the three D35-approved migrations through normal review in
+the task containing the direct approval; CTO verified hosted schema/access metadata.
+The earlier confirmation hold is resolved, not still awaiting an answer.
 
-The three new additive migrations passed read-only dry-run review; automatic
-review rejected their live application before execution over the older explicit
-migration stop. Chief of Staff owns the single narrow founder confirmation.
-No D34 migration or deployment occurred; existing live API7f7c6cf and web6eb811b
-remain unchanged. After this specific hold is cleared, apply the reviewed schema,
-deploy exact27c9944 API then web, and verify source/aliases/schedules/health/access
-and retained spending limits. See [the D34 release record](V10_READING_RELEASE_2026-09-07.md).
+Exact production source/aliases/three cron hosts and cadences, schema/Auth/config
+health200, apex CORS204, private/cron401, unknown share404 and nonce CSP passed
+at16:13:44.499UTC; CoS independently repeated at16:17:46.702UTC. Existing apex,
+temporary addresses and www redirect remain; $10 daily/$40 monthly limits and
+D33 are intact. The actual deployed same-session article/conversation/settings
+and return flow loaded without new generation or content mutation. No paid AI
+sample or private share publication. See [the final receipt and verification limits](V10_READING_RELEASE_2026-09-07.md).
 
-## Latest API rollout — D33 six titles per batch
+## Previous API rollout — D33 six titles per batch
 
 Live source `7f7c6cf6cbe26e6ab21674617399456fc5e8c906` requests six briefs for newly admitted first/fresh
 ideas batches while keeping historical four-count retries intact. It does not
@@ -45,7 +43,7 @@ the $40 monthly default/other limits remain. No paid generation or live admissio
 mutation was used to verify this config-only change. Full evidence and accounting
 limits are in [the execution record](ON_DEMAND_RELEASE_2026-09-06.md).
 
-## Latest API rollout — v2.5, September 7, 2026
+## Previous API rollout — v2.5, September 7, 2026
 
 API source `0b7611f9e737fb76c982e426a7bb67d1f00e1f37` is Ready/Production;
 deployment `dpl_EGjCTJSkjoWsuzhBQteoRn88TWPq`, Ready at 11:49:31 UTC.

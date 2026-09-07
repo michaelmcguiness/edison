@@ -6,27 +6,27 @@ launching; they can change without a code release.
 
 ## Decision and current status
 
-**Latest16:05UTC authorization channel:** D35 is explicitly approved in CoS;
-automatic review nevertheless rejected the normal migration command before
-execution because the approval arrived as relayed tool content. Fresh exact
-preflight passed and nothing was applied/deployed. CTO now needs the same
-specific confirmation directly in its task; do not mistake D35 for execution.
-
-**Prepared D34 v10 — not live:** application candidate
-`27c9944eb268b2ecc8a1735ac79322089effa294` passed exact-source
+**Current — D34/D35 v10 live:** both production apps run
+`27c9944eb268b2ecc8a1735ac79322089effa294`, with exact-source
 [CI34128662833](https://github.com/michaelmcguiness/edison/actions/runs/34128662833)
-(772 application tests, builds/types/lint,279 pgTAP assertions and actual
-disposable database integrations). Design source/visual closure and bounded
-constructed-data browser checks are recorded in
-[the D34 execution record](V10_READING_RELEASE_2026-09-07.md).
-Automatic review rejected the live migration command before execution, citing
-the earliest explicit migration stop; no alternate route or downstream deployment
-followed. Chief of Staff owns one narrow confirmation for the three reviewed new
-database updates and existing-apex rollout. Source/backup/dry-run preparation is
-complete, not proof of live schema. Existing production remains the D33 checkpoint
-below. No paid AI sample or budget/policy expansion occurred.
+passed (772 app tests/builds/types/lint,279 pgTAP assertions and DB integrations).
+CoS applied the three D35-approved migrations through accepted normal review in
+the task holding Michael's direct approval; CTO verified the hosted schema, exact
+functions/grants/RLS/triggers/index and up-to-date migration state. The earlier
+approval-channel hold is resolved; no further confirmation or schema application
+is pending for this package.
 
-**Current — D33 six titles per new batch live:** API source `7f7c6cf` pins six for new
+API `dpl_GesKd8nJZi9d21ne4qrA7QLDxUmP` Ready16:10:58.747UTC, then web
+`dpl_B6CTpmmg7M319mswhadVFL6yTVHQ` Ready16:13:13.790UTC. Exact source, retained
+aliases/production targets, all three cron hosts/cadences, health/access and
+$10 daily/$40 monthly controls passed at16:13:44.499UTC; CoS independently repeated
+at16:17:46.702UTC. Actual live existing article/conversation, Ask/Back/settings/feed
+reads verify the web/API connection, without new generation or content mutation.
+D33 and unchanged P10 policy remain. No paid AI sample or private publication;
+device/restore/quality limitations remain explicitly bounded in
+[the final D34/D35 receipt](V10_READING_RELEASE_2026-09-07.md).
+
+**Previous — D33 six titles per new batch live:** API source `7f7c6cf` pins six for new
 requests and preserve historical four-count retries; semantic gates/actual count
 and bodies-on-selection remain. All 707 local tests, types, lint and independent
 24-test review pass. Exact-source [CI 34120463122](https://github.com/michaelmcguiness/edison/actions/runs/34120463122)
