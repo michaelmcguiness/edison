@@ -28,7 +28,7 @@ export function demandLimits(environment: Readonly<Record<string, string | undef
     monthlyMicrousd: boundedSetting(environment, "EDISON_DEMAND_MONTHLY_MICROUSD", 40_000_000, 50_000_000),
     dailyMicrousd: boundedSetting(environment, "EDISON_DEMAND_DAILY_MICROUSD", 4_000_000, 10_000_000),
     dailySessions: boundedSetting(environment, "EDISON_DEMAND_DAILY_SESSIONS", 30, 100),
-    dailyIdeas: 3,
+    dailyIdeas: 6,
     dailyArticles: boundedSetting(environment, "OPENAI_MAX_DAILY_GENERATIONS", 8, 8),
     dailyFeedback: boundedSetting(environment, "OPENAI_MAX_DAILY_FEED_COMMANDS", 10, 10),
     dailyQuestions: boundedSetting(environment, "OPENAI_MAX_DAILY_ARTICLE_QUESTIONS", 20, 20),

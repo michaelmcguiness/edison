@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { HttpError } from "../http/errors";
+import { demandLimits, demandReservationMicrousd } from "./demand-configuration";
 import {
   assertDemandAdmissionCapacity, assertDemandBudgetCapacity, demandRequestHeldMicrousd,
 } from "./demand-admission";
@@ -10,6 +11,25 @@ const settledLegacy = { daily: 0, monthly: 0, unpriced: false, outstanding: fals
 const request = { status: "failed", failureCode: "provider_invalid", attempts: 1, reservedMicrousd: 1_200_000 };
 const succeeded = [{ status: "succeeded" }, { status: "succeeded" }];
 const budgetError = (error: unknown) => error instanceof HttpError && error.status === 429 && error.code === "reading_budget_reached";
+
+test("six ideas slots cannot bypass the unchanged daily or monthly budget for an ideas reservation", () => {
+  const configured = demandLimits({});
+  assert.equal(configured.dailyIdeas, 6);
+  const additionalMicrousd = demandReservationMicrousd.ideas;
+  assert.equal(additionalMicrousd, 600_000);
+  const input = { daily: configured.dailyMicrousd - additionalMicrousd,
+    monthly: configured.monthlyMicrousd - additionalMicrousd, unpriced: false,
+    legacy: settledLegacy, additionalMicrousd };
+  assert.doesNotThrow(() => assertDemandBudgetCapacity(input, {}));
+  assert.throws(() => assertDemandBudgetCapacity({ ...input, daily: input.daily + 1 }, {}), budgetError);
+  assert.throws(() => assertDemandBudgetCapacity({ ...input, monthly: input.monthly + 1 }, {}), budgetError);
+  for (const changed of [
+    { ...input, unpriced: true },
+    { ...input, legacy: { ...settledLegacy, daily: 1 } },
+    { ...input, legacy: { ...settledLegacy, monthly: 1 } },
+    { ...input, legacy: { ...settledLegacy, outstanding: true } },
+  ]) assert.throws(() => assertDemandBudgetCapacity(changed, {}), budgetError);
+});
 
 test("a completed provider-invalid failure released only its unused hold, not its recorded spend", () => {
   const spent = 50_000;

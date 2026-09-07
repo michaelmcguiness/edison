@@ -4,12 +4,12 @@ import { HttpError } from "../http/errors";
 import { demandLimits, demandReservationMicrousd } from "./demand-configuration";
 import { productionRuntimeConfigurationIssues } from "./runtime-configuration";
 
-test("article allowance defaults to eight without changing other limits or reservations", () => {
+test("request allowances default to six ideas and eight articles without changing dollar limits or reservations", () => {
   assert.deepEqual(demandLimits({}), {
     monthlyMicrousd: 40_000_000,
     dailyMicrousd: 4_000_000,
     dailySessions: 30,
-    dailyIdeas: 3,
+    dailyIdeas: 6,
     dailyArticles: 8,
     dailyFeedback: 10,
     dailyQuestions: 20,
@@ -22,7 +22,9 @@ test("article allowance defaults to eight without changing other limits or reser
 
 test("explicit article allowances from one through eight remain configurable", () => {
   for (let count = 1; count <= 8; count += 1) {
-    assert.equal(demandLimits({ OPENAI_MAX_DAILY_GENERATIONS: String(count) }).dailyArticles, count);
+    const limits = demandLimits({ OPENAI_MAX_DAILY_GENERATIONS: String(count) });
+    assert.equal(limits.dailyArticles, count);
+    assert.equal(limits.dailyIdeas, 6, "the article override does not alter the fixed ideas ceiling");
   }
 });
 

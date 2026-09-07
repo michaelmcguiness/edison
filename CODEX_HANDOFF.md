@@ -15,6 +15,21 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
+### September 7 — D31 ideas allowance approved; rollout resumed
+
+Michael answered yes in CoS to doubling ideas **3 → 6 batches per reader per
+rolling 24 hours**, keeping spending caps unchanged. D31 in the decision record
+supersedes the proposal/three-batch sampling holds below. CTO may commit, push
+and deploy the already-reviewed minimal change to the existing API, then resume
+normal apex reading verification in the existing session. Article allowance eight,
+concurrency, dollar limits, reservations and existing history remain unchanged.
+No replacement principal, reset, extra repair or manual content acceptance.
+
+The three source/test files exactly match the previously reviewed hashes; prior
+681-test/type/lint and independent 21-test evidence applies to unchanged bytes.
+Actual release checks and hosted acceptance remain to be recorded. No new
+provider sample has yet run under this approval.
+
 ### Current — direct apex live; saved-check recovery verified; reading quality unfinished
 
 Michael selected development and testing directly on **https://edisonreader.com**
@@ -82,6 +97,32 @@ the limiting factor. A future ordinary sample needs fresh ideas through normal
 admission. No quota bypass, replacement session or scheduled future sample was
 created. Useful generated reading, Ask, adaptation and saved-reading acceptance
 remain unverified, despite the now-live instruction change.
+
+### Historical preparation — six ideas batches before D31 approval
+
+At CoS's request, CTO prepared but did not commit, push or deploy the fixed
+per-reader ideas allowance change **3 → 6**. The only production change is
+`dailyIdeas` in `apps/api/src/services/demand-configuration.ts`; there is no
+ideas-specific environment override. This applies across every reader's loops,
+not as a QA exception. All positive-reservation ideas requests, including failed
+ones, continue to count in the rolling 24-hour window. Existing usage is not reset.
+
+Article allowance eight, two concurrent requests, all dollar/session/question/
+feedback ceilings and the $0.60 ideas reservation remain unchanged. Global
+spending limits can still block work before six count slots are used. No model,
+prompt, database schema, request history or production setting is changed.
+
+The prepared three-code/test-file diff passes **681 local tests**, both full
+typechecks and owned lint/diff checks. Independent review found no issue;
+21 focused configuration/admission/reading tests pass. New coverage checks the
+exact ideas-reservation daily/monthly budget boundary, one-unit excess and
+legacy/unknown usage; existing concurrency/replay checks still pass. Rolling
+count enforcement is unchanged and inspected; this is not a newly executed
+real-database sixth/seventh-request test or hosted admission proof.
+
+The proposal was held for Michael's separate decision at this checkpoint. D31
+above now supplies that approval; do not re-request it. No new paid sample or
+scheduled run was created during the preparation checkpoint.
 
 ### Historical checkpoint — qualified E12 recovery candidate, DB gate pending
 
