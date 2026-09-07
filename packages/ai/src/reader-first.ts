@@ -306,6 +306,17 @@ function boundCheck(check: ReaderFirstCheckOutput, fingerprint: string, location
     retrieved(finding.passageIds, evidence);
   }
 }
+/** Provider-boundary correction only. A checker can count paragraphs without
+ * headings; rebind its unchanged verbatim excerpt only when the intended full
+ * body location is unambiguous. Stored checks and final gates stay strict. */
+function normalizeProviderFindingLocations(check: ReaderFirstCheckOutput, locations: Record<string, string>) {
+  for (const finding of check.findings) {
+    if (locations[finding.location]?.includes(finding.excerpt)) continue;
+    if (!/^body\.\d+$/.test(finding.location) || !Object.hasOwn(locations, finding.location)) continue;
+    const matches = Object.entries(locations).filter(([location, text]) => /^body\.\d+$/.test(location) && text.includes(finding.excerpt));
+    if (matches.length === 1) finding.location = matches[0][0];
+  }
+}
 export function readerFirstCheckAccepted(check: ReaderFirstCheckOutput) {
   readerFirstCheckOutputSchema.parse(check);
   return check.verdict === "pass" && check.accuracyPassed && check.verificationPassed && check.promiseFulfilled && check.readerFit && check.continuity && check.privacyPassed && !check.findings.some((finding) => finding.severity === "material" || finding.kind === "verification_required");
@@ -327,7 +338,10 @@ export async function checkReaderFirstArticle(input: ReaderFirstSelection & { dr
   if (readerFirstFingerprint(compiled) !== readerFirstFingerprint(input.draft)) invalid("Compile final article evidence before checking");
   const fingerprint = readerFirstArticleFingerprint(input, input.draft);
   const locations = articleLocations(input.draft.article!);
-  const result = await stage("check", { ...input, mode: "article", fingerprint, allowedLocations: Object.keys(locations) }, readerFirstCheckOutputSchema.extend({ fingerprint: z.literal(fingerprint) }), options, (output) => boundCheck(output, fingerprint, locations, input.evidence));
+  const result = await stage("check", { ...input, mode: "article", fingerprint, allowedLocations: Object.keys(locations) }, readerFirstCheckOutputSchema.extend({ fingerprint: z.literal(fingerprint) }), options, (output) => {
+    normalizeProviderFindingLocations(output, locations);
+    boundCheck(output, fingerprint, locations, input.evidence);
+  });
   const accepted = readerFirstCheckAccepted(result.output);
   if (accepted) assertAcceptedReaderFirstArticleCheck(input, input.draft, result.output);
   return { ...result, accepted };
@@ -337,7 +351,10 @@ export async function checkReaderFirstAnswer(input: ReaderFirstQuestion & { answ
   if (readerFirstFingerprint(compiled) !== readerFirstFingerprint(input.answer)) invalid("Compile final answer evidence before checking");
   const fingerprint = readerFirstAnswerFingerprint(input, input.answer);
   const locations = bodyLocations(input.answer.body);
-  const result = await stage("check", { ...input, mode: "answer", fingerprint, allowedLocations: Object.keys(locations) }, readerFirstCheckOutputSchema.extend({ fingerprint: z.literal(fingerprint) }), options, (output) => boundCheck(output, fingerprint, locations, input.evidence));
+  const result = await stage("check", { ...input, mode: "answer", fingerprint, allowedLocations: Object.keys(locations) }, readerFirstCheckOutputSchema.extend({ fingerprint: z.literal(fingerprint) }), options, (output) => {
+    normalizeProviderFindingLocations(output, locations);
+    boundCheck(output, fingerprint, locations, input.evidence);
+  });
   const accepted = readerFirstCheckAccepted(result.output);
   if (accepted) assertAcceptedReaderFirstAnswerCheck(input, input.answer, result.output);
   return { ...result, accepted };

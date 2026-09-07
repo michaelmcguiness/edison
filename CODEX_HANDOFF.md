@@ -15,6 +15,53 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
+### E12 — article withheld at checker location binding
+
+The first actual article request `5502ae41-f3a2-49ba-8c0c-997b7e20af23` is
+terminal `provider_invalid`, not published. Both write/check provider stages
+succeeded, costing48818+3003=51821microUSD ($0.051821). Exact retained capture:
+`/private/tmp/edison-calibration-capture.5TyKIR`. Writer/check schemas, exact
+fingerprint and genuinely retrieved passage IDs pass. All six checker excerpts
+are exact unique draft text, but the checker indexed paragraphs without headings:
+claimed body.1→actual body.2 (twice),3→5,5→8,6→9,7→10. Strict `boundCheck`
+therefore rejects before the intended repair. Its verdict is repair, accuracy
+and verification false; no finding may be discarded or converted into acceptance.
+
+A bounded prospective correction is implemented and verified locally: resolve an existing but
+misindexed body.N finding only to a unique exact excerpt location in the same
+frozen artifact, then apply the unchanged strict check. Preserve raw output,
+all findings/verdict/usage, promptv2.2 and provider cache identity. Unknown,
+ambiguous, fabricated or unsupported references still fail. All652application
+tests, both typechecks and focused lint pass; independent50-test review found no
+actionable issue. Exact E12 offline replay yields accepted:false/repair, with
+all6 findings and original raw response/usage unchanged, zero model calls. No terminal
+request reset, new principal, quota bypass or additional paid attempt is made.
+Only one idea survived the three daily ideas requests; actual article/Ask,
+preference adaptation and saved-reading return remain unverified. Deployment
+is live under D30, not gated on pretending the reading journey passed.
+
+CoS confirmed a conditional recovery is within existing release authority, but
+it is a general product correction, not a database-status workaround. Implement
+only after exact cached-check proof, preserve the original failure receipt, and
+atomically readmit the unused released reservation through the same global
+admission lock/budget/concurrency checks as fresh work. Original identity,
+timestamps, daily counts, stage/repair/tool budgets and max3 dispatch attempts
+remain. Broad provider_invalid retries remain forbidden. This separate bounded
+milestone is in progress; no actual request has been reopened yet.
+
+### E11 recovery verified live; first actual article selected
+
+API `117ddcdb502bfb393d9b7f7bf7ad8ad4f1043d4d` is live in
+`dpl_8KFPNNN2KZQQ7HctATXk6R1NuBTD`; public API and all cron hosts match.
+Web remains verified6eb811b. CI34071694879 passes;647tests and final type/lint
+checks pass. Ordinary same-request retry succeeded with the EXACT original two
+provider-stage/response IDs, unchanged17712microUSD, and unchanged3dailyideas
+count. Approved brief remains original; only display deck's final space was removed.
+Card `dc96d4ea-0087-4244-8242-cdadf29bf101` is genuinely available/rendered.
+Its selected article request `5502ae41-f3a2-49ba-8c0c-997b7e20af23` started
+2026-09-07T01:06:21.637529Z through the normal UI and failed as recorded above.
+Only one card passed; do not fabricate another or exceed quota to complete QA.
+
 ### E11 — approved idea saved-stage recovery, display whitespace fix
 
 The third v2.2 request completed both provider stages ($0.017712) and the checker

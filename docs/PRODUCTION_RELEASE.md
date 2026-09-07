@@ -7,12 +7,13 @@ launching; they can change without a code release.
 ## Decision and current status
 
 **Latest release, September 6:** D29/D30 reader-first is live on the existing apex
-and retained web/API hosts (both `6eb811b`). Michael selected direct production
+and retained web/API hosts (web `6eb811b`, API `117ddcd`). Michael selected direct production
 testing and doubled the article allowance to8; existing security/dollar limits
 remain. First ideas output was withheld at source-discovery validation; a bounded
-v2.2 official-source retrieval fix is live. One idea passed checking; its small
-display-whitespace persistence correction and actual useful reading/Ask acceptance
-are underway. See the controlling
+v2.2 official-source retrieval fix is live. One idea was recovered with unchanged
+provider stages/usage after the display-whitespace fix. Its first article was
+withheld at checker location binding; a bounded correction is locally verified and
+useful reading/Ask acceptance remains unfinished. See the controlling
 [on-demand execution record](ON_DEMAND_RELEASE_2026-09-06.md). No new setup,
 migration, invitation, secret entry or staging environment is needed.
 

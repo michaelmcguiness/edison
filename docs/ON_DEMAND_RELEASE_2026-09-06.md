@@ -3,6 +3,78 @@
 Owner: CTO. Scope: D28 reader-first reading and D29/D30 direct-apex operation.
 The app is live; useful real-output acceptance is a separate unfinished check.
 
+## E12 — exact draft retained; checker misindexed paragraphs
+
+The first selected article request `5502ae41-f3a2-49ba-8c0c-997b7e20af23`
+failed `provider_invalid` after two completed stages: write48818microUSD and
+check3003microUSD, total$0.051821. No article was published. Capture:
+`/private/tmp/edison-calibration-capture.5TyKIR`.
+
+Root and independent engineering replay agree: writer/check schemas, current
+exact fingerprint and all retrieved passage IDs pass. The checker used
+paragraph-only indexing while allowedLocations index the full body array,
+including headings. All six excerpts occur verbatim at a unique actual location:
+body.1→2 (two findings),3→5,5→8,6→9,7→10. `boundCheck` rejects the misbinding
+before the intended one repair. The actual check asks for repair and fails
+accuracy/verification; correcting its locations must not erase that judgment.
+
+The narrow prospective correction normalizes only provider-parsed cloned check
+output, only for existing body.N locations with one exact excerpt match in the
+same frozen artifact, before the unchanged strict binding/acceptance gate. No
+fuzzy matching, changed prose, cleared finding, relaxed source identity or altered
+fingerprint is allowed. Promptv2.2, wire schema and request/cache identity remain.
+All652application tests, both typechecks and focused lint pass. Independent
+review ran50focused tests and found no actionable issue. Exact retained E12
+replay returns accepted:false/repair, all6 findings unchanged except exact body
+location, raw response/usage unchanged,0modelcalls. This section is not yet a
+live-fix or reader-value acceptance claim. No further paid attempt or database rewrite has
+occurred; terminal provider_invalid is not retryable through the current UI.
+
+CoS separately reviews the actual draft for teaching value and citation scope.
+Its recipe/kitchen explanation is potentially useful, but citations on every
+paragraph can cause a repair to delete stable explanatory mechanisms. Do not
+waive necessary verification of specific regulatory/clinical assertions. No
+blacklist manager, podcast ingestion, new evidence adapters or extra quota is in
+scope. Actual article/Ask, changed-preference comparison and saved-reading return
+remain unverified; only one card survived the three daily ideas requests.
+
+CoS's read-only recovery review found the two cached priced stages and original
+checkpoint sufficient for a narrow product-level continuation, not a direct DB
+status change. Its unused released reservation is1148179microUSD. Any recovery
+must use the same global admission advisory lock then principal/request/stage
+lock order, atomically readmit only unused released hold under current global
+daily/monthly/legacy/unpriced/concurrency limits, and preserve a failure receipt.
+Exact request identity/timestamps/daily count, cached charges, max3attempts and
+the original sole repair/four-stage/eight-tool budgets remain. That bounded
+milestone is in progress separately; provider_invalid is not globally retryable.
+
+## E11 recovery verified — no additional generation or allowance
+
+API `117ddcdb502bfb393d9b7f7bf7ad8ad4f1043d4d` is live in Ready Production
+`dpl_8KFPNNN2KZQQ7HctATXk6R1NuBTD`, unique
+`edison-hjmcom0ei-mike-michaelmcguis-projects.vercel.app`. Public target and all
+three cron hosts match; web stays6eb811b. [CI34071694879](https://github.com/michaelmcguiness/edison/actions/runs/34071694879)
+passed;647localtests, final root/API typechecks and focused lint pass.
+
+The actual apex “Try again” resumed request93b448ca successfully at attempt2.
+Read-only verification confirms exactly the original two completed stages:
+`0a199a4f-db5e-457e-b0b4-4c3924590f85` / `resp_06b4fbfe73e451d4016a9e0b1cf7cc87d29f62fba3c0bc1a23`
+and `c327c54b-f2b5-497b-b567-3c4c4e394f56` / `resp_0d4f7990e0de9605016a9e0b37e1ac87d2ade4c1dd1db8d374`.
+Total17712microUSD and3dailyideas requests are unchanged. The accepted card
+`dc96d4ea-0087-4244-8242-cdadf29bf101` is rendered, with trimmed display deck and
+exact original brief. No new model stage, reservation or batch was created.
+
+Selected “Why the future of synthetic medicine may depend on factories as much
+as therapies” for its promised explanation of living production and why DNA
+instructions alone do not guarantee consistent medicine. Article request
+`5502ae41-f3a2-49ba-8c0c-997b7e20af23` started2026-09-07T01:06:21.637529Z.
+Only one card passed, so the two-article comparison is unavailable within current
+ideas allowance. That article then failed as recorded in E12 above; no second
+card or pre-release hold is fabricated. CoS noted the observed
+cut-off500-character decks are in raw provider output, not application truncation
+or total output-token exhaustion. Future compact-preview prompting remains a
+separate refinement; do not change cache identity during this saved-run recovery.
+
 ## E11 — one idea passes, database display projection needs normalization
 
 Request `93b448ca-95ae-49fb-8024-0f6435c4d6aa` completed both v2.2 provider

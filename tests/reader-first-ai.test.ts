@@ -353,3 +353,94 @@ test("malformed, ambiguous and cross-source prior mappings fail before a provide
   assert.throws(() => assertReaderFirstPreviousMessages([{ role: "assistant", text: "Not independent evidence", references: [previousReference()] }], reported), /independently retained/);
   assert.equal(calls.length, 0);
 });
+
+test("provider finding indices can count paragraphs without headings; unique exact locations preserve failed QA and the sole repair", async () => {
+  // Constructed E12 shape (5502ae41-f3a2-49ba-8c0c-997b7e20af23), not retained publisher prose.
+  const written = await draft(); const first = written.article!.body[0].text;
+  const second = "A separate sensor result still needs a scoped explanation.";
+  written.article!.body = [{ type: "heading", level: 2, text: "The first mechanism" },
+    written.article!.body[0], { type: "heading", level: 2, text: "A second mechanism" },
+    { type: "paragraph", text: second, citations: [] }];
+  const calls: OnDemandProviderRequest[] = []; let raw: ReaderFirstCheckOutput | undefined; let before = "";
+  const checked = await checkReaderFirstArticle({ ...selection, draft: written }, options((request: OnDemandProviderRequest) => {
+    raw = { ...passed((request.input as { fingerprint: string }).fingerprint), verdict: "repair", verificationPassed: false,
+      findings: [{ ...finding(first), location: "body.0" }, { ...finding(second), location: "body.1" }] };
+    before = JSON.stringify(raw); return raw;
+  }, calls));
+  assert.equal(checked.accepted, false); assert.deepEqual(checked.output.findings.map((item) => item.location), ["body.1", "body.3"]);
+  assert.equal(JSON.stringify(raw), before); assert.notEqual(checked.output, raw); assert.equal(checked.usage, usage);
+  assert.deepEqual({ ...checked.output, findings: checked.output.findings.map((item, index) => ({ ...item, location: raw!.findings[index].location })) }, raw);
+  assert.throws(() => assertAcceptedReaderFirstArticleCheck(selection, written, raw!), /actual text location/);
+  assert.throws(() => repairReaderFirstArticle({ ...selection, draft: written, check: raw! }, options(rawArticle())), /actual text location/);
+  const repaired = await repairReaderFirstArticle({ ...selection, draft: written, check: checked.output }, options(rawArticle(), calls));
+  const compiled = compileReaderFirstArticle(selection, repaired.output);
+  const rechecked = await checkReaderFirstArticle({ ...selection, draft: compiled }, checkOptions(calls));
+  assert.equal(rechecked.accepted, true); assert.deepEqual(calls.map((call) => call.stage), ["check", "repair", "check"]);
+});
+
+test("Ask uses the same unique exact-location correction without altering the immutable article or saved-check gates", async () => {
+  const input = question(await draft()); const articleBefore = JSON.stringify(input.draft);
+  const text = "The test distinguishes a sensor's intended function from its measured response.";
+  const answer = (await answerReaderFirstQuestion(input, options({ status: "answered", sourceKeys: [], research: empty, reason: null,
+    body: [{ type: "heading", level: 2, text: "Design and measurement" }, { type: "paragraph", text, citations: [] }] }))).output;
+  let raw: ReaderFirstCheckOutput | undefined;
+  const checked = await checkReaderFirstAnswer({ ...input, answer }, options((request: OnDemandProviderRequest) => {
+    raw = { ...passed((request.input as { fingerprint: string }).fingerprint), verdict: "repair", verificationPassed: false,
+      findings: [{ ...finding(text), location: "body.0" }] }; return raw;
+  }));
+  assert.equal(checked.accepted, false); assert.equal(checked.output.findings[0].location, "body.1");
+  assert.equal(raw!.findings[0].location, "body.0"); assert.equal(JSON.stringify(input.draft), articleBefore);
+  assert.throws(() => assertAcceptedReaderFirstAnswerCheck(input, answer, raw!), /actual text location/);
+  assert.throws(() => repairReaderFirstAnswer({ ...input, answer, check: raw! }, options({})), /actual text location/);
+  const repaired = (await repairReaderFirstAnswer({ ...input, answer, check: checked.output }, options({ status: "answered",
+    body: [{ type: "paragraph", text: "A test measures the response rather than merely the design intent.", citations: [] }],
+    sourceKeys: [], research: empty, reason: null }))).output;
+  assert.equal((await checkReaderFirstAnswer({ ...input, answer: repaired }, checkOptions())).accepted, true);
+});
+
+test("location correction cannot convert a nominal pass with a material finding into acceptance", async () => {
+  const written = await draft(); const text = written.article!.body[0].text;
+  written.article!.body.unshift({ type: "heading", level: 2, text: "Mechanism" });
+  const checked = await checkReaderFirstArticle({ ...selection, draft: written }, checkOptions([], {
+    findings: [{ ...finding(text, "missing"), location: "body.0" }],
+  }));
+  assert.equal(checked.output.verdict, "pass"); assert.equal(checked.output.accuracyPassed, true);
+  assert.equal(checked.output.findings[0].location, "body.1"); assert.equal(checked.output.findings[0].severity, "material");
+  assert.equal(checked.accepted, false);
+  assert.throws(() => assertAcceptedReaderFirstArticleCheck(selection, written, checked.output), /editorial_withheld/);
+});
+
+test("unknown locations, absent or ambiguous exact excerpts and cross-surface guessing remain invalid", async () => {
+  const written = await draft(); const text = written.article!.body[0].text;
+  written.article!.body.unshift({ type: "heading", level: 2, text: "Mechanism" });
+  for (const changed of [
+    { ...finding(text), location: "body.999" },
+    { ...finding(text), location: "BODY.0" },
+    { ...finding(text), location: "title" },
+    { ...finding(text), location: "body.0.attribution" },
+    { ...finding(`${text} A fabricated addition.`), location: "body.0" },
+    { ...finding(text.replace(".", "!")), location: "body.0" },
+    { ...finding(text.toUpperCase()), location: "body.0" },
+  ]) await assert.rejects(checkReaderFirstArticle({ ...selection, draft: written }, checkOptions([], { findings: [changed] })),
+    (error: unknown) => error instanceof ProviderResponseValidationError && error.observedUsage === usage);
+  written.article!.body.push({ type: "paragraph", text, citations: [] });
+  await assert.rejects(checkReaderFirstArticle({ ...selection, draft: written }, checkOptions([], {
+    findings: [{ ...finding(text), location: "body.0" }],
+  })), ProviderResponseValidationError, "a repeated excerpt cannot select one intended body location");
+  const alreadyCorrect = await checkReaderFirstArticle({ ...selection, draft: written }, checkOptions([], {
+    findings: [{ ...finding(text), location: "body.1" }],
+  }));
+  assert.equal(alreadyCorrect.output.findings[0].location, "body.1", "an exact existing anchor stays unchanged even if its text also occurs elsewhere");
+  assert.equal(alreadyCorrect.accepted, false);
+});
+
+test("normalizing a real excerpt does not authorize fabricated or model-reported evidence references", async () => {
+  const written = await draft(); const text = written.article!.body[0].text;
+  written.article!.body.unshift({ type: "heading", level: 2, text: "Mechanism" });
+  const reported = structuredClone(evidence); reported.passages[0].provenance = "model_reported"; reported.passages[0].retrievedAt = null;
+  for (const [packet, ids] of [[evidence, ["invented"]], [reported, ["p1"]]] as const) {
+    await assert.rejects(checkReaderFirstArticle({ ...selection, evidence: packet, draft: written }, checkOptions([], {
+      findings: [{ ...finding(text), location: "body.0", passageIds: [...ids] }],
+    })), ProviderResponseValidationError);
+  }
+});
