@@ -20,6 +20,14 @@ function validDraft(value: unknown): value is LoopEditDraft {
     "instructions" in value && typeof value.instructions === "string" && value.instructions.length <= 500);
 }
 
+/** Only the persisted operation with this identity owns its cleanup. */
+export function clearResolvedLoopEditAttempt(key: string, attemptId: string) {
+  const current = readScopedDraft<EditAttempt | null>(key, null, validAttempt);
+  if (current?.id !== attemptId) return false;
+  saveScopedDraft(key, null);
+  return true;
+}
+
 export function LoopEditor({ loop, workspaceId, instructions, onSave, onDelete, onClose, onUndo, pendingUndo, status, error: undoError }: {
   loop: DemandLoop; workspaceId: string; instructions: string;
   onSave: (draft: LoopEditDraft, idempotencyKey: string, baseRevision: number) => Promise<void>;
@@ -59,23 +67,30 @@ export function LoopEditor({ loop, workspaceId, instructions, onSave, onDelete, 
       else await onSave(currentAttempt.draft, currentAttempt.id, currentAttempt.baseRevision);
       // An earlier request can finish after close/reopen and newer draft edits.
       // Confirm that request without replacing or closing the later draft.
-      const latest = readScopedDraft(key, draftRef.current, validDraft);
+      const ownsPersistedAttempt = clearResolvedLoopEditAttempt(`${key}:attempt`, currentAttempt.id);
+      const latest = ownsPersistedAttempt ? readScopedDraft(key, draftRef.current, validDraft) : draftRef.current;
       const resolved = resolvedLoopEditDraft(latest, currentAttempt.draft);
-      if (!currentAttempt.deleting) saveScopedDraft(key, resolved.draft);
-      attempt.current = null;
-      saveScopedDraft(`${key}:attempt`, null);
-      setUncertain(null);
-      if (mounted.current) {
+      if (ownsPersistedAttempt && !currentAttempt.deleting) saveScopedDraft(key, resolved.draft);
+      const ownsInstanceAttempt = attempt.current?.id === currentAttempt.id;
+      if (ownsInstanceAttempt) attempt.current = null;
+      if (mounted.current && ownsInstanceAttempt) {
+        setUncertain(null);
         draftRef.current = resolved.draft; setDraft(resolved.draft);
         if (currentAttempt.deleting || resolved.close) onClose();
       }
     } catch (failure) {
       const status = failure && typeof failure === "object" && "status" in failure ? failure.status : null;
       const rejected = typeof status === "number" && status >= 400 && status < 500 && status !== 408;
-      if (rejected) { attempt.current = null; saveScopedDraft(`${key}:attempt`, null); setUncertain(null); }
-      else setUncertain(currentAttempt);
-      setError(`${rejected ? "The change was not accepted. Your edits are still here." : "We couldn’t confirm the change. Check its status before making another change."} ${failure instanceof Error ? failure.message : ""}`);
-    } finally { lock.current = false; setPending(false); }
+      const ownsInstanceAttempt = attempt.current?.id === currentAttempt.id;
+      if (rejected) {
+        clearResolvedLoopEditAttempt(`${key}:attempt`, currentAttempt.id);
+        if (ownsInstanceAttempt) attempt.current = null;
+      }
+      if (mounted.current && ownsInstanceAttempt) {
+        setUncertain(rejected ? null : currentAttempt);
+        setError(`${rejected ? "The change was not accepted. Your edits are still here." : "We couldn’t confirm the change. Check its status before making another change."} ${failure instanceof Error ? failure.message : ""}`);
+      }
+    } finally { lock.current = false; if (mounted.current) setPending(false); }
   }
   return <section ref={panel} className="demand-floating-panel demand-loop-editor" role="dialog" aria-modal="false" aria-labelledby={`${id}-title`}
     onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); onClose(); } }}>

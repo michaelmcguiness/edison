@@ -38,8 +38,8 @@ export function conciseDemandLoopName(curiosity: string) {
   const text = original.replace(/\s+/g, " ");
   if (text.length <= 48 && !/[\n\r]/.test(original)) return text;
   // A newline explicitly separates a topic from instructions. For longer prose,
-  // do not mistake an initial's period or a decimal/version separator for a stop.
-  const firstPhrase = original.split(/(?<!\b[A-Za-z])\.(?=\s)|[!?\n\r]/, 1)[0].replace(/\s+/g, " ").trim();
+  // do not mistake an initial, Dr. title or decimal/version separator for a stop.
+  const firstPhrase = original.split(/(?<!\b[A-Za-z]|\b[Dd]r)\.(?=\s)|[!?\n\r]/, 1)[0].replace(/\s+/g, " ").trim();
   if (firstPhrase && firstPhrase.length <= 40 && firstPhrase.length < original.length) return firstPhrase;
   if (text.length <= 48) return text;
   const prefix = text.slice(0, 48);
