@@ -6,7 +6,20 @@ launching; they can change without a code release.
 
 ## Decision and current status
 
-**Latest release, September 6:** D29/D30 reader-first is live on the existing apex
+**Latest release, September 7 — D31:** API `1b05c1e` is live behind the existing
+apex/web connection, with six rolling ideas batches per reader; web remains
+`6eb811b`. Article allowance eight and all spending/concurrency/history controls
+are unchanged. Exact-source [CI 34112267215](https://github.com/michaelmcguiness/edison/actions/runs/34112267215)
+passed both jobs. Hosted identity/target, schedules, health, exact-apex access and
+unauthenticated cron-denial checks passed. The existing session admitted its
+fourth normal ideas batch; the selected article was withheld after its sole
+repair/final check for an unfinished preview and missing explanatory payoff.
+No published reading/Ask, adaptation or saved-return success is claimed. A
+prospective short-complete-preview correction is prepared as v2.4, not yet live;
+689 local tests, both typechecks, lint and independent focused review pass.
+No new migration, service, configuration, secret, reset or extra repair is needed.
+
+**Previous release, September 6:** D29/D30 reader-first is live on the existing apex
 and retained web/API hosts (web `6eb811b`, API `029dc18` / prompt v2.3). Michael selected direct production
 testing and doubled the article allowance to8; existing security/dollar limits
 remain. First ideas output was withheld at source-discovery validation; a bounded

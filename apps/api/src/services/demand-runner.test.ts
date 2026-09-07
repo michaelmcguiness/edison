@@ -92,21 +92,23 @@ test("reader-first requests pin their own version while historical requests reta
   assert.equal(demandProgressCompatibilityFailure(historicalFeedback, initialDemandState(historicalFeedback)), null);
 });
 
-test("saved v2.2 article progress cannot resume any writing or repair phase under v2.3", () => {
-  assert.equal(READER_FIRST_PROMPT_VERSION, "edison-reader-first-v2.3");
-  const request = { id: "00000000-0000-4000-8000-000000000204", kind: "article" as const,
-    requestFingerprint: "d".repeat(64), snapshot: { version: 2, context: { loopId: "constructed-version-boundary" } } };
-  const current = initialDemandState(request);
-  assert.equal(demandProgressCompatibilityFailure(request, current), null);
-  for (const phase of ["write", "check", "repair", "recheck"] as const) {
-    const saved = { ...current, phase, promptVersion: "edison-reader-first-v2.2", repairAttempted: phase === "recheck" };
-    const before = structuredClone({ request, saved });
-    const checkpoint = demandCheckpoint(saved);
-    assert.equal(demandProgressCompatibilityFailure(request, saved), "pipeline_version_unsupported", phase);
-    assert.deepEqual({ request, saved }, before, "compatibility does not upgrade or rewrite saved work");
-    assert.equal(demandCheckpoint(saved), checkpoint);
-  }
-});
+for (const promptVersion of ["edison-reader-first-v2.2", "edison-reader-first-v2.3"] as const) {
+  test(`saved ${promptVersion} article progress cannot resume any writing or repair phase under v2.4`, () => {
+    assert.equal(READER_FIRST_PROMPT_VERSION, "edison-reader-first-v2.4");
+    const request = { id: "00000000-0000-4000-8000-000000000204", kind: "article" as const,
+      requestFingerprint: "d".repeat(64), snapshot: { version: 2, context: { loopId: "constructed-version-boundary" } } };
+    const current = initialDemandState(request);
+    assert.equal(demandProgressCompatibilityFailure(request, current), null);
+    for (const phase of ["write", "check", "repair", "recheck"] as const) {
+      const saved = { ...current, phase, promptVersion, repairAttempted: phase === "recheck" };
+      const before = structuredClone({ request, saved });
+      const checkpoint = demandCheckpoint(saved);
+      assert.equal(demandProgressCompatibilityFailure(request, saved), "pipeline_version_unsupported", phase);
+      assert.deepEqual({ request, saved }, before, "compatibility does not upgrade or rewrite saved work");
+      assert.equal(demandCheckpoint(saved), checkpoint);
+    }
+  });
+}
 
 test("reader-first repeated retrieval checkpoints bind exact progress and failure replay preserves the newer one", () => {
   const state = initialDemandState({ id: "00000000-0000-4000-8000-000000000203", kind: "article",

@@ -3,7 +3,65 @@
 Owner: CTO. Scope: D28 reader-first reading and D29/D30 direct-apex operation.
 The app is live; useful real-output acceptance is a separate unfinished check.
 
-## Current completion — direct apex and qualified recovery verified live
+## Latest — D31 live; first post-allowance sample withheld
+
+Owner: CTO, September 7. Public API source
+`1b05c1e1cc92fb6bcfe6c232afb6f2fc70a66927` is Ready/Production and attached to the
+existing apex service. Web remains `6eb811b`. The one production-line change
+raises ideas three to six per reader across loops over rolling 24 hours; articles
+eight and all other reservations, limits and history remain unchanged.
+[Exact-source CI 34112267215](https://github.com/michaelmcguiness/edison/actions/runs/34112267215)
+passed both application and disposable-database jobs. Prior 681 local tests,
+types/lint and independent 21 focused tests apply to the identical reviewed files.
+No active work was found before rollout. Exact deployment SHA, public target and
+all three enabled schedule hosts match. Configuration/database/Auth health,
+exact-apex CORS 204 and all three unauthenticated cron 401 checks passed.
+
+Ordinary apex reload retained the existing session and historical failed reading.
+Its fourth ideas batch was admitted and completed, proving the new allowance in
+the normal product path. One idea was offered; three other previews failed their
+completeness check. The selected article completed four stages, including its
+sole repair and fresh final check. It remained withheld: automated factual and
+verification flags passed, but its preview ended mid-word and parts of the
+promised explanation were missing. No article, Ask or saved-return acceptance
+is claimed. There is no unused checked idea; normal ideas allowance remains.
+Further paid work paused for diagnosis; no new principal, reset or extra repair.
+
+### Diagnosis scope and next correction
+
+Root directly inspected the exact local original/revised artifact and retained
+evidence. The original developed an individual-handling rationale and a duration/
+control trade-off; repair reduced them to labels. Some original clinical/workflow
+details were not established by the retained passages. This is a mixed support
+and explanation failure, not proof that all checker findings were false or that
+its favorable final factual flags independently establish accuracy.
+
+An independent source-only review found no generated prose clipping or model/
+internal cap mismatch. The repaired deck itself was 500 characters and unfinished;
+within-bound syntax does not establish complete prose. CoS's narrow correction
+is prepared as v2.4: one or two short complete preview sentences comfortably
+below the maximum, retaining the question/payoff and essential qualification,
+with extra detail in the other brief fields or article body. Schema bounds,
+automated acceptance and the sole repair remain. Five new constructed tests verify
+exact-text forwarding, over-bound rejection, qualified-preview acceptance and
+unfinished-repair withholding with no fifth stage. Judgments are injected, not a
+model-quality measurement. All 689 local tests, both full typechecks and owned
+lint/diff checks pass. Independent review ran the 60 focused preview/version tests.
+Old literal v2.2/v2.3 progress and cached snapshots cannot resume under v2.4 or gain
+admission by relabeling. Exact-source CI and a fresh in-flight check precede rollout.
+The only production-code change is the versioned preview instruction.
+
+Method follows [official OpenAI structured-output guidance](https://developers.openai.com/api/docs/guides/structured-outputs):
+valid schema output can still contain semantic mistakes. Versioned prompt tests
+and an actual subsequent sample distinguish enforcement from writing improvement.
+No prompt-only change is claimed to resolve the separate missing-payoff issue.
+
+Only permitted non-sensitive outcomes and public source/CI evidence were handed
+to CoS. Private packets were not rerouted through another agent or shared files;
+no independent actual-output review is claimed. Original failures and accounting
+remain untouched.
+
+## Previous completion — direct apex and qualified recovery verified live
 
 Owner: CTO. Live API source is `029dc18d7c2759452adffd484677770d25704b38`;
 web remains `6eb811b51e6fa243654cbdca43cb084a394e3f60` at

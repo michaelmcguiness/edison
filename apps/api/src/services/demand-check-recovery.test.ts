@@ -13,9 +13,10 @@ const loopId = "00000000-0000-4000-8000-000000000802";
 const ideaId = "00000000-0000-4000-8000-000000000803";
 const requestId = "00000000-0000-4000-8000-000000000804";
 const prose = "A thermostat compares the measured room temperature with a target before changing its heating output.";
+const priorPromptVersions = ["edison-reader-first-v2.2", "edison-reader-first-v2.3"] as const;
 
 async function fixture(options: { check?: (check: ReaderFirstCheckOutput) => void; duplicate?: boolean;
-  constructedCachedVersion?: "edison-reader-first-v2.2" } = {}): Promise<DemandCheckRecoveryInput> {
+  constructedCachedVersion?: typeof priorPromptVersions[number] } = {}): Promise<DemandCheckRecoveryInput> {
   const createdAt = new Date("2026-09-07T01:00:00Z");
   const context = { loopId, revision: 1, originalCuriosity: "How do thermostats work?", directions: [], declaredKnowledge: [],
     readingPreferences: [], preferences: { length: "brief", depth: 50 }, previousArticles: [], currentDate: "2026-09-07" };
@@ -127,33 +128,35 @@ test("foreign, inactive, exhausted, repaired, stale and altered selected artifac
   assert.equal(await qualifyDemandCheckRecovery(original, { ...environment, OPENAI_UTILITY_MODEL: "gpt-5.6-terra" }), null);
 });
 
-test("saved literal v2.2 progress is not a current-version cached-check recovery", async () => {
-  assert.equal(READER_FIRST_PROMPT_VERSION, "edison-reader-first-v2.3");
-  const input = await fixture();
-  assert.ok(await qualifyDemandCheckRecovery(input, environment), "control fixture qualifies before the version change");
-  input.request.progress!.promptVersion = "edison-reader-first-v2.2";
-  const before = structuredClone(input);
-  assert.equal(await qualifyDemandCheckRecovery(input, environment), null);
-  assert.deepEqual(input, before, "qualification cannot relabel old progress or append a receipt");
-});
+for (const promptVersion of priorPromptVersions) {
+  test(`saved literal ${promptVersion} progress is not a current-version cached-check recovery`, async () => {
+    assert.equal(READER_FIRST_PROMPT_VERSION, "edison-reader-first-v2.4");
+    const input = await fixture();
+    assert.ok(await qualifyDemandCheckRecovery(input, environment), "control fixture qualifies before the version change");
+    input.request.progress!.promptVersion = promptVersion;
+    const before = structuredClone(input);
+    assert.equal(await qualifyDemandCheckRecovery(input, environment), null);
+    assert.deepEqual(input, before, "qualification cannot relabel old progress or append a receipt");
+  });
 
-test("relabeling saved progress cannot admit constructed v2.2 cached stage envelopes under v2.3", async () => {
-  const input = await fixture({ constructedCachedVersion: "edison-reader-first-v2.2" });
-  const before = structuredClone(input);
-  for (const stage of input.stages) {
-    assert.equal(stage.snapshot.promptVersion, "edison-reader-first-v2.2");
-    assert.equal(stage.requestFingerprint, demandFingerprint(stage.snapshot), "old snapshot has its own valid frozen fingerprint");
-  }
-  assert.equal(await qualifyDemandCheckRecovery(input, environment), null);
-  assert.deepEqual(input, before);
-  input.request.progress!.promptVersion = READER_FIRST_PROMPT_VERSION;
-  const relabeled = structuredClone(input);
-  assert.equal(await qualifyDemandCheckRecovery(input, environment), null,
-    "the current-version label cannot replace exact cached provider snapshot binding");
-  assert.deepEqual(input, relabeled);
-  assert.deepEqual(input.stages, before.stages, "raw cached envelopes remain unchanged");
-  assert.deepEqual(input.usage, before.usage, "the original charges remain unchanged");
-});
+  test(`relabeling saved progress cannot admit constructed ${promptVersion} cached stage envelopes under v2.4`, async () => {
+    const input = await fixture({ constructedCachedVersion: promptVersion });
+    const before = structuredClone(input);
+    for (const stage of input.stages) {
+      assert.equal(stage.snapshot.promptVersion, promptVersion);
+      assert.equal(stage.requestFingerprint, demandFingerprint(stage.snapshot), "old snapshot has its own valid frozen fingerprint");
+    }
+    assert.equal(await qualifyDemandCheckRecovery(input, environment), null);
+    assert.deepEqual(input, before);
+    input.request.progress!.promptVersion = READER_FIRST_PROMPT_VERSION;
+    const relabeled = structuredClone(input);
+    assert.equal(await qualifyDemandCheckRecovery(input, environment), null,
+      "the current-version label cannot replace exact cached provider snapshot binding");
+    assert.deepEqual(input, relabeled);
+    assert.deepEqual(input.stages, before.stages, "raw cached envelopes remain unchanged");
+    assert.deepEqual(input.usage, before.usage, "the original charges remain unchanged");
+  });
+}
 
 test("extra, incomplete, unpriced, mismatched or fabricated provider and ledger rows reject recovery", async () => {
   const original = await fixture();

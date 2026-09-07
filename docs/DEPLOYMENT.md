@@ -1,6 +1,24 @@
 # Edison deployment
 
-## Current release — D29/D30 direct apex, September 6, 2026
+## Latest release — D31, September 7, 2026
+
+The existing apex service now uses API source `1b05c1e`; web remains `6eb811b`.
+The approved ideas allowance is six batches per reader across loops over rolling
+24 hours. Article allowance eight, spending caps, reservations, concurrency and
+history are unchanged. Exact-source [CI 34112267215](https://github.com/michaelmcguiness/edison/actions/runs/34112267215)
+passed both jobs. Ready/Production identity, public target, all three enabled
+schedules, health, exact-apex CORS and negative cron-access checks passed.
+No active work was present before rollout. No new setup or migration is needed.
+
+A fourth normal ideas batch succeeded in the existing session. Its selected
+article was withheld after the sole repair/final check for an unfinished preview
+and missing explanatory payoff; useful reading and follow-up acceptance remain
+open. A bounded prospective preview correction is prepared as v2.4, not yet live;
+689 local tests, both typechecks, owned lint and independent focused review pass.
+See the [execution record](ON_DEMAND_RELEASE_2026-09-06.md). No further paid
+request, history mutation or limit bypass followed this failed sample.
+
+## Previous release — D29/D30 direct apex, September 6, 2026
 
 The reader-first app is live on `edisonreader.com` and retained
 `project-qlqve.vercel.app`; API remains `project-fjr95.vercel.app/v1`. Web is

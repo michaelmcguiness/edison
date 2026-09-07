@@ -15,7 +15,7 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
-### September 7 — D31 ideas allowance approved; rollout resumed
+### September 7 — D31 live; new sample withheld; v2.4 prepared
 
 Michael answered yes in CoS to doubling ideas **3 → 6 batches per reader per
 rolling 24 hours**, keeping spending caps unchanged. D31 in the decision record
@@ -25,12 +25,45 @@ normal apex reading verification in the existing session. Article allowance eigh
 concurrency, dollar limits, reservations and existing history remain unchanged.
 No replacement principal, reset, extra repair or manual content acceptance.
 
-The three source/test files exactly match the previously reviewed hashes; prior
-681-test/type/lint and independent 21-test evidence applies to unchanged bytes.
-Actual release checks and hosted acceptance remain to be recorded. No new
-provider sample has yet run under this approval.
+Public source `1b05c1e1cc92fb6bcfe6c232afb6f2fc70a66927` is live on the existing
+production API; web remains `6eb811b51e6fa243654cbdca43cb084a394e3f60` on the apex.
+[Exact-source CI 34112267215](https://github.com/michaelmcguiness/edison/actions/runs/34112267215)
+passed application and disposable-database jobs. The three source/test files
+matched the previously reviewed hashes; prior 681-test/type/lint and independent
+21-test evidence applies to unchanged bytes. The deployment is Ready/Production;
+public target and all three enabled schedules match. Health/configuration/
+database/Auth, exact-apex CORS and unauthenticated cron-denial checks passed.
+The pre-rollout read-only check found no active work. No migration or web/config
+change was needed.
 
-### Current — direct apex live; saved-check recovery verified; reading quality unfinished
+The existing apex session retained its old state and successfully admitted a
+fourth ordinary ideas batch. One checked idea was offered; three previews were
+withheld as unfinished. The selected article completed its sole repair and final
+check, then remained **editorial_withheld**. Final automated factual/verification
+flags passed, but its preview ended mid-word and the repaired explanation omitted
+parts of the selected payoff. No article was published, so useful reading, Ask,
+preference comparison and saved-reading return remain unverified in this sample.
+There is no unused checked idea; normal ideas allowance remains available.
+Further paid requests paused for diagnosis, not a quota reset or extra repair.
+
+Root directly inspected the original/repaired output and retained evidence.
+Independent review inspected source/contracts only, not the private output.
+No application clipping was found: the model's repaired preview itself reached
+the 500-character cap unfinished. Both model-facing and internal limits match.
+CoS directed one bounded prospective correction: short complete previews well
+below the maximum across ideas, articles and repair, preserving qualifications.
+It is prepared as v2.4; this is not yet live or measured quality improvement.
+All 689 local tests, both full typechecks and owned lint/diff checks pass.
+Independent source review passed the 60 focused preview/version tests. The new
+examples have injected judgments: they test unchanged text, rejection and the
+sole repair, not actual model improvement. Literal v2.2 and v2.3 checkpoints and
+cached envelopes stay incompatible with v2.4, including relabel attempts.
+Exact-source CI, a fresh in-flight check and API-only rollout are next.
+Historical failed output, final verdicts and accounting remain unchanged. Detailed
+production packets stay in this task; only permitted non-sensitive findings and
+public source/CI evidence are shared.
+
+### Previous checkpoint — saved-check recovery verified; reading quality unfinished
 
 Michael selected development and testing directly on **https://edisonreader.com**
 (D30). No staging setup or further generic rollout approval is needed. Live web
@@ -57,7 +90,7 @@ cross-task handoff was blocked by approval review. Shared records use the
 permitted non-sensitive outcome and public source/CI evidence, not an alternate
 route to that blocked packet.
 
-### Current version — v2.3 live; semantic improvement unmeasured
+### Previous prompt rollout — v2.3 live before preview correction
 
 CoS supplied the bounded refinement under D28: preserve accurate causal
 explanation while repairing unsupported claims or citation scope, and check what
