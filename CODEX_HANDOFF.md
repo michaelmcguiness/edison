@@ -17,6 +17,13 @@ This project is independent and is not affiliated with Perch.
 
 ### September 7 — D34 v10 verified candidate; migration authorization paused
 
+**Latest16:05UTC:** D35 records Michael's specific approval in CoS. Fresh preflight
+again passed, but automatic review rejected the normal migration command before
+execution because the approval was relayed through tool content, not direct user
+input in this CTO task. No schema/deployment change or workaround occurred.
+Michael must confirm here; this supersedes the older CoS-only confirmation owner
+below. Preserve D35 as selected without claiming it executed.
+
 The approved v10 reading/loop editing/conversation/public-share implementation is
 pushed at `27c9944eb268b2ecc8a1735ac79322089effa294`. Exact-source
 [CI34128662833](https://github.com/michaelmcguiness/edison/actions/runs/34128662833)

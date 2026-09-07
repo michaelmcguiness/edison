@@ -4,6 +4,8 @@ Owner: CTO. September 7, 2026. **Implemented and verified at the scope below; li
 
 Application candidate: `27c9944eb268b2ecc8a1735ac79322089effa294`, pushed on `codex/production-release-candidate`. No D34 migration, API deployment or web deployment has occurred. Existing live API remains `7f7c6cf6cbe26e6ab21674617399456fc5e8c906`; live web remains `6eb811b51e6fa243654cbdca43cb084a394e3f60`.
 
+**16:05UTC update — D35 selected, same-task execution confirmation required:** CoS relayed Michael's explicit `good to proceed` to the exact live-database-update question and saved D35. Root refreshed the exact three-migration dry run, hashes, empty active-work query and completed backup, then used the normal same CLI command with that specific question/reply in its approval justification. Automatic review again rejected before execution, now because approval relayed through another task was treated as untrusted tool content rather than direct user instruction in CTO. No alternate route or further retry followed. D35 remains a recorded owner decision; execution needs Michael's confirmation directly in the CTO task. This supersedes the earlier instruction below that CoS alone owns the remaining confirmation. Production is unchanged.
+
 Selected source: [approved v10 handoff](brand/APPROVED_V10_READING_CTO_HANDOFF_2026-09-07.md), frozen design SHA256 `4e773d5d8be43bcf1cb88cd3cf1fe99ae3babd6554ef35633a45df35714a579a`. Michael's D34 approval and existing D30 authority cover implementation and rollout on edisonreader.com. P10 generation-policy simplification is not selected.
 
 ## Candidate scope

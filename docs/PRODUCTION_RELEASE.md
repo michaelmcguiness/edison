@@ -6,6 +6,12 @@ launching; they can change without a code release.
 
 ## Decision and current status
 
+**Latest16:05UTC authorization channel:** D35 is explicitly approved in CoS;
+automatic review nevertheless rejected the normal migration command before
+execution because the approval arrived as relayed tool content. Fresh exact
+preflight passed and nothing was applied/deployed. CTO now needs the same
+specific confirmation directly in its task; do not mistake D35 for execution.
+
 **Prepared D34 v10 — not live:** application candidate
 `27c9944eb268b2ecc8a1735ac79322089effa294` passed exact-source
 [CI34128662833](https://github.com/michaelmcguiness/edison/actions/runs/34128662833)

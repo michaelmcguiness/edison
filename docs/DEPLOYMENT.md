@@ -2,6 +2,11 @@
 
 ## Prepared D34 release — migration authorization paused, September 7
 
+Latest16:05UTC: D35's explicit approval was received through CoS, but automatic
+review rejected the normal command before execution because the approval was
+relayed rather than direct user input in CTO. Fresh exact preflight passed;
+production remains unchanged. The remaining confirmation must be in CTO.
+
 Candidate `27c9944eb268b2ecc8a1735ac79322089effa294` implements approved v10.
 [CI34128662833](https://github.com/michaelmcguiness/edison/actions/runs/34128662833)
 passed772 application tests/builds/types/lint,279 pgTAP assertions and disposable
