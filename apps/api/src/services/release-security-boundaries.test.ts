@@ -104,11 +104,19 @@ test("invitation templates preserve exact invitation context and GET cannot cons
   );
   assert.match(inviteScript, /Direct Auth invitations are retired/);
   assert.doesNotMatch(inviteScript, /inviteUserByEmail\(|createClient\(|process\.env/);
-  assert.doesNotMatch(confirmRoute.split("export async function POST")[0], /verifyOtp\(|memberApiFetch\(|redeemDemandInvitation\(/);
+  const getRoute = confirmRoute.split("export async function POST")[0];
+  assert.doesNotMatch(getRoute, /verifyOtp\(|redeemDemandInvitation\(|method:\s*["'](?:POST|PUT|PATCH|DELETE)["']/);
+  // A code-complete GET may read membership, but cannot accept an invitation,
+  // consume an Auth token or issue any other API request.
+  assert.equal([...getRoute.matchAll(/memberApiFetch\(/g)].length, 1);
+  assert.match(getRoute, /memberApiFetch\("demand\/access", accessToken\)/);
+  assert.match(source("../../../../lib/member-access.ts"), /method: init\.method \?\? "GET"/);
   for (const template of ["magic-link", "confirmation"]) {
     const markup = source(`../../../../supabase/templates/${template}.html`);
-    assert.match(markup, /href="\{\{ \.RedirectTo \}\}&amp;token_hash=\{\{ \.TokenHash \}\}&amp;type=email"/);
-    assert.doesNotMatch(markup, /ConfirmationURL|type=recovery|type=email_change/);
+    assert.match(markup, /href="\{\{ \.RedirectTo \}\}"/);
+    assert.match(markup, />\{\{ \.Token \}\}</);
+    assert.doesNotMatch(markup, /TokenHash|ConfirmationURL|token_hash|auth\/v1\/verify|type=(?:email|invite|recovery|email_change)/);
+    assert.doesNotMatch(markup, /<[^>]+\{\{ \.Token \}\}/);
   }
 });
 

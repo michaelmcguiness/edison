@@ -2,13 +2,21 @@ import { z } from "zod";
 import { uuidSchema } from "@edison/contracts";
 import { safeDemandAuthReturnPath } from "./demand-auth-continuation";
 
-export const invitationAcceptanceSchema = z.object({
+const acceptanceContext = {
+  nonce: uuidSchema, returnPath: z.string().max(600), createdAt: z.number().int().nonnegative(),
+};
+export const invitationAcceptanceSchema = z.union([z.object({
+  ...acceptanceContext,
   // Supabase Auth prefixes browser PKCE magic-link hashes with "pkce_".
   // Preserve the exact provider value; accepting its shape never verifies it.
-  nonce: uuidSchema, tokenHash: z.string().regex(/^(?:pkce_)?[a-f0-9]{64}$/i),
+  tokenHash: z.string().regex(/^(?:pkce_)?[a-f0-9]{64}$/i),
   type: z.enum(["invite", "email"]), invitationId: uuidSchema.nullable(),
-  returnPath: z.string().max(600), createdAt: z.number().int().nonnegative(),
-}).strict();
+}).strict(), z.object({
+  ...acceptanceContext,
+  // An already verified session still needs explicit recipient-bound acceptance.
+  // No invented token or browser claim can substitute for identity on POST.
+  type: z.literal("session"), invitationId: uuidSchema,
+}).strict()]);
 export type InvitationAcceptance = z.infer<typeof invitationAcceptanceSchema>;
 export const invitationAcceptanceCookie = (production: boolean) => production ? "__Host-edison_acceptance" : "edison_acceptance_dev";
 export function decodeInvitationAcceptance(raw: string | undefined, now = Date.now()): InvitationAcceptance | null {

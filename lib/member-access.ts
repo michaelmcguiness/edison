@@ -8,6 +8,15 @@ import { demandLoginPath } from "@/lib/demand-auth-continuation";
 import { z } from "zod";
 
 export type MemberSession = { status: "member"; accessToken: string } | { status: "signed_out" | "invite_required" | "unavailable" };
+
+/** Display only the current provider-verified account, never an invite lookup. */
+export async function readSignedInEmail(): Promise<string | null> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.auth.getUser();
+    return !error && data.user && !data.user.is_anonymous ? data.user.email ?? null : null;
+  } catch { return null; }
+}
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
 
 /** Server-only, fixed API destination. Browser input never chooses a host. */

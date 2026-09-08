@@ -23,7 +23,13 @@
  * {action:'invitation-advance',seconds:0..604801}. Completion stays operator-led.
  * Auth recovery controls (independent of Edison invitation expiry/credits):
  * {action:'auth-user',confirmed:boolean}, {action:'auth-link',status:'expired'|'valid'},
- * {action:'auth-fault',path:'otp'|'resend',mode:'rate-limited'|'unknown'}.
+ * {action:'auth-fault',path:'otp'|'resend'|'verify'|'user',mode:'rate-limited'|'unknown'}.
+ * otp/resend/verify also support unknown-after (server completed, reply unknown)
+ * and hold-response (complete, hold reply until release-responses). Neither is
+ * proof of a saved browser session. {action:'auth-code',status:'expired'} expires
+ * only the latest synthetic code. A successful send issues 000123, then 000124,
+ * etc.; state.latestAuthCode provides its tokenless context URL and single-use
+ * status. This is constructed local evidence, not an actual delivered email.
  * {action:'session-error',code:'guest_session_invalid'|'reading_session_expired'|'guest_already_claimed'}
  * arms one post-membership-gate session failure for UI review only. It does not
  * inject or model a stale cookie; cookie behavior has separate proxy tests.
@@ -93,6 +99,7 @@ type Reply = { status: number; body: unknown; headers?: Record<string, string>; 
 type Fault = { mode: "fail" | "lose-response" | "hold-response"; path?: string };
 const SESSION_ERROR_CODES = ["guest_session_invalid", "reading_session_expired", "guest_already_claimed"] as const;
 type SessionErrorCode = typeof SESSION_ERROR_CODES[number];
+type AuthFault = { path: "otp" | "resend" | "verify" | "user"; mode: "rate-limited" | "unknown" | "unknown-after" | "hold-response" };
 
 export function assertFixtureEnvironment(environment: Readonly<Record<string, string | undefined>>) {
   if ((environment.EDISON_V10_FIXTURE !== "1" && environment.EDISON_V11_FIXTURE !== "1" && environment.EDISON_V11_MEMBER_FIXTURE !== "1") || environment.NODE_ENV === "production" || environment.VERCEL !== undefined) {
@@ -156,7 +163,9 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
   let syntheticEmailConfirmed = true;
   let originalAuthLinkExpired = false;
   let latestAuthLink: { url: string; template: "confirmation" | "magic_link"; tokenHash: string } | null = null;
-  let authFault: { path: "otp" | "resend"; mode: "rate-limited" | "unknown" } | null = null;
+  let latestAuthCode: { code: string; email: string; url: string; template: "confirmation" | "magic_link"; status: "valid" | "expired" | "consumed" } | null = null;
+  let authCodeSerial = 123;
+  let authFault: AuthFault | null = null;
   let sessionError: SessionErrorCode | null = null;
   let nextDelivery: "sent" | "failed" | "unknown" = "sent";
   let invitationClock = BASE_TIME;
@@ -342,7 +351,7 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
     for (const held of heldResponses.splice(0)) held.resolve(error(409, "fixture_reset", "The operator reset this local fixture."));
     readerKind = options.member ? "account" : "guest"; allowanceUsed = 6; periodUsed = 6; allowanceRevision = 0; manualResetAt = null;
     invitations.clear(); memberStatus = "active"; syntheticSessionActive = false; nextDelivery = "sent"; invitationClock = BASE_TIME;
-    syntheticEmailConfirmed = true; originalAuthLinkExpired = false; latestAuthLink = null; authFault = null;
+    syntheticEmailConfirmed = true; originalAuthLinkExpired = false; latestAuthLink = null; latestAuthCode = null; authCodeSerial = 123; authFault = null;
     sessionError = null;
     for (const key of Object.keys(syntheticAuthRequests) as (keyof typeof syntheticAuthRequests)[]) syntheticAuthRequests[key] = 0;
     if (options.member) invitations.set(LOCAL_MEMBER_FIXTURE.invitationId, { id: LOCAL_MEMBER_FIXTURE.invitationId,
@@ -452,7 +461,7 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
         syntheticMember: { ...LOCAL_MEMBER_FIXTURE, status: memberStatus, sessionActive: syntheticSessionActive, emailConfirmed: syntheticEmailConfirmed,
           signInPath: localMemberConfirmationPath(), invitationPath: localMemberConfirmationPath(true) },
         invitations: invitationList(), nextDelivery, invitationClock: new Date(invitationClock).toISOString(),
-        originalAuthLinkExpired, latestAuthLink: copy(latestAuthLink), authFault: copy(authFault), sessionError } : {}) };
+        originalAuthLinkExpired, latestAuthLink: copy(latestAuthLink), latestAuthCode: copy(latestAuthCode), authFault: copy(authFault), sessionError } : {}) };
   }
   function control(input: Record<string, unknown>): Reply {
     const stage = input.stage;
@@ -468,8 +477,13 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
       if (input.status !== "expired" && input.status !== "valid") throw new Error("invalid_auth_link");
       originalAuthLinkExpired = input.status === "expired";
     } else if (options.member && input.action === "auth-fault") {
-      if (!["otp", "resend"].includes(String(input.path)) || !["rate-limited", "unknown"].includes(String(input.mode))) throw new Error("invalid_auth_fault");
-      authFault = { path: input.path as "otp" | "resend", mode: input.mode as "rate-limited" | "unknown" };
+      if (!["otp", "resend", "verify", "user"].includes(String(input.path)) ||
+        !["rate-limited", "unknown", ...(input.path !== "user" ? ["unknown-after", "hold-response"] : [])].includes(String(input.mode)) ||
+        Object.keys(input).some((key) => !["action", "path", "mode"].includes(key))) throw new Error("invalid_auth_fault");
+      authFault = { path: input.path as AuthFault["path"], mode: input.mode as AuthFault["mode"] };
+    } else if (options.member && input.action === "auth-code") {
+      if (input.status !== "expired" || Object.keys(input).some((key) => !["action", "status"].includes(key)) || !latestAuthCode || latestAuthCode.status !== "valid") throw new Error("invalid_auth_code");
+      latestAuthCode.status = "expired";
     } else if (options.member && input.action === "session-error") {
       if (!SESSION_ERROR_CODES.includes(input.code as SessionErrorCode) || Object.keys(input).some((key) => key !== "action" && key !== "code")) throw new Error("invalid_session_error");
       sessionError = input.code as SessionErrorCode;
@@ -586,6 +600,15 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
     return { access_token: LOCAL_MEMBER_FIXTURE_ACCESS_TOKEN, token_type: "bearer", expires_in: 3600,
       expires_at: 4_102_444_800, refresh_token: LOCAL_MEMBER_FIXTURE.refreshToken, user: syntheticUser() };
   }
+  function takeAuthFault(path: AuthFault["path"]) {
+    if (authFault?.path !== path) return null;
+    const current = authFault; authFault = null; return current.mode;
+  }
+  function authFailure(mode: AuthFault["mode"] | null, send = false): Reply | null {
+    if (mode === "rate-limited") return { status: 429, body: { code: send ? "over_email_send_rate_limit" : "over_request_rate_limit", msg: "Please wait before trying this synthetic request again." } };
+    if (mode === "unknown" || mode === "unknown-after") return { status: 500, body: { code: "unexpected_failure", msg: "This synthetic request outcome is unknown." } };
+    return null;
+  }
   function syntheticAuth(method: string, url: URL, raw: unknown, headers: Record<string, string | undefined>): Reply {
     const denied = () => ({ status: 401, body: { code: "bad_jwt", msg: "Only the exact local synthetic credential is accepted." } });
     if (headers.apikey !== LOCAL_MEMBER_FIXTURE.publishableKey) return denied();
@@ -606,11 +629,8 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
       if (next && (!next.startsWith("/") || next.startsWith("//") || /[\\\r\n]/.test(next))) return denied();
       const operation = resend ? "resend" : "otp";
       syntheticAuthRequests[operation]++;
-      if (authFault?.path === operation) {
-        const mode = authFault.mode; authFault = null;
-        return mode === "rate-limited" ? { status: 429, body: { code: "over_email_send_rate_limit", msg: "Please wait before requesting another synthetic link." } }
-          : { status: 500, body: { code: "unexpected_failure", msg: "Synthetic send outcome is unknown." } };
-      }
+      const mode = takeAuthFault(operation);
+      if (mode === "rate-limited" || mode === "unknown") return authFailure(mode, true)!;
       // Match the reviewed GoTrue branches without creating users or sending:
       // absent OTP =>otp_disabled; unconfirmed OTP =>Signup's signup_disabled;
       // resend signup silently does nothing for absent/already-confirmed users.
@@ -618,22 +638,34 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
         : { status: 422, body: { code: "otp_disabled", msg: "Signups not allowed for otp" } };
       if (!resend && !syntheticEmailConfirmed) return { status: 422, body: { code: "signup_disabled", msg: "Signups not allowed for this instance" } };
       if (resend && syntheticEmailConfirmed) return { status: 200, body: {} };
+      latestAuthCode = { code: String(authCodeSerial++).padStart(6, "0"), email: LOCAL_MEMBER_FIXTURE.email,
+        url: target.href, template: resend ? "confirmation" : "magic_link", status: "valid" };
       const hash = `${typeof body.code_challenge === "string" && body.code_challenge ? "pkce_" : ""}${LOCAL_MEMBER_FIXTURE.renewedTokenHash}`;
       target.searchParams.set("token_hash", hash); target.searchParams.set("type", "email");
       latestAuthLink = { url: target.href, template: resend ? "confirmation" : "magic_link", tokenHash: hash };
-      return { status: 200, body: {} };
+      return authFailure(mode) ?? { status: 200, body: {}, ...(mode === "hold-response" ? { holdResponse: true } : {}) };
     }
     if (url.pathname === "/auth/v1/verify" && method === "POST") {
       syntheticAuthRequests.verify++;
+      const mode = takeAuthFault("verify");
+      if (mode === "rate-limited" || mode === "unknown") return authFailure(mode)!;
+      const codeAttempt = "email" in body || "token" in body;
+      if (codeAttempt) {
+        if (body.token_hash !== undefined || body.email !== LOCAL_MEMBER_FIXTURE.email || body.type !== "email" ||
+          typeof body.token !== "string" || !/^\d{6}$/.test(body.token) || latestAuthCode?.status !== "valid" ||
+          body.token !== latestAuthCode.code) return { status: 403, body: { code: "otp_expired", msg: "That synthetic code is invalid or expired." } };
+        latestAuthCode.status = "consumed";
+      }
       const original = !originalAuthLinkExpired && body.token_hash === LOCAL_MEMBER_FIXTURE.tokenHash;
       const renewed = latestAuthLink !== null && body.token_hash === latestAuthLink.tokenHash && body.type === "email";
-      if ((!original && !renewed) || !["email", "invite"].includes(String(body.type))) return { status: 403, body: { code: "otp_expired", msg: "That synthetic verification link is not available." } };
+      if (!codeAttempt && ((!original && !renewed) || !["email", "invite"].includes(String(body.type)))) return { status: 403, body: { code: "otp_expired", msg: "That synthetic verification link is not available." } };
       syntheticEmailConfirmed = true; syntheticSessionActive = true;
-      return { status: 200, body: syntheticSession() };
+      return authFailure(mode) ?? { status: 200, body: syntheticSession(), ...(mode === "hold-response" ? { holdResponse: true } : {}) };
     }
     const valid = syntheticEmailConfirmed && syntheticSessionActive && authorization === `Bearer ${LOCAL_MEMBER_FIXTURE_ACCESS_TOKEN}`;
     if (url.pathname === "/auth/v1/user" && method === "GET") {
       if (!valid) return denied(); syntheticAuthRequests.user++;
+      const failure = authFailure(takeAuthFault("user")); if (failure) return failure;
       return { status: 200, body: syntheticUser() };
     }
     if (url.pathname === "/auth/v1/logout" && method === "POST") {

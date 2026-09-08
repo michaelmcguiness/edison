@@ -114,13 +114,14 @@ async function page(preview: entry.AcceptancePreview, error?: string, ordinary =
   new Script(compiled).runInNewContext({ exports, process: { env: { NODE_ENV: "production" } }, require(name: string) {
     if (name === "react/jsx-runtime") return jsxRuntime;
     if (name === "next/link") return { default: ({ children, ...props }: { children: ReactNode }) => createElement("a", props, children) };
+    if (name === "next/navigation") return { redirect: (destination: string) => { throw new Error(`redirect:${destination}`); } };
     if (name === "next/headers") return { cookies: async () => ({ get: () => ({ value: Buffer.from(JSON.stringify(context)).toString("base64url") }) }) };
-    if (name === "@/components/edison/brand") return { EdisonMark: () => null };
+    if (name === "@/components/edison/brand") return { EdisonMark: () => null, EdisonLogo: () => null };
     if (name === "@/components/auth/acceptance-form") return { AcceptanceForm };
     if (name === "@/components/auth/invitation-entry-state") return entry;
     if (name === "@/lib/invitation-acceptance") return acceptance;
     if (name === "@/lib/demand-auth-continuation") return continuation;
-    if (name === "@/lib/member-access") return { readInvitationAcceptance: async (value: string) => { calls.push(value); return preview; } };
+    if (name === "@/lib/member-access") return { readSignedInEmail: async () => "signed-in@example.test", readInvitationAcceptance: async (value: string) => { calls.push(value); return preview; } };
     if (name.endsWith(".css")) return {};
     throw new Error(name);
   } });
@@ -143,16 +144,16 @@ test("actual page preserves exact nonce on unknown outcome and hides expired OTP
   assert.match(unknown.html, /Check status/);
   const expired = await page({ state: "available", maskedEmail: "r***@example.test", expiresAt: "2026-09-14T12:00:00Z" }, "expired");
   assert.doesNotMatch(expired.html, /action="\/auth\/confirm"|Accept invitation/);
-  assert.match(expired.html, /Get new sign-in link/);
+  assert.match(expired.html, /Use a code to continue/);
   assert.match(expired.html, new RegExp(`invitation=${id(1)}`));
   assert.doesNotMatch(expired.html, /send a new invitation|resend your invitation/);
   assert.match(expired.html, /Invitation expires September 14, 2026/);
   const unknownExpired = await page({ state: "unconfirmed" }, "expired");
   assert.match(unknownExpired.html, /href="\/auth\/accept\?error=expired">Check status/);
-  assert.doesNotMatch(unknownExpired.html, /action="\/auth\/confirm"|Accept invitation|Get new sign-in link/);
+  assert.doesNotMatch(unknownExpired.html, /action="\/auth\/confirm"|Accept invitation|Use a code to continue/);
   const wrong = await page({ state: "wrong_account" });
   assert.doesNotMatch(wrong.html, /action="\/auth\/confirm"|r\*\*\*@|Accept invitation/);
-  assert.match(wrong.html, /Use another account/);
+  assert.match(wrong.html, /Change email|Use another account/);
   assert.match(wrong.html, /name="next" value="\/auth\/accept"/);
   const normal = await page({ state: "available" }, undefined, true);
   assert.match(normal.html, /Continue signing in/);
@@ -164,89 +165,24 @@ test("actual page uses current terminal or wrong-account invitation recovery aft
   for (const [state, title] of [["expired", "This invitation has expired."], ["unavailable", "This invitation is no longer available."], ["wrong_account", "Use the email this invitation was sent to."]] as const) {
     const result = await page({ state }, "expired");
     assert.ok(result.html.includes(`<h1>${title}</h1>`));
-    assert.doesNotMatch(result.html, /Get new sign-in link|same invitation|action="\/auth\/confirm"|Accept invitation/);
+    assert.doesNotMatch(result.html, /Use a code to continue|same invitation|action="\/auth\/confirm"|Accept invitation/);
     assert.match(result.html, /Already a member\? Sign in/);
     if (state === "wrong_account") {
-      assert.match(result.html, /Use another account/);
+      assert.match(result.html, /Change email/);
       assert.match(result.html, /name="next" value="\/auth\/accept"/);
     }
   }
 });
 
-test("login source exposes explicit controlled resend, no signup/provider-detail branch, and usable errors", () => {
+test("code form keeps explicit resend, field recovery and no provider detail disclosure", () => {
   const login = source("components/auth/login-form.tsx");
-  assert.match(login, /shouldCreateUser: false/);
-  assert.doesNotMatch(login, /Signups not allowed|error\.message|allowSignUp|shouldCreateUser: true/);
-  assert.match(login, /We couldn’t complete that request\. Please try again\./);
-  assert.match(login, /Resend sign-in link/);
-  assert.match(login, /signInAttemptAllowed\(sending.current, nextAttemptAt.current\)/);
+  assert.match(login, /Resend code/);
   assert.match(login, /emailInput.current\?\.focus/);
   assert.match(login, /aria-describedby=\{message \? "sign-in-message"/);
-  assert.doesNotMatch(login, /autoFocus/);
+  assert.doesNotMatch(login, /autoFocus|error\.message|shouldCreateUser: true/);
   assert.match(source("components/auth/acceptance-form.tsx"), /addEventListener\("pageshow", restore\)/);
-});
-
-type AuthFailure = { code?: string; status?: number; message?: string } | null;
-type AuthReply = { error: AuthFailure };
-function loginHarness(otp: () => Promise<AuthReply>, resend: () => Promise<AuthReply>, invited = true) {
-  const calls: Array<{ method: string; input: { email: string; options: { emailRedirectTo: string; shouldCreateUser?: boolean }; type?: string } }> = [];
-  const states: unknown[] = [" reader@example.test ", "idle", "", 0];
-  let stateIndex = 0;
-  const exports: { LoginForm?: (props: { returnPath: string; authOrigin: string; invitationId?: string }) => { props: { onSubmit: (event: { preventDefault: () => void }) => Promise<void> } } } = {};
-  const compiled = ts.transpileModule(source("components/auth/login-form.tsx"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
-  new Script(compiled).runInNewContext({ exports, window: { location: { origin: "https://project-qlqve.vercel.app" } }, require(name: string) {
-    if (name === "react") return { useState: () => { const slot = stateIndex++; return [states[slot], (value: unknown) => { states[slot] = value; }]; }, useRef: (value: unknown) => ({ current: value }), useEffect() {} };
-    if (name === "react/jsx-runtime") return jsxRuntime;
-    if (name === "lucide-react") return { ArrowRight: () => null, Check: () => null, LoaderCircle: () => null };
-    if (name === "./invitation-entry-state") return entry;
-    if (name === "@/lib/supabase/client") return { createClient: () => ({ auth: {
-      signInWithOtp: (input: typeof calls[number]["input"]) => { calls.push({ method: "otp", input }); return otp(); },
-      resend: (input: typeof calls[number]["input"]) => { calls.push({ method: "resend", input }); return resend(); },
-    } }) };
-    throw new Error(name);
-  } });
-  assert.ok(exports.LoginForm);
-  const form = exports.LoginForm({ returnPath: path, authOrigin: "https://edisonreader.com", invitationId: invited ? id(1) : undefined });
-  return { calls, states, submit: () => form.props.onSubmit({ preventDefault() {} }) };
-}
-
-test("actual form renews only definitive unconfirmed-account signup_disabled without creating another invitation", async () => {
-  let resolveOtp!: (value: AuthReply) => void;
-  let resolveResend!: (value: AuthReply) => void;
-  const pendingOtp = new Promise<AuthReply>((resolve) => { resolveOtp = resolve; });
-  const pendingResend = new Promise<AuthReply>((resolve) => { resolveResend = resolve; });
-  const ui = loginHarness(() => pendingOtp, () => pendingResend);
-  const first = ui.submit(); await ui.submit();
-  assert.equal(ui.calls.length, 1);
-  resolveOtp({ error: { code: "signup_disabled", status: 422, message: "Must not expose provider detail" } });
-  await Promise.resolve(); await Promise.resolve();
-  assert.equal(ui.calls.length, 2);
-  await ui.submit(); assert.equal(ui.calls.length, 2, "the fallback retains the synchronous submission lock");
-  const initial = ui.calls[0].input, fallback = ui.calls[1].input;
-  assert.equal(initial.options.shouldCreateUser, false);
-  assert.equal(fallback.type, "signup");
-  assert.equal(fallback.email, initial.email);
-  assert.equal(fallback.options.emailRedirectTo, initial.options.emailRedirectTo);
-  const callback = new URL(fallback.options.emailRedirectTo);
-  assert.equal(callback.origin, "https://edisonreader.com");
-  assert.equal(callback.searchParams.get("invitation"), id(1));
-  assert.equal(callback.searchParams.get("next"), path);
-  resolveResend({ error: null }); await first;
-  assert.equal(ui.states[1], "sent");
-  assert.match(String(ui.states[2]), /^If this email can access Edison/);
-  await ui.submit(); assert.equal(ui.calls.length, 2, "the same request cannot bypass resend pacing after success");
-});
-
-test("OTP unknown, throttle, different errors, and ordinary login cannot fall back to another send", async () => {
-  for (const failure of [{ code: "otp_disabled", status: 422 }, { code: "over_email_send_rate_limit", status: 429 }, { code: "signup_disabled", status: 503 }, { message: "Signups not allowed", status: 422 }]) {
-    const ui = loginHarness(async () => ({ error: failure }), async () => { throw new Error("Must not resend"); });
-    await ui.submit(); assert.equal(ui.calls.length, 1); assert.equal(ui.states[1], "error");
-    assert.equal(ui.states[2], "We couldn’t complete that request. Please try again.");
-  }
-  const unknown = loginHarness(async () => { throw new Error("Connection lost"); }, async () => { throw new Error("Must not resend"); });
-  await unknown.submit(); assert.equal(unknown.calls.length, 1);
-  const ordinary = loginHarness(async () => ({ error: { code: "signup_disabled", status: 422 } }), async () => { throw new Error("Must not resend"); }, false);
-  await ordinary.submit(); assert.equal(ordinary.calls.length, 1);
+  // Provider transport, duplicate and ambiguous-response behavior is now tested
+  // against the installed SDK in email-code-auth.test.ts, not a fake form SDK.
 });
 
 async function loginPage(preview: entry.AcceptancePreview, invitation: string | string[], session = "signed_out") {
@@ -258,12 +194,12 @@ async function loginPage(preview: entry.AcceptancePreview, invitation: string | 
     if (name === "next/navigation") return { redirect: (destination: string) => { throw new Error(`redirect:${destination}`); } };
     if (name === "next/link") return { default: ({ children, ...props }: { children: ReactNode }) => createElement("a", props, children) };
     if (name === "@edison/contracts") return { uuidSchema };
-    if (name === "@/components/edison/brand") return { EdisonMark: () => null };
+    if (name === "@/components/edison/brand") return { EdisonMark: () => null, EdisonLogo: () => null };
     if (name === "@/components/auth/login-form") return { LoginForm: (props: { invitationId?: string; returnPath: string; authOrigin?: string }) => createElement("form", { "data-invitation": props.invitationId ?? "none", "data-return": props.returnPath, "data-auth-origin": props.authOrigin }) };
     if (name === "@/lib/supabase/env") return { isSupabaseConfigured: () => true };
     if (name === "@/lib/app-mode") return { isDemoMode: () => false };
     if (name === "@/lib/demand-auth-continuation") return continuation;
-    if (name === "@/lib/member-access") return { readMemberSession: async () => ({ status: session }), readInvitationAcceptance: async (value: string) => { calls.push(value); return preview; } };
+    if (name === "@/lib/member-access") return { readMemberSession: async () => ({ status: session }), readSignedInEmail: async () => "signed-in@example.test", readInvitationAcceptance: async (value: string) => { calls.push(value); return preview; } };
     if (name.endsWith(".css")) return {};
     throw new Error(name);
   } });
@@ -273,7 +209,7 @@ async function loginPage(preview: entry.AcceptancePreview, invitation: string | 
 
 test("actual renewal login requires a validated available invitation and retains wrong-account return context", async () => {
   const allowed = await loginPage({ state: "available" }, id(1), "invite_required");
-  assert.match(allowed.html, /Get a new sign-in link/);
+  assert.match(allowed.html, /Edison is invite-only at this time\./);
   assert.match(allowed.html, new RegExp(`data-invitation="${id(1)}"`));
   assert.match(allowed.html, /data-auth-origin="https:\/\/edisonreader.com"/);
   assert.deepEqual(allowed.calls, [id(1)]);

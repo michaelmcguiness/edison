@@ -34,14 +34,45 @@ async function readForm(request: Request) {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const returnPath = safeDemandAuthReturnPath(url.searchParams.get("next"));
-  const context = invitationAcceptanceSchema.safeParse({
-    nonce: crypto.randomUUID(), tokenHash: url.searchParams.get("token_hash"), type: url.searchParams.get("type"),
-    invitationId: url.searchParams.get("invitation"), returnPath, createdAt: Date.now(),
-  });
-  if (!context.success || [...url.searchParams.keys()].some((key) => !["token_hash", "type", "invitation", "next"].includes(key)) ||
+  const parsedInvitation = uuidSchema.safeParse(url.searchParams.get("invitation"));
+  const invitationId = url.searchParams.getAll("invitation").length === 1 && parsedInvitation.success ? parsedInvitation.data : undefined;
+  const tokenless = !url.searchParams.has("token_hash") && !url.searchParams.has("type");
+  const login = (error?: string) => {
+    const target = new URL(demandLoginPath(returnPath, error, invitationId), url.origin);
+    if (tokenless) target.searchParams.set("code", "1");
+    return redirectTo(target);
+  };
+  if ((url.searchParams.has("invitation") && !invitationId) || [...url.searchParams.keys()].some((key) => !["token_hash", "type", "invitation", "next"].includes(key)) ||
       [...new Set(url.searchParams.keys())].some((key) => url.searchParams.getAll(key).length !== 1)) {
-    return redirectTo(new URL(demandLoginPath(returnPath, "invalid_invite"), url.origin));
+    return login("invalid_invite");
   }
+  if (tokenless) {
+    try {
+      const supabase = await createClient();
+      const current = await supabase.auth.getUser();
+      if (current.error && current.error.name !== "AuthSessionMissingError") return login("unavailable");
+      if (!current.data.user) return login();
+      const existing = await supabase.auth.getSession();
+      const accessToken = existing.data.session?.access_token;
+      if (existing.error || !accessToken) return login("unavailable");
+      if (!invitationId) {
+        const access = await memberApiFetch("demand/access", accessToken);
+        if (access.status === 401) return login();
+        if (access.status === 403) return login("invite_required");
+        if (!access.ok) return login("unavailable");
+        const body: unknown = await access.json();
+        if (!body || typeof body !== "object" || !("member" in body) || body.member !== true) return login("unavailable");
+        return redirectTo(new URL(returnPath, url.origin));
+      }
+    } catch { return login("unavailable"); }
+  }
+  const context = invitationAcceptanceSchema.safeParse({
+    nonce: crypto.randomUUID(), returnPath, createdAt: Date.now(),
+    ...(tokenless ? { type: "session", invitationId } : {
+      tokenHash: url.searchParams.get("token_hash"), type: url.searchParams.get("type"), invitationId: invitationId ?? null,
+    }),
+  });
+  if (!context.success) return login("invalid_invite");
   const response = redirectTo(new URL("/auth/accept", url.origin));
   response.cookies.set(cookieName(), Buffer.from(JSON.stringify(context.data)).toString("base64url"), {
     httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 3600,
@@ -72,6 +103,10 @@ export async function POST(request: Request) {
     if (current.data.user) {
       const existing = await supabase.auth.getSession();
       accessToken = existing.data.session?.access_token;
+    } else if (context.type === "session") {
+      const target = new URL(demandLoginPath(returnPath, undefined, context.invitationId), url.origin);
+      target.searchParams.set("code", "1");
+      return redirectTo(target);
     } else {
       const verified = await supabase.auth.verifyOtp({ token_hash: context.tokenHash, type: context.type });
       if (verified.error) {
@@ -89,13 +124,15 @@ export async function POST(request: Request) {
         method: "POST", body: JSON.stringify({ idempotencyKey: `invitation-accept:${id}` }),
       });
       if (!response.ok) {
-        if (response.status >= 500) return back("unconfirmed");
+        if (response.status === 408 || response.status === 429 || response.status >= 500) return back("unconfirmed");
         if (response.status === 403) return back("wrong_account");
         return back("unavailable");
       }
     }
     const access = await memberApiFetch("demand/access", accessToken);
-    if (!access.ok) return back(access.status >= 500 ? "unconfirmed" : "invite_required");
+    if (!access.ok) return back(access.status === 408 || access.status === 429 || access.status >= 500 ? "unconfirmed" : "invite_required");
+    const body: unknown = await access.json();
+    if (!body || typeof body !== "object" || !("member" in body) || body.member !== true) return back("unconfirmed");
   } catch { return back("unconfirmed"); }
   const response = redirectTo(new URL(returnPath, url.origin));
   response.cookies.set(cookieName(), "", { path: "/", maxAge: 0, httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production" });

@@ -4,9 +4,10 @@ import { readFileSync } from "node:fs";
 import { Script } from "node:vm";
 import ts from "typescript";
 import { NextResponse } from "next/server";
-import * as jsxRuntime from "react/jsx-runtime";
 import * as continuation from "../lib/demand-auth-continuation";
 import * as entryState from "../components/auth/invitation-entry-state";
+import { createEmailCodeAuthController } from "../lib/email-code-auth";
+import { createEmailCodeTransport } from "../lib/supabase/email-code-client";
 import { proxyDemandRequest } from "../lib/demand-proxy";
 import { readDemandAccountContinuation } from "../lib/demand-client";
 
@@ -114,46 +115,42 @@ test("actual PKCE callback exchanges once and preserves only validated continuat
   assert.equal(demo.calls.length, 0);
 });
 
-test("actual login form prevents synchronous duplicate emails and cannot enable open signup", async () => {
-  const source = readFileSync(new URL("../components/auth/login-form.tsx", import.meta.url), "utf8");
-  const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
-  for (const allowSignUp of [false, true]) {
-    const states: unknown[] = [" reader@example.test ", "idle", "", 0];
-    let index = 0;
-    let resolve!: (value: { error: null }) => void;
-    const pending = new Promise<{ error: null }>((done) => { resolve = done; });
-    const calls: { email: string; options: { shouldCreateUser: boolean; emailRedirectTo: string } }[] = [];
-    const exports: { LoginForm?: (props: { returnPath: string; allowSignUp: boolean }) => { props: { onSubmit: (event: { preventDefault: () => void }) => Promise<void> } } } = {};
-    new Script(compiled).runInNewContext({ exports, URL, window: { location: { origin: "https://edisonreader.com" } }, require(name: string) {
-      if (name === "react") return {
-        useState() { const slot = index++; return [states[slot], (value: unknown) => { states[slot] = value; }]; },
-        useRef(value: unknown) { return { current: value }; }, useEffect() {},
-      };
-      if (name === "react/jsx-runtime") return jsxRuntime;
-      if (name === "lucide-react") return { ArrowRight: () => null, Check: () => null, LoaderCircle: () => null };
-      if (name === "@/lib/demand-auth-continuation") return continuation;
-      if (name === "./acceptance-form") return { authReturnStorageKey: "test-return" };
-      if (name === "./invitation-entry-state") return entryState;
-      if (name === "@/lib/supabase/client") return { createClient: () => ({ auth: { signInWithOtp(input: typeof calls[number]) { calls.push(input); return pending; } } }) };
-      throw new Error(name);
-    } });
-    assert.ok(exports.LoginForm);
-    const form = exports.LoginForm({ returnPath: `/?continue=${id(1)}`, allowSignUp });
-    const event = { preventDefault() {} };
-    const first = form.props.onSubmit(event);
-    const duplicate = form.props.onSubmit(event);
+test("login's actual controller prevents synchronous duplicate emails and cannot enable open signup", async () => {
+  // The real form/controller binding is covered in email-code-form.test.ts.
+  // Keep this original safety guarantee at its actual SDK transport boundary.
+  let resolve!: (response: Response) => void;
+  const pending = new Promise<Response>((done) => { resolve = done; });
+  const calls: { url: URL; body: Record<string, unknown> }[] = [];
+  const transport = createEmailCodeTransport({
+    config: { url: "https://continuation.example.test", publishableKey: "sb_publishable_offline_fixture" },
+    cookieDocument: { cookie: "" },
+    fetch: async (input, init) => {
+      const url = new URL(String(input));
+      assert.equal(url.origin, "https://continuation.example.test");
+      assert.equal(url.pathname, "/auth/v1/otp");
+      assert.equal(init?.method, "POST");
+      calls.push({ url, body: JSON.parse(String(init?.body)) as Record<string, unknown> });
+      return pending;
+    },
+  });
+  const next = `/?continue=${id(1)}`;
+  const controller = createEmailCodeAuthController({ transport,
+    contextUrl: entryState.signInCallbackUrl(next, "https://edisonreader.com") });
+  try {
+    const first = controller.send(" reader@example.test ");
+    assert.equal(await controller.send("reader@example.test"), "busy");
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].email, "reader@example.test");
-    assert.equal(calls[0].options.shouldCreateUser, false);
-    const destination = new URL(calls[0].options.emailRedirectTo);
+    assert.equal(calls[0].body.email, "reader@example.test");
+    assert.equal(calls[0].body.create_user, false);
+    const destination = new URL(calls[0].url.searchParams.get("redirect_to")!);
     assert.equal(destination.origin, "https://edisonreader.com");
     assert.equal(destination.pathname, "/auth/confirm");
-    assert.equal(destination.searchParams.get("next"), `/?continue=${id(1)}`);
-    resolve({ error: null });
-    await Promise.all([first, duplicate]);
-    assert.equal(states[1], "sent");
-    assert.match(String(states[2]), /this browser/);
-  }
+    assert.equal(destination.searchParams.get("next"), next);
+    resolve(Response.json({}));
+    assert.equal(await first, "code");
+    assert.equal(controller.snapshot().phase, "code");
+    assert.equal(controller.snapshot().issue, null);
+  } finally { resolve(Response.json({})); controller.dispose(); }
 });
 
 test("relay retires a guest cookie only after confirmed account session, never on failed continuity", async () => {

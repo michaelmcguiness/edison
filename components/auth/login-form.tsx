@@ -1,69 +1,131 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Check, LoaderCircle } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
-import { acceptanceDestination, readAuthReturn, readSignInRetryAt, rememberAuthReturn, signInAttemptAllowed, signInCallbackUrl, signInRetryDelayMs, signInRetryStorageKey } from "./invitation-entry-state";
+import { LoaderCircle } from "lucide-react";
+import { createEmailCodeAuthController, type EmailCodeSnapshot } from "@/lib/email-code-auth";
+import { acceptanceDestination, readAuthReturn, readSignInRetryAt, rememberAuthReturn, signInCallbackUrl, signInRetryStorageKey } from "./invitation-entry-state";
 
-export function LoginForm({ returnPath = "/", authOrigin, invitationId }: { returnPath?: string; authOrigin?: string; invitationId?: string }) {
+const emptyState: EmailCodeSnapshot = { email: "", phase: "email", issue: null, retryAt: 0 };
+const issueCopy = {
+  invalid_email: "Enter a valid email address.",
+  invalid: "That code didn’t work. Check it and try again.",
+  expired: "That code has expired. Request a new one below.",
+  rate_limited: "Too many attempts. Please wait before trying again.",
+  delivery_unknown: "We couldn’t confirm delivery. A code may still arrive; check your inbox before requesting another.",
+  verification_unknown: "We couldn’t confirm whether you’re signed in.",
+};
+
+export function LoginForm({ returnPath = "/", authOrigin, invitationId, initialMessage, hasCode = false }: {
+  returnPath?: string; authOrigin?: string; invitationId?: string; initialMessage?: string; hasCode?: boolean;
+}) {
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
-  const [message, setMessage] = useState("");
-  const [retryAt, setRetryAt] = useState(0);
-  const sending = useRef(false);
-  const nextAttemptAt = useRef(0);
+  const [code, setCode] = useState("");
+  const [state, setState] = useState(emptyState);
+  const [validation, setValidation] = useState("");
+  const [notice, setNotice] = useState(initialMessage ?? "");
+  const [remaining, setRemaining] = useState(0);
+  const [resending, setResending] = useState(false);
+  const [checkedSignIn, setCheckedSignIn] = useState(false);
+  const controller = useRef<ReturnType<typeof createEmailCodeAuthController> | null>(null);
   const emailInput = useRef<HTMLInputElement>(null);
+  const codeInput = useRef<HTMLInputElement>(null);
+  const destination = useRef(returnPath);
+  const codeStep = state.phase !== "email" && (state.phase !== "sending" || resending);
+  const working = ["sending", "verifying", "committing", "signed_in"].includes(state.phase);
+  const reconciling = state.issue === "verification_unknown";
+  const message = validation || (state.issue ? issueCopy[state.issue] : notice);
+  const neutral = !validation && (!state.issue || ["delivery_unknown", "verification_unknown"].includes(state.issue));
+
   useEffect(() => {
     rememberAuthReturn(returnPath);
-    const saved = readSignInRetryAt();
-    nextAttemptAt.current = saved;
-    queueMicrotask(() => setRetryAt(saved));
-  }, [returnPath]);
-  useEffect(() => {
-    if (!retryAt) return;
-    const timer = setTimeout(() => { nextAttemptAt.current = 0; setRetryAt(0); }, Math.max(0, retryAt - Date.now()));
-    return () => clearTimeout(timer);
-  }, [retryAt]);
+    destination.current = acceptanceDestination(returnPath, readAuthReturn());
+    const instance = createEmailCodeAuthController({
+      contextUrl: signInCallbackUrl(destination.current, window.location.origin, authOrigin, invitationId), invitationId,
+      initialRetryAt: readSignInRetryAt(),
+      onAttempt: (retryAt) => { try { sessionStorage.setItem(signInRetryStorageKey, String(retryAt)); } catch { /* In-memory pacing remains. */ } },
+    });
+    controller.current = instance;
+    const unsubscribe = instance.subscribe(() => setState(instance.snapshot()));
+    queueMicrotask(() => setState(instance.snapshot()));
+    return () => { unsubscribe(); instance.dispose(); controller.current = null; };
+  }, [returnPath, authOrigin, invitationId]);
 
-  async function sendMagicLink(event?: React.FormEvent<HTMLFormElement>, resend = false) {
-    event?.preventDefault();
-    if (!signInAttemptAllowed(sending.current, nextAttemptAt.current) || (status === "sent" && !resend)) return;
-    sending.current = true;
-    const waitUntil = Date.now() + signInRetryDelayMs;
-    nextAttemptAt.current = waitUntil; setRetryAt(waitUntil);
-    try { sessionStorage.setItem(signInRetryStorageKey, String(waitUntil)); } catch { /* In-memory duplicate/cooldown control remains. */ }
-    setStatus("sending"); setMessage("");
-    try {
-      const supabase = createClient();
-      const callback = signInCallbackUrl(acceptanceDestination(returnPath, readAuthReturn()), window.location.origin, authOrigin, invitationId);
-      const targetEmail = email.trim();
-      let { error } = await supabase.auth.signInWithOtp({ email: targetEmail, options: { shouldCreateUser: false, emailRedirectTo: callback } });
-      // Closed signup rejects this specific unconfirmed-user path before mail.
-      // Confirmation resend operates only on an existing account and retains
-      // this invitation; unknown outcomes must never trigger a second send.
-      if (invitationId && error?.code === "signup_disabled" && error.status === 422) {
-        ({ error } = await supabase.auth.resend({ type: "signup", email: targetEmail, options: { emailRedirectTo: callback } }));
-      }
-      if (error) throw new Error("sign_in_request_unconfirmed");
-      setStatus("sent");
-      setMessage("If this email can access Edison, you’ll receive a link shortly. Open it in this browser to continue.");
-    } catch {
-      setStatus("error"); setMessage("We couldn’t complete that request. Please try again.");
-      emailInput.current?.focus({ preventScroll: true });
-    } finally { sending.current = false; }
+  useEffect(() => {
+    const update = () => setRemaining(Math.max(0, Math.ceil((state.retryAt - Date.now()) / 1000)));
+    const first = setTimeout(update, 0);
+    const timer = setInterval(update, 1000);
+    return () => { clearTimeout(first); clearInterval(timer); };
+  }, [state.retryAt]);
+
+  useEffect(() => {
+    if (codeStep) codeInput.current?.focus({ preventScroll: true });
+  }, [codeStep]);
+
+  function continueReading() {
+    // Verify on this origin: its SDK cookie is not shared with another alias.
+    // Email entry links themselves still use the canonical, allowlisted apex.
+    window.location.assign(signInCallbackUrl(destination.current, window.location.origin, undefined, invitationId));
   }
 
-  return <form className="login-form" onSubmit={(event) => sendMagicLink(event)} aria-busy={status === "sending"}>
-    <label htmlFor="email">Email address</label>
-    <div className="login-field"><input ref={emailInput} id="email" type="email" autoComplete="email" autoCapitalize="none" autoCorrect="off" spellCheck={false}
-      value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required maxLength={320}
-      readOnly={status === "sending" || status === "sent"} aria-invalid={status === "error"} aria-describedby={message ? "sign-in-message" : undefined} />
-      <button type="submit" disabled={!email.trim() || status === "sending" || status === "sent" || Boolean(retryAt)}>
-        {status === "sending" ? <><LoaderCircle className="spin" aria-hidden="true" />Sending…</> : status === "sent" ? <><Check aria-hidden="true" />Check your email</> : <>Continue with email<ArrowRight aria-hidden="true" /></>}
-      </button></div>
-    {message ? <p id="sign-in-message" className={status === "error" ? "form-error" : "form-success"} role={status === "error" ? "alert" : "status"}>{message}</p> : null}
-    {retryAt ? <p className="invitation-signin-wait">Please wait before requesting another sign-in link.</p> : null}
-    {status === "sent" ? <div className="invitation-signin-actions"><button type="button" className="demand-text-action" disabled={Boolean(retryAt)} onClick={() => void sendMagicLink(undefined, true)}>Resend sign-in link</button>
-      <button type="button" className="demand-text-action" onClick={() => { setStatus("idle"); setMessage(""); emailInput.current?.focus({ preventScroll: true }); }}>Use another email</button></div> : null}
-  </form>;
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (working || !controller.current) return;
+    setValidation(""); setNotice("");
+    if (!codeStep) {
+      if (!email.trim() || !emailInput.current?.validity.valid) {
+        setValidation("Enter a valid email address."); emailInput.current?.focus({ preventScroll: true }); return;
+      }
+      if (hasCode) controller.current.beginCode(email.trim());
+      else await controller.current.send(email.trim());
+      return;
+    }
+    if (reconciling) {
+      const result = await controller.current.checkSession();
+      if (result === "signed_in") continueReading();
+      else if (result === "unknown") setCheckedSignIn(true);
+      return;
+    }
+    const token = code.replace(/\s/g, "");
+    if (!/^\d{4,10}$/.test(token)) {
+      setValidation("Enter the code from your email."); codeInput.current?.focus({ preventScroll: true }); return;
+    }
+    setCheckedSignIn(false);
+    if (await controller.current.verify(token) === "signed_in") continueReading();
+  }
+
+  function changeEmail() {
+    if (!controller.current?.changeEmail()) return;
+    setCode(""); setValidation(""); setNotice(""); setResending(false); setCheckedSignIn(false);
+    requestAnimationFrame(() => emailInput.current?.focus({ preventScroll: true }));
+  }
+
+  async function resend() {
+    if (working || remaining > 0 || (reconciling && !checkedSignIn)) return;
+    setValidation(""); setNotice(""); setCode(""); setResending(true); setCheckedSignIn(false);
+    try { await controller.current?.send(state.email); }
+    finally { setResending(false); }
+  }
+
+  return <>
+    <h1>{codeStep ? "Enter your code" : "Sign in"}</h1>
+    <p className="email-code-intro">{codeStep ? "Check your email for a sign-in code." : hasCode ? "Enter your email to use the code you received." : "Enter your email to get a sign-in code."}</p>
+    {codeStep ? <div className="email-code-recipient"><span>{state.email}</span><button className="email-code-link" type="button" disabled={state.phase === "committing" || state.phase === "signed_in"} onClick={changeEmail}>Change email</button></div> : null}
+    <form className="email-code-form" onSubmit={submit} noValidate aria-busy={working}>
+      <label htmlFor={codeStep ? "sign-in-code" : "email"}>{codeStep ? "Sign-in code" : "Email address"}</label>
+      {codeStep ? <input ref={codeInput} id="sign-in-code" className="email-code-input email-code-input--code" type="text" inputMode="numeric"
+        autoComplete="one-time-code" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={code}
+        onChange={(event) => { setCode(event.target.value); setValidation(""); }} placeholder="Enter code"
+        readOnly={working || reconciling} aria-invalid={Boolean(validation) || state.issue === "invalid" || state.issue === "expired"}
+        aria-describedby={message ? "sign-in-message" : undefined} />
+        : <input ref={emailInput} id="email" className="email-code-input" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" autoCorrect="off" spellCheck={false}
+          value={email} onChange={(event) => { if (state.phase === "sending") controller.current?.changeEmail(); setEmail(event.target.value); setValidation(""); setNotice(""); }}
+          placeholder="you@example.com" required maxLength={320} aria-invalid={Boolean(validation) || state.issue === "invalid_email"} aria-describedby={message ? "sign-in-message" : undefined} />}
+      {message ? <p id="sign-in-message" className={`email-code-message${neutral ? " email-code-message--neutral" : ""}`} role={neutral ? "status" : "alert"}>{message}</p> : null}
+      <button type="submit" className="email-code-primary" disabled={working || (state.issue === "rate_limited" && remaining > 0) || (!codeStep && !hasCode && remaining > 0)}>
+        {working ? <><LoaderCircle className="spin" aria-hidden="true" />{state.phase === "sending" ? "Sending code…" : "Checking…"}</> : reconciling ? "Check sign-in status" : codeStep || hasCode ? "Continue" : "Send code"}
+      </button>
+    </form>
+    {codeStep ? <div className="email-code-resend"><span>Didn’t get a code?</span><button type="button" className="email-code-link" disabled={working || remaining > 0 || (reconciling && !checkedSignIn)} onClick={() => void resend()}>{remaining > 0 ? `Resend in ${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}` : "Resend code"}</button></div>
+      : remaining > 0 && !hasCode ? <p className="email-code-message email-code-message--neutral" role="status">You can request another code in {remaining} seconds.</p> : null}
+  </>;
 }

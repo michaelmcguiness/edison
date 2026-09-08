@@ -40,7 +40,9 @@ export function clearAuthReturn(path: string, storage: StorageGetter = () => ses
 export function readSignInRetryAt(storage: StorageGetter = () => sessionStorage, now = Date.now()) {
   try {
     const value = Number(storage().getItem(signInRetryStorageKey));
-    return Number.isSafeInteger(value) && value > now && value <= now + signInRetryDelayMs ? value : 0;
+    // Normal pacing is still60 seconds. Retain a longer, actual provider
+    // Retry-After across a remount without accepting an unbounded local lockout.
+    return Number.isSafeInteger(value) && value > now && value <= now + 24 * 60 * 60_000 ? value : 0;
   } catch { return 0; }
 }
 export function signInAttemptAllowed(pending: boolean, retryAt: number, now = Date.now()) { return !pending && now >= retryAt; }
@@ -57,15 +59,15 @@ export function acceptanceView(input: { hasContext: boolean; invitation: boolean
   const { hasContext, invitation, preview, error } = input;
   const kind = invitation ? "invitation" : "sign-in link";
   const wrongAccount = { title: "Use the email this invitation was sent to.", message: "Use another account to continue with this invitation.", action: null };
-  const unavailable = { title: `This ${kind} is no longer available.`, message: invitation ? "Ask the person who invited you for a new invitation, or sign in if you’re already a member." : "Request a new sign-in link to continue.", action: null };
+  const unavailable = { title: `This ${kind} is no longer available.`, message: invitation ? "Ask the person who invited you for a new invitation, or sign in if you’re already a member." : "Use a code to continue.", action: null };
   if (!hasContext) return { title: "This link is no longer available.", message: "Open the latest link in your email, or sign in if you’re already a member.", action: null };
   if (preview === "accepted") return { title: "You’re ready to read", message: "Your invitation has been accepted.", action: "continue" as const };
-  if (preview === "expired") return { title: `This ${kind} has expired.`, message: invitation ? "Ask the person who invited you to send a new invitation." : "Request a new sign-in link to continue.", action: null };
+  if (preview === "expired") return { title: `This ${kind} has expired.`, message: invitation ? "Ask the person who invited you to send a new invitation." : "Use a code to continue.", action: null };
   // Fresh server state outranks an earlier Auth failure retained in the URL.
   if (preview === "wrong_account") return wrongAccount;
   if (preview === "unavailable") return unavailable;
-  if (preview === "unconfirmed" && error === "expired") return { title: "We couldn’t check this invitation.", message: "Check status before requesting a new sign-in link. Your invitation has not been changed.", action: "refresh" as const };
-  if (error === "expired") return { title: "This sign-in link has expired.", message: invitation ? "Get a new sign-in link to continue with this same invitation." : "Request a new sign-in link to continue.", action: null };
+  if (preview === "unconfirmed" && error === "expired") return { title: "We couldn’t check this invitation.", message: "Check status before requesting a code. Your invitation has not been changed.", action: "refresh" as const };
+  if (error === "expired") return { title: "This sign-in link has expired.", message: invitation ? "Use a code to continue with this same invitation." : "Use a code to continue.", action: null };
   if (error === "wrong_account") return wrongAccount;
   if (error === "invite_required") return { title: "An invitation is needed.", message: "Edison is invite-only. Open the invitation sent to this email, or ask a member to invite you.", action: null };
   if (error === "unavailable" || error === "interrupted") return unavailable;
