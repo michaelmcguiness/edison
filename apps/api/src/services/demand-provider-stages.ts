@@ -5,6 +5,8 @@ import { z } from "zod";
 import {
   ProviderResponseValidationError,
   openAIOnDemandProvider,
+  readDemandProviderPolicy,
+  type DemandProviderPolicy,
   type ObservedProviderUsage,
   type OnDemandProvider,
   type OnDemandProviderRequest,
@@ -33,6 +35,7 @@ type Snapshot = Record<string, unknown> & {
   searchPriceMicrousd: number;
   estimatedCeilingMicrousd: number;
   researchPolicy?: OnDemandProviderRequest["researchPolicy"];
+  providerPolicy?: DemandProviderPolicy;
   researchCallsBefore?: number;
   requestedResearchMaxCalls?: number;
 };
@@ -78,6 +81,7 @@ const usageSchema = z.object({
   webSearchCalls: z.number().int().nonnegative().max(1000).optional(),
   webSearchToolCalls: z.number().int().nonnegative().max(1000).optional(),
   webSearchPricingStatus: z.enum(["priced", "unpriced"]).optional(),
+  serviceTier: z.string().min(1).max(80).nullable().optional(),
 }).refine((usage) => usage.cachedInputTokens <= usage.inputTokens)
   .refine((usage) => usage.webSearchToolCalls === undefined || (usage.webSearchCalls ?? 0) <= usage.webSearchToolCalls);
 const urlsSchema = z.array(z.string().max(2048)).max(200);
@@ -86,9 +90,10 @@ const researchPolicySchema = z.object({ mode: z.enum(["none", "auto", "required"
   .refine((policy) => policy.mode !== "none" || policy.maxCalls === 0)
   .refine((policy) => policy.mode !== "required" || policy.maxCalls > 0);
 
-export function demandStagePricing(usage: ObservedProviderUsage, searchPriceMicrousd: number) {
+export function demandStagePricing(usage: ObservedProviderUsage, searchPriceMicrousd: number, providerPolicy?: DemandProviderPolicy) {
   usageSchema.parse(usage);
-  const pricing = priceRecordedAiUsage(usage);
+  const policy = providerPolicy === undefined ? undefined : readDemandProviderPolicy({ providerPolicy });
+  const pricing = priceRecordedAiUsage(usage, policy?.pricingVersion);
   if (usage.webSearchPricingStatus === "unpriced") return { pricingStatus: "unpriced" as const, costMicrousd: null };
   return {
     pricingStatus: pricing.pricingStatus,
@@ -102,6 +107,10 @@ export function prepareDemandStage(
   request: OnDemandProviderRequest,
   environment: Readonly<Record<string, string | undefined>>,
 ): { identity: StageIdentity; providerRequest: OnDemandProviderRequest } {
+  let providerPolicy: DemandProviderPolicy | undefined;
+  try { providerPolicy = readDemandProviderPolicy(request); }
+  catch { stop("provider_policy_invalid"); }
+  if (providerPolicy && (!request.researchPolicy || request.stage === "feedback")) stop("provider_policy_invalid");
   const allowedModels = [environment.OPENAI_ARTICLE_MODEL, environment.OPENAI_UTILITY_MODEL].filter(Boolean);
   if (!allowedModels.includes(request.model) || !isPricedOpenAiModel(request.model)) stop("provider_model_not_allowed");
   if (!request.idempotencyKey || request.idempotencyKey.length > 128 || !/^[A-Za-z0-9._:-]+$/.test(request.idempotencyKey)) stop("provider_request_identity_invalid");
@@ -122,6 +131,7 @@ export function prepareDemandStage(
     safetyIdentifier: `edison-demand:${principalId}`, timeoutMs: request.timeoutMs,
     maxOutputTokens: request.maxOutputTokens, research: request.research, wireFormat,
     ...(request.researchPolicy ? { researchPolicy: request.researchPolicy } : {}),
+    ...(providerPolicy ? { providerPolicy } : {}),
   })) as Omit<OnDemandProviderRequest, "schema">;
   const inputBytes = bytes(frozen);
   if (inputBytes > DEMAND_STAGE_INPUT_BYTES) stop("provider_input_limit");
@@ -129,7 +139,9 @@ export function prepareDemandStage(
   // allowance. This is admission headroom, not a guarantee of provider charges;
   // actual usage is always retained and overspend stops subsequent stages.
   const searchCalls = request.researchPolicy?.maxCalls ?? (request.research ? 8 : 0);
-  const estimated = demandStagePricing({ providerResponseId: "reservation", model: request.model, inputTokens: inputBytes + searchCalls * 4000, cachedInputTokens: 0, outputTokens: request.maxOutputTokens, webSearchCalls: searchCalls }, searchPriceMicrousd);
+  const estimated = demandStagePricing({ providerResponseId: "reservation", model: request.model, inputTokens: inputBytes + searchCalls * 4000, cachedInputTokens: 0, outputTokens: request.maxOutputTokens, webSearchCalls: searchCalls,
+    ...(providerPolicy ? { serviceTier: providerPolicy.requestedServiceTier } : {}) }, searchPriceMicrousd, providerPolicy);
+  if (estimated.costMicrousd === null) stop("provider_model_unpriced");
   const snapshot: Snapshot = { version: 1, ...frozen, stage: request.stage, model: request.model, searchPriceMicrousd, estimatedCeilingMicrousd: estimated.costMicrousd! };
   return {
     identity: { requestId, principalId, stageKey, requestFingerprint: hash(json(snapshot)), snapshot },
@@ -168,7 +180,10 @@ export function bindDemandResearchBudget(identity: StageIdentity, callsBefore: n
   const researchPolicy = { ...policy, maxCalls };
   const metadata = new Set(["version", "searchPriceMicrousd", "estimatedCeilingMicrousd", "researchCallsBefore", "requestedResearchMaxCalls"]);
   const frozen = { ...Object.fromEntries(Object.entries(identity.snapshot).filter(([key]) => !metadata.has(key))), researchPolicy };
-  const estimated = demandStagePricing({ providerResponseId: "reservation", model: identity.snapshot.model, inputTokens: bytes(frozen) + maxCalls * 4000, cachedInputTokens: 0, outputTokens: Number(identity.snapshot.maxOutputTokens), webSearchCalls: maxCalls }, identity.snapshot.searchPriceMicrousd);
+  const providerPolicy = readDemandProviderPolicy(identity.snapshot);
+  const estimated = demandStagePricing({ providerResponseId: "reservation", model: identity.snapshot.model, inputTokens: bytes(frozen) + maxCalls * 4000, cachedInputTokens: 0, outputTokens: Number(identity.snapshot.maxOutputTokens), webSearchCalls: maxCalls,
+    ...(providerPolicy ? { serviceTier: providerPolicy.requestedServiceTier } : {}) }, identity.snapshot.searchPriceMicrousd, providerPolicy);
+  if (estimated.costMicrousd === null) stop("provider_model_unpriced");
   const snapshot = { ...identity.snapshot, researchPolicy, researchCallsBefore: callsBefore, requestedResearchMaxCalls: policy.maxCalls, estimatedCeilingMicrousd: estimated.costMicrousd! };
   return { ...identity, snapshot, requestFingerprint: hash(json(snapshot)) };
 }
@@ -190,6 +205,17 @@ export function demandStageDisposition(stage: Pick<StageRow, "status" | "request
   return stage.leaseExpiresAt && stage.leaseExpiresAt > now ? "busy" : "uncertain";
 }
 
+/** Check the locked parent as well as pipeline progress. A dropped pin must not
+ * reserve a cheaper stage or serve a cached result under a changed policy. */
+export function demandStagePolicyMatchesRequest(snapshot: Snapshot, request: { kind: string; snapshot: Record<string, unknown> }): boolean {
+  const stageHas = Object.hasOwn(snapshot, "providerPolicy");
+  const parentHas = Object.hasOwn(request.snapshot, "providerPolicy");
+  if (!stageHas && !parentHas) return true;
+  if (stageHas !== parentHas || request.snapshot.version !== 2 || !["ideas", "article", "question"].includes(request.kind)) return false;
+  try { return json(readDemandProviderPolicy(snapshot)) === json(readDemandProviderPolicy(request.snapshot)); }
+  catch { return false; }
+}
+
 const databaseStore: DemandStageStore = {
   async reserve(identity, now) {
     return withDemandWorkerDb(async (tx) => {
@@ -198,6 +224,7 @@ const databaseStore: DemandStageStore = {
       if (!principal || !access?.active) return { disposition: "stop", code: "reading_session_expired" };
       const [request] = await tx.select().from(demandRequests).where(and(eq(demandRequests.id, identity.requestId), eq(demandRequests.principalId, identity.principalId))).for("update");
       if (!request) return { disposition: "stop", code: "provider_request_not_found" };
+      if (!demandStagePolicyMatchesRequest(identity.snapshot, request)) return { disposition: "stop", code: "provider_snapshot_mismatch" };
       const [loop] = await tx.select().from(demandLoops).where(and(eq(demandLoops.id, request.loopId), eq(demandLoops.principalId, identity.principalId))).for("update");
       if (!loop) return { disposition: "stop", code: "provider_loop_not_found" };
       const input = identity.snapshot.input as { context?: { loopId?: unknown }; loopId?: unknown } | null;
@@ -213,6 +240,7 @@ const databaseStore: DemandStageStore = {
         if (disposition === "replay") {
           const cached = responseSchema.parse(existing.output);
           if (!Object.hasOwn(existing.output!, "output") || existing.pricingStatus !== "priced" || cached.usage.providerResponseId !== existing.providerResponseId) return { disposition: "stop", code: "provider_cache_invalid" };
+          if (identity.snapshot.providerPolicy && !["default", "priority"].includes(cached.usage.serviceTier as string)) return { disposition: "stop", code: "provider_cache_invalid" };
           return { disposition: "replay", response: { ...cached, output: cached.output } };
         }
         if (disposition === "uncertain" && existing.status === "reserved") await tx.update(demandStages).set({ status: "uncertain", updatedAt: now }).where(eq(demandStages.id, existing.id));
@@ -236,7 +264,11 @@ const databaseStore: DemandStageStore = {
     });
   },
   async record(result, now) {
-    const pricing = demandStagePricing(result.usage, result.identity.snapshot.searchPriceMicrousd);
+    // Whitelist metering metadata only; never store provider article/prompt text
+    // in the bill. The insert survives immutable/uncertain stage state because
+    // no stage enrichment or separate transaction is needed.
+    const observedUsage = usageSchema.parse(result.usage);
+    const pricing = demandStagePricing(result.usage, result.identity.snapshot.searchPriceMicrousd, result.identity.snapshot.providerPolicy);
     return withDemandWorkerDb(async (tx) => {
       // Match reserve's lock order. Taking a stage lock before its parent can
       // deadlock a concurrent reservation against the usage row's foreign key.
@@ -246,7 +278,7 @@ const databaseStore: DemandStageStore = {
       if (!stage || stage.requestFingerprint !== result.identity.requestFingerprint) stop("provider_usage_persistence_failed");
       const [priorUsage] = await tx.select().from(demandUsage).where(eq(demandUsage.responseId, result.usage.providerResponseId)).limit(1);
       if (priorUsage && priorUsage.stageId !== stage.id) return { usable: false, code: "provider_response_identity_conflict" };
-      if (!priorUsage) await tx.insert(demandUsage).values({ principalId: result.identity.principalId, requestId: result.identity.requestId, stageId: stage.id, responseId: result.usage.providerResponseId, model: result.usage.model, inputTokens: result.usage.inputTokens, cachedInputTokens: result.usage.cachedInputTokens, outputTokens: result.usage.outputTokens, searchCalls: result.usage.webSearchCalls ?? 0, costMicrousd: pricing.costMicrousd, pricingStatus: pricing.pricingStatus });
+      if (!priorUsage) await tx.insert(demandUsage).values({ principalId: result.identity.principalId, requestId: result.identity.requestId, stageId: stage.id, responseId: result.usage.providerResponseId, model: result.usage.model, inputTokens: result.usage.inputTokens, cachedInputTokens: result.usage.cachedInputTokens, outputTokens: result.usage.outputTokens, searchCalls: result.usage.webSearchCalls ?? 0, observedUsage, costMicrousd: pricing.costMicrousd, pricingStatus: pricing.pricingStatus });
       // Recheck live membership AFTER retaining any incurred spend. Revocation
       // denies releasing the response; it must not erase its usage record.
       const [access] = await tx.execute<{ active: boolean }>(sql`select private.demand_principal_is_active(${result.identity.principalId}::uuid) as active`);
@@ -257,7 +289,8 @@ const databaseStore: DemandStageStore = {
       const previousStages = await tx.select({ id: demandStages.id, snapshot: demandStages.snapshot, usage: demandStages.usage }).from(demandStages).where(and(eq(demandStages.requestId, result.identity.requestId), eq(demandStages.principalId, result.identity.principalId)));
       const totalToolCalls = demandRecordedSearchToolCalls([...previousStages.filter((previous) => previous.id !== stage.id), { snapshot: stage.snapshot, usage: result.usage }]);
       const withinProviderLimits = demandUsageWithinProviderLimits(result.identity.snapshot, result.usage, totalToolCalls);
-      const usable = !result.invalid && Boolean(result.response) && pricing.pricingStatus === "priced" && returnedExpectedModel && withinBudget && withinProviderLimits && stage.status === "reserved" && sameLease && Boolean(stage.leaseExpiresAt && stage.leaseExpiresAt > now) && Boolean(principal && access?.active) && request?.status === "running";
+      const samePolicy = Boolean(request && demandStagePolicyMatchesRequest(result.identity.snapshot, request));
+      const usable = !result.invalid && Boolean(result.response) && pricing.pricingStatus === "priced" && returnedExpectedModel && withinBudget && withinProviderLimits && samePolicy && stage.status === "reserved" && sameLease && Boolean(stage.leaseExpiresAt && stage.leaseExpiresAt > now) && Boolean(principal && access?.active) && request?.status === "running";
       // Spend is committed even if the principal was revoked, a worker lease
       // became uncertain, or the request was cancelled while the provider ran.
       if (stage.status === "reserved" && sameLease) await tx.update(demandStages).set({ status: usable ? "succeeded" : "failed", providerResponseId: result.usage.providerResponseId, output: usable ? result.response as unknown as Record<string, unknown> : null, usage: result.usage, costMicrousd: pricing.costMicrousd, pricingStatus: pricing.pricingStatus, updatedAt: now }).where(and(eq(demandStages.id, stage.id), eq(demandStages.status, "reserved"), eq(demandStages.leaseExpiresAt, result.stage.leaseExpiresAt)));

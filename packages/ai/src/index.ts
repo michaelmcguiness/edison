@@ -3,6 +3,7 @@ export * from "./article-question";
 export * from "./client";
 export * from "./preference-parser";
 export * from "./provider-response-error";
+export * from "./provider-policy";
 export * from "./schemas";
 export * from "./on-demand";
 export * from "./on-demand-provider";

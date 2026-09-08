@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createHash } from "node:crypto";
 import { onDemandArticleSchema } from "./schemas";
 import { ProviderResponseValidationError, type ObservedProviderUsage } from "./provider-response-error";
+import type { DemandProviderPolicy } from "./provider-policy";
 import { ON_DEMAND_PROMPTS, ON_DEMAND_PROMPT_VERSION } from "./on-demand-prompts";
 import {
   onDemandAnswerOutputSchema,
@@ -47,6 +48,7 @@ export type OnDemandProviderRequest = {
   research: boolean;
   // Omitted policies preserve historical ideas-only research behavior.
   researchPolicy?: { mode: "none" | "auto" | "required"; reason: string; maxCalls: number };
+  providerPolicy?: DemandProviderPolicy;
 };
 export type OnDemandProviderResponse = {
   output: unknown;

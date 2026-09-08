@@ -1624,6 +1624,9 @@ export const demandUsage = privateSchema.table(
     cachedInputTokens: integer("cached_input_tokens").notNull().default(0),
     outputTokens: integer("output_tokens").notNull().default(0),
     searchCalls: integer("search_calls").notNull().default(0),
+    // Nullable for historical bills; append-only observed metadata is stored
+    // with the original bill even when its stage is already immutable.
+    observedUsage: jsonb("observed_usage").$type<Record<string, unknown>>(),
     costMicrousd: integer("cost_microusd"),
     pricingStatus: text("pricing_status")
       .$type<"priced" | "unpriced">()
@@ -1676,6 +1679,14 @@ export const demandUsage = privateSchema.table(
       ${table.outputTokens} >= 0 and
       ${table.searchCalls} >= 0 and
       (${table.costMicrousd} is null or ${table.costMicrousd} >= 0)
+    `),
+    check("demand_usage_observed_usage_valid", sql`
+      ${table.observedUsage} is null or (
+        jsonb_typeof(${table.observedUsage}) = 'object' and
+        pg_column_size(${table.observedUsage}) <= 4096 and
+        ${table.observedUsage} - array['providerResponseId','model','inputTokens','cachedInputTokens','outputTokens','webSearchCalls','webSearchToolCalls','webSearchPricingStatus','serviceTier']::text[] = '{}'::jsonb and
+        ${table.observedUsage} @> jsonb_build_object('providerResponseId',${table.responseId},'model',${table.model},'inputTokens',${table.inputTokens},'cachedInputTokens',${table.cachedInputTokens},'outputTokens',${table.outputTokens})
+      )
     `),
   ],
 );

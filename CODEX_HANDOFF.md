@@ -30,8 +30,20 @@ updates, verified accounts skip an unused database transaction and settlement
 reads less data. The approved **Edit loop** label is restored. This improves
 finished-result delivery; no actual model-generation speedup was measured.
 Writing/checking/models remain unchanged. No new paid generation, QA identity,
-mail, migration, Auth, secret, domain or tier change occurred. The next bounded
-Fast candidate remains off by default pending exact accounting/replay review.
+mail, migration, Auth, secret, domain or tier change occurred.
+
+The [accounted Fast candidate](docs/operations/ACCOUNTED_FAST_CANDIDATE_2026-09-08.md) is prepared at
+`712fe7611ef3de9e72a49a61bfe617207b1cdaf7` in PR5.
+[CI34263846396](https://github.com/michaelmcguiness/edison/actions/runs/34263846396)
+passed 1,129 application tests, 378 pgTAP assertions, all seven disposable-DB
+proofs, types/lint/builds: both jobs and all 29 steps succeeded, none skipped.
+The late-uncertain evidence gap is corrected by an additive nullable
+`observed_usage` billing column; append-only receipts and immutable stages remain.
+The migration awaits explicit hosted approval and must precede API deployment,
+even with Fast off. The candidate is **not deployed or enabled**; no paid Fast
+probe, new QA identity or mail was performed. The receipt preserves the earlier
+collation-only CI failure and includes the `--skip-vault` migration runbook,
+explicit health-check gap and rollout/rollback compatibility. Keep Fast off.
 See the [generation-latency receipt](docs/operations/GENERATION_LATENCY_RELEASE_2026-09-08.md) for evidence and limits.
 
 ### Previous — September 8 D50 checker-format correction live

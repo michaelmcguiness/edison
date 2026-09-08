@@ -186,6 +186,37 @@ export class UnpricedOpenAiModelError extends RangeError {
   }
 }
 
+export class UnpricedOpenAiTierError extends RangeError {
+  constructor() {
+    super("unpriced_openai_service_tier_or_pricing_basis");
+    this.name = "UnpricedOpenAiTierError";
+  }
+}
+
+/** Frozen, prospective pricing only. Never edit this basis to reprice admitted
+ * work. A later price change needs a new version. Rates retrieved September 8,
+ * 2026 from https://developers.openai.com/api/docs/pricing. This bounded policy
+ * does not price long context (>272K input), regional uplifts or other models. */
+export function estimatedTieredOpenAiCostMicrousd(input: {
+  model: string; inputTokens: number; cachedInputTokens: number; outputTokens: number;
+  serviceTier: unknown; pricingVersion: string;
+}) {
+  if (input.pricingVersion !== "openai-terra-luna-2026-09-08-v1" ||
+    !["default", "priority"].includes(input.serviceTier as string) ||
+    ![input.inputTokens, input.cachedInputTokens, input.outputTokens].every((value) => Number.isSafeInteger(value) && value >= 0 && value <= 2_000_000_000) ||
+    input.cachedInputTokens > input.inputTokens || input.inputTokens > 272_000) throw new UnpricedOpenAiTierError();
+  // Hundredths of a microdollar per token keep the sub-microdollar cached rate
+  // exact until the one final rounding operation. Do not double a rounded bill.
+  const rates = /^gpt-5\.6-terra(?:-\d{4}-\d{2}-\d{2})?$/.test(input.model)
+    ? { input: 200, cached: 20, output: 1200 }
+    : /^gpt-5\.6-luna(?:-\d{4}-\d{2}-\d{2})?$/.test(input.model)
+      ? { input: 20, cached: 2, output: 120 } : null;
+  if (!rates) throw new UnpricedOpenAiModelError(input.model);
+  const multiplier = input.serviceTier === "priority" ? 2 : 1;
+  return Math.round(((input.inputTokens - input.cachedInputTokens) * rates.input +
+    input.cachedInputTokens * rates.cached + input.outputTokens * rates.output) * multiplier / 100);
+}
+
 function openAiModelTokenPrices(model: string) {
   const priced = pricedOpenAiModels.find(({ pattern }) => pattern.test(model));
   if (!priced) {

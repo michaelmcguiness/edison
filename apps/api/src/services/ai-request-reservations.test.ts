@@ -6,6 +6,7 @@ import {
   providerResponseUsage,
 } from "@edison/ai";
 import { HttpError } from "../http/errors";
+import { UnpricedOpenAiModelError } from "@edison/domain";
 import {
   AI_REQUEST_LEASE_MS,
   AI_REQUEST_MAX_ATTEMPTS,
@@ -197,7 +198,8 @@ test("unknown-model usage is retained with null cost and an explicit status", ()
 
   assert.equal(pricing.pricingStatus, "unpriced");
   assert.equal(pricing.costMicrousd, null);
-  assert.equal(pricing.pricingError?.model, usage.model);
+  assert.ok(pricing.pricingError instanceof UnpricedOpenAiModelError);
+  assert.equal(pricing.pricingError.model, usage.model);
   assert.deepEqual(usage, {
     providerResponseId: "resp_unpriced_1",
     model: "future-unpriced-model",
