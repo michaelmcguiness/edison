@@ -25,13 +25,20 @@ function fakeDatabase() {
   const transaction: typeof withDemandWorkerDb = async (callback) => {
     const operation = queue.then(async () => {
       const before = structuredClone(state);
+      let admissionLocked = false;
       try { return await callback({ execute: async (statement: SQL) => {
         const query = new PgDialect().sqlToQuery(statement); queries.push(query);
         const q = query.sql.replace(/\s+/g, " ").trim(), p = query.params as string[];
-        if (q.startsWith("select pg_advisory_xact_lock")) return [];
+        if (q.startsWith("select pg_advisory_xact_lock")) {
+          assert.match(q, /'edison-invitation-admission'/); admissionLocked = true; return [];
+        }
+        if (/^(insert into|update) private\.demand_invitation|^insert into private\.demand_invite_grants|^select count\(\*\)|^select private\.redeem_demand_invitation/.test(q)) {
+          assert.equal(admissionLocked, true, "Every admission/capacity check and invitation mutation follows the shared transaction lock");
+        }
+        if (q.includes("private.demand_invite_grants")) assert.doesNotMatch(q, /for (?:no key update|update|key share|share)\b/i,
+          "Immutable grants cannot require UPDATE privilege for row locking");
         if (q.startsWith("select * from private.demand_invitation_member")) return state.members.has(p[0]) ? [state.members.get(p[0])] : [];
         if (q.startsWith("insert into private.demand_invite_grants")) { state.grants.add(p[0]); return []; }
-        if (q.startsWith("select user_id from private.demand_invite_grants")) return state.grants.has(p[0]) ? [{ user_id: p[0] }] : [];
         if (q.startsWith("select o.invitation_id,o.request_fingerprint")) {
           const value = state.operations.get(`${p[0]}:${p[1]}`);
           return value ? [{ ...value, delivery: state.results.get(value.id) ?? (value.receipt.delivery ? "unknown" : "not_attempted") }] : [];
@@ -123,7 +130,8 @@ test("five slots are reserved before delivery across concurrent callers; the six
   const list = await listDemandInvitations(owner, db); assert.deepEqual([list.limit, list.reserved, list.redeemed, list.remaining], [5, 5, 0, 0]);
   assert.equal(db.grants.size, 1);
   assert.match(db.queries[0].sql, /edison-invitation-admission/);
-  assert.ok(db.queries.some((query) => /demand_invite_grants[\s\S]*for update/.test(query.sql)));
+  assert.ok(db.queries.some((query) => /insert into private\.demand_invite_grants/.test(query.sql)));
+  assert.equal(db.queries.some((query) => /demand_invite_grants[\s\S]*for (?:no key update|update|key share|share)\b/i.test(query.sql)), false);
 });
 
 test("same-key and same-email create recovery never sends a second email or reserves another slot", async () => {

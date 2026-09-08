@@ -52,7 +52,9 @@ async function actorLock(tx: DemandTransaction, actor: string, createGrant = fal
     if (member?.status !== "active") throw new HttpError(403, "invitation_membership_required", "An active Edison membership is required.");
   }
   if (createGrant) await tx.execute(sql`insert into private.demand_invite_grants(user_id) values(${actor}::uuid) on conflict(user_id) do nothing`);
-  await tx.execute(sql`select user_id from private.demand_invite_grants where user_id=${actor}::uuid for update`);
+  // The shared transaction advisory lock already serializes grant creation and
+  // every capacity mutation, including SQL redemption. Immutable grants have
+  // SELECT/INSERT permission only; row locking would require UPDATE permission.
 }
 async function owned(tx: DemandTransaction, actor: string, id: string) {
   const [row] = await tx.execute<Row>(sql`select * from private.demand_invitations where id=${id}::uuid and inviter_user_id=${actor}::uuid for update`);
