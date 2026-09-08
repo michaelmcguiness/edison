@@ -20,6 +20,15 @@ function request(n: number, status: DemandRequest["status"]): DemandRequest { re
 const allowance = demandAllowanceSchema.parse({ limit: 500, used: 496, periodUsed: 496, reserved: 0, remaining: 4, available: 4, periodStart: "2026-09-07T00:00:00.000Z", resetsAt: "2026-09-14T00:00:00.000Z", revision: 0, manualResetAt: null });
 const workspace = demandWorkspaceSchema.parse({ workspaceId: id(99), readerKind: "account", loops: [loop], ideas: [idea(2), idea(3, 100, 2)], requests: [request(100, "succeeded")], allowance, accountGate: { canCreateLoop: true, canRefresh: true, reason: null } });
 
+test("legacy alternating card colors cannot override v11 paper surfaces at tablet widths", () => {
+  const css = readFileSync(new URL("../app/demand.css", import.meta.url), "utf8");
+  for (const index of [2, 3, 4]) {
+    assert.ok(css.includes(`.demand-idea-card:not(.demand-article-card):nth-child(4n + ${index})`));
+    assert.ok(!css.includes(`.demand-idea-card:nth-child(4n + ${index})`));
+  }
+  assert.match(css, /\.demand-v11 \.demand-article-card \{[^}]*background: #fff; color: #242625;/);
+});
+
 test("refresh keeps the accepted set through pending, failure and zero results, then replaces by exact batch", () => {
   const before = [idea(2), idea(3, 100, 2)];
   for (const status of ["queued", "running", "failed", "succeeded"] as const) {

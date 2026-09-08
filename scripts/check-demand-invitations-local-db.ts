@@ -4,11 +4,17 @@ import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { eq, sql } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
 // No configurable URL and no provider credentials: only the named disposable
 // Supabase database, with synthetic recipients and an injected no-email sender.
 const LOCAL_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+function authUserFixtureStatement(id:string,email:string,confirmed:boolean,now=new Date()) {
+  // Raw SQL parameters do not use Drizzle's timestamp-column encoder. Give
+  // postgres-js an ISO string (or SQL NULL), never a JavaScript Date object.
+  return sql`insert into auth.users(id,email,email_confirmed_at) values(${id}::uuid,${email},${confirmed?now.toISOString():null}::timestamptz)`;
+}
 function expiredInvitationFixture(inviterUserId:string,recipientEmail:string,now=new Date()) {
   // SQL redemption uses statement_timestamp(), not the service's injected
   // projection clock. Both timestamps must be historical to satisfy chronology.
@@ -47,7 +53,14 @@ function fixtureChecks() {
   assert.ok(row.createdAt<row.expiresAt&&row.expiresAt<now,"Expiry proof must not violate created/expiry ordering");
   assert.equal(row.sentAt,row.createdAt);assert.equal(row.updatedAt,row.createdAt);
   assert.equal(row.deliveryAttempts,1);
-  console.log("Invitation fixture checks passed: chronology-valid, synthetic, already-expired sent invitation; no database/auth/provider imported or contacted.");
+  for(const confirmed of [true,false]) {
+    const query=new PgDialect().sqlToQuery(authUserFixtureStatement(actor,email,confirmed,now));
+    assert.equal(query.sql,"insert into auth.users(id,email,email_confirmed_at) values($1::uuid,$2,$3::timestamptz)");
+    assert.deepEqual(query.params,[actor,email,confirmed?now.toISOString():null]);
+    assert.ok(query.params.every(value=>value===null||typeof value==="string"),"The raw Auth insert must contain only wire-serializable scalar parameters");
+    for(const value of query.params)if(value!==null)assert.ok(Buffer.byteLength(value)>0);
+  }
+  console.log("Invitation fixture checks passed: confirmed/unconfirmed Auth SQL wire parameters and chronology-valid expired invitation; no database/auth/provider imported or contacted.");
 }
 async function runtime() {
   guard(process.env);localContainer();
@@ -114,7 +127,7 @@ async function integration() {
   const code=(expected:string)=>(e:unknown)=>(e as {code?:string}).code===expected;
   async function user(label:string,status:"active"|"pending"|"revoked"="pending",confirmed=true) {
     const id=randomUUID();users.push(id);
-    await r.database.execute(sql`insert into auth.users(id,email,email_confirmed_at) values(${id}::uuid,${email(label)},${confirmed?new Date():null}::timestamptz)`);
+    await r.database.execute(authUserFixtureStatement(id,email(label),confirmed));
     const [membership]=await r.database.execute<{status:string}>(sql`select status from public.alpha_memberships where user_id=${id}::uuid`);assert.equal(membership.status,"pending");
     if(status!=="pending")await r.database.execute(sql`update public.alpha_memberships set status=${status} where user_id=${id}::uuid`);
     return {id,email:email(label)};

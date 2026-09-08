@@ -4,6 +4,128 @@ import { isDemandProxyPath, proxyDemandRequest } from "../lib/demand-proxy";
 import { GET as routeGet } from "../app/api/demand/[...path]/route";
 
 const options = { apiUrl: "https://api.example.org/v1", enabled: true, production: true };
+const accountWorkspace = { workspaceId: "00000000-0000-4000-8000-000000000001", readerKind: "account", loops: [], ideas: [], requests: [] };
+function sessionRequest(body = '{"continueWithAccount":true}', headers: Record<string, string> = {}) {
+  return new Request("https://edisonreader.com/api/demand/session", { method: "POST", body,
+    headers: { Origin: "https://edisonreader.com", Authorization: "Bearer constructed-member", "Content-Type": "application/json",
+      Cookie: `unrelated=retained; __Host-edison_demand=${"b".repeat(64)}`, ...headers } });
+}
+
+test("explicit account recovery omits only guest credentials and retires the cookie only after account success", async () => {
+  for (const value of ["b".repeat(64), "expired-or-malformed", ""]) {
+    const request = sessionRequest(' { "continueWithAccount" : true } ', { Cookie: `unrelated=retained; __Host-edison_demand=${value}` });
+    const originalCookie = request.headers.get("cookie");
+    let calls = 0;
+    const response = await proxyDemandRequest(request, "session", { ...options, fetcher: (async (url, init) => {
+      calls++;
+      assert.equal(url, "https://api.example.org/v1/demand/session");
+      assert.equal(init?.method, "POST"); assert.equal(init?.body, "{}");
+      assert.equal(init?.cache, "no-store"); assert.equal(init?.redirect, "error");
+      const forwarded = new Headers(init?.headers);
+      assert.equal(forwarded.get("authorization"), "Bearer constructed-member");
+      assert.equal(forwarded.get("x-edison-demand-token"), null); assert.equal(forwarded.get("cookie"), null);
+      assert.equal(forwarded.get("origin"), "https://edisonreader.com");
+      return Response.json({ workspace: accountWorkspace }, { headers: { "Set-Cookie": "unrelated=deleted; Max-Age=0" } });
+    }) as typeof fetch });
+    assert.equal(calls, 1); assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { workspace: accountWorkspace });
+    assert.equal(request.headers.get("cookie"), originalCookie, "the incoming history credential is never mutated");
+    assert.equal(response.headers.get("set-cookie"), "__Host-edison_demand=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Secure");
+  }
+});
+
+test("only exact affirmative account intent with a bearer can omit the guest credential", async () => {
+  let calls = 0;
+  const forbidden = (async () => { calls++; throw new Error("must not contact API"); }) as typeof fetch;
+  for (const body of ['{"continueWithAccount":false}', '{"continueWithAccount":"true"}', '{"continueWithAccount":true,"principalId":"other"}',
+    '{"continueWithAccount":false,"continueWithAccount":true}', '{"other":true}', 'null', '[]', 'true', 'not-json']) {
+    const response = await proxyDemandRequest(sessionRequest(body), "session", { ...options, fetcher: forbidden });
+    assert.equal(response.status, 400); assert.equal(response.headers.get("set-cookie"), null);
+  }
+  for (const authorization of ["", "Basic constructed", "Bearer", "Bearer two words"]) {
+    const response = await proxyDemandRequest(sessionRequest(undefined, { Authorization: authorization }), "session", { ...options, fetcher: forbidden });
+    assert.equal(response.status, 401); assert.equal(response.headers.get("set-cookie"), null);
+  }
+  assert.equal(calls, 0);
+});
+
+test("failed, unknown, malformed and non-account recovery responses retain the guest cookie and never auto retry", async () => {
+  const outcomes = [
+    () => Response.json({ error: { code: "invite_required", message: "Invitation required." } }, { status: 403 }),
+    () => Response.json({ error: { code: "temporary", message: "Unavailable." } }, { status: 503 }),
+    () => { throw new Error("Constructed lost response"); },
+    () => Response.json({ workspace: { ...accountWorkspace, readerKind: "guest" } }),
+    () => Response.json({ workspace: accountWorkspace, newGuestToken: "a".repeat(64) }),
+    () => Response.json({ workspace: { workspaceId: "invalid", readerKind: "account" } }),
+  ];
+  for (const outcome of outcomes) {
+    let calls = 0;
+    const response = await proxyDemandRequest(sessionRequest(), "session", { ...options, fetcher: (async () => { calls++; return outcome(); }) as typeof fetch });
+    assert.ok([403, 503, 502].includes(response.status));
+    assert.equal(response.headers.get("set-cookie"), null); assert.equal(calls, 1);
+  }
+});
+
+test("default session still attempts ordinary guest continuity and does not gain a fallback", async () => {
+  let calls = 0;
+  for (const body of ["", "{}"]) {
+    const response = await proxyDemandRequest(sessionRequest(body), "session", { ...options, fetcher: (async (_url, init) => {
+      calls++; assert.equal(new Headers(init?.headers).get("x-edison-demand-token"), "b".repeat(64));
+      assert.equal(init?.body, body);
+      return Response.json({ error: { code: "guest_already_claimed", message: "Unavailable." } }, { status: 409 });
+    }) as typeof fetch });
+    assert.equal(response.status, 409); assert.equal(response.headers.get("set-cookie"), null);
+  }
+  const malformed = await proxyDemandRequest(sessionRequest("{}", { Cookie: "__Host-edison_demand=invalid" }), "session", { ...options,
+    fetcher: (async () => { calls++; return Response.json({}); }) as typeof fetch });
+  assert.equal(malformed.status, 401); assert.equal(calls, 2);
+});
+
+test("the account intent is never interpreted on another reading mutation", async () => {
+  const request = new Request("https://edisonreader.com/api/demand/loops", { method: "POST", body: '{"continueWithAccount":true}',
+    headers: { Origin: "https://edisonreader.com", Authorization: "Bearer constructed-member", Cookie: `__Host-edison_demand=${"b".repeat(64)}` } });
+  const response = await proxyDemandRequest(request, "loops", { ...options, fetcher: (async (_url, init) => {
+    assert.equal(new Headers(init?.headers).get("x-edison-demand-token"), "b".repeat(64));
+    assert.equal(init?.body, '{"continueWithAccount":true}');
+    return Response.json({ error: { code: "invalid_request", message: "Normal API contract rejects this body." } }, { status: 400 });
+  }) as typeof fetch });
+  assert.equal(response.status, 400); assert.equal(response.headers.get("set-cookie"), null);
+});
+
+test("account recovery preserves fixed target, origin, method, size and trusted-source guards", async () => {
+  let identityCalls = 0, fetchCalls = 0;
+  const getToken = async () => { identityCalls++; return workloadToken(); };
+  const fetcher = (async (_url, init) => {
+    fetchCalls++; const headers = new Headers(init?.headers);
+    assert.equal(headers.get("origin"), null); assert.equal(headers.get("x-edison-demand-token"), null);
+    assert.ok(headers.get("x-vercel-trusted-oidc-idp-token")); assert.equal(headers.get("authorization"), "Bearer constructed-member");
+    return Response.json({ workspace: accountWorkspace });
+  }) as typeof fetch;
+  for (const [request, path, expected] of [
+    [sessionRequest(undefined, { Origin: "https://evil.test" }), "session", 403],
+    [sessionRequest(undefined, { "Sec-Fetch-Site": "cross-site" }), "session", 403],
+    [sessionRequest(" ".repeat(8193)), "session", 413],
+    [sessionRequest(), "../session", 404],
+    [new Request("https://edisonreader.com/api/demand/session"), "session", 404],
+  ] as const) {
+    const response = await proxyDemandRequest(request, path, { ...options, apiUrl: protectedApiUrl, trustedSource: { apiUrl: protectedApiUrl, getToken }, fetcher });
+    assert.equal(response.status, expected); assert.equal(response.headers.get("set-cookie"), null);
+  }
+  assert.equal(identityCalls, 0); assert.equal(fetchCalls, 0);
+  const response = await proxyDemandRequest(sessionRequest(), "session", { ...options, apiUrl: protectedApiUrl, trustedSource: { apiUrl: protectedApiUrl, getToken }, fetcher });
+  assert.equal(response.status, 200); assert.equal(identityCalls, 1); assert.equal(fetchCalls, 1);
+});
+
+test("account recovery with no guest cookie changes no cookie and local retirement retains local cookie attributes", async () => {
+  const absent = await proxyDemandRequest(sessionRequest(undefined, { Cookie: "unrelated=retained" }), "session", { ...options,
+    fetcher: (async () => Response.json({ workspace: accountWorkspace })) as typeof fetch });
+  assert.equal(absent.status, 200); assert.equal(absent.headers.get("set-cookie"), null);
+  const local = new Request("http://localhost:4310/api/demand/session", { method: "POST", body: '{"continueWithAccount":true}',
+    headers: { Origin: "http://localhost:4310", Authorization: "Bearer constructed-member", Cookie: "edison_demand_dev=invalid" } });
+  const recovered = await proxyDemandRequest(local, "session", { ...options, production: false,
+    fetcher: (async () => Response.json({ workspace: accountWorkspace })) as typeof fetch });
+  assert.equal(recovered.headers.get("set-cookie"), "edison_demand_dev=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
+});
 test("demand relay permits only bounded reading routes", () => {
   assert.equal(isDemandProxyPath("POST", "session"), true);
   for (const path of ["../admin/jobs", "https://evil.example", "loops/../session", "private/profile", "session?url=evil"]) {

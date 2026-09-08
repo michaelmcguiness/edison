@@ -8,8 +8,9 @@ import { useEditorialDialogViewport } from "@/components/edison/editorial-compos
 import { allowanceResetLabel } from "./state";
 import { clearMatchingResetAttempt, definitiveResetRejection, resetPasswordFingerprint, validResetAttempt, type AllowanceResetAttempt } from "./reset-state";
 
-export function AllowanceWall({ workspaceId, allowance, onClose, onReset }: {
+export function AllowanceWall({ workspaceId, allowance, onClose, onRestoreFocus, onReset }: {
   workspaceId: string; allowance: DemandAllowance; onClose: () => void;
+  onRestoreFocus: () => void;
   onReset: (input: ResetDemandAllowance) => Promise<void>;
 }) {
   const storageKey = `edison:demand:allowance-reset:${workspaceId}`;
@@ -54,7 +55,11 @@ export function AllowanceWall({ workspaceId, allowance, onClose, onReset }: {
     finally { lock.current = false; if (mounted.current) setPending(false); }
   }
   return <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}><DialogContent ref={panel} className="demand-allowance-wall" showCloseButton={false}
-    onOpenAutoFocus={(event) => { event.preventDefault(); title.current?.focus(); }}>
+    onOpenAutoFocus={(event) => { event.preventDefault(); title.current?.focus(); }}
+    onCloseAutoFocus={(event) => {
+      // Match the modal teardown lifecycle, including browser Back and reset success.
+      event.preventDefault(); onRestoreFocus();
+    }}>
     <button type="button" className="demand-wall-close" aria-label="Close article allowance" onClick={onClose}><X aria-hidden="true" /></button>
     <p className="demand-card-kicker">Weekly allowance</p>
     <DialogTitle ref={title} tabIndex={-1}>{allowance.remaining === 0 ? "You’ve reached your article limit" : "Confirm your article allowance reset"}</DialogTitle>

@@ -61,6 +61,7 @@ export type DemandMutationResponse = {
 };
 
 let sessionPromise: Promise<DemandWorkspace> | null = null;
+let accountSessionPromise: Promise<DemandWorkspace> | null = null;
 
 export async function getDemandInvitations() {
   return demandInvitationsSchema.parse(await demandFetch("invitations"));
@@ -209,6 +210,24 @@ export function startDemandSession() {
       });
   }
   return sessionPromise;
+}
+
+/** Explicit user recovery only: open the verified account without claiming
+ * this browser's guest history. The server retains its cookie on failure. */
+export function startDemandAccountSession() {
+  if (!accountSessionPromise) {
+    accountSessionPromise = demandFetch("session", {
+      method: "POST", body: JSON.stringify({ continueWithAccount: true }),
+    }).then((payload) => {
+      const workspace = workspaceEnvelope(payload);
+      if (workspace.readerKind !== "account") {
+        throw new DemandClientError({ code: "invalid_response", status: 502,
+          message: "Edison could not confirm your account workspace. Please try again." });
+      }
+      return workspace;
+    }).finally(() => { accountSessionPromise = null; });
+  }
+  return accountSessionPromise;
 }
 
 export function beginDemandAccountFlow(intent: DemandAccountIntent) {

@@ -54,14 +54,15 @@ export async function proxyDemandRequest(request: Request, path: string, options
   }
   const insecureLocal = !options.production && ownUrl.protocol === "http:" && ["localhost", "127.0.0.1"].includes(ownUrl.hostname);
   const cookieName = insecureLocal ? "edison_demand_dev" : "__Host-edison_demand";
-  const token = request.headers.get("cookie")?.split(";").map((part) => part.trim())
-    .find((part) => part.startsWith(`${cookieName}=`))?.slice(cookieName.length + 1);
-  if (token && !/^[a-f0-9]{64}$/.test(token)) return fail(401, "guest_session_invalid", "This browser's reading session is not valid.");
+  const guestCookie = request.headers.get("cookie")?.split(";").map((part) => part.trim())
+    .find((part) => part.startsWith(`${cookieName}=`));
+  const token = guestCookie?.slice(cookieName.length + 1);
   const headers = new Headers({ "Content-Type": "application/json", Origin: ownUrl.origin });
   const authorization = request.headers.get("authorization");
+  const hasBearer = Boolean(authorization && /^Bearer \S+$/i.test(authorization));
   if (authorization) headers.set("Authorization", authorization);
-  if (token) headers.set("X-Edison-Demand-Token", token);
   let body: string | undefined;
+  let parsedBody: unknown;
   if (request.method !== "GET") {
     const reader = request.body?.getReader();
     let bytes = 0;
@@ -76,9 +77,34 @@ export async function proxyDemandRequest(request: Request, path: string, options
         body += decoder.decode(value, { stream: true });
       }
       body += decoder.decode();
-      if (body) JSON.parse(body);
+      if (body) parsedBody = JSON.parse(body);
     } catch { return fail(400, "invalid_json", "That request was not valid JSON."); }
   }
+  let continueWithAccount = false;
+  if (request.method === "POST" && path === "session" && body) {
+    if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+      return fail(400, "invalid_request", "That session request is not valid.");
+    }
+    const keys = Object.keys(parsedBody);
+    if (keys.length) {
+      if (keys.length !== 1 || keys[0] !== "continueWithAccount" ||
+          (parsedBody as { continueWithAccount?: unknown }).continueWithAccount !== true ||
+          !/^\s*\{\s*"continueWithAccount"\s*:\s*true\s*\}\s*$/.test(body)) {
+        return fail(400, "invalid_request", "That session request is not valid.");
+      }
+      if (!hasBearer) {
+        return fail(401, "sign_in_required", "Sign in before continuing with your account.");
+      }
+      // This explicit browser action neither claims nor deletes guest history.
+      // Membership and the account identity are still verified by the API.
+      continueWithAccount = true;
+      body = "{}";
+    }
+  }
+  if (!continueWithAccount && token && !/^[a-f0-9]{64}$/.test(token)) {
+    return fail(401, "guest_session_invalid", "This browser's reading session is not valid.");
+  }
+  if (!continueWithAccount && token) headers.set("X-Edison-Demand-Token", token);
   if (options.trustedSource) {
     try {
       // Obtain the short-lived workload identity only after validating the
@@ -107,13 +133,14 @@ export async function proxyDemandRequest(request: Request, path: string, options
     if (path === "session" && response.ok) {
       const payload = await response.json() as { workspace?: unknown; newGuestToken?: unknown };
       const workspace = demandWorkspaceSchema.parse(payload.workspace);
+      if (continueWithAccount && workspace.readerKind !== "account") throw new Error("invalid_session_response");
       if (payload.newGuestToken !== undefined) {
         if (workspace.readerKind !== "guest") throw new Error("invalid_session_response");
         if (typeof payload.newGuestToken !== "string" || !/^[a-f0-9]{64}$/.test(payload.newGuestToken)) throw new Error("invalid_session_response");
         outputHeaders.set("Set-Cookie", `${cookieName}=${payload.newGuestToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=7776000${insecureLocal ? "" : "; Secure"}`);
-      } else if (workspace.readerKind === "account" && authorization && token) {
-        // Only a confirmed account-session response can retire a transferred
-        // guest credential. Failed claims must leave the original cookie intact.
+      } else if (workspace.readerKind === "account" && hasBearer && (token || (continueWithAccount && guestCookie !== undefined))) {
+        // Only a confirmed account-session response can retire a transferred or
+        // explicitly left-behind credential. Failed/unknown outcomes keep it.
         outputHeaders.set("Set-Cookie", `${cookieName}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${insecureLocal ? "" : "; Secure"}`);
       }
       return Response.json({ workspace }, { status: response.status, headers: outputHeaders });

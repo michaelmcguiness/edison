@@ -24,6 +24,9 @@
  * Auth recovery controls (independent of Edison invitation expiry/credits):
  * {action:'auth-user',confirmed:boolean}, {action:'auth-link',status:'expired'|'valid'},
  * {action:'auth-fault',path:'otp'|'resend',mode:'rate-limited'|'unknown'}.
+ * {action:'session-error',code:'guest_session_invalid'|'reading_session_expired'|'guest_already_claimed'}
+ * arms one post-membership-gate session failure for UI review only. It does not
+ * inject or model a stale cookie; cookie behavior has separate proxy tests.
  * Unconfirmed OTP ->422 signup_disabled; explicit signup resend ->confirmation
  * link. GET state.latestAuthLink provides the exact synthetic replacement URL,
  * including original invitation/next and the SDK's optional pkce_ hash prefix.
@@ -88,6 +91,8 @@ const STAGES = ["queued", "researching", "checking-ideas", "writing", "checking"
 type PendingStage = typeof STAGES[number];
 type Reply = { status: number; body: unknown; headers?: Record<string, string>; loseResponse?: boolean; holdResponse?: boolean };
 type Fault = { mode: "fail" | "lose-response" | "hold-response"; path?: string };
+const SESSION_ERROR_CODES = ["guest_session_invalid", "reading_session_expired", "guest_already_claimed"] as const;
+type SessionErrorCode = typeof SESSION_ERROR_CODES[number];
 
 export function assertFixtureEnvironment(environment: Readonly<Record<string, string | undefined>>) {
   if ((environment.EDISON_V10_FIXTURE !== "1" && environment.EDISON_V11_FIXTURE !== "1" && environment.EDISON_V11_MEMBER_FIXTURE !== "1") || environment.NODE_ENV === "production" || environment.VERCEL !== undefined) {
@@ -152,6 +157,7 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
   let originalAuthLinkExpired = false;
   let latestAuthLink: { url: string; template: "confirmation" | "magic_link"; tokenHash: string } | null = null;
   let authFault: { path: "otp" | "resend"; mode: "rate-limited" | "unknown" } | null = null;
+  let sessionError: SessionErrorCode | null = null;
   let nextDelivery: "sent" | "failed" | "unknown" = "sent";
   let invitationClock = BASE_TIME;
   const syntheticAuthRequests = { otp: 0, resend: 0, verify: 0, user: 0, logout: 0, refresh: 0 };
@@ -165,7 +171,7 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
   let nextStage: PendingStage = "queued";
   let fault: Fault | null = null;
   const counters = { sessions: 0, mutations: 0, replays: 0, admittedRequests: 0, completions: 0,
-    questions: 0, shares: 0, edits: 0, archives: 0, opened: 0, saved: 0, lostResponses: 0, failures: 0 };
+    questions: 0, shares: 0, edits: 0, archives: 0, opened: 0, saved: 0, lostResponses: 0, failures: 0, sessionErrors: 0 };
   const timestamp = () => new Date(BASE_TIME + clock++ * 1000).toISOString();
   const newId = () => id(serial++);
   const pending = (request: DemandRequest) => request.status === "queued" || request.status === "running";
@@ -337,6 +343,7 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
     readerKind = options.member ? "account" : "guest"; allowanceUsed = 6; periodUsed = 6; allowanceRevision = 0; manualResetAt = null;
     invitations.clear(); memberStatus = "active"; syntheticSessionActive = false; nextDelivery = "sent"; invitationClock = BASE_TIME;
     syntheticEmailConfirmed = true; originalAuthLinkExpired = false; latestAuthLink = null; authFault = null;
+    sessionError = null;
     for (const key of Object.keys(syntheticAuthRequests) as (keyof typeof syntheticAuthRequests)[]) syntheticAuthRequests[key] = 0;
     if (options.member) invitations.set(LOCAL_MEMBER_FIXTURE.invitationId, { id: LOCAL_MEMBER_FIXTURE.invitationId,
       email: LOCAL_MEMBER_FIXTURE.email, status: "sent", createdAt: new Date(BASE_TIME).toISOString(),
@@ -445,7 +452,7 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
         syntheticMember: { ...LOCAL_MEMBER_FIXTURE, status: memberStatus, sessionActive: syntheticSessionActive, emailConfirmed: syntheticEmailConfirmed,
           signInPath: localMemberConfirmationPath(), invitationPath: localMemberConfirmationPath(true) },
         invitations: invitationList(), nextDelivery, invitationClock: new Date(invitationClock).toISOString(),
-        originalAuthLinkExpired, latestAuthLink: copy(latestAuthLink), authFault: copy(authFault) } : {}) };
+        originalAuthLinkExpired, latestAuthLink: copy(latestAuthLink), authFault: copy(authFault), sessionError } : {}) };
   }
   function control(input: Record<string, unknown>): Reply {
     const stage = input.stage;
@@ -463,6 +470,9 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
     } else if (options.member && input.action === "auth-fault") {
       if (!["otp", "resend"].includes(String(input.path)) || !["rate-limited", "unknown"].includes(String(input.mode))) throw new Error("invalid_auth_fault");
       authFault = { path: input.path as "otp" | "resend", mode: input.mode as "rate-limited" | "unknown" };
+    } else if (options.member && input.action === "session-error") {
+      if (!SESSION_ERROR_CODES.includes(input.code as SessionErrorCode) || Object.keys(input).some((key) => key !== "action" && key !== "code")) throw new Error("invalid_session_error");
+      sessionError = input.code as SessionErrorCode;
     } else if (options.member && input.action === "invitation-delivery") {
       if (!["sent", "failed", "unknown"].includes(String(input.outcome))) throw new Error("invalid_delivery");
       nextDelivery = input.outcome as typeof nextDelivery;
@@ -726,7 +736,13 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
       if (parts[0] !== "v1" || parts[1] !== "demand") return error(404, "not_found", "No fixture route exists here.");
       if (!options.member && headers.authorization) return error(401, "fixture_guest_only", "This fixture never accepts real account credentials.");
       if (parts[2] === "session" && method === "POST") {
-        if (options.member) { counters.sessions++; return { status: 200, body: { workspace: workspace() } }; }
+        if (options.member) {
+          if (sessionError && path === "/v1/demand/session" && !url.search) {
+            const code = sessionError; sessionError = null; counters.sessionErrors++;
+            return error(code === "guest_already_claimed" ? 409 : 401, code, "Constructed one-use earlier-browser session failure. No cookie or reading data was changed.");
+          }
+          counters.sessions++; return { status: 200, body: { workspace: workspace() } };
+        }
         if (headers["x-edison-demand-token"] && headers["x-edison-demand-token"] !== TOKEN) return error(401, "guest_session_invalid", "Unknown synthetic session.");
         counters.sessions++;
         if (options.v11 && readerKind === "account" && !headers["x-edison-demand-token"]) return error(401, "fixture_session_required", "Start as a synthetic guest before switching the fixture to account UI.");

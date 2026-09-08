@@ -250,6 +250,63 @@ test("verified member handoff tolerates only the exact old synthetic guest cooki
   assert.equal((await fixture.handle("POST", "/v1/demand/session", {}, { ...bearer, "x-edison-demand-token": "external-token" })).status, 401);
 });
 
+test("operator-only member session failures are one-use and cannot be consumed by anonymous or revoked readers", async () => {
+  for (const code of ["guest_session_invalid", "reading_session_expired", "guest_already_claimed"] as const) {
+    const { fixture } = await memberFixture();
+    const bearer = { authorization: `Bearer ${LOCAL_MEMBER_FIXTURE_ACCESS_TOKEN}` };
+    const operator = (body: unknown) => fixture.handle("POST", "/__fixture/control", body, { "x-edison-fixture-operator": "local-only" });
+    const initial = await fixture.handle("GET", "/v1/demand/workspace", {}, bearer);
+    const history = await fixture.handle("GET", "/v1/demand/history?scope=saved", {}, bearer);
+    const counters = fixture.state().counters;
+    assert.equal((await fixture.handle("POST", "/__fixture/control", { action: "session-error", code })).status, 403);
+    assert.equal(fixture.state().sessionError, null);
+    assert.equal((await operator({ action: "session-error", code })).status, 200);
+    assert.equal(fixture.state().sessionError, code);
+    assert.equal((await fixture.handle("POST", "/v1/demand/session")).status, 401);
+    for (const status of ["pending", "revoked"] as const) {
+      await operator({ action: "member", status });
+      assert.equal((await fixture.handle("POST", "/v1/demand/session", {}, bearer)).status, 403);
+      assert.equal(fixture.state().sessionError, code);
+      assert.equal(fixture.state().counters.sessionErrors, counters.sessionErrors);
+    }
+    await operator({ action: "member", status: "active" });
+    assert.deepEqual(await fixture.handle("GET", "/v1/demand/workspace", {}, bearer), initial, "ordinary reads do not consume or mutate the constructed fault");
+    const failed = await fixture.handle("POST", "/v1/demand/session", {}, bearer);
+    assert.equal(failed.status, code === "guest_already_claimed" ? 409 : 401);
+    assert.equal((failed.body as { error: { code: string } }).error.code, code);
+    assert.equal(fixture.state().sessionError, null);
+    assert.equal(fixture.state().counters.sessionErrors, counters.sessionErrors + 1);
+    assert.equal(fixture.state().counters.sessions, counters.sessions);
+    const recovered = await fixture.handle("POST", "/v1/demand/session", {}, bearer);
+    assert.equal(recovered.status, 200);
+    assert.deepEqual(recovered.body, initial.body, "the same account, allowance, requests, and current articles return without a reset");
+    assert.deepEqual(await fixture.handle("GET", "/v1/demand/history?scope=saved", {}, bearer), history);
+    assert.equal(fixture.state().counters.sessions, counters.sessions + 1);
+    assert.equal(fixture.state().counters.mutations, counters.mutations);
+    assert.equal(fixture.state().providerCalls, 0);
+    assert.equal(fixture.state().databaseCalls, 0);
+  }
+});
+
+test("session error control rejects unsupported modes and extra payloads, and fixture reset disarms it", async () => {
+  const { fixture } = await memberFixture();
+  const headers = { "x-edison-fixture-operator": "local-only" };
+  for (const input of [{ action: "session-error", code: "other" }, { action: "session-error", code: "guest_session_invalid", cookie: "must-not-be-accepted" }]) {
+    assert.notEqual((await fixture.handle("POST", "/__fixture/control", input, headers)).status, 200);
+    assert.equal(fixture.state().sessionError, null);
+  }
+  assert.equal((await fixture.handle("POST", "/__fixture/control", { action: "session-error", code: "guest_session_invalid" }, { ...headers, origin: LOCAL_MEMBER_FIXTURE.origin })).status, 403);
+  for (const fixtureOptions of [{}, { v11: true }]) {
+    const nonmember = createV10Fixture(fixtureOptions);
+    assert.notEqual((await nonmember.handle("POST", "/__fixture/control", { action: "session-error", code: "guest_session_invalid" }, headers)).status, 200);
+    assert.equal(nonmember.state().sessionError, undefined);
+  }
+  await fixture.handle("POST", "/__fixture/control", { action: "session-error", code: "guest_already_claimed" }, headers);
+  await fixture.handle("POST", "/__fixture/control", { action: "reset" }, headers);
+  assert.equal(fixture.state().sessionError, null);
+  assert.equal(fixture.state().counters.sessionErrors, 0);
+});
+
 test("expired Auth links renew unconfirmed users through SDK signup resend without changing the Edison invitation or its slot", async () => {
   const fixture = createV10Fixture({ member: true });
   const operator = (body: unknown) => fixture.handle("POST", "/__fixture/control", body, { "x-edison-fixture-operator": "local-only" });

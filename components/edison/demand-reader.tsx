@@ -73,6 +73,8 @@ import {
   requestDemandIdeas,
   retryDemandRequest,
   startDemandSession,
+  startDemandAccountSession,
+  DemandClientError,
   updateDemandIdeaEvent,
   getDemandAccountIdentity,
   signOutDemandAccount,
@@ -108,6 +110,7 @@ export const browserDemandReaderClient = {
   requestDemandIdeas,
   retryDemandRequest,
   startDemandSession,
+  startDemandAccountSession,
   updateDemandIdeaEvent,
   getDemandAccountIdentity,
   signOutDemandAccount,
@@ -315,6 +318,28 @@ function readableError(error: unknown) {
   return error instanceof Error
     ? error.message
     : "Edison could not complete that request. Please try again.";
+}
+
+export function canContinueDemandAccount(error: unknown) {
+  return error instanceof DemandClientError && ["guest_session_invalid", "reading_session_expired", "guest_already_claimed"].includes(error.code);
+}
+
+export async function runDemandAccountRecovery(lock: MutableRefObject<boolean>, start: () => Promise<DemandWorkspace>, restore: (workspace: DemandWorkspace) => Promise<void>) {
+  if (lock.current) return;
+  lock.current = true;
+  try { await restore(await start()); }
+  finally { lock.current = false; }
+}
+
+export function DemandStartupFailure({ error, canContinueAccount, pending, onContinueAccount, onRetry }: {
+  error: string; canContinueAccount: boolean; pending: boolean; onContinueAccount: () => void; onRetry: () => void;
+}) {
+  return <><h1>We couldn’t open your reading.</h1>
+    {canContinueAccount ? <p>This browser’s earlier reading couldn’t be attached. Your account’s reading is still available.</p> : null}
+    {error ? <p role="alert">{error}</p> : null}
+    {canContinueAccount ? <button type="button" className="demand-primary" disabled={pending} onClick={onContinueAccount}>{pending ? "Opening your account…" : "Continue with my account"}</button> : null}
+    <button type="button" className={canContinueAccount ? "demand-text-action" : "demand-primary"} disabled={pending} onClick={onRetry}>Try again</button>
+  </>;
 }
 
 function requestStage(stage: DemandRequest["stage"]) {
@@ -640,6 +665,11 @@ export function DemandReader({
   const [resultLoadFailed, setResultLoadFailed] = useState(false);
   const [returnTarget, setReturnTarget] = useState<ReturnTarget | null>(null);
   const [pageError, setPageError] = useState("");
+  const [canContinueAccount, setCanContinueAccount] = useState(false);
+  const [accountRecoveryPending, setAccountRecoveryPending] = useState(false);
+  const accountRecoveryAllowed = useRef(false);
+  const accountRecoveryLock = useRef(false);
+  const accountRecoveryAction = useRef<(() => Promise<void>) | null>(null);
   const [loading, setLoading] = useState(initialWorkspace === null);
   const openedIdeas = useRef(new Set<string>());
   const selectedIdeaRef = useRef<string | null>(null);
@@ -860,6 +890,8 @@ export function DemandReader({
     const restore = async (next: DemandWorkspace) => {
       if (!current) return;
       publishWorkspace(workspaceResponses.hydrate(next));
+      accountRecoveryAllowed.current = false;
+      setCanContinueAccount(false);
       setLoading(false);
       if (!isCurrentIntent()) return;
       continuityRestored.current = false;
@@ -923,26 +955,40 @@ export function DemandReader({
         },
       });
     };
+    const continueWithAccount = async () => {
+      if (!current || !accountRecoveryAllowed.current || accountRecoveryLock.current) return;
+      setAccountRecoveryPending(true); setPageError("");
+      try { await runDemandAccountRecovery(accountRecoveryLock, client.startDemandAccountSession, restore); }
+      catch {
+        if (current) setPageError("We couldn’t confirm your account session. Try again when you’re ready. Your earlier reading hasn’t been changed.");
+      } finally { if (current) setAccountRecoveryPending(false); }
+    };
+    accountRecoveryAction.current = continueWithAccount;
     if (initialWorkspace) {
       queueMicrotask(() => { void restore(initialWorkspace); });
-      return () => { current = false; };
+      return () => { current = false; if (accountRecoveryAction.current === continueWithAccount) accountRecoveryAction.current = null; };
     }
     void client.startDemandSession().then(restore)
       .catch((error) => {
         if (!isCurrentIntent()) return;
         if (continuityIntent > 0) failRestoration(error);
-        else setPageError(readableError(error));
+        else {
+          const recoverable = canContinueDemandAccount(error);
+          accountRecoveryAllowed.current = recoverable; setCanContinueAccount(recoverable);
+          setPageError(recoverable ? "" : readableError(error));
+        }
       })
       .finally(() => current && setLoading(false));
     return () => {
       current = false;
+      if (accountRecoveryAction.current === continueWithAccount) accountRecoveryAction.current = null;
     };
   }, [client, continuityIntent, historyReader, initialWorkspace, loadHistoryPage, publishWorkspace, restoreArticleRoute, returnToOrigin, workspaceResponses, workspaceForOrigin]);
 
   useEffect(() => {
     if (!workspace) return;
     const onPopState = () => {
-      if (actionOverlayRef.current) { actionOverlayRef.current = null; setAllowanceOpen(false); requestAnimationFrame(() => restoreDemandDialogFocus(allowanceOpenerRef.current, readingSurfaceRef.current)); return; }
+      if (actionOverlayRef.current) { actionOverlayRef.current = null; setAllowanceOpen(false); return; }
       const intent = ++navigationIntentRef.current;
       setAskOpen(false); setShareOpen(false); setCurateOpen(false);
       const selection = parseDemandRoute(window.location.pathname, window.location.search);
@@ -1918,7 +1964,7 @@ export function DemandReader({
   function content() {
     if (loading) return <main ref={readingSurfaceRef} tabIndex={-1} className="demand-loading" role="status"><EdisonMark /><p>Opening your reading workspace…</p></main>;
     if (recoveringContinuity || continuityFailure) return <main ref={readingSurfaceRef} tabIndex={-1} className="demand-loading"><h1>{continuityFailure ? "We couldn’t restore your reading yet." : "Restoring your article…"}</h1>{continuityFailure ? <><p role="alert">{continuityFailure}</p><button type="button" className="demand-primary" onClick={retryContinuityRestoration}>Try restoring again</button><button type="button" className="demand-text-action" onClick={() => openWorkspaceView("library")}>Back to Library</button></> : <p role="status">Recovering the saved article and its original reading page.</p>}</main>;
-    if (!workspace) return <main ref={readingSurfaceRef} tabIndex={-1} className="demand-loading"><h1>We couldn’t open your reading.</h1><p>{pageError}</p><button type="button" className="demand-primary" onClick={() => window.location.reload()}>Try again</button></main>;
+    if (!workspace) return <main ref={readingSurfaceRef} tabIndex={-1} className="demand-loading" aria-busy={accountRecoveryPending}><DemandStartupFailure error={pageError} canContinueAccount={canContinueAccount} pending={accountRecoveryPending} onContinueAccount={() => { void accountRecoveryAction.current?.(); }} onRetry={() => window.location.reload()} /></main>;
     if (view === "loop") return renderLoop();
     if (view === "request") return renderRequest();
     if (view === "article") return renderArticle();
@@ -1951,7 +1997,8 @@ export function DemandReader({
         {loopsError ? <p role="alert" className="demand-page-error">{loopsError}</p> : null}{content()}
       </ReaderShell>
       <CreateLoopDialog openerRef={createOpenerRef} fallbackRef={readingSurfaceRef} open={createOpen} draft={createDraft} pending={createPending} error={createError || (!createPending && createAttemptRef.current ? "A previous request needs confirmation. Create loop will check that same request; your newer draft is retained." : "")} onOpenChange={setCreateOpen} onDraftChange={(draft) => { setCreateDraft(draft); setCreateError(""); if (workspace) writeDraft("create", workspace.workspaceId, draft); }} onSubmit={() => void createLoopAndIdeas()} />
-      {allowanceOpen && workspace?.allowance ? <AllowanceWall workspaceId={workspace.workspaceId} allowance={workspace.allowance} onClose={closeActionOverlay} onReset={async (input) => {
+      {allowanceOpen && workspace?.allowance ? <AllowanceWall workspaceId={workspace.workspaceId} allowance={workspace.allowance} onClose={closeActionOverlay}
+        onRestoreFocus={() => { restoreDemandDialogFocus(allowanceOpenerRef.current, readingSurfaceRef.current); }} onReset={async (input) => {
         const ticket = workspaceResponses.beginMutation();
         try { const result = await client.resetDemandAllowance(input); if (publishWorkspace(workspaceResponses.acceptMutation(ticket, result.workspace))) { setHasPendingReset(false); setAllowanceStatus(`Allowance reset. ${result.workspace.allowance?.remaining ?? "Your"} articles available. Choose Refresh articles or New loop when you’re ready.`); } }
         finally { workspaceResponses.finishMutation(ticket); }
@@ -1961,7 +2008,8 @@ export function DemandReader({
         onSave={(draft, key, revision) => editLoop(draft, key, revision)} onDelete={(key, revision) => deleteLoop(key, revision)}
         onUndo={curateLoop.canUndo && curateLoop.lastMutationId ? () => submitFeedback("undo") : undefined}
         pendingUndo={feedbackSubmittingLoopId === curateLoop.id || Boolean(feedbackRequestId)} status={feedbackStatus} error={feedbackError}
-        onClose={() => { setCurateOpen(false); restoreDemandDialogFocus(curateOpenerRef.current, readingSurfaceRef.current); }} /> : null}
+        onClose={() => { setCurateOpen(false); }}
+        onRestoreFocus={() => { restoreDemandDialogFocus(curateOpenerRef.current, readingSurfaceRef.current); }} /> : null}
       {selectedArticle && selectedIdea && workspace && view === "article" ? <ArticleConversation key={`${workspace.workspaceId}:${selectedArticle.id}`} article={selectedArticle}
         workspaceId={workspace.workspaceId} ideaId={selectedIdea.id} loopId={selectedIdea.loopId} open={askOpen} getResult={client.getDemandResult}
         getConversation={(cursor) => client.getDemandConversation(selectedArticle.id, cursor ? { cursor } : {})}

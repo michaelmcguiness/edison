@@ -1,12 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
+import { Script } from "node:vm";
+import ts from "typescript";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { demandInvitationsSchema, demandWorkspaceSchema, type DemandInvitationMutation } from "@edison/contracts";
-import { InviteFriends } from "../components/edison/demand-v11/invitations";
+import { invitationSubmitAction, InvitationTiming, InviteFriends } from "../components/edison/demand-v11/invitations";
 import { ReaderAccount } from "../components/edison/demand-v11/account";
 import { clearInvitationAttempt, executeInvitationAttempt, invitationReceiptNotice, invitationStateLabel, sameInvitationRecipient, validInvitationAttempt, type InvitationAttempt, type InvitationClient } from "../components/edison/demand-v11/invitation-state";
+import * as invitationState from "../components/edison/demand-v11/invitation-state";
+import { definitiveResetRejection } from "../components/edison/demand-v11/reset-state";
+import { invitationExpiryLabel } from "../components/auth/invitation-entry-state";
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const now = "2026-09-07T12:00:00.000Z";
@@ -27,6 +32,125 @@ function clientWithCalls(calls: unknown[]): InvitationClient {
 
 test("invitation status labels distinguish admission, delivery, and acceptance", () => {
   assert.deepEqual(["pending", "sending", "sent", "failed", "expired", "revoked", "redeemed"].map((status) => invitationStateLabel(status as typeof invitation.status)), ["Confirming send…", "Confirming send…", "Pending", "Not sent", "Expired", "Revoked", "Accepted"]);
+});
+
+test("normalized invitation form action prioritizes unresolved attempts, then known active recipients", () => {
+  const email = "  READER@example.COM  ";
+  assert.equal(invitationSubmitAction(email, [{ ...invitation, status: "sending" }], null).kind, "check");
+  for (const status of ["sent", "pending"] as const) {
+    const action = invitationSubmitAction(email, [{ ...invitation, status }], null);
+    assert.equal(action.kind, "resend");
+    assert.equal(action.invitation?.id, invitation.id);
+  }
+  for (const status of ["expired", "revoked", "failed", "redeemed"] as const) {
+    assert.equal(invitationSubmitAction(email, [{ ...invitation, status }], null).kind, "send");
+  }
+  assert.equal(invitationSubmitAction("another@example.com", [invitation], null).kind, "send");
+  const recovery = invitationSubmitAction("a newer unfinished draft", [invitation], operation);
+  assert.equal(recovery.kind, "recover");
+  assert.equal(recovery.attempt, operation);
+  assert.equal(recovery.label, "Check status");
+});
+
+type ConstructedNode = { type: unknown; props: Record<string, unknown> };
+function invitationFormHarness(email: string, data: typeof ledger, client: InvitationClient, attempt: InvitationAttempt | null = null) {
+  const states: unknown[] = [email, attempt, data, "ready", false, "", "", null];
+  let stateIndex = 0;
+  const exports: { InviteFriends?: (props: { workspaceId: string; client: InvitationClient }) => ConstructedNode } = {};
+  const jsx = (type: unknown, props: Record<string, unknown>) => ({ type, props });
+  new Script(ts.transpileModule(ui, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText)
+    .runInNewContext({ exports, crypto, localStorage: { getItem: () => null, setItem() {} }, require(name: string) {
+      if (name === "react") return { useState: () => { const slot = stateIndex++; return [states[slot], (value: unknown) => { states[slot] = value; }]; },
+        useRef: (current: unknown) => ({ current }), useEffect() {}, useCallback: (value: unknown) => value, useId: () => "constructed-form" };
+      if (name === "react/jsx-runtime") return { jsx, jsxs: jsx };
+      if (name === "./invitation-state") return invitationState;
+      if (name === "./reset-state") return { definitiveResetRejection };
+      if (name === "@/components/auth/invitation-entry-state") return { invitationExpiryLabel };
+      throw new Error(`Unexpected invitation UI dependency: ${name}`);
+    } });
+  const tree = exports.InviteFriends!({ workspaceId: id(99), client });
+  const form = (tree.props.children as Array<ConstructedNode | null>).find((node) => node?.type === "form")!;
+  assert.ok(form);
+  const button = (form.props.children as ConstructedNode[]).find((node) => node.type === "button")!;
+  return { form, button, states, submit: () => (form.props.onSubmit as (event: { preventDefault: () => void }) => void)({ preventDefault() {} }) };
+}
+const settleForm = async () => { for (let step = 0; step < 8; step++) await Promise.resolve(); };
+
+test("primary submit and Enter only check a known sending recipient and synchronously suppress duplicates", async () => {
+  const calls: unknown[] = [];
+  const client = clientWithCalls(calls);
+  let resolve!: (value: typeof ledger) => void;
+  client.getDemandInvitations = () => { calls.push(["list"]); return new Promise((done) => { resolve = done; }); };
+  const pendingLedger = { ...ledger, invitations: [{ ...invitation, status: "sending" as const }] };
+  const form = invitationFormHarness("  READER@example.COM  ", pendingLedger, client);
+  assert.equal(form.button.props.children, "Check status");
+  assert.equal(form.button.props.disabled, false);
+  form.submit(); form.submit();
+  assert.deepEqual(calls, [["list"]]);
+  resolve(pendingLedger); await settleForm();
+  assert.equal(form.states[0], "  READER@example.COM  ");
+  assert.equal(form.states[4], false);
+});
+
+test("primary submit and Enter resend the same known invitation even when no new slots remain", async () => {
+  for (const status of ["sent", "pending"] as const) {
+    const calls: unknown[] = [];
+    const form = invitationFormHarness("reader@EXAMPLE.com", { ...ledger, redeemed: 4, reserved: 1, remaining: 0, invitations: [{ ...invitation, status }] }, clientWithCalls(calls));
+    assert.equal(form.button.props.children, "Resend invitation");
+    form.submit(); form.submit(); await settleForm();
+    assert.equal((calls[0] as unknown[])[0], "resend");
+    assert.equal((calls[0] as unknown[])[1], invitation.id);
+    assert.equal(calls.filter((call) => (call as unknown[])[0] === "resend").length, 1);
+    assert.equal(calls.some((call) => (call as unknown[])[0] === "send"), false);
+    assert.equal(form.states[0], "reader@EXAMPLE.com");
+  }
+});
+
+test("Enter replays an unresolved operation despite a newer draft, while unrelated recipients remain new sends", async () => {
+  const calls: unknown[] = [];
+  const form = invitationFormHarness("newer unfinished draft", ledger, clientWithCalls(calls), operation);
+  assert.equal(form.button.props.children, "Check status");
+  assert.equal(form.form.props.noValidate, true, "recovery must not be blocked by the newer draft’s email validation");
+  form.submit(); form.submit(); await settleForm();
+  assert.deepEqual(calls[0], ["send", { email: operation.email, idempotencyKey: operation.key }]);
+  assert.equal(calls.filter((call) => (call as unknown[])[0] === "send").length, 1);
+  assert.equal(form.states[0], "newer unfinished draft");
+  const otherCalls: unknown[] = [];
+  const other = invitationFormHarness("another@example.com", { ...ledger, invitations: [{ ...invitation, status: "sending" }] }, clientWithCalls(otherCalls));
+  assert.equal(other.button.props.children, "Send invitation");
+  assert.equal(other.form.props.noValidate, false);
+  other.submit(); await settleForm();
+  assert.equal((otherCalls[0] as unknown[])[0], "send");
+  assert.equal(((otherCalls[0] as unknown[])[1] as { email: string }).email, "another@example.com");
+});
+
+test("invitation rows show actual expiry with date, time and timezone rather than creation date", () => {
+  for (const status of ["pending", "sending", "sent", "expired"] as const) {
+    const html = renderToStaticMarkup(createElement(InvitationTiming, { invitation: { ...invitation, status } }));
+    assert.match(html, new RegExp(`<small>${status === "expired" ? "Expired" : "Expires"} `));
+    assert.match(html, /dateTime="2026-09-14T12:00:00.000Z"/);
+    assert.match(html, /September 14, 2026.*12:00.*UTC/);
+    assert.doesNotMatch(html, /September 7/);
+  }
+  assert.match(ui, /<InvitationTiming invitation=\{invitation\} \/>/);
+  const css = readFileSync(new URL("../app/demand.css", import.meta.url), "utf8");
+  assert.match(css, /\.demand-invitation-row \{[^}]*grid-template-columns: minmax\(0, 1fr\) auto/);
+  assert.match(css, /\.demand-invitation-row > small \{[^}]*grid-column: 1\/-1/);
+});
+
+test("accepted invitation date stays acceptance, not expiry, and closed links do not promise validity", () => {
+  const acceptedAt = "2026-09-08T16:35:00.000Z";
+  const accepted = renderToStaticMarkup(createElement(InvitationTiming, { invitation: { ...invitation, status: "redeemed", redeemedAt: acceptedAt } }));
+  assert.match(accepted, /<small>Accepted /);
+  assert.match(accepted, /September 8, 2026.*4:35.*UTC/);
+  assert.match(accepted, /dateTime="2026-09-08T16:35:00.000Z"/);
+  assert.doesNotMatch(accepted, /Expire/);
+  assert.equal(renderToStaticMarkup(createElement(InvitationTiming, { invitation: { ...invitation, status: "redeemed", redeemedAt: null } })), "");
+  for (const status of ["failed", "revoked"] as const) {
+    const html = renderToStaticMarkup(createElement(InvitationTiming, { invitation: { ...invitation, status } }));
+    assert.match(html, /<small>Created /);
+    assert.doesNotMatch(html, /Expire/);
+  }
 });
 
 test("send and resend confirmations use operation delivery, never the original invitation status", () => {

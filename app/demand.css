@@ -246,9 +246,10 @@ body:has(.invitation-entry) { border-top: 0; }
   color: #fff;
 }
 
-.demand-idea-card:nth-child(4n + 2) { background: #73535c; }
-.demand-idea-card:nth-child(4n + 3) { background: #5d6048; }
-.demand-idea-card:nth-child(4n + 4) { background: #4d526b; }
+/* Legacy colored cards must not override the v11 paper-and-ink surface. */
+.demand-idea-card:not(.demand-article-card):nth-child(4n + 2) { background: #73535c; }
+.demand-idea-card:not(.demand-article-card):nth-child(4n + 3) { background: #5d6048; }
+.demand-idea-card:not(.demand-article-card):nth-child(4n + 4) { background: #4d526b; }
 
 .demand-idea-open-target {
   position: absolute;

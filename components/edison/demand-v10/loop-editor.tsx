@@ -29,11 +29,12 @@ export function clearResolvedLoopEditAttempt(key: string, attemptId: string) {
   return true;
 }
 
-export function LoopEditor({ loop, workspaceId, instructions, onSave, onDelete, onClose, onUndo, pendingUndo, status, error: undoError }: {
+export function LoopEditor({ loop, workspaceId, instructions, onSave, onDelete, onClose, onRestoreFocus, onUndo, pendingUndo, status, error: undoError }: {
   loop: DemandLoop; workspaceId: string; instructions: string;
   onSave: (draft: LoopEditDraft, idempotencyKey: string, baseRevision: number) => Promise<void>;
   onDelete: (idempotencyKey: string, baseRevision: number) => Promise<void>;
   onClose: () => void;
+  onRestoreFocus: () => void;
   onUndo?: () => Promise<void>; pendingUndo?: boolean; status?: string; error?: string;
 }) {
   const key = `edison:demand:loop-editor:${workspaceId}:${loop.id}`;
@@ -93,7 +94,11 @@ export function LoopEditor({ loop, workspaceId, instructions, onSave, onDelete, 
       }
     } finally { lock.current = false; if (mounted.current) setPending(false); }
   }
-  return <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}><DialogContent ref={panel} className="demand-loop-editor demand-v11-editor" showCloseButton={false} onOpenAutoFocus={(event) => { event.preventDefault(); name.current?.focus(); }}>
+  return <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}><DialogContent ref={panel} className="demand-loop-editor demand-v11-editor" showCloseButton={false} onOpenAutoFocus={(event) => { event.preventDefault(); name.current?.focus(); }}
+    onCloseAutoFocus={(event) => {
+      // There is no DialogTrigger: restore only after Radix releases the modal trap.
+      event.preventDefault(); onRestoreFocus();
+    }}>
     <header className="demand-mini-head"><DialogTitle id={`${id}-title`}>{confirmDelete ? "Delete this loop?" : "Edit loop"}</DialogTitle><button type="button" onClick={onClose} aria-label="Close loop editor"><X aria-hidden="true" /></button></header>
     <DialogDescription className="demand-visually-hidden">Edit this loop’s name and Direction. Changes apply to future articles.</DialogDescription>
     {confirmDelete ? <><p><strong>{loop.title}</strong> will disappear from your loops. Saved reading stays in Library. Existing articles and conversations remain available through reading history and their article links.</p><p className="demand-scope-note">Already-started generation is not cancelled by deleting this loop.</p>
