@@ -51,7 +51,8 @@ test("finite overflow bounds do not expose an infinite carousel or detached menu
   assert.match(html, /demand-loop-scroller/);
   assert.ok(html.indexOf("For You") < html.indexOf("Sports"));
   assert.ok(html.indexOf("demand-new-loop") > html.indexOf("A long literal direction"));
-  assert.match(html, /Curate/);
+  assert.match(html, />Edit loop</);
+  assert.doesNotMatch(html, />Curate</);
 });
 
 test("loop drafts distinguish unapplied edits including removing all instructions", () => {

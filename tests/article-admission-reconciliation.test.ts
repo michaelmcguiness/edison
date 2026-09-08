@@ -5,7 +5,7 @@ import { Script } from "node:vm";
 import test from "node:test";
 import ts from "typescript";
 import * as jsxRuntime from "react/jsx-runtime";
-import type { DemandArticle, DemandIdeaResult, DemandRequest, DemandWorkspace } from "@edison/contracts";
+import type { DemandArticle, DemandIdeaResult, DemandRequest, DemandResult, DemandWorkspace } from "@edison/contracts";
 import { DemandClientError } from "../lib/demand-client";
 import { ambiguousArticleAdmission, ARTICLE_ADMISSION_BACKOFF, reconcileArticleAdmission } from "../components/edison/demand-v13/article-admission-reconciliation";
 import { createV10Fixture } from "../scripts/demand-v10-browser-fixture";
@@ -41,7 +41,7 @@ async function scenario() {
   const result = reply.body as { article: DemandArticle; request: DemandRequest };
   target.articleRequestId = null;
   workspace.requests = workspace.requests.filter((request) => request.id !== result.request.id && request.status === "succeeded");
-  const state = { workspace, result, target, reads: 0, posts: [] as { ideaId: string; idempotencyKey: string }[], bodies: 0,
+  const state = { workspace, result: { ...result, answer: null } as DemandResult, target, reads: 0, posts: [] as { ideaId: string; idempotencyKey: string }[], bodies: 0,
     exact: { workspaceId: workspace.workspaceId, idea: target, request: null } as DemandIdeaResult };
   const client = {
     startDemandSession: async () => state.workspace,
@@ -53,7 +53,8 @@ async function scenario() {
     updateDemandIdeaEvent: async () => ({ workspace: state.workspace }),
   };
   const admit = (status: DemandRequest["status"] = "succeeded") => {
-    state.result = { ...state.result, request: { ...state.result.request, status, stage: status === "succeeded" ? "ready" : "writing" } };
+    state.result = { ...state.result, article: status === "succeeded" ? result.article : null,
+      request: { ...state.result.request, status, stage: status === "succeeded" ? "ready" : "writing" } };
     state.exact = { workspaceId: workspace.workspaceId, idea: { ...target, articleRequestId: result.request.id }, request: state.result.request };
   };
   return { state, client, admit };
@@ -137,11 +138,13 @@ function mountReader(client: object, initialWorkspace: DemandWorkspace, saved = 
     clock = end; await settle();
   }
   flush();
-  return { saved, navigator, doc, settle, advance, path: () => location.pathname + location.search,
+  return { saved, navigator, doc, settle, advance, now: () => clock, wait: (milliseconds: number) => new Promise<void>((resolve) => schedule(resolve, milliseconds)),
+    path: () => location.pathname + location.search,
     recoveryActions: () => nodes(tree).find((node) => node.props.className === "flex flex-wrap gap-x-5"),
     replaceInitialWorkspace(next: DemandWorkspace) { initialWorkspace = next; dirty = true; flush(); },
     text: () => { flush(); return copy(tree); },
     open(ideaId: string) { flush(); const card = nodes(tree).find((node) => (node.props.idea as { id?: string })?.id === ideaId && typeof node.props.onOpen === "function"); assert.ok(card, `card ${ideaId}`); invoke(card.props.onOpen); flush(); },
+    selectLoop(loopId: string) { flush(); invoke(nodes(tree).find((node) => node.type === "ReaderShell")?.props.onSelectLoop, loopId); flush(); },
     click(label: string) { flush(); const node = nodes(tree).find((value) => value.type === "button" && copy(value).includes(label)); assert.ok(node, label); invoke(node.props.onClick); flush(); },
     action(label: string) { flush(); const node = nodes(tree).find((value) => value.type === "button" && copy(value).includes(label)); assert.ok(node, label); return () => invoke(node.props.onClick); },
     event(name: string) { events.get(name)?.forEach((work) => work()); flush(); },
@@ -165,8 +168,9 @@ test("mounted lost admission discovers the exact queued job outside workspace, t
   assert.doesNotMatch(reader.text(), /You can keep browsing|This article will be here when it’s ready/);
   admit(); await reader.advance(2_000);
   assert.match(reader.text(), /Written by Edison for this loop/);
-  assert.equal(reader.path(), `/articles/${state.result.article.id}`);
-  assert.equal(state.posts.length, 1); assert.equal(state.bodies, 1);
+  assert.equal(reader.path(), `/articles/${state.result.request.id}`);
+  assert.equal(state.posts.length, 1); assert.equal(state.bodies, 2, "one immediate pending result read and one ready read, with no metadata waterfall");
+  assert.equal(state.reads, 1, "exact idea reads stop as soon as the canonical request is known");
   assert.equal([...reader.saved.keys()].some((key) => key.includes("article-attempt")), false);
 });
 
@@ -205,7 +209,7 @@ test("mounted reload retains unknown key and route, and reconciles without commi
   const saved = first.saved; const path = first.path(); first.unmount();
   admit(); const restored = mountReader(client, state.workspace, saved, path); t.after(restored.unmount); await restored.advance(0);
   assert.equal(state.posts.length, 1); assert.match(restored.text(), /Written by Edison for this loop/);
-  assert.equal(restored.path(), `/articles/${state.result.article.id}`);
+  assert.equal(restored.path(), `/articles/${state.result.request.id}`);
 });
 
 test("mounted navigation and unmount fence late exact reads without stealing the current view", async (t) => {
@@ -318,7 +322,7 @@ test("mounted retry remains the original key when the server accepted the origin
   };
   reader.click("Try again"); await reader.advance(0);
   assert.equal(state.posts.length, 2); assert.match(reader.text(), /Written by Edison for this loop/);
-  assert.equal(reader.path(), `/articles/${state.result.article.id}`);
+  assert.equal(reader.path(), `/articles/${state.result.request.id}`);
 });
 
 test("mounted no-job retry proof expires on navigation and reload; later canonical discovery disables its stale handler", async (t) => {
@@ -354,4 +358,201 @@ test("mounted a prior owner's retry handler cannot request an article after an a
   reader.replaceInitialWorkspace({ ...state.workspace, workspaceId: "10000000-0000-4000-8000-000000009901", loops: [], ideas: [], requests: [] });
   await reader.settle(); stale(); await reader.advance(50_000);
   assert.equal(state.posts.length, 1); assert.doesNotMatch(reader.text(), /Try again/);
+});
+
+function retainKnownArticle(state: Awaited<ReturnType<typeof scenario>>["state"]) {
+  state.workspace = { ...state.workspace, ideas: state.workspace.ideas.map((idea) => idea.id === state.target.id ? state.exact.idea : idea),
+    requests: [...state.workspace.requests.filter(({ id }) => id !== state.result.request.id), state.result.request] };
+}
+
+test("mounted known request displays an already published article in one result RTT, before either old metadata timer", async (t) => {
+  const { state, client, admit } = await scenario(); admit("queued"); retainKnownArticle(state); admit();
+  const times: number[] = []; let workspaceReads = 0;
+  client.getDemandWorkspace = async () => { workspaceReads++; return state.workspace; };
+  const reader = mountReader(client, state.workspace); t.after(reader.unmount); await reader.settle();
+  client.getDemandResult = async () => { state.bodies++; times.push(reader.now()); await reader.wait(200); return state.result; };
+  reader.open(state.target.id); await reader.advance(199);
+  assert.deepEqual(times, [0], "the known result read starts immediately, not after the old 1200ms/2000ms metadata timers");
+  assert.doesNotMatch(reader.text(), /Written by Edison for this loop/);
+  await reader.advance(1);
+  assert.match(reader.text(), /Written by Edison for this loop/);
+  assert.equal(reader.path(), `/articles/${state.result.request.id}`);
+  assert.equal(workspaceReads, 0); assert.equal(state.reads, 0); assert.equal(state.bodies, 1); assert.equal(state.posts.length, 0);
+  await reader.advance(10_000); assert.equal(state.bodies, 1, "publication stops the selected poll");
+});
+
+test("mounted known queued/running reads keep one serial cadence despite metadata churn and stop on terminal failure", async (t) => {
+  const { state, client, admit } = await scenario(); admit("queued"); retainKnownArticle(state);
+  const reader = mountReader(client, state.workspace); t.after(reader.unmount); await reader.settle();
+  const times: number[] = [];
+  client.getDemandResult = async () => { state.bodies++; times.push(reader.now()); await reader.wait(100); return state.result; };
+  reader.open(state.target.id); await reader.advance(100);
+  admit("running"); retainKnownArticle(state);
+  reader.replaceInitialWorkspace(structuredClone(state.workspace)); await reader.advance(500);
+  reader.replaceInitialWorkspace(structuredClone(state.workspace)); await reader.advance(1_599);
+  assert.deepEqual(times, [0, 2_100], "queued→running and unrelated workspace objects do not restart or duplicate the read");
+  await reader.advance(1); assert.match(reader.text(), /Writing/);
+  admit("failed"); await reader.advance(2_100);
+  assert.match(reader.text(), /We couldn’t finish this article/);
+  await reader.advance(30_000); assert.deepEqual(times, [0, 2_100, 4_200]);
+  assert.equal(state.reads, 0); assert.equal(state.posts.length, 0);
+});
+
+test("mounted completion metadata wakes the existing result poll without duplicating an in-flight read", async (t) => {
+  const { state, client, admit } = await scenario(); admit("running"); retainKnownArticle(state);
+  const first = deferred<DemandResult>();
+  client.getDemandResult = async () => { state.bodies++; return state.bodies === 1 ? first.promise : state.result; };
+  const reader = mountReader(client, state.workspace); t.after(reader.unmount); await reader.settle(); reader.open(state.target.id); await reader.advance(0);
+  admit(); retainKnownArticle(state); reader.replaceInitialWorkspace(structuredClone(state.workspace)); await reader.settle();
+  assert.equal(state.bodies, 1, "workspace success cannot overlap an existing GET");
+  first.resolve(state.result); await reader.settle();
+  assert.match(reader.text(), /Written by Edison for this loop/); assert.equal(state.bodies, 1);
+});
+
+test("mounted completion metadata bypasses the remaining 2s wait when no result read is in flight", async (t) => {
+  const { state, client, admit } = await scenario(); admit("running"); retainKnownArticle(state);
+  const reader = mountReader(client, state.workspace); t.after(reader.unmount); await reader.settle(); reader.open(state.target.id); await reader.advance(100);
+  assert.equal(state.bodies, 1);
+  admit(); retainKnownArticle(state); reader.replaceInitialWorkspace(structuredClone(state.workspace)); await reader.settle();
+  assert.match(reader.text(), /Written by Edison for this loop/); assert.equal(state.bodies, 2); assert.equal(reader.now(), 100);
+  await reader.advance(5_000); assert.equal(state.bodies, 2);
+});
+
+test("mounted delayed result reads cannot steal Back, a reopened idea, a new owner, or an unmounted view", async (t) => {
+  for (const change of ["back", "reopen", "owner", "unmount"] as const) {
+    for (const reject of [false, true]) {
+      const { state, client, admit } = await scenario(); admit("running"); retainKnownArticle(state);
+      const stale = deferred<DemandResult>(); const next = deferred<DemandResult>();
+      client.getDemandResult = async () => { state.bodies++; return state.bodies === 1 ? stale.promise : next.promise; };
+      const reader = mountReader(client, state.workspace); t.after(reader.unmount); await reader.settle(); reader.open(state.target.id); await reader.settle();
+      if (change === "owner") reader.replaceInitialWorkspace({ ...state.workspace, workspaceId: "10000000-0000-4000-8000-000000009901", loops: [], ideas: [], requests: [] });
+      else if (change === "unmount") reader.unmount();
+      else { reader.click("Back to your loops"); if (change === "reopen") reader.open(state.target.id); }
+      await reader.settle(); admit();
+      if (reject) stale.reject(unknown()); else stale.resolve(state.result);
+      await reader.advance(10_000);
+      assert.doesNotMatch(reader.text(), /Written by Edison for this loop|service response was interrupted/);
+      assert.equal(state.bodies, change === "reopen" ? 2 : 1); assert.equal(state.posts.length, 0);
+      if (change === "reopen") { next.resolve(state.result); await reader.settle(); assert.match(reader.text(), /Written by Edison for this loop/); }
+    }
+  }
+});
+
+test("mounted mismatched known result identities stop without publishing or retrying", async (t) => {
+  for (const field of ["id", "ideaId", "loopId", "kind", "article"] as const) {
+    const { state, client, admit } = await scenario(); admit("running"); retainKnownArticle(state); admit();
+    const valid = state.result;
+    state.result = field === "article" ? { ...state.result, article: { ...state.result.article!, id: "10000000-0000-4000-8000-000000009900" } }
+      : { ...state.result, request: { ...state.result.request, [field]: field === "kind" ? "question" : "10000000-0000-4000-8000-000000009900" } };
+    const reader = mountReader(client, state.workspace); t.after(reader.unmount); await reader.settle(); reader.open(state.target.id); await reader.advance(30_000);
+    assert.match(reader.text(), /different article request/); assert.doesNotMatch(reader.text(), /Written by Edison for this loop/);
+    assert.equal(state.bodies, 1); assert.equal(state.posts.length, 0);
+    state.result = valid; retainKnownArticle(state); reader.replaceInitialWorkspace(structuredClone(state.workspace)); await reader.advance(10_000);
+    assert.equal(state.bodies, 1, "completion metadata cannot automatically restart a poll stopped for invalid identity");
+  }
+});
+
+test("mounted missing published body retries boundedly and manual loading reuses the same request", async (t) => {
+  const { state, client, admit } = await scenario(); admit(); retainKnownArticle(state);
+  const ready = state.result; state.result = { ...state.result, article: null };
+  const reader = mountReader(client, state.workspace); t.after(reader.unmount); await reader.settle(); reader.open(state.target.id); await reader.advance(30_000);
+  assert.equal(state.bodies, 4); assert.match(reader.text(), /ready request without its article/); assert.doesNotMatch(reader.text(), /Written by Edison for this loop/);
+  state.result = ready; reader.click("Load article again"); await reader.settle();
+  assert.equal(state.bodies, 5); assert.match(reader.text(), /Written by Edison for this loop/); assert.equal(state.posts.length, 0);
+});
+
+test("mounted newer retry metadata wins over an older failed result and keeps polling the same request", async (t) => {
+  const { state, client, admit } = await scenario(); admit("running"); retainKnownArticle(state);
+  const old = deferred<DemandResult>(); client.getDemandResult = async () => { state.bodies++; return state.bodies === 1 ? old.promise : state.result; };
+  const reader = mountReader(client, state.workspace); t.after(reader.unmount); await reader.settle(); reader.open(state.target.id); await reader.settle();
+  admit("failed"); const failure = structuredClone(state.result);
+  admit("queued"); state.result.request.updatedAt = "2026-09-09T00:00:00.000Z"; retainKnownArticle(state);
+  reader.replaceInitialWorkspace(structuredClone(state.workspace)); await reader.settle(); old.resolve(failure); await reader.advance(2_000);
+  assert.equal(state.bodies, 2); assert.doesNotMatch(reader.text(), /We couldn’t finish this article/);
+  admit(); await reader.advance(2_000); assert.match(reader.text(), /Written by Edison for this loop/); assert.equal(state.posts.length, 0);
+});
+
+test("mounted failed known request resumes only after an explicit same-ID retry", async (t) => {
+  const { state, client, admit } = await scenario(); admit("failed");
+  state.result.request.failure = { code: "provider_unavailable", message: "Try again.", retryable: true }; retainKnownArticle(state);
+  let retries = 0;
+  const retryClient = { ...client, retryDemandRequest: async (id: string) => {
+    assert.equal(id, state.result.request.id); retries++; admit("queued"); state.result.request.updatedAt = "2026-09-09T00:00:00.000Z"; retainKnownArticle(state);
+    return { workspace: state.workspace, requestId: id };
+  } };
+  const reader = mountReader(retryClient, state.workspace); t.after(reader.unmount); await reader.settle(); reader.open(state.target.id); await reader.advance(5_000);
+  assert.equal(state.bodies, 0); reader.click("Try again"); await reader.settle(); assert.equal(state.bodies, 1); assert.equal(retries, 1);
+  admit(); await reader.advance(2_000); assert.match(reader.text(), /Written by Edison for this loop/); assert.equal(state.posts.length, 0);
+});
+
+test("mounted off-window loop polling survives unrelated snapshots and accepts a slow response without resetting its timer", async (t) => {
+  const { state, client } = await scenario();
+  const loop = state.workspace.loops[0];
+  const request: DemandRequest = { ...state.result.request, id: "10000000-0000-4000-8000-000000009902", ideaId: null, kind: "ideas", status: "running", stage: "researching" };
+  state.workspace = { ...state.workspace, loops: state.workspace.loops.filter(({ id }) => id !== loop.id), ideas: [], requests: [request] };
+  const page = { workspaceId: state.workspace.workspaceId, loops: [loop], ideas: [], requests: [request], nextCursor: null };
+  client.getDemandLoops = async () => page;
+  const response = deferred<typeof page>(); const calls: number[] = [];
+  const reader = mountReader({ ...client, getDemandLoop: async (id: string) => { assert.equal(id, loop.id); calls.push(reader.now()); return response.promise; } }, state.workspace);
+  t.after(reader.unmount); await reader.settle();
+  for (let i = 0; i < 4; i++) { await reader.advance(400); reader.replaceInitialWorkspace(structuredClone(state.workspace)); await reader.settle(); }
+  assert.deepEqual(calls, [1_500], "unrelated snapshots do not defer the first read");
+  await reader.advance(2_000); assert.deepEqual(calls, [1_500], "slow loop reads remain serial during workspace polls");
+  response.resolve({ ...page, requests: [{ ...request, status: "failed", updatedAt: "2026-09-09T00:00:00.000Z" }] }); await reader.settle();
+  await reader.advance(10_000); assert.deepEqual(calls, [1_500], "the accepted terminal response stops this loop poll");
+  reader.selectLoop(loop.id); await reader.settle(); assert.match(reader.text(), /We couldn’t refresh your articles/);
+});
+
+test("mounted exhausted running result reads remain explicitly recoverable off the workspace page, using only the original GET", async (t) => {
+  for (const recovery of ["manual", "metadata"] as const) {
+    const { state, client, admit } = await scenario(); admit("running");
+    let failing = true;
+    client.getDemandResult = async () => { state.bodies++; if (failing) throw unknown(); return state.result; };
+    // Lost admission is recovered as exact history metadata, not a recent row.
+    const reader = mountReader(client, state.workspace); t.after(reader.unmount); await reader.settle(); reader.open(state.target.id); await reader.advance(30_000);
+    assert.equal(state.bodies, 4); assert.equal(state.posts.length, 1); assert.match(reader.text(), /Load article again/);
+    await reader.advance(30_000); assert.equal(state.bodies, 4, "exhaustion never creates an unlimited background retry loop");
+    failing = false; admit();
+    if (recovery === "manual") reader.click("Load article again");
+    else { retainKnownArticle(state); reader.replaceInitialWorkspace(structuredClone(state.workspace)); }
+    await reader.settle(); assert.equal(state.bodies, 5); assert.equal(state.posts.length, 1);
+    assert.match(reader.text(), /Written by Edison for this loop/); assert.equal(reader.path(), `/articles/${state.result.request.id}`);
+  }
+});
+
+test("mounted stale pending results do not regress newer completion metadata or publish a body before their own success", async (t) => {
+  const { state, client, admit } = await scenario(); admit("running"); retainKnownArticle(state);
+  const old = structuredClone(state.result); const first = deferred<DemandResult>();
+  client.getDemandResult = async () => { state.bodies++; return state.bodies === 1 ? first.promise : state.result; };
+  const reader = mountReader(client, state.workspace); t.after(reader.unmount); await reader.settle(); reader.open(state.target.id); await reader.settle();
+  admit(); state.result.request.updatedAt = "2026-09-09T00:00:00.000Z"; retainKnownArticle(state);
+  reader.replaceInitialWorkspace(structuredClone(state.workspace)); await reader.settle();
+  first.resolve({ ...old, article: state.result.article }); await reader.settle();
+  assert.doesNotMatch(reader.text(), /Written by Edison for this loop/); assert.equal(state.bodies, 1);
+  await reader.advance(2_000); assert.match(reader.text(), /Written by Edison for this loop/); assert.equal(state.bodies, 2);
+});
+
+test("mounted definitive result-read failures stop until explicit retry, without commissioning", async (t) => {
+  const { state, client, admit } = await scenario(); admit("running"); retainKnownArticle(state);
+  client.getDemandResult = async () => { state.bodies++; throw new DemandClientError({ status: 403, code: "access_denied", message: "Access could not be confirmed." }); };
+  const reader = mountReader(client, state.workspace); t.after(reader.unmount); await reader.settle(); reader.open(state.target.id); await reader.advance(30_000);
+  assert.equal(state.bodies, 1); assert.match(reader.text(), /Load article again/);
+  admit(); retainKnownArticle(state); reader.replaceInitialWorkspace(structuredClone(state.workspace)); await reader.settle();
+  assert.equal(state.bodies, 1, "metadata completion is not permission to ignore a definitive access error");
+  client.getDemandResult = async () => { state.bodies++; return state.result; };
+  reader.click("Load article again"); await reader.settle(); assert.match(reader.text(), /Written by Edison for this loop/); assert.equal(state.posts.length, 0);
+});
+
+test("mounted off-window loop responses cannot reintroduce a previous workspace after owner change", async (t) => {
+  const { state, client } = await scenario(); const loop = state.workspace.loops[0];
+  const request: DemandRequest = { ...state.result.request, ideaId: null, kind: "ideas", status: "running", stage: "researching" };
+  state.workspace = { ...state.workspace, loops: [], ideas: [], requests: [request] };
+  const page = { workspaceId: state.workspace.workspaceId, loops: [loop], ideas: [], requests: [request], nextCursor: null };
+  client.getDemandLoops = async () => page;
+  const pending = deferred<typeof page>(); let calls = 0;
+  const reader = mountReader({ ...client, getDemandLoop: async () => { calls++; return pending.promise; } }, state.workspace); t.after(reader.unmount);
+  await reader.advance(1_500); assert.equal(calls, 1);
+  reader.replaceInitialWorkspace({ ...state.workspace, workspaceId: "10000000-0000-4000-8000-000000009901", loops: [], ideas: [], requests: [] });
+  await reader.settle(); pending.resolve(page); await reader.advance(10_000);
+  assert.equal(calls, 1); reader.selectLoop(loop.id); assert.doesNotMatch(reader.text(), new RegExp(loop.title));
 });
