@@ -15,6 +15,23 @@ complete code. Spaces normalize without losing leading zeros. Guidance explicitl
 offers Resend code for an older long code; the existing cooldown and uncertain
 sign-in status check still apply, with no automatic send or verification.
 
+Prepared candidate: `07220206adf4859b9fd4c66a58689e903bab4d5c` (committed and
+pushed; not deployed). Root's actual local 390px browser check rejected an
+eight-digit paste whole, kept explicit replacement guidance, rejected five digits,
+and displayed whitespace-normalized `000123` with leading zeros. Fixture counters
+were one explicitly requested OTP and zero verifies before Continue; explicit
+Continue then opened the same original sensor article. These are local synthetic
+provider checks, not mail or hosted generator proof. The test tab was closed and
+the temporary viewport reset after inspection.
+
+Exact-source [CI 34237536499](https://github.com/michaelmcguiness/edison/actions/runs/34237536499)
+passed both jobs and all 29 steps, with no skips, independently observed at
+14:24:08.579 UTC: 738 web plus 269 API tests (1,007 total), both builds/typechecks,
+lint, 320 pgTAP assertions, all seven service-proof steps and schema lint. This
+establishes candidate readiness, not hosted six-digit activation. Both temporary
+servers were stopped afterward; ports 4310/4311 were confirmed clear and all
+disposable source/cache evidence was preserved.
+
 All 738 web tests, including 34 focused controller/form cases, passed locally;
 owned lint, standalone TypeScript and the web production build passed. The two
 production files are `components/auth/login-form.tsx` and `lib/email-code-auth.ts`;
