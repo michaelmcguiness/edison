@@ -24,14 +24,17 @@ Writing/checking/models remain unchanged. No new paid generation, QA identity,
 mail, migration, Auth, secret, domain or tier change occurred.
 
 The [accounted Fast candidate](operations/ACCOUNTED_FAST_CANDIDATE_2026-09-08.md) is prepared at
-`27f663ab8a3c9d468f58ff09f646ad70b82748db` in PR5. Exact-source CI34260587306
-passed1,120 application tests,320 pgTAP assertions, all seven DB proofs (including
-new actual-tier accounting/replay), types/lint/builds. Independent source review
-closed the initial scope; later review found a late-uncertain actual-tier evidence
-gap. Activation remains blocked pending a safe append-only accounting correction;
-the existing immutable-stage rule must not be bypassed. See the candidate receipt.
-It is **not deployed or enabled**: the existing browser is signed out,
-so no paid timing was attempted. Keep the option off; no new QA identity/mail.
+`712fe7611ef3de9e72a49a61bfe617207b1cdaf7` in PR5.
+[CI34263846396](https://github.com/michaelmcguiness/edison/actions/runs/34263846396)
+passed 1,129 application tests, 378 pgTAP assertions, all seven disposable-DB
+proofs, types/lint/builds: both jobs and all 29 steps succeeded, none skipped.
+The late-uncertain evidence gap is corrected by an additive nullable
+`observed_usage` billing column; append-only receipts and immutable stages remain.
+The migration awaits explicit hosted approval and must precede API deployment,
+even with Fast off. The candidate is **not deployed or enabled**; no paid Fast
+probe, new QA identity or mail was performed. The receipt preserves the earlier
+collation-only CI failure and includes the `--skip-vault` migration runbook,
+explicit health-check gap and rollout/rollback compatibility. Keep Fast off.
 See the [generation-latency receipt](operations/GENERATION_LATENCY_RELEASE_2026-09-08.md) for evidence and limits.
 
 ### Previous — September 8 D50 checker-format correction live

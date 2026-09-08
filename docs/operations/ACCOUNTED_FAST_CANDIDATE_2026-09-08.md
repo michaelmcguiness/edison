@@ -13,9 +13,13 @@ CoS authorized preparing an additive nullable observed-usage field on the existi
 append-only billing ledger instead, preserving the stage trigger. The local
 correction and migration below are prepared; neither has been deployed/applied to
 production. The successful27f663a CI below predates this newly identified gap and
-does not establish the correction. The corrected local suite passes1,129 tests,
-both typechecks and full lint; exact-source database CI is next. Models, checks,
-live3a526fa and Fast off remain.
+does not establish the correction. Corrected source
+`712fe7611ef3de9e72a49a61bfe617207b1cdaf7` now passes
+[CI34263846396](https://github.com/michaelmcguiness/edison/actions/runs/34263846396):
+1,129 application tests, 378 pgTAP assertions, all seven disposable-database
+proofs, both types/builds and lint. Both jobs and all 29 steps succeeded, with
+nothing skipped. The prior collation-only pgTAP failure is retained below.
+Models, checks and Fast off remain unchanged; this is not rollout approval.
 
 Chief of Staff assigned this bounded follow-up after the generation-delivery
 release at runtime `3a526fad880bdb389b0560805ce96957898986cf`, documented in
@@ -23,7 +27,7 @@ release at runtime `3a526fad880bdb389b0560805ce96957898986cf`, documented in
 faster loop and article generation. This candidate is **implemented and locally
 verified, not deployed or enabled**. The initial, superseded runtime's CI and
 source review closed on `27f663ab8a3c9d468f58ff09f646ad70b82748db`; the additive
-correction below has separately closed source review and awaits its own CI.
+correction below has separately closed source review and exact-source CI.
 
 There is no reader-facing change, streaming implementation, model switch,
 prompt/schema/checker-policy change, additional review stage, or new service.
@@ -170,9 +174,98 @@ both typechecks, full lint and diff checks pass. Its51 focused settlement/stage
 tests and58 authored pgTAP assertions cover late priority/default/unknown/null/
 missing/refused responses, duplicate and legacy receipts, forbidden content
 stripping, immutable uncertainty, unchanged privileges and no second provider call.
-Real-Postgres proof is prepared in the existing guarded script and new pgTAP file;
-its exact-source CI outcome will be attached after execution. The pgTAP suite's
-final SHA256 is `12c3c5ca6961e85de2371e2a4120e3d6023dca0816f3e3e7897814355f9a7c88`.
+Real-Postgres proof passed in the existing guarded script and new pgTAP file on
+the exact corrected CI source below. The pgTAP suite's final SHA256 is
+`6798d194ab39c1d0fd8002ee64ca2852006915951227e4a14b55bdd4523fcca6`.
+
+### Corrected exact-source CI and retained failure
+
+Runtime/schema correction `80b7abf98ac698cc3d088a98087004d335efbc64` first ran in
+[CI34263342999](https://github.com/michaelmcguiness/edison/actions/runs/34263342999).
+The application job passed. The migration applied successfully, and the other
+12 pgTAP files passed, but the new test stopped at its catalog-policy comparison
+with `could not determine which collation to use for string comparison` at
+18:31:16 UTC. Five new assertions had run: total 325 across 13 files, result FAIL.
+The seven downstream database service proofs and schema lint were skipped in
+that run; it is not correction acceptance evidence.
+
+Successor `712fe7611ef3de9e72a49a61bfe617207b1cdaf7` changes only the new pgTAP
+comparison to explicit `COLLATE "C"` on both sides. Runtime, migration, expected
+policy names and all 58 assertions are unchanged. Independent inspection of
+[CI34263846396](https://github.com/michaelmcguiness/edison/actions/runs/34263846396)
+confirmed the exact SHA, both jobs and all 29 steps SUCCESS, with no skipped steps.
+Database job 102188172513 completed 18:38:26 UTC; application job 102188172645
+completed 18:38:27 UTC on September 8.
+
+- Application: 797 web + 332 API tests = 1,129 passed, zero failures/skips;
+  both standalone typechecks, full lint and both production builds passed.
+- PostgreSQL: 378 pgTAP assertions across 13 files passed at 18:36:15 UTC,
+  including all 58 observed-usage assertions. Schema lint reported no errors.
+- All seven disposable-database service proofs passed. The actual provider-store
+  proof at 18:36:54.692 UTC explicitly confirmed late priority/default/unpriced/
+  refused responses retain observed usage; uncertain stages and old/duplicate
+  bills remain immutable; retry makes no additional provider call. The same
+  proof preserved pinning, actual-tier pricing, search fees, budget/ownership
+  gates and charge retention after revocation.
+
+These are CI PostgreSQL and synthetic-provider results, not hosted migration,
+real Fast availability, paid latency or authenticated reader-journey evidence.
+
+### Migration-only operator runbook — not executed
+
+Use the existing authenticated Supabase CLI 2.116.0 and reviewed checkout, with
+the existing link and explicit target `bcxxnntastmnormcmxbq`. Do not relink,
+retrieve a runtime credential or substitute a raw hosted-SQL migration route.
+The following commands describe the normal linked workflow; preparing this
+runbook did not contact the linked project. Only local CLI help was inspected.
+
+1. Verify the exact passing candidate and migration hash above, and the existing
+   backup checkpoint. List history and inspect the pending set:
+
+   ```sh
+   pnpm exec supabase migration list --linked --project-ref bcxxnntastmnormcmxbq
+   pnpm exec supabase db push --linked --project-ref bcxxnntastmnormcmxbq --skip-vault --dry-run
+   ```
+
+   Require every earlier local/remote migration to match and **only**
+   `20260908000100_demand_observed_usage.sql` to be pending. Through
+   `supabase db query --linked --project-ref bcxxnntastmnormcmxbq`, run only
+   catalog SELECTs to confirm the column and named constraint are absent.
+   Retain the usage-table ACL/RLS/policies and stage-trigger identity, enabled
+   state and `md5(pg_get_functiondef(...))` as a before/after comparison baseline.
+   Stop on a target/history/schema discrepancy; do not repair migration history.
+2. **Only after explicit approval of this hosted migration**, run:
+
+   ```sh
+   pnpm exec supabase db push --linked --project-ref bcxxnntastmnormcmxbq --skip-vault
+   ```
+
+   Confirm only the one reviewed migration. Installed CLI help explicitly says
+   `db push` otherwise updates configured Vault secrets before migrations;
+   **`--skip-vault` is required for this migration-only scope**. Do not add
+   `--include-all`, `--include-roles`, `--include-seed`, `--db-url` or password flags.
+3. Repeat history listing and require the new version to match with nothing
+   pending. Using the same linked `db query` path, read back catalog metadata:
+
+   - `pg_attribute`: `observed_usage` is `jsonb`, nullable, no default or missing
+     historical value, and no separate column ACL (`attnotnull=false`,
+     `atthasdef=false`, `attmissingval IS NULL`, `attacl IS NULL`).
+   - `pg_constraint`: `demand_usage_observed_usage_valid` is validated and its
+     `pg_get_constraintdef` matches the reviewed bounded-object, allowed-key and
+     same-row response/model/token binding. Optional search/tier value semantics
+     remain application-owned through `usageSchema.parse`; SQL does not reprice.
+   - `pg_class` / `pg_policy`: RLS remains enabled and forced; original worker
+     SELECT/INSERT policies and table ACL are unchanged. Worker retains
+     SELECT/INSERT but no UPDATE/DELETE; `anon`, `authenticated`, `service_role`,
+     `edison_api`, `edison_public`, `edison_demand_api` and PUBLIC gain no access.
+   - `pg_trigger` / `pg_proc`: `demand_stages_identity_immutable` remains enabled;
+     its function identity and definition fingerprint equal preflight. No hosted
+     INSERT/UPDATE test is needed or authorized to prove immutability.
+
+Record only migration/version/hash and sanitized catalog results. These commands
+do not authorize provider calls, invitations, resets, Fast activation or deployment.
+
+### Runtime rollout and rollback compatibility
 
 Required deployment order, only after explicit hosted migration approval:
 
@@ -197,10 +290,11 @@ preserve their frozen behavior. Disabling the flag changes future admission only
 
 ## Next bounded step
 
-The late-uncertain correction needs exact-source database CI/review and explicit
-hosted migration approval first. Only with an existing supported authenticated
+The late-uncertain correction has exact-source database CI and source review;
+explicit hosted migration approval remains required. Only after the ordered
+migration/API rollout, and with an existing supported authenticated
 session and budget room, the bounded activation step can then use
-at most the still-unused one loop batch plus one article allowance, estimated
+at most the separately authorized one loop batch plus one article, estimated
 total at most $0.50. Capture useful-card/first-readable/full-completion timing,
 actual returned tier, stage breakdown and charged cost. No new QA account, mail,
 reader-data edit or repeated provider suite. Without that session, return this
@@ -208,7 +302,8 @@ off-by-default candidate with the missing measurement stated; do not activate a
 project-wide default. Turning the flag off affects new admission only: pinned
 running jobs must retain their original policy through completion/recovery.
 
-The existing live browser was rechecked during this candidate and still shows
-the ordinary sign-in screen with a blank email field. No sign-in email was sent.
-Thus the supported-session requirement for paid timing is currently unavailable;
-the one-batch/one-article allowance remains unused and this candidate stays off.
+At the initial candidate browser check, the live page showed the ordinary sign-in
+screen with a blank email field; no sign-in email was sent. That observation is
+historical, not a claim about the owner's current session. No paid Fast benchmark
+was performed for this candidate. Recheck supported-session availability before
+any separately authorized timing step; this candidate remains off.
