@@ -77,6 +77,13 @@ export const readerFirstCheckOutputSchema = z.object({
   readerFit: z.boolean(), continuity: z.boolean(), privacyPassed: z.boolean(),
   findings: z.array(readerFirstFindingSchema).max(24),
 }).strict();
+// New producer/publication constraint only. The retained legacy schema above
+// intentionally continues to represent valid historical nonmaterial findings.
+export const readerFirstCleanPassCheckSchema = readerFirstCheckOutputSchema.extend({
+  verdict: z.literal("pass"), accuracyPassed: z.literal(true), verificationPassed: z.literal(true),
+  promiseFulfilled: z.literal(true), readerFit: z.literal(true), continuity: z.literal(true), privacyPassed: z.literal(true),
+  findings: readerFirstCheckOutputSchema.shape.findings.max(0),
+});
 export const readerFirstIdeaChecksSchema = z.object({
   fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
   ideas: z.array(z.object({

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  READER_FIRST_CHECKER_CONTRACT_VERSION,
   type OnDemandContext, type OnDemandEvidence, type OnDemandProvider, type OnDemandProviderRequest,
   type ReaderFirstWriterOutput,
 } from "../packages/ai/src/index";
@@ -8,6 +9,7 @@ import { initialDemandState } from "../apps/api/src/services/demand-runner";
 import { advanceReaderFirstPipeline, readerFirstQuestion, type ReaderFirstPipelineState } from "../apps/api/src/services/reader-first-pipeline";
 import type { DemandRequestRow } from "../apps/api/src/services/demand-reading";
 import type { retrieveEvidencePage } from "../apps/api/src/services/evidence-retrieval";
+import { prepareDemandStage } from "../apps/api/src/services/demand-provider-stages";
 
 // Authored fixtures and injected verdicts exercise orchestration, not the
 // factual or explanatory quality of a real model response.
@@ -95,6 +97,118 @@ test("a stable concept skips retrieval and publishes only after exact-draft chec
   assert.equal(calls[1].researchPolicy?.mode, "none");
   assert.deepEqual(result.state.evidence, empty);
   assert.equal("claims" in result.state.draft!, false);
+});
+
+test("article and Ask checkpoint replay retain their pinned checker and sole repair with unchanged author stages", async () => {
+  for (const kind of ["article", "question"] as const) {
+    for (const firstVerdict of ["pass", "repair", "insufficient_evidence"] as const) {
+      const identities: ReturnType<typeof prepareDemandStage>["identity"][][] = [];
+      for (const current of [false, true]) {
+        const request = row(kind, current ? { checkerContractVersion: READER_FIRST_CHECKER_CONTRACT_VERSION } : {});
+        const snapshotBefore = structuredClone(request.snapshot);
+        let state = initialDemandState(request) as ReaderFirstPipelineState;
+        const calls: OnDemandProviderRequest[] = [];
+        const provider = fake((call) => {
+          if (call.stage !== "check") return kind === "article" ? rawArticle() : rawAnswer();
+          const first = calls.filter((entry) => entry.stage === "check").length === 1;
+          const check = { ...checked(call), verdict: first ? firstVerdict : "pass",
+            verificationPassed: !first || firstVerdict === "pass", findings: [] };
+          return current ? { check } : check;
+        }, calls, false);
+        const phases: string[] = [];
+        let outcome: string | undefined;
+        for (let steps = 0; steps < 6; steps++) {
+          state = JSON.parse(JSON.stringify(state)) as ReaderFirstPipelineState;
+          assert.equal(Object.hasOwn(state, "checkerContractVersion"), current);
+          assert.equal(state.checkerContractVersion, current ? READER_FIRST_CHECKER_CONTRACT_VERSION : undefined);
+          phases.push(state.phase);
+          const result = await advanceReaderFirstPipeline({ request, state }, { provider,
+            retrievePage: async () => { throw new Error("Unexpected retrieval for this constructed stable fixture"); } });
+          assert.equal(result.failureCode, undefined);
+          state = result.state;
+          if (result.outcome) { outcome = result.outcome; break; }
+        }
+        assert.equal(outcome, kind);
+        assert.deepEqual(phases, kind === "article"
+          ? firstVerdict === "pass" ? ["write", "check"] : ["write", "check", "repair", "recheck"]
+          : firstVerdict === "pass" ? ["answer", "answer_check"] : ["answer", "answer_check", "answer_repair", "answer_recheck"]);
+        assert.equal(state.repairAttempted, firstVerdict !== "pass");
+        if (firstVerdict !== "pass") {
+          assert.equal(calls[2].researchPolicy?.mode, "required");
+          assert.deepEqual((calls[2].input as { check: { findings: unknown[] } }).check.findings, [],
+            "Non-pass outputs do not acquire an artificial minimum finding count");
+        }
+        assert.deepEqual(request.snapshot, snapshotBefore);
+        const ready = await advanceReaderFirstPipeline({ request, state: JSON.parse(JSON.stringify(state)) }, {
+          provider: fake(() => { throw new Error("Ready replay must not dispatch another provider call"); }),
+        });
+        assert.equal(ready.outcome, kind);
+        identities.push(calls.map((call) => prepareDemandStage(request.id, request.principalId, call, {
+          OPENAI_ARTICLE_MODEL: state.models.article, OPENAI_UTILITY_MODEL: state.models.utility,
+          OPENAI_WEB_SEARCH_COST_MICROUSD: "10000",
+        }).identity));
+      }
+      assert.equal(identities[0].length, identities[1].length);
+      for (let index = 0; index < identities[0].length; index++) {
+        const old = identities[0][index], current = identities[1][index];
+        assert.deepEqual(current.snapshot.input, old.snapshot.input);
+        assert.equal(current.stageKey, old.stageKey);
+        if (old.snapshot.stage === "check") assert.notEqual(current.requestFingerprint, old.requestFingerprint);
+        else assert.deepEqual(current, old, "The selector cannot change writer or repair snapshots");
+      }
+    }
+  }
+});
+
+test("invalid retained checker markers stop before retrieval, provider dispatch, or ready publication", async () => {
+  for (const kind of ["article", "question"] as const) {
+    for (const phase of ["retrieve", "ready", kind === "article" ? "check" : "answer_check"]) {
+      for (const alteration of ["missing-progress", "unknown-progress", "missing-snapshot", "null-snapshot"]) {
+        const request = row(kind, { checkerContractVersion: READER_FIRST_CHECKER_CONTRACT_VERSION });
+        const state = { ...initialDemandState(request), phase } as ReaderFirstPipelineState;
+        if (alteration === "missing-progress") delete state.checkerContractVersion;
+        if (alteration === "unknown-progress") state.checkerContractVersion = "unknown";
+        if (alteration === "missing-snapshot") delete request.snapshot.checkerContractVersion;
+        if (alteration === "null-snapshot") request.snapshot.checkerContractVersion = null;
+        const before = structuredClone({ request, state });
+        let dispatched = 0;
+        const result = await advanceReaderFirstPipeline({ request, state }, {
+          provider: fake(() => { dispatched++; return {}; }),
+          retrievePage: async () => { dispatched++; throw new Error("Unexpected retrieval"); },
+        });
+        assert.ok(["pipeline_state_invalid", "pipeline_version_unsupported"].includes(result.failureCode ?? ""));
+        assert.equal(result.outcome, undefined);
+        assert.equal(dispatched, 0);
+        assert.deepEqual({ request, state }, before);
+      }
+    }
+  }
+});
+
+test("a persisted ready verdict is revalidated without dropping findings or rerunning any stage", async () => {
+  for (const kind of ["article", "question"] as const) {
+    for (const current of [false, true]) {
+      const request = row(kind, current ? { checkerContractVersion: READER_FIRST_CHECKER_CONTRACT_VERSION } : {});
+      const result = await run(request, fake((call) => {
+        if (call.stage !== "check") return kind === "article" ? rawArticle() : rawAnswer();
+        return current ? { check: checked(call) } : checked(call);
+      }, [], false));
+      assert.equal(result.outcome, kind);
+      const retained = structuredClone(result.state);
+      retained.check!.findings.push({ location: "body.0", excerpt: support, severity: "nonmaterial", kind: "clarity",
+        reason: "A constructed optional refinement.", repair: "No material repair is needed.", passageIds: [] });
+      const before = structuredClone(retained);
+      let dispatched = 0;
+      const replayed = await advanceReaderFirstPipeline({ request, state: retained }, {
+        provider: fake(() => { dispatched++; return {}; }),
+      });
+      assert.equal(dispatched, 0);
+      assert.equal(replayed.outcome, current ? undefined : kind);
+      assert.equal(Boolean(replayed.failureCode), current);
+      assert.deepEqual(replayed.state.check, before.check);
+      assert.deepEqual(retained, before);
+    }
+  }
 });
 
 test("stable ideas have no required search or excerpt IDs but receive independent premise checks", async () => {

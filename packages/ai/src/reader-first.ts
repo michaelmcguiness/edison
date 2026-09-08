@@ -6,19 +6,22 @@ import {
   onDemandContextSchema,
 } from "./on-demand";
 import { ProviderResponseValidationError } from "./provider-response-error";
-import { READER_FIRST_PROMPTS, READER_FIRST_PROMPT_VERSION, READER_FIRST_IDEAS_ART_PROMPT_VERSION } from "./reader-first-prompts";
+import { READER_FIRST_PROMPTS, READER_FIRST_PROMPT_VERSION, READER_FIRST_IDEAS_ART_PROMPT_VERSION,
+  READER_FIRST_CHECKER_CONTRACT_VERSION, READER_FIRST_CHECKER_PROMPT, type ReaderFirstCheckerContractVersion } from "./reader-first-prompts";
 import { normalizeOnDemandIdeaArt } from "./on-demand-art";
 import {
   readerFirstSavedWriterInputSchema, readerFirstWriterOutputSchema, readerFirstWriterProviderSchema,
   readerFirstAnswerOutputSchema, readerFirstAnswerProviderSchema, readerFirstResearchOutputSchema,
-  readerFirstCheckOutputSchema, readerFirstIdeaChecksSchema, readerFirstIdeaSchema,
+  readerFirstCheckOutputSchema, readerFirstCleanPassCheckSchema, readerFirstIdeaChecksSchema, readerFirstIdeaSchema,
   type ReaderFirstArticle, type ReaderFirstBlock, type ReaderFirstWriterOutput, type ReaderFirstAnswerOutput,
   type ReaderFirstResearch, type ReaderFirstResearchOutput, type ReaderFirstCheckOutput, type ReaderFirstIdea,
 } from "./reader-first-schemas";
 
 export * from "./reader-first-schemas";
-export { READER_FIRST_PROMPT_VERSION, READER_FIRST_PROMPTS, READER_FIRST_IDEAS_ART_PROMPT_VERSION } from "./reader-first-prompts";
-export type ReaderFirstStageOptions = OnDemandStageOptions & { researchPolicy?: NonNullable<OnDemandProviderRequest["researchPolicy"]> };
+export { READER_FIRST_PROMPT_VERSION, READER_FIRST_PROMPTS, READER_FIRST_IDEAS_ART_PROMPT_VERSION,
+  READER_FIRST_CHECKER_CONTRACT_VERSION, READER_FIRST_CHECKER_PROMPT, type ReaderFirstCheckerContractVersion } from "./reader-first-prompts";
+export type ReaderFirstCheckerOptions = { checkerContractVersion?: ReaderFirstCheckerContractVersion };
+export type ReaderFirstStageOptions = OnDemandStageOptions & ReaderFirstCheckerOptions & { researchPolicy?: NonNullable<OnDemandProviderRequest["researchPolicy"]> };
 export type ReaderFirstSelection = { context: OnDemandContext; idea: ReaderFirstIdea; evidence: OnDemandEvidence };
 const referenceKey = z.string().min(1).max(40);
 const previousReferenceSchema = z.object({
@@ -42,7 +45,7 @@ export type ReaderFirstQuestion = {
   question: string; previousMessages: ReaderFirstPreviousMessage[];
 };
 export type ReaderFirstStageResult<T> = Omit<OnDemandProviderResponse, "output"> & {
-  output: T; stage: OnDemandProviderRequest["stage"]; promptVersion: typeof READER_FIRST_PROMPT_VERSION | typeof READER_FIRST_IDEAS_ART_PROMPT_VERSION;
+  output: T; stage: OnDemandProviderRequest["stage"]; promptVersion: typeof READER_FIRST_PROMPT_VERSION | typeof READER_FIRST_IDEAS_ART_PROMPT_VERSION | ReaderFirstCheckerContractVersion;
 };
 export type ReaderFirstValidationFinding = { location: string; reason: string };
 export class ReaderFirstDraftValidationError extends Error {
@@ -56,6 +59,11 @@ export class ReaderFirstDraftValidationError extends Error {
 
 const none = { mode: "none" as const, reason: "Independent checking uses the final retained evidence", maxCalls: 0 };
 function invalid(message: string): never { throw new Error(message); }
+function usesCleanPassChecker(options: ReaderFirstCheckerOptions = {}) {
+  if (!options || typeof options !== "object" || Array.isArray(options) ||
+    (options.checkerContractVersion !== undefined && options.checkerContractVersion !== READER_FIRST_CHECKER_CONTRACT_VERSION)) invalid("Unsupported reader-first checker contract");
+  return options.checkerContractVersion === READER_FIRST_CHECKER_CONTRACT_VERSION;
+}
 function unique(values: string[], name: string) { if (new Set(values).size !== values.length) invalid(`Duplicate ${name}`); }
 function stable(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
@@ -68,14 +76,16 @@ async function stage<T>(
   name: keyof typeof READER_FIRST_PROMPTS, input: unknown, schema: z.ZodType<T>, options: ReaderFirstStageOptions,
   normalize?: (output: T, response: OnDemandProviderResponse) => void,
 ): Promise<ReaderFirstStageResult<T>> {
+  const cleanPassChecker = usesCleanPassChecker(options);
   if (!options.model || !options.idempotencyKey || !options.safetyIdentifier) invalid("Explicit model and request identities are required");
   const checking = name === "check" || name === "ideas_check";
   const researchPolicy = checking ? none : options.researchPolicy ?? { mode: "auto", reason: "Selectively verify the reader's question and specific assertions", maxCalls: 8 };
   if (!Number.isInteger(researchPolicy.maxCalls) || researchPolicy.maxCalls < 0 || researchPolicy.maxCalls > 8 || !researchPolicy.reason.trim() || researchPolicy.reason.length > 500 || (researchPolicy.mode === "none" && researchPolicy.maxCalls !== 0)) invalid("Invalid bounded research policy");
   const providerStage = name === "answer_repair" ? "repair" : name;
-  const promptVersion = name === "ideas" ? READER_FIRST_IDEAS_ART_PROMPT_VERSION : READER_FIRST_PROMPT_VERSION;
+  const promptVersion = name === "ideas" ? READER_FIRST_IDEAS_ART_PROMPT_VERSION
+    : name === "check" && cleanPassChecker ? READER_FIRST_CHECKER_CONTRACT_VERSION : READER_FIRST_PROMPT_VERSION;
   const response = await options.provider({
-    stage: providerStage, promptVersion, instructions: READER_FIRST_PROMPTS[name],
+    stage: providerStage, promptVersion, instructions: name === "check" && cleanPassChecker ? READER_FIRST_CHECKER_PROMPT : READER_FIRST_PROMPTS[name],
     input, schema, model: options.model, idempotencyKey: options.idempotencyKey, safetyIdentifier: options.safetyIdentifier,
     timeoutMs: options.timeoutMs ?? 90_000, maxOutputTokens: providerStage === "write" || providerStage === "repair" ? 12_000 : 8000,
     research: researchPolicy.mode !== "none", researchPolicy,
@@ -327,6 +337,31 @@ function providerCheckSchema(fingerprint: string, locations: Record<string, stri
   });
 }
 
+function providerCheckEnvelopeSchema(fingerprint: string, locations: Record<string, string>, evidence: OnDemandEvidence) {
+  const bounded = providerCheckSchema(fingerprint, locations, evidence);
+  // Structured Outputs requires an object at the root; the nested union puts
+  // the pass/assessment/finding relationship into the actual provider schema.
+  return z.object({ check: z.discriminatedUnion("verdict", [
+    readerFirstCleanPassCheckSchema.extend({ fingerprint: bounded.shape.fingerprint, findings: bounded.shape.findings.max(0) }),
+    bounded.extend({ verdict: z.literal("repair") }),
+    bounded.extend({ verdict: z.literal("insufficient_evidence") }),
+  ]) }).strict();
+}
+
+async function checkedStage(input: unknown, fingerprint: string, locations: Record<string, string>, evidence: OnDemandEvidence, options: ReaderFirstStageOptions): Promise<ReaderFirstStageResult<ReaderFirstCheckOutput>> {
+  const normalize = (output: ReaderFirstCheckOutput) => {
+    normalizeProviderFindingLocations(output, locations);
+    boundCheck(output, fingerprint, locations, evidence);
+  };
+  if (usesCleanPassChecker(options)) {
+    const result = await stage("check", input, providerCheckEnvelopeSchema(fingerprint, locations, evidence), options, (output) => normalize(output.check));
+    // Unwrap only after strict parsing and binding. Every finding survives;
+    // the durable provider keeps its original response envelope and usage.
+    return { ...result, output: result.output.check };
+  }
+  return stage("check", input, providerCheckSchema(fingerprint, locations, evidence), options, normalize);
+}
+
 /** null means no candidate; false means ambiguous. Change only the first ASCII
  * letter and return the actual author-text slice, never case-folded prose. */
 function uniqueInitialCaseExcerpt(text: string, excerpt: string): string | false | null {
@@ -364,33 +399,33 @@ function normalizeProviderFindingLocations(check: ReaderFirstCheckOutput, locati
     if (matches.length === 1) finding.location = matches[0][0];
   }
 }
-export function readerFirstCheckAccepted(check: ReaderFirstCheckOutput) {
+export function readerFirstCheckAccepted(check: ReaderFirstCheckOutput, options: ReaderFirstCheckerOptions = {}) {
+  const cleanPassChecker = usesCleanPassChecker(options);
   readerFirstCheckOutputSchema.parse(check);
-  return check.verdict === "pass" && check.accuracyPassed && check.verificationPassed && check.promiseFulfilled && check.readerFit && check.continuity && check.privacyPassed && !check.findings.some((finding) => finding.severity === "material" || finding.kind === "verification_required");
+  return check.verdict === "pass" && check.accuracyPassed && check.verificationPassed && check.promiseFulfilled && check.readerFit && check.continuity && check.privacyPassed && !check.findings.some((finding) => finding.severity === "material" || finding.kind === "verification_required") && (!cleanPassChecker || check.findings.length === 0);
 }
-export function assertAcceptedReaderFirstArticleCheck(input: ReaderFirstSelection, draft: ReaderFirstWriterOutput, check: ReaderFirstCheckOutput) {
+export function assertAcceptedReaderFirstArticleCheck(input: ReaderFirstSelection, draft: ReaderFirstWriterOutput, check: ReaderFirstCheckOutput, options: ReaderFirstCheckerOptions = {}) {
+  usesCleanPassChecker(options);
   const compiled = compileReaderFirstArticle(input, draft);
   if (readerFirstFingerprint(compiled) !== readerFirstFingerprint(draft)) invalid("Article source presentation is not canonical");
   boundCheck(check, readerFirstArticleFingerprint(input, draft), articleLocations(draft.article!), input.evidence);
-  if (!readerFirstCheckAccepted(check)) invalid("editorial_withheld");
+  if (!readerFirstCheckAccepted(check, options)) invalid("editorial_withheld");
 }
-export function assertAcceptedReaderFirstAnswerCheck(input: ReaderFirstQuestion, answer: ReaderFirstAnswerOutput, check: ReaderFirstCheckOutput) {
+export function assertAcceptedReaderFirstAnswerCheck(input: ReaderFirstQuestion, answer: ReaderFirstAnswerOutput, check: ReaderFirstCheckOutput, options: ReaderFirstCheckerOptions = {}) {
+  usesCleanPassChecker(options);
   const compiled = compileReaderFirstAnswer(input, answer);
   if (readerFirstFingerprint(compiled) !== readerFirstFingerprint(answer)) invalid("Answer source presentation is not canonical");
   boundCheck(check, readerFirstAnswerFingerprint(input, answer), bodyLocations(answer.body), input.evidence);
-  if (!readerFirstCheckAccepted(check)) invalid("editorial_withheld");
+  if (!readerFirstCheckAccepted(check, options)) invalid("editorial_withheld");
 }
 export async function checkReaderFirstArticle(input: ReaderFirstSelection & { draft: ReaderFirstWriterOutput }, options: ReaderFirstStageOptions) {
   const compiled = compileReaderFirstArticle(input, input.draft);
   if (readerFirstFingerprint(compiled) !== readerFirstFingerprint(input.draft)) invalid("Compile final article evidence before checking");
   const fingerprint = readerFirstArticleFingerprint(input, input.draft);
   const locations = articleLocations(input.draft.article!);
-  const result = await stage("check", { ...input, mode: "article", fingerprint, allowedLocations: Object.keys(locations) }, providerCheckSchema(fingerprint, locations, input.evidence), options, (output) => {
-    normalizeProviderFindingLocations(output, locations);
-    boundCheck(output, fingerprint, locations, input.evidence);
-  });
-  const accepted = readerFirstCheckAccepted(result.output);
-  if (accepted) assertAcceptedReaderFirstArticleCheck(input, input.draft, result.output);
+  const result = await checkedStage({ ...input, mode: "article", fingerprint, allowedLocations: Object.keys(locations) }, fingerprint, locations, input.evidence, options);
+  const accepted = readerFirstCheckAccepted(result.output, options);
+  if (accepted) assertAcceptedReaderFirstArticleCheck(input, input.draft, result.output, options);
   return { ...result, accepted };
 }
 export async function checkReaderFirstAnswer(input: ReaderFirstQuestion & { answer: ReaderFirstAnswerOutput }, options: ReaderFirstStageOptions) {
@@ -398,12 +433,9 @@ export async function checkReaderFirstAnswer(input: ReaderFirstQuestion & { answ
   if (readerFirstFingerprint(compiled) !== readerFirstFingerprint(input.answer)) invalid("Compile final answer evidence before checking");
   const fingerprint = readerFirstAnswerFingerprint(input, input.answer);
   const locations = bodyLocations(input.answer.body);
-  const result = await stage("check", { ...input, mode: "answer", fingerprint, allowedLocations: Object.keys(locations) }, providerCheckSchema(fingerprint, locations, input.evidence), options, (output) => {
-    normalizeProviderFindingLocations(output, locations);
-    boundCheck(output, fingerprint, locations, input.evidence);
-  });
-  const accepted = readerFirstCheckAccepted(result.output);
-  if (accepted) assertAcceptedReaderFirstAnswerCheck(input, input.answer, result.output);
+  const result = await checkedStage({ ...input, mode: "answer", fingerprint, allowedLocations: Object.keys(locations) }, fingerprint, locations, input.evidence, options);
+  const accepted = readerFirstCheckAccepted(result.output, options);
+  if (accepted) assertAcceptedReaderFirstAnswerCheck(input, input.answer, result.output, options);
   return { ...result, accepted };
 }
 

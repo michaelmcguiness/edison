@@ -23,6 +23,7 @@ import {
 import { publishReaderFirstAnswer, publishReaderFirstArticle } from "./reader-first-publication";
 import { lockDemandAdmission } from "./demand-admission";
 import { assertDemandAllowanceSettlement } from "./demand-allowance";
+import { demandCheckerContractCompatibilityFailure, demandCheckerOptions } from "./demand-checker-contract";
 
 const JOB_LEASE_MS = 5 * 60_000;
 const DEMAND_PIPELINE_VERSION = 1;
@@ -57,6 +58,8 @@ export function initialDemandState(
     snapshotVersion: request.snapshot.version,
     snapshotFingerprint: demandFingerprint(request.snapshot),
     promptVersion: readerFirst ? READER_FIRST_PROMPT_VERSION : ON_DEMAND_PROMPT_VERSION,
+    ...(Object.hasOwn(request.snapshot, "checkerContractVersion")
+      ? { checkerContractVersion: request.snapshot.checkerContractVersion } : {}),
     phase: readerFirst ? initialReaderFirstPhase(request.kind) : initialDemandPhase(request.kind),
     requestId: request.id,
     requestFingerprint: request.requestFingerprint,
@@ -80,6 +83,8 @@ export function demandProgressCompatibilityFailure(
   ) {
     return "pipeline_version_unsupported";
   }
+  const checkerFailure = demandCheckerContractCompatibilityFailure(request, state);
+  if (checkerFailure) return checkerFailure;
   if (
     state.requestId !== request.id ||
     state.requestFingerprint !== request.requestFingerprint ||
@@ -200,7 +205,8 @@ async function finish(tx: DemandTransaction, request: DemandRequestRow, state: R
     if (state.version === 2) {
       if (!state.draft || !state.check) throw new Error("editorial_withheld");
       const selection = readerFirstSelection(request, state.evidence);
-      const article = publishReaderFirstArticle({ requestId: request.id, selection, draft: state.draft, check: state.check });
+      const article = publishReaderFirstArticle({ requestId: request.id, selection, draft: state.draft, check: state.check,
+        ...demandCheckerOptions(request, state) });
       result = { version: 2, article, draft: state.draft, check: state.check, evidence: selection.evidence };
     } else {
       const selection = { context, ...(request.snapshot.selection as { idea: OnDemandIdea; evidence: OnDemandEvidence }) } satisfies SelectedOnDemandInput;
@@ -228,7 +234,7 @@ async function finish(tx: DemandTransaction, request: DemandRequestRow, state: R
       if (!state.answer || !state.check) throw new Error("editorial_withheld");
       const question = readerFirstQuestion(request, state.evidence);
       result = { version: 2, answer: publishReaderFirstAnswer({ requestId: request.id, question,
-        answer: state.answer, check: state.check }), check: state.check, evidence: question.evidence };
+        answer: state.answer, check: state.check, ...demandCheckerOptions(request, state) }), check: state.check, evidence: question.evidence };
     } else {
     const answer = state.answer as OnDemandAnswerOutput;
     const question = request.snapshot.question as { articleVersion: string; evidence: OnDemandEvidence; draft: unknown;

@@ -136,6 +136,13 @@ Credential-free live checks started at 15:47:43.874 UTC, all passing:
 
 CTO owns the separate checker-output correction and compatibility verification,
 then the single real first-session acceptance journey agreed with Chief of Staff.
+The checker-specific approval stop was respected: normal review rejected CoS's
+agreement, both delegated implementation/test agents stopped, and a read-only tree
+check found no checker edits. Michael subsequently answered the exact article/Ask
+implementation-and-deployment question with “yes continue” (D50), resolving that
+stop. Implementation resumed on the isolated receipt-only baseline; the bounded
+checker release has its own receipt and must not be attributed to this recovery
+deployment. No checker source was committed, published or deployed before approval.
 The later failed article is unchanged. No hosted signed-in recovery, fresh
 article/Ask acceptance, provider-quality improvement or email delivery is claimed
 by these release checks; the available browser is signed out. No paid generation,

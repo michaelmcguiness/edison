@@ -90,7 +90,8 @@ async function worker(value: unknown) {
       result = { ok: true, outcome: prepared.outcome, pid };
     } else {
       assert.ok(idea);
-      await requestDemandArticle(principal, idea.id, { idempotencyKey: `check-recovery:${input.runId}:fresh:${idea.id}` });
+      const admitted = await requestDemandArticle(principal, idea.id, { idempotencyKey: `check-recovery:${input.runId}:fresh:${idea.id}` });
+      assert.equal(admitted.snapshot.checkerContractVersion, "edison-reader-first-v2.5-check-v1");
       result = { ok: true, outcome: "created", pid };
     }
   } catch (error) {
@@ -190,7 +191,20 @@ async function integrationChecks() {
     await database.insert(demandIdeas).values({ id: ideaId, principalId, loopId, batchRequestId: batchId, batchRevision: 0,
       title: idea.headline, deck: idea.deck, brief: idea, evidence: empty, saved: true });
     if (!failed) return { principal, principalId, loopId, ideaId, requestId: batchId };
-    const created = await requestDemandArticle(principal, ideaId, { idempotencyKey: `${prefix}${randomUUID()}` });
+    // Construct a pre-D50 request at insertion time. Never remove a checker
+    // marker from an admitted job or disable the immutable-snapshot trigger.
+    const historicalKey = `${prefix}${randomUUID()}`;
+    const [created] = await database.insert(demandRequests).values({ id: randomUUID(), principalId, loopId, ideaId,
+      kind: "article", idempotencyKey: historicalKey,
+      requestFingerprint: readerFirstFingerprint({ intent: "article", ideaId, idempotencyKey: historicalKey }),
+      snapshot: { version: 2, context, principleState: principles, selection: { idea, evidence: empty } },
+      reservedMicrousd: 1_200_000, stage: "queued" }).returning();
+    await database.update(demandIdeas).set({ articleRequestId: created.id }).where(eq(demandIdeas.id, ideaId));
+    for (const key of [historicalKey, `${prefix}canonical-${ideaId}`]) {
+      const replay = await requestDemandArticle(principal, ideaId, { idempotencyKey: key });
+      assert.equal(replay.id, created.id);
+      assert.deepEqual(replay.snapshot, created.snapshot, "replay/canonical reads cannot upgrade legacy checker admission");
+    }
     await database.update(demandRequests).set({ status: "running", stage: "writing", workflowRunId: `constructed-${runId}`, attempts: 1,
       leaseExpiresAt: new Date(Date.now() + 300_000) }).where(eq(demandRequests.id, created.id));
     const [request] = await database.select().from(demandRequests).where(eq(demandRequests.id, created.id));

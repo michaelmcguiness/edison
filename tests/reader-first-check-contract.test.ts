@@ -5,8 +5,10 @@ import {
   assertAcceptedReaderFirstArticleCheck, assertAcceptedReaderFirstAnswerCheck,
   checkReaderFirstArticle, checkReaderFirstAnswer, compileReaderFirstArticle, compileReaderFirstAnswer,
   readerFirstCheckOutputSchema, repairReaderFirstArticle, repairReaderFirstAnswer,
+  readerFirstCheckAccepted, readerFirstFingerprint, READER_FIRST_PROMPTS, READER_FIRST_PROMPT_VERSION,
+  READER_FIRST_CHECKER_CONTRACT_VERSION, READER_FIRST_CHECKER_PROMPT, writeReaderFirstArticle, answerReaderFirstQuestion,
   type ReaderFirstSelection, type ReaderFirstWriterOutput, type ReaderFirstAnswerOutput,
-  type ReaderFirstQuestion, type ReaderFirstCheckOutput, type ReaderFirstStageOptions,
+  type ReaderFirstQuestion, type ReaderFirstCheckOutput, type ReaderFirstStageOptions, type ReaderFirstCheckerOptions,
 } from "../packages/ai/src/reader-first";
 import type { OnDemandEvidence, OnDemandProviderRequest } from "../packages/ai/src/on-demand";
 import { ProviderResponseValidationError } from "../packages/ai/src/provider-response-error";
@@ -69,18 +71,20 @@ function passed(fingerprint: string): ReaderFirstCheckOutput {
   return { fingerprint, verdict: "pass", accuracyPassed: true, verificationPassed: true, promiseFulfilled: true,
     readerFit: true, continuity: true, privacyPassed: true, findings: [] };
 }
-function capture(overrides: Partial<ReaderFirstCheckOutput> = {}) {
+function capture(overrides: Partial<ReaderFirstCheckOutput> = {}, checkerOptions: ReaderFirstCheckerOptions = {}) {
   const calls: OnDemandProviderRequest[] = [];
   const raws: ReaderFirstCheckOutput[] = [];
+  const outputs: unknown[] = [];
   const before: string[] = [];
-  const options: ReaderFirstStageOptions = { model: "injected-model", idempotencyKey: "contract-check", safetyIdentifier: "constructed-reader",
+  const options: ReaderFirstStageOptions = { ...checkerOptions, model: "injected-model", idempotencyKey: "contract-check", safetyIdentifier: "constructed-reader",
     provider: async (request) => {
       calls.push(request);
       const raw = { ...passed((request.input as { fingerprint: string }).fingerprint), ...structuredClone(overrides) };
-      raws.push(raw); before.push(JSON.stringify(raw));
-      return { output: raw, usage };
+      const output = checkerOptions.checkerContractVersion ? { check: raw } : raw;
+      raws.push(raw); outputs.push(output); before.push(JSON.stringify(output));
+      return { output, usage };
     } };
-  return { options, calls, raws, unchanged() { assert.deepEqual(raws.map((raw) => JSON.stringify(raw)), before); } };
+  return { options, calls, raws, outputs, unchanged() { assert.deepEqual(outputs.map((output) => JSON.stringify(output)), before); } };
 }
 function check(mode: Mode, data: ReturnType<typeof fixture>, options: ReaderFirstStageOptions) {
   return mode === "article" ? checkReaderFirstArticle({ ...data.selection, draft: data.draft }, options)
@@ -224,5 +228,185 @@ test("saved acceptance and repair remain strict and never apply provider-only ca
       ? repairReaderFirstArticle({ ...data.selection, draft: data.draft, check: failed }, forbidden)
       : repairReaderFirstAnswer({ ...data.question, answer: data.answer, check: failed }, forbidden), /actual text location/);
     assert.equal(calls, 0); seen.unchanged();
+  }
+});
+
+const cleanChecker: ReaderFirstCheckerOptions = { checkerContractVersion: READER_FIRST_CHECKER_CONTRACT_VERSION };
+const assessments = ["accuracyPassed", "verificationPassed", "promiseFulfilled", "readerFit", "continuity", "privacyPassed"] as const;
+function frozenRequest(call: OnDemandProviderRequest) {
+  const { schema, ...rest } = call;
+  return { ...rest, wireFormat: zodTextFormat(schema, `edison_demand_${call.stage}`) };
+}
+function accepted(mode: Mode, data: ReturnType<typeof fixture>, value: ReaderFirstCheckOutput, options?: ReaderFirstCheckerOptions) {
+  return mode === "article" ? assertAcceptedReaderFirstArticleCheck(data.selection, data.draft, value, options)
+    : assertAcceptedReaderFirstAnswerCheck(data.question, data.answer, value, options);
+}
+
+test("literal pre-change v2.5 prompt, saved-schema and complete checker request hashes remain identical", async () => {
+  // Captured before this change at 9b1f08f, not computed from a second copy of
+  // the candidate implementation. Includes provider input and SDK wire schema.
+  assert.equal(READER_FIRST_PROMPT_VERSION, "edison-reader-first-v2.5");
+  assert.deepEqual(Object.fromEntries(Object.entries(READER_FIRST_PROMPTS).map(([name, prompt]) => [name, readerFirstFingerprint(prompt)])), {
+    ideas: "8739efea2b6d0a22a8a2fcb9e895c8278248ac2a6cb6b7bea7700877609e451f",
+    ideas_check: "6afd342df2a0ec8940c18dca32ef7f7a9719ec1798e088f0addfaa51d56d567b",
+    write: "0bc9c447dfad2d9c654173796612d4bfaf157e9e9c460c7728995eb37a607b4e",
+    check: "3a8ace8214ac7236919af35926aa81e597e3debfa0f783a3bee58cd3704f2a12",
+    repair: "3de337063b7202aaf10551f6a4ed68d1be94fbf4acc51fe80d80e34cd8c93d7d",
+    answer: "f761f869a07f08b63b45a8f12aaf1fd8aac9921707d638297f0399f44babd786",
+    answer_repair: "0e09b442f90586d2c4b5950ceae16f09e303cc9427c9b0689561b5916663fdf1",
+  });
+  assert.equal(readerFirstFingerprint(zodTextFormat(readerFirstCheckOutputSchema, "legacy_saved_check").schema), "2e065974943bb4b1dfebe2eeb7c1a9e0792c67258cf4d4ee6accf789e8ac390c");
+  const expected = { article: "f67cc386d85b45c8f4cf4d1ae8ebb5400c514d0d333edcf6e14a26cf645bdecb", answer: "1777de528466f5de576732093ff58607215a3175dd8ee146a5f17501298a8c0d" };
+  for (const mode of ["article", "answer"] as const) {
+    const data = fixture(), seen = capture(); await check(mode, data, seen.options);
+    assert.equal(readerFirstFingerprint(frozenRequest(seen.calls[0])), expected[mode]);
+    const explicitMissing = capture({}, { checkerContractVersion: undefined }); await check(mode, data, explicitMissing.options);
+    assert.equal(readerFirstFingerprint(frozenRequest(explicitMissing.calls[0])), expected[mode]);
+  }
+});
+
+test("new article and Ask wire contracts use a strict object with nested branches and enforce clean passes in the actual SDK schema", async () => {
+  for (const mode of ["article", "answer"] as const) for (const count of [0, 1, 48]) {
+    const data = fixture(packet(count)), seen = capture({}, cleanChecker);
+    const result = await check(mode, data, seen.options);
+    assert.equal(result.accepted, true); assert.equal(seen.calls.length, 1);
+    assert.equal(result.promptVersion, READER_FIRST_CHECKER_CONTRACT_VERSION);
+    assert.equal(seen.calls[0].instructions, READER_FIRST_CHECKER_PROMPT);
+    const wire = zodTextFormat(seen.calls[0].schema, "new_contract"), root = wire.schema;
+    assert.equal(wire.strict, true); assert.equal(root.type, "object"); assert.equal(root.anyOf, undefined);
+    assert.equal(root.additionalProperties, false); assert.deepEqual(root.required, ["check"]);
+    const branches = object(object(root.properties).check).anyOf as unknown[];
+    assert.equal(branches.length, 3);
+    for (const [index, verdict] of ["pass", "repair", "insufficient_evidence"].entries()) {
+      const branch = resolve(branches[index], root), fields = object(branch.properties);
+      assert.equal(branch.additionalProperties, false); assert.deepEqual(new Set(branch.required as string[]), new Set(Object.keys(fields)));
+      assert.equal(resolve(fields.verdict, root).const, verdict);
+      const findings = resolve(fields.findings, root), findingFields = object(resolve(findings.items, root).properties);
+      assert.equal(findings.maxItems, index === 0 ? 0 : 24); assert.equal(findings.minItems, undefined, "non-pass finding minimum is unchanged");
+      for (const name of assessments) {
+        const field = resolve(fields[name], root); assert.equal(field.type, "boolean"); assert.equal(field.const, index === 0 ? true : undefined);
+      }
+      assert.ok((resolve(findingFields.location, root).enum as string[]).includes("body.0"));
+      const ids = resolve(findingFields.passageIds, root);
+      assert.equal(ids.maxItems, count ? 12 : 0);
+      if (count) assert.deepEqual(resolve(ids.items, root).enum, data.selection.evidence.passages.map((passage) => passage.id));
+    }
+    const legacy = capture(); await check(mode, data, legacy.options);
+    assert.deepEqual(seen.calls[0].input, legacy.calls[0].input, "selector is not injected into artifact identity or repair context");
+    assert.deepEqual(result.output, seen.raws[0]); accepted(mode, data, result.output, cleanChecker); seen.unchanged();
+  }
+});
+
+test("new pass responses with false assessments or any findings fail without discarding raw output or observed usage", async () => {
+  for (const mode of ["article", "answer"] as const) {
+    const contradictions: Partial<ReaderFirstCheckOutput>[] = assessments.map((name) => ({ [name]: false }));
+    contradictions.push({ findings: [finding()] }, { findings: [finding(prose, { severity: "nonmaterial", kind: "clarity" })] });
+    for (const value of contradictions) {
+      const seen = capture(value, cleanChecker);
+      await assert.rejects(check(mode, fixture(), seen.options), (error: unknown) => {
+        assert.ok(error instanceof ProviderResponseValidationError); assert.deepEqual(error.observedUsage, usage); return true;
+      });
+      assert.equal(seen.calls.length, 1); assert.equal(seen.calls[0].schema.safeParse(seen.outputs[0]).success, false); seen.unchanged();
+    }
+  }
+});
+
+test("new non-pass branches preserve failed flags and every exact-bound finding, including empty historical-style failures", async () => {
+  for (const mode of ["article", "answer"] as const) for (const verdict of ["repair", "insufficient_evidence"] as const) {
+    const evidence = packet(1), data = fixture(evidence);
+    const findings: Finding[] = [finding(prose, { passageIds: ["p1"] }), finding(prose, { kind: "missing" }),
+      finding(prose, { severity: "nonmaterial", kind: "clarity" })];
+    for (const retained of [findings, []]) {
+      const seen = capture({ verdict, ...Object.fromEntries(assessments.map((name) => [name, false])), findings: retained }, cleanChecker);
+      const result = await check(mode, data, seen.options);
+      assert.equal(result.accepted, false); assert.deepEqual(result.output, seen.raws[0]);
+      assert.deepEqual(result.output.findings, retained); assert.equal(readerFirstCheckAccepted(result.output, cleanChecker), false); seen.unchanged();
+    }
+  }
+});
+
+test("new failing checks still reject invented anchors, passages and fingerprints and retain only the existing unambiguous normalization", async () => {
+  for (const mode of ["article", "answer"] as const) {
+    for (const value of [
+      { fingerprint: "0".repeat(64) }, { findings: [finding("Invented excerpt.")] },
+      { findings: [finding(prose, { location: "body.99" })] }, { findings: [finding(prose, { passageIds: ["invented"] })] },
+      { findings: [finding(prose.toUpperCase())] },
+    ]) {
+      const seen = capture({ verdict: "repair", verificationPassed: false, ...value }, cleanChecker);
+      await assert.rejects(check(mode, fixture(packet(1)), seen.options), ProviderResponseValidationError); seen.unchanged();
+    }
+    const data = fixture(); data.draft.article!.body.unshift({ type: "heading", level: 2, text: "Mechanism" });
+    data.answer.body.unshift({ type: "heading", level: 2, text: "Mechanism" });
+    const moved = capture({ verdict: "repair", verificationPassed: false, findings: [finding()] }, cleanChecker);
+    const result = await check(mode, data, moved.options);
+    assert.equal(result.accepted, false); assert.equal(result.output.findings[0].location, "body.1");
+    assert.deepEqual(result.output, { ...moved.raws[0], findings: [{ ...moved.raws[0].findings[0], location: "body.1" }] }); moved.unchanged();
+    const cased = capture({ verdict: "repair", findings: [finding("a thermostat compares a reading with a target.")] }, cleanChecker);
+    const corrected = await check(mode, fixture(), cased.options);
+    assert.equal(corrected.output.findings[0].excerpt, prose); assert.equal(corrected.accepted, false); cased.unchanged();
+  }
+});
+
+test("final new-contract assertions reject nonempty stored passes while valid legacy minor findings and invalid legacy rejection remain unchanged", async () => {
+  for (const mode of ["article", "answer"] as const) {
+    const data = fixture(), seen = capture({ findings: [finding(prose, { severity: "nonmaterial", kind: "clarity" })] });
+    const result = await check(mode, data, seen.options);
+    assert.equal(result.accepted, true); assert.equal(readerFirstCheckAccepted(result.output), true); accepted(mode, data, result.output);
+    assert.equal(readerFirstCheckAccepted(result.output, cleanChecker), false);
+    assert.throws(() => accepted(mode, data, result.output, cleanChecker), /editorial_withheld/);
+    const invalid = { ...result.output, findings: [finding("Invented minor excerpt.", { severity: "nonmaterial", kind: "clarity" })] };
+    for (const options of [undefined, cleanChecker]) assert.throws(() => accepted(mode, data, invalid, options), /actual text location/);
+    for (const name of assessments) assert.throws(() => accepted(mode, data, { ...result.output, findings: [], [name]: false }, cleanChecker), /editorial_withheld/);
+  }
+});
+
+test("unknown or null checker selectors fail before any provider and cannot enter legacy final acceptance", async () => {
+  for (const mode of ["article", "answer"] as const) for (const marker of [null, "edison-reader-first-v2.5", "next", 1, {}, []]) {
+    const data = fixture(), seen = capture(), options = { ...seen.options, checkerContractVersion: marker } as unknown as ReaderFirstStageOptions;
+    await assert.rejects(check(mode, data, options), /Unsupported reader-first checker contract/); assert.equal(seen.calls.length, 0);
+    const clean = capture(); const result = await check(mode, data, clean.options);
+    assert.throws(() => accepted(mode, data, result.output, options), /Unsupported reader-first checker contract/);
+    assert.throws(() => readerFirstCheckAccepted(result.output, options), /Unsupported reader-first checker contract/);
+  }
+  for (const mode of ["article", "answer"] as const) {
+    const data = fixture();
+    await assert.rejects(check(mode, data, null as unknown as ReaderFirstStageOptions), /Unsupported reader-first checker contract/);
+    const seen = capture(); const result = await check(mode, data, seen.options);
+    assert.throws(() => accepted(mode, data, result.output, null as unknown as ReaderFirstCheckerOptions), /Unsupported reader-first checker contract/);
+  }
+});
+
+test("a selected checker version leaves write, answer and sole-repair requests byte-identical and preserves failure input", async () => {
+  for (const mode of ["article", "answer"] as const) for (const repairing of [false, true]) {
+    const data = fixture(), checked = capture({ verdict: "repair", verificationPassed: false, findings: [finding()] }, cleanChecker);
+    const failed = await check(mode, data, checked.options), calls: OnDemandProviderRequest[] = [];
+    for (const selector of [{}, cleanChecker]) {
+      const options: ReaderFirstStageOptions = { ...checked.options, checkerContractVersion: undefined, ...selector, provider: async (call) => {
+        calls.push(call);
+        return { output: mode === "article"
+          ? { status: "insufficient_evidence", article: null, research: empty, reason: "Constructed unavailable response." }
+          : { status: "insufficient_evidence", body: [], sourceKeys: [], research: empty, reason: "Constructed unavailable response." }, usage };
+      } };
+      const result = mode === "article"
+        ? await (repairing ? repairReaderFirstArticle({ ...data.selection, draft: data.draft, check: failed.output }, options) : writeReaderFirstArticle(data.selection, options))
+        : await (repairing ? repairReaderFirstAnswer({ ...data.question, answer: data.answer, check: failed.output }, options) : answerReaderFirstQuestion(data.question, options));
+      assert.equal(result.promptVersion, READER_FIRST_PROMPT_VERSION);
+    }
+    assert.equal(calls.length, 2); assert.deepEqual(frozenRequest(calls[0]), frozenRequest(calls[1]));
+    if (repairing) assert.deepEqual((calls[1].input as { check: ReaderFirstCheckOutput }).check, failed.output);
+    assert.equal(calls[1].instructions, repairing ? mode === "article" ? READER_FIRST_PROMPTS.repair : READER_FIRST_PROMPTS.answer_repair
+      : mode === "article" ? READER_FIRST_PROMPTS.write : READER_FIRST_PROMPTS.answer);
+  }
+});
+
+test("same-contract cached response replay reconstructs identical checker input/schema without mutating the retained envelope", async () => {
+  for (const mode of ["article", "answer"] as const) for (const selector of [{}, cleanChecker]) {
+    const data = fixture(), first = capture({}, selector), initial = await check(mode, data, first.options);
+    const retained = structuredClone(first.outputs[0]), before = JSON.stringify(retained);
+    let reads = 0;
+    const replay = await check(mode, data, { ...first.options, provider: async (call) => {
+      reads++; assert.deepEqual(frozenRequest(call), frozenRequest(first.calls[0])); return { output: retained, usage };
+    } });
+    assert.equal(reads, 1); assert.deepEqual(replay, initial); assert.equal(JSON.stringify(retained), before);
   }
 });
