@@ -6,6 +6,28 @@ launching; they can change without a code release.
 
 ## Decision and current status
 
+### September 8 — editorial image removal live
+
+Web runtime `5aadd665964aecfe8395d5fa8f5f7d9e58e82fc0` is READY Production as
+`dpl_5zcRkL1gUtf6qBGP4hGDhfpXwbxm`, 19:20:50.605 UTC. Both source fields,
+the existing web project and apex/www/project-qlqve aliases are verified.
+Demand and Pulse cards no longer render editorial images or empty image slots;
+text, article identity, reading/Save actions, branding/icons and stored assets
+remain. [CI34267827868](https://github.com/michaelmcguiness/edison/actions/runs/34267827868)
+passed 785 web + 295 API tests = 1,080, zero failures/skips; 320 pgTAP assertions,
+all seven DB proofs, builds/types/lint and all 29 steps.
+
+CTO public smoke passed 19:21:45.011 UTC: login 200 with nonce CSP/private-no-store,
+expected apex/www redirects and API health 200. API remains `82ab412` /
+`dpl_DjMLcg4iZXLfxjQ4CJhLmwngEnYE`; its three cron bindings/cadences are unchanged.
+The specialist reports synthetic component/CSS previews at 390×844/1280×900
+without image DOM, blank slots or overflow; local HTML paths are retained in the
+receipt. Neither CoS nor CTO root independently rendered them, and root has not
+inspected the signed-in production feed. No model/provider/Auth/migration/budget or daily-delivery architecture
+change occurred, and no generation-speed or quality result is claimed.
+See the [image-removal receipt](operations/IMAGE_REMOVAL_RELEASE_2026-09-08.md) for exact host, evidence attribution,
+scope and web-only rollback limits.
+
 ### September 8 — D50 checker-format correction live
 
 API source `bd528f59145f0878351d665f444d945c8ebdaf31` is live as
