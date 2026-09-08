@@ -6,6 +6,7 @@ import {
   onDemandContextSchema,
 } from "./on-demand";
 import { ProviderResponseValidationError } from "./provider-response-error";
+import { readDemandProviderPolicy, type DemandProviderPolicy } from "./provider-policy";
 import { READER_FIRST_PROMPTS, READER_FIRST_PROMPT_VERSION, READER_FIRST_IDEAS_ART_PROMPT_VERSION,
   READER_FIRST_CHECKER_CONTRACT_VERSION, READER_FIRST_CHECKER_PROMPT, type ReaderFirstCheckerContractVersion } from "./reader-first-prompts";
 import { normalizeOnDemandIdeaArt } from "./on-demand-art";
@@ -21,7 +22,10 @@ export * from "./reader-first-schemas";
 export { READER_FIRST_PROMPT_VERSION, READER_FIRST_PROMPTS, READER_FIRST_IDEAS_ART_PROMPT_VERSION,
   READER_FIRST_CHECKER_CONTRACT_VERSION, READER_FIRST_CHECKER_PROMPT, type ReaderFirstCheckerContractVersion } from "./reader-first-prompts";
 export type ReaderFirstCheckerOptions = { checkerContractVersion?: ReaderFirstCheckerContractVersion };
-export type ReaderFirstStageOptions = OnDemandStageOptions & ReaderFirstCheckerOptions & { researchPolicy?: NonNullable<OnDemandProviderRequest["researchPolicy"]> };
+export type ReaderFirstStageOptions = OnDemandStageOptions & ReaderFirstCheckerOptions & {
+  researchPolicy?: NonNullable<OnDemandProviderRequest["researchPolicy"]>;
+  providerPolicy?: DemandProviderPolicy;
+};
 export type ReaderFirstSelection = { context: OnDemandContext; idea: ReaderFirstIdea; evidence: OnDemandEvidence };
 const referenceKey = z.string().min(1).max(40);
 const previousReferenceSchema = z.object({
@@ -77,6 +81,7 @@ async function stage<T>(
   normalize?: (output: T, response: OnDemandProviderResponse) => void,
 ): Promise<ReaderFirstStageResult<T>> {
   const cleanPassChecker = usesCleanPassChecker(options);
+  const providerPolicy = readDemandProviderPolicy(options);
   if (!options.model || !options.idempotencyKey || !options.safetyIdentifier) invalid("Explicit model and request identities are required");
   const checking = name === "check" || name === "ideas_check";
   const researchPolicy = checking ? none : options.researchPolicy ?? { mode: "auto", reason: "Selectively verify the reader's question and specific assertions", maxCalls: 8 };
@@ -89,6 +94,7 @@ async function stage<T>(
     input, schema, model: options.model, idempotencyKey: options.idempotencyKey, safetyIdentifier: options.safetyIdentifier,
     timeoutMs: options.timeoutMs ?? 90_000, maxOutputTokens: providerStage === "write" || providerStage === "repair" ? 12_000 : 8000,
     research: researchPolicy.mode !== "none", researchPolicy,
+    ...(providerPolicy ? { providerPolicy } : {}),
   });
   try {
     const output = schema.parse(name === "ideas" ? normalizeOnDemandIdeaArt(response.output) : response.output);

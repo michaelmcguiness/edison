@@ -16,7 +16,9 @@ import {
 } from "@edison/db";
 import {
   UnpricedOpenAiModelError,
+  UnpricedOpenAiTierError,
   estimatedArticleCostMicrousd,
+  estimatedTieredOpenAiCostMicrousd,
 } from "@edison/domain";
 import { HttpError } from "../http/errors";
 
@@ -402,13 +404,18 @@ export type RecordedAiUsage = {
   cachedInputTokens: number;
   outputTokens: number;
   webSearchCalls?: number;
+  serviceTier?: string | null;
 };
 
-export function priceRecordedAiUsage(usage: RecordedAiUsage) {
+export function priceRecordedAiUsage(usage: RecordedAiUsage, pricingVersion?: string) {
   try {
+    // An unpinned legacy request must never silently bill an observed Fast or
+    // unknown tier at its old standard rate. Cached immutable bills are not
+    // passed through this function again.
+    if (pricingVersion === undefined && Object.hasOwn(usage, "serviceTier") && usage.serviceTier !== "default") throw new UnpricedOpenAiTierError();
     return {
       pricingStatus: "priced" as const,
-      costMicrousd: estimatedArticleCostMicrousd({
+      costMicrousd: pricingVersion !== undefined ? estimatedTieredOpenAiCostMicrousd({ ...usage, pricingVersion, serviceTier: usage.serviceTier }) : estimatedArticleCostMicrousd({
         model: usage.model,
         inputTokens: usage.inputTokens,
         cachedInputTokens: usage.cachedInputTokens,
@@ -418,7 +425,7 @@ export function priceRecordedAiUsage(usage: RecordedAiUsage) {
       pricingError: null,
     };
   } catch (error) {
-    if (!(error instanceof UnpricedOpenAiModelError)) throw error;
+    if (!(error instanceof UnpricedOpenAiModelError) && !(error instanceof UnpricedOpenAiTierError)) throw error;
     return {
       pricingStatus: "unpriced" as const,
       costMicrousd: null,

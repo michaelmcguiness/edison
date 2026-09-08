@@ -21,6 +21,7 @@ import { readDemandStoredDraft } from "./demand-result-compatibility";
 import { evidenceUrl, retrieveEvidencePage } from "./evidence-retrieval";
 import { demandReadableIdeaBrief } from "./demand-idea-art";
 import { demandCheckerOptions } from "./demand-checker-contract";
+import { demandProviderOptions } from "./demand-provider-policy";
 
 type Acquisition = {
   research: ReaderFirstResearch;
@@ -38,6 +39,7 @@ export type ReaderFirstPipelineState = Record<string, unknown> & {
   kind: DemandRequestRow["kind"];
   models: { article: string; utility: string };
   checkerContractVersion?: unknown;
+  providerPolicy?: unknown;
   research?: ReaderFirstResearchOutput;
   evidence?: OnDemandEvidence;
   acquisition?: Acquisition;
@@ -204,6 +206,7 @@ async function retrieveGroup(state: ReaderFirstPipelineState, retrievePage: type
 }
 
 function ready(state: ReaderFirstPipelineState, request: DemandRequestRow): AdvanceResult {
+  demandProviderOptions(request, state);
   const checkerOptions = demandCheckerOptions(request, state);
   if (request.kind === "ideas") {
     if (!state.ideas?.length) return fail(state, "evidence_unavailable");
@@ -229,6 +232,7 @@ export async function advanceReaderFirstPipeline(
     if (state.version !== 2 || request.snapshot.version !== 2 || state.requestId !== request.id ||
       state.requestFingerprint !== request.requestFingerprint || state.kind !== request.kind || !state.models?.article || !state.models.utility) stop("pipeline_state_invalid");
     const checkerOptions = demandCheckerOptions(request, state);
+    const providerOptions = demandProviderOptions(request, state);
     if (state.phase === "failed") return fail(state, state.failureCode ?? "preparation_failed");
     if (state.phase === "ready") return ready(state, request);
     const context = onDemandContextSchema.parse(request.snapshot.context);
@@ -241,6 +245,7 @@ export async function advanceReaderFirstPipeline(
       state.check.findings.some((finding) => finding.kind === "verification_required")));
     const options: ReaderFirstStageOptions = {
       ...checkerOptions,
+      ...providerOptions,
       provider, model: request.kind === "article" && ["write", "repair"].includes(state.phase) ? state.models.article : state.models.utility,
       idempotencyKey: `${request.id}:${state.phase}`, safetyIdentifier: request.principalId,
       researchPolicy: { mode: generating ? repairing && needsResearch ? "required" : "auto" : "none",

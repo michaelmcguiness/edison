@@ -25,6 +25,7 @@ import { demandQuestionHistory } from "./demand-question-history";
 import { assertDemandAdmissionCapacity, lockDemandAdmission as lockAdmission } from "./demand-admission";
 import { recoverableDemandCheckIds } from "./demand-check-recovery";
 import { conciseDemandLoopName, effectiveDemandLoopInstructions, contextDemandLoopCuriosity } from "./demand-loop-management";
+import { admissionDemandProviderPolicy } from "./demand-provider-policy";
 
 export type DemandLoopRow = typeof demandLoops.$inferSelect;
 export type DemandRequestRow = typeof demandRequests.$inferSelect;
@@ -219,7 +220,8 @@ async function reserveRequest(tx: DemandTransaction, input: {
   const reservedMicrousd = demandReservationMicrousd[input.kind];
   await assertDemandAdmissionCapacity(tx, { principalId: input.principalId, additionalMicrousd: reservedMicrousd });
   const allocation=input.kind==="ideas"?await prepareDemandAllowance(tx,input.principalId):null;
-  const [created] = await tx.insert(demandRequests).values({ ...input, snapshot:allocation?{...input.snapshot,requestedCount:allocation.requestedCount}:input.snapshot,
+  const snapshot = { ...input.snapshot, ...admissionDemandProviderPolicy(input.kind, input.snapshot) };
+  const [created] = await tx.insert(demandRequests).values({ ...input, snapshot:allocation?{...snapshot,requestedCount:allocation.requestedCount}:snapshot,
     stage: "queued", reservedMicrousd }).returning();
   if (!created) throw new Error("demand_request_not_created");
   if(allocation) await allocateDemandAllowance(tx,created.id,allocation);

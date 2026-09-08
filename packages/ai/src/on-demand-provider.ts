@@ -3,6 +3,7 @@ import type { ResponseCreateParamsNonStreaming } from "openai/resources/response
 import { getOpenAIClient } from "./client";
 import { providerResponseUsage, ProviderResponseValidationError } from "./provider-response-error";
 import type { OnDemandProvider, OnDemandProviderRequest, OnDemandProviderResponse } from "./on-demand";
+import { readDemandProviderPolicy } from "./provider-policy";
 
 function researchUrls(output: unknown[]) {
   const urls = new Set<string>();
@@ -66,6 +67,7 @@ export function onDemandResearchProvenance(output: readonly unknown[]): NonNulla
 
 /** Exported for offline wire-contract tests; this does not create a client. */
 export function onDemandProviderBody(request: OnDemandProviderRequest): ResponseCreateParamsNonStreaming & { max_tool_calls?: number } {
+  const providerPolicy = readDemandProviderPolicy(request);
   const policy = request.researchPolicy;
   const tools = policy
     ? policy.mode !== "none" && policy.maxCalls > 0 ? {
@@ -89,6 +91,7 @@ export function onDemandProviderBody(request: OnDemandProviderRequest): Response
     max_output_tokens: request.maxOutputTokens,
     safety_identifier: request.safetyIdentifier,
     store: false,
+    ...(providerPolicy ? { service_tier: providerPolicy.requestedServiceTier } : {}),
   };
 }
 
@@ -107,17 +110,23 @@ export function onDemandSearchUsage(output: readonly unknown[], readerFirst: boo
 
 /** One provider request only. The caller owns durable retries and stage ledgers. */
 export const openAIOnDemandProvider: OnDemandProvider = async (request) => {
-  const response = await getOpenAIClient().responses.create(onDemandProviderBody(request), {
+  // Validate the frozen policy before obtaining a client or dispatching work.
+  const body = onDemandProviderBody(request);
+  const tierAware = Object.hasOwn(body, "service_tier");
+  const response = await getOpenAIClient().responses.create(body, {
     idempotencyKey: request.idempotencyKey,
     headers: { "Idempotency-Key": request.idempotencyKey },
     timeout: request.timeoutMs,
     maxRetries: 0,
   });
   const usage = {
-    ...providerResponseUsage(response),
+    ...providerResponseUsage(response, { requireServiceTier: tierAware }),
     ...onDemandSearchUsage(response.output, Boolean(request.researchPolicy)),
   };
   try {
+    if (tierAware && usage.serviceTier !== "default" && usage.serviceTier !== "priority") {
+      throw new Error("Unknown actual provider service tier");
+    }
     if (response.status !== "completed" || !response.output_text || response.output.some((item) => item.type === "message" && item.content.some((content) => content.type === "refusal"))) {
       throw new Error("Incomplete, refused or absent provider output");
     }

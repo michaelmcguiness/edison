@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { OnDemandProvider, OnDemandProviderRequest, OnDemandProviderResponse } from "../packages/ai/src/on-demand";
+import type { DemandProviderPolicy } from "../packages/ai/src/provider-policy";
 
 // No URL, linked-project, credential or provider option. This is the standard
 // disposable Supabase container only, never the application's saved environment.
@@ -12,6 +13,8 @@ const LOCAL_DATABASE_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postg
 const DOCKER_SOCKET = "unix:///var/run/docker.sock";
 const CONTAINER = "supabase_db_edison-reader";
 const environment = { OPENAI_ARTICLE_MODEL: "gpt-5.6-terra", OPENAI_UTILITY_MODEL: "gpt-5.6-luna", OPENAI_WEB_SEARCH_COST_MICROUSD: "10000" };
+const fastPolicy = { version: "edison-demand-provider-policy-v1", requestedServiceTier: "priority",
+  pricingVersion: "openai-terra-luna-2026-09-08-v1" } as const satisfies DemandProviderPolicy;
 
 function assertLocalEnvironment(values: Readonly<Record<string, string | undefined>>) {
   // Inspect names, not secret values. Even a local inherited override is refused.
@@ -71,7 +74,7 @@ async function integrationChecks() {
   const accountIds: string[] = [];
   const runId = randomUUID();
   let providerCalls = 0;
-  type Fixture = { principalId: string; loopId: string; requestId: string; context: { loopId: string; revision: number } };
+  type Fixture = { principalId: string; loopId: string; requestId: string; context: { loopId: string; revision: number }; providerPolicy?: DemandProviderPolicy };
 
   async function principal() {
     const id = randomUUID();
@@ -90,24 +93,27 @@ async function integrationChecks() {
     assert.equal(active.active, true);
     return id;
   }
-  async function fixture(principalId: string): Promise<Fixture> {
+  async function fixture(principalId: string, options: { providerPolicy?: DemandProviderPolicy; reservedMicrousd?: number } = {}): Promise<Fixture> {
     const loopId = randomUUID(); const requestId = randomUUID(); const context = { loopId, revision: 0 };
+    const policy = options.providerPolicy ? { providerPolicy: options.providerPolicy } : {};
     await database.insert(demandLoops).values({ id: loopId, principalId, title: "Disposable provider gate", originalCuriosity: "How does this constructed example work?" });
     await database.insert(demandRequests).values({ id: requestId, principalId, loopId, kind: "question", status: "running", stage: "answering",
       idempotencyKey: `local-db:${requestId}`, requestFingerprint: createHash("sha256").update(requestId).digest("hex"),
-      snapshot: { version: 2, context }, reservedMicrousd: 250000, leaseExpiresAt: new Date(Date.now() + 900000) });
-    return { principalId, loopId, requestId, context };
+      snapshot: { version: 2, context, ...policy }, reservedMicrousd: options.reservedMicrousd ?? 250000, leaseExpiresAt: new Date(Date.now() + 900000) });
+    return { principalId, loopId, requestId, context, ...policy };
   }
   function stage(item: Fixture, name: "answer" | "check" | "repair", key: string = name, mode: "auto" | "required" | "none" = name === "check" ? "none" : "auto"): OnDemandProviderRequest {
     return { stage: name, promptVersion: "disposable-v2-transaction-gate", instructions: "Constructed local integration fixture only.",
       input: { context: item.context }, schema: z.object({ text: z.string() }), model: "gpt-5.6-luna",
       idempotencyKey: `local-db:${key}`, safetyIdentifier: item.principalId, timeoutMs: 10000, maxOutputTokens: 1000,
-      research: mode !== "none", researchPolicy: { mode, reason: "Constructed local allowance check", maxCalls: mode === "none" ? 0 : 8 } };
+      research: mode !== "none", researchPolicy: { mode, reason: "Constructed local allowance check", maxCalls: mode === "none" ? 0 : 8 },
+      ...(item.providerPolicy ? { providerPolicy: item.providerPolicy } : {}) };
   }
-  function observed(toolCalls: number, searches: number, pricing: "priced" | "unpriced" = "priced"): OnDemandProviderResponse {
+  function observed(toolCalls: number, searches: number, pricing: "priced" | "unpriced" = "priced", serviceTier?: string | null): OnDemandProviderResponse {
     return { output: { text: "Constructed response; not reader content." },
       usage: { providerResponseId: `resp-local-${randomUUID()}`, model: "gpt-5.6-luna", inputTokens: 100, cachedInputTokens: 10, outputTokens: 100,
-        webSearchCalls: searches, webSearchToolCalls: toolCalls, webSearchPricingStatus: pricing },
+        webSearchCalls: searches, webSearchToolCalls: toolCalls, webSearchPricingStatus: pricing,
+        ...(serviceTier === undefined ? {} : { serviceTier }) },
       researchedUrls: searches ? ["https://example.org/constructed"] : [],
       researchProvenance: { consultedUrls: searches ? ["https://example.org/constructed"] : [], openedUrls: [], citedUrls: [] } };
   }
@@ -209,6 +215,66 @@ async function integrationChecks() {
     const callsBeforeUnknownReplay = providerCalls;
     await assert.rejects(unpriced(stage(unknown, "answer")), code("provider_invalid"));
     assert.equal(providerCalls, callsBeforeUnknownReplay);
+
+    // Fast is pinned at fixture INSERT; actual tiers survive PostgreSQL JSON
+    // roundtrips. A fallback changes only token pricing, never search charges.
+    for (const [tier, expectedCost] of [["priority", 10276], ["default", 10138]] as const) {
+      const item = await fixture(firstPrincipal, { providerPolicy: fastPolicy });
+      const response = observed(2, 1, "priced", tier);
+      const read = provider(item, async (request) => {
+        assert.deepEqual(request.providerPolicy, fastPolicy); return response;
+      });
+      const request = stage(item, "answer");
+      assert.deepEqual(await read(request), response);
+      const saved = await records(item);
+      const [parent] = await database.select().from(demandRequests).where(eq(demandRequests.id, item.requestId));
+      assert.deepEqual(parent.snapshot.providerPolicy, fastPolicy);
+      assert.equal(saved.stages.length, 1); assert.equal(saved.usage.length, 1);
+      assert.deepEqual(saved.stages[0].snapshot.providerPolicy, fastPolicy);
+      assert.equal(saved.stages[0].usage?.serviceTier, tier);
+      assert.deepEqual(saved.stages[0].output, response);
+      assert.equal(saved.stages[0].costMicrousd, expectedCost);
+      assert.equal(saved.usage[0].costMicrousd, expectedCost); assert.equal(saved.usage[0].searchCalls, 1);
+      const before = providerCalls;
+      assert.deepEqual(await read(request), response);
+      const unpinned = { ...request }; delete unpinned.providerPolicy;
+      await assert.rejects(read(unpinned), code("provider_snapshot_mismatch"));
+      await assert.rejects(read({ ...request, providerPolicy: { ...fastPolicy, requestedServiceTier: "default" } }), code("provider_snapshot_mismatch"));
+      await assert.rejects(read({ ...request, providerPolicy: null } as unknown as OnDemandProviderRequest), code("provider_policy_invalid"));
+      assert.equal(providerCalls, before); assert.deepEqual(await records(item), saved);
+      const [after] = await database.select().from(demandRequests).where(eq(demandRequests.id, item.requestId));
+      assert.deepEqual(after, parent, "replay and rejected policy changes never rewrite the parent receipt");
+    }
+    const beforeLegacyMismatch = providerCalls;
+    await assert.rejects(paid({ ...stage(first, "answer"), providerPolicy: fastPolicy }), code("provider_snapshot_mismatch"));
+    assert.equal(providerCalls, beforeLegacyMismatch); assert.deepEqual(await records(first), beforeReplay);
+    for (const tier of ["unknown-tier", null, undefined]) {
+      const item = await fixture(firstPrincipal, { providerPolicy: fastPolicy });
+      const response = observed(2, 1, "priced", tier);
+      const read = provider(item, async () => response);
+      await assert.rejects(read(stage(item, "answer")), code("provider_model_unpriced"));
+      const saved = await records(item); const before = providerCalls;
+      assert.equal(saved.usage.length, 1); assert.equal(saved.usage[0].pricingStatus, "unpriced");
+      assert.equal(saved.usage[0].costMicrousd, null); assert.equal(saved.usage[0].searchCalls, 1);
+      assert.equal(saved.stages[0].status, "failed"); assert.equal(saved.stages[0].output, null);
+      assert.deepEqual(saved.stages[0].usage, response.usage);
+      await assert.rejects(read(stage(item, "answer")), code("provider_invalid"));
+      assert.equal(providerCalls, before); assert.deepEqual(await records(item), saved);
+    }
+    // A deliberately small synthetic hold fits standard but not Fast; ordinary
+    // runtime reservations remain untouched. Both requests disable tool use.
+    for (const policy of [undefined, fastPolicy]) {
+      const item = await fixture(firstPrincipal, { providerPolicy: policy, reservedMicrousd: 2500 });
+      const read = provider(item, async () => observed(0, 0, "priced", policy ? "priority" : "default"));
+      const before = providerCalls;
+      if (policy) {
+        await assert.rejects(read(stage(item, "answer", "small-hold", "none")), code("budget_exhausted"));
+        assert.equal(providerCalls, before); assert.deepEqual(await records(item), { stages: [], usage: [] });
+      } else {
+        await read(stage(item, "answer", "small-hold", "none")); assert.equal(providerCalls, before + 1);
+      }
+    }
+    console.log("Disposable database: Fast policy/actual-tier JSON roundtrip, priority/default pricing, unchanged search fees, unpriced settlement, exact cached replay and pre-call pin/budget denial passed with local provider stubs.");
 
     // Revocation while the stub is running withholds content but keeps its charge.
     const revoked = await fixture(secondPrincipal);

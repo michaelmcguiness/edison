@@ -84,7 +84,7 @@ function workspaceHarness(options: {
       return new Set(ids);
     } },
     "./demand-idea-art": {}, "./demand-configuration": {}, "./demand-result-compatibility": {},
-    "./demand-question-history": {}, "./demand-admission": {}, "./demand-loop-management": {},
+    "./demand-question-history": {}, "./demand-admission": {}, "./demand-loop-management": {}, "./demand-provider-policy": {},
   };
   const exports: Record<string, unknown> = {};
   const file = new URL("./demand-reading.ts", import.meta.url);

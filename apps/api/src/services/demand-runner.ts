@@ -24,6 +24,7 @@ import { publishReaderFirstAnswer, publishReaderFirstArticle } from "./reader-fi
 import { lockDemandAdmission } from "./demand-admission";
 import { assertDemandAllowanceSettlement } from "./demand-allowance";
 import { demandCheckerContractCompatibilityFailure, demandCheckerOptions } from "./demand-checker-contract";
+import { demandProviderPolicyCompatibilityFailure } from "./demand-provider-policy";
 
 const JOB_LEASE_MS = 5 * 60_000;
 const DEMAND_PIPELINE_VERSION = 1;
@@ -60,6 +61,8 @@ export function initialDemandState(
     promptVersion: readerFirst ? READER_FIRST_PROMPT_VERSION : ON_DEMAND_PROMPT_VERSION,
     ...(Object.hasOwn(request.snapshot, "checkerContractVersion")
       ? { checkerContractVersion: request.snapshot.checkerContractVersion } : {}),
+    ...(Object.hasOwn(request.snapshot, "providerPolicy")
+      ? { providerPolicy: structuredClone(request.snapshot.providerPolicy) } : {}),
     phase: readerFirst ? initialReaderFirstPhase(request.kind) : initialDemandPhase(request.kind),
     requestId: request.id,
     requestFingerprint: request.requestFingerprint,
@@ -85,6 +88,8 @@ export function demandProgressCompatibilityFailure(
   }
   const checkerFailure = demandCheckerContractCompatibilityFailure(request, state);
   if (checkerFailure) return checkerFailure;
+  const providerFailure = demandProviderPolicyCompatibilityFailure(request, state);
+  if (providerFailure) return providerFailure;
   if (
     state.requestId !== request.id ||
     state.requestFingerprint !== request.requestFingerprint ||

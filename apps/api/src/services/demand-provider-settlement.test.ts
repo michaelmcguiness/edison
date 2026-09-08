@@ -8,6 +8,7 @@ import { PgDialect } from "drizzle-orm/pg-core";
 import { zodTextFormat } from "openai/helpers/zod";
 import ts from "typescript";
 import { z } from "zod";
+import * as ai from "@edison/ai";
 import { ProviderResponseValidationError, type OnDemandProviderRequest, type OnDemandProviderResponse } from "@edison/ai";
 import * as domain from "@edison/domain";
 import { demandLoops, demandPrincipals, demandRequests, demandStages, demandUsage } from "../../../../packages/db/src/schema";
@@ -26,8 +27,12 @@ const loopId = "constructed-loop";
 const stageId = "constructed-current-stage";
 const context = { loopId, revision: 1 };
 const dialect = new PgDialect();
-const plain = (value: unknown) => JSON.parse(JSON.stringify(value));
+const plain = (value: unknown) => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 const forbidden = () => { throw new Error("No database or remote provider may be opened by this constructed test"); };
+const fastPolicy = {
+  version: "edison-demand-provider-policy-v1", requestedServiceTier: "priority",
+  pricingVersion: "openai-terra-luna-2026-09-08-v1",
+} as const satisfies ai.DemandProviderPolicy;
 
 function compiled(file: string, imports: Record<string, unknown>) {
   const url = new URL(file, import.meta.url);
@@ -47,7 +52,7 @@ function compiled(file: string, imports: Record<string, unknown>) {
 }
 
 const pricing = compiled("./ai-request-reservations.ts", {
-  "drizzle-orm": orm, "@edison/domain": domain, "../http/errors": { HttpError },
+  "drizzle-orm": orm, "@edison/domain": domain, "@edison/ai": ai, "../http/errors": { HttpError },
   "@edison/db": { getDb: forbidden, aiRequestReservations: {}, usageLedger: {} },
 });
 
@@ -75,24 +80,38 @@ type Row = Record<string, unknown>;
 type Scenario = "normal" | "missing-tool-count" | "malformed-usage" | "unpriced-usage" | "excess-tools" | "revoked" | "over-budget";
 type SelectEvent = { transaction: number; table: unknown; selection: Record<string, unknown> | undefined;
   predicate: orm.SQL; lock?: string; limit?: number };
+type HarnessOptions = {
+  providerPolicy?: unknown; parentPolicy?: unknown; omitParentPolicy?: boolean; actualTier?: string | null;
+  parentPolicyAfterCall?: unknown;
+  reservedMicrousd?: number; spent?: number; transport?: "refusal" | "unknown";
+};
 
-function harness(scenario: Scenario = "normal") {
+function harness(scenario: Scenario = "normal", options: HarnessOptions = {}) {
   const events: string[] = [];
   const selects: SelectEvent[] = [];
   const insertedUsage: Row[] = [];
   const stageUpdates: Row[] = [];
   const response = rawResponse();
+  if (Object.hasOwn(options, "actualTier")) response.usage.serviceTier = options.actualTier;
+  const stagePolicy = Object.hasOwn(options, "providerPolicy") ? { providerPolicy: options.providerPolicy } : {};
+  const parentPolicy = options.omitParentPolicy ? {} : Object.hasOwn(options, "parentPolicy") ? { providerPolicy: options.parentPolicy } : stagePolicy;
+  const request = { ...providerRequest(), ...stagePolicy } as OnDemandProviderRequest;
+  const providerFailure = options.transport === "refusal"
+    ? new ProviderResponseValidationError("Constructed refusal with retained usage.", response.usage)
+    : new Error("Constructed unknown delivery; no observed provider response.");
   let transaction = 0;
   let connectionHeld = false;
   let providerCalls = 0;
   let currentStage: Row | undefined;
   let settlementProjectionReads = 0;
   const priorStage = { id: "constructed-prior-stage", stageKey: "write:constructed-prior", status: "succeeded",
-    snapshot: { version: 1, researchPolicy: { mode: "auto", maxCalls: 8 } }, usage: observedUsage(6, "constructed-prior-response"),
+    snapshot: { version: 1, researchPolicy: { mode: "auto", maxCalls: 8 }, ...stagePolicy },
+    usage: { ...observedUsage(6, "constructed-prior-response"), ...(Object.hasOwn(stagePolicy, "providerPolicy") ? { serviceTier: "priority" } : {}) },
     // The settlement projection must not return or deserialize this raw field.
     output: { output: { article: "Prior raw output. ".repeat(10_000) } } };
   const requestRow = { id: requestId, principalId, loopId, kind: "article", status: "running",
-    snapshot: { context }, reservedMicrousd: 1_200_000, leaseExpiresAt: new Date(now.getTime() + 300_000) };
+    snapshot: { version: 2, context, ...parentPolicy }, reservedMicrousd: options.reservedMicrousd ?? 1_200_000,
+    leaseExpiresAt: new Date(now.getTime() + 300_000) };
 
   function predicateIs(predicate: orm.SQL, expected: orm.SQL) {
     assert.deepEqual(dialect.sqlToQuery(predicate), dialect.sqlToQuery(expected));
@@ -113,7 +132,7 @@ function harness(scenario: Scenario = "normal") {
       assert.equal(lock, "update"); events.push("loop:lock"); return [{ id: loopId }];
     }
     if (table === demandStages) {
-      if (lock && transaction === 2) {
+      if (lock && dialect.sqlToQuery(predicate).params.includes(stageId)) {
         predicateIs(predicate, orm.and(orm.eq(demandStages.id, stageId), orm.eq(demandStages.requestId, requestId), orm.eq(demandStages.principalId, principalId))!);
         assert.equal(lock, "update"); assert.equal(selection, undefined);
         events.push("stage:lock"); return [currentStage!];
@@ -145,9 +164,10 @@ function harness(scenario: Scenario = "normal") {
       assert.equal(event.limit, 1); events.push("usage:identity"); return [];
     }
     predicateIs(predicate, orm.eq(demandUsage.requestId, requestId));
-    if ("spent" in selection) { events.push("usage:reservation-total"); return [{ spent: 0, unpriced: 0 }]; }
+    if ("spent" in selection) { events.push("usage:reservation-total"); return [{ spent: options.spent ?? 0, unpriced: 0 }]; }
     assert.deepEqual(Object.keys(selection), ["totalSpent"]); events.push("usage:settlement-total");
-    return [{ totalSpent: scenario === "over-budget" ? requestRow.reservedMicrousd + 1 : 100_000 }];
+    return [{ totalSpent: scenario === "over-budget" ? requestRow.reservedMicrousd + 1
+      : (options.spent ?? 0) + insertedUsage.reduce((sum, row) => sum + Number(row.costMicrousd ?? 0), 0) }];
   }
 
   const tx = {
@@ -184,6 +204,13 @@ function harness(scenario: Scenario = "normal") {
     update(table: unknown) {
       assert.equal(table, demandStages);
       return { set(values: Row) { return { async where(predicate: orm.SQL) {
+        if (values.status === "uncertain") {
+          predicateIs(predicate, orm.and(orm.eq(demandStages.id, stageId), orm.eq(demandStages.principalId, principalId),
+            orm.eq(demandStages.requestId, requestId), orm.eq(demandStages.status, "reserved"),
+            orm.eq(demandStages.leaseExpiresAt, currentStage!.leaseExpiresAt as Date))!);
+          events.push("stage:uncertain"); stageUpdates.push(values); currentStage = { ...currentStage, ...values };
+          return;
+        }
         predicateIs(predicate, orm.and(orm.eq(demandStages.id, stageId), orm.eq(demandStages.status, "reserved"),
           orm.eq(demandStages.leaseExpiresAt, currentStage!.leaseExpiresAt as Date))!);
         events.push("stage:settle"); stageUpdates.push(values); currentStage = { ...currentStage, ...values };
@@ -192,7 +219,7 @@ function harness(scenario: Scenario = "normal") {
   };
   const app = compiled("./demand-provider-stages.ts", {
     "node:crypto": { createHash }, "drizzle-orm": orm, "openai/helpers/zod": { zodTextFormat }, "zod": { z },
-    "@edison/ai": { ProviderResponseValidationError, openAIOnDemandProvider: forbidden },
+    "@edison/ai": { ...ai, openAIOnDemandProvider: forbidden },
     "@edison/domain": domain, "../http/errors": { HttpError }, "./ai-request-reservations": pricing,
     "@edison/db": { demandLoops, demandPrincipals, demandRequests, demandStages, demandUsage,
       async withDemandWorkerDb(callback: (connection: typeof tx) => Promise<unknown>) {
@@ -208,10 +235,17 @@ function harness(scenario: Scenario = "normal") {
       assert.equal(connectionHeld, false, "provider work must stay outside the worker transaction");
       providerCalls++; events.push("provider:synthetic");
       assert.equal(input.researchPolicy?.maxCalls, 2, "prior six tool calls leave exactly two in the frozen allowance");
+      assert.deepEqual(plain(input.providerPolicy), plain(request.providerPolicy));
+      // Construct a corrupted parent only after reservation to exercise the
+      // settlement recheck, not a pre-call rejection. Never mutate live data.
+      if (Object.hasOwn(options, "parentPolicyAfterCall")) {
+        (requestRow.snapshot as Record<string, unknown>).providerPolicy = options.parentPolicyAfterCall;
+      }
+      if (options.transport) throw providerFailure;
       return response;
     },
   });
-  return { run: () => provider(providerRequest()), events, selects, insertedUsage, stageUpdates, response,
+  return { run: (input = request) => provider(input), events, selects, insertedUsage, stageUpdates, response, request, requestRow, providerFailure,
     providerCalls: () => providerCalls, projectionReads: () => settlementProjectionReads };
 }
 
@@ -257,3 +291,123 @@ for (const scenario of ["missing-tool-count", "malformed-usage", "unpriced-usage
     assert.ok(app.events.indexOf("stages:projection") < app.events.indexOf("stage:settle"));
   });
 }
+
+test("Fast stage requires the exact valid parent policy before any provider call or ledger write", async () => {
+  const cases: HarnessOptions[] = [
+    { providerPolicy: fastPolicy, omitParentPolicy: true },
+    { parentPolicy: fastPolicy },
+    { providerPolicy: fastPolicy, parentPolicy: { ...fastPolicy, requestedServiceTier: "default" } },
+    { providerPolicy: fastPolicy, parentPolicy: null },
+    { providerPolicy: fastPolicy, parentPolicy: undefined },
+    { providerPolicy: null, parentPolicy: fastPolicy },
+    { providerPolicy: { ...fastPolicy, pricingVersion: "constructed-unknown-pricing" }, parentPolicy: fastPolicy },
+  ];
+  for (const options of cases) {
+    const app = harness("normal", { ...options, actualTier: "priority" });
+    await assert.rejects(app.run(), error => error instanceof Error, JSON.stringify(options));
+    assert.equal(app.providerCalls(), 0); assert.equal(app.insertedUsage.length, 0);
+    assert.equal(app.stageUpdates.length, 0); assert.equal(app.events.includes("stage:reserve"), false);
+  }
+});
+
+test("Fast reservation is denied before calling when only the standard estimate fits the unchanged hold", async () => {
+  const limits = { reservedMicrousd: 140_000, spent: 60_000 };
+  const standard = harness("normal", { ...limits, actualTier: "default" });
+  await standard.run();
+  assert.equal(standard.providerCalls(), 1);
+  const fast = harness("normal", { ...limits, providerPolicy: fastPolicy, actualTier: "priority" });
+  await assert.rejects(fast.run(), (error: unknown) => error instanceof HttpError && error.code === "budget_exhausted");
+  assert.equal(fast.providerCalls(), 0); assert.equal(fast.insertedUsage.length, 0);
+  assert.equal(fast.stageUpdates.length, 0); assert.equal(fast.events.includes("stage:reserve"), false);
+  assert.equal(fast.requestRow.reservedMicrousd, limits.reservedMicrousd);
+});
+
+for (const [actualTier, costMicrousd] of [["priority", 22_764], ["default", 21_382]] as const) {
+  test(`Fast ${actualTier} settlement uses actual-tier token pricing, unchanged tool fees and exact cached replay`, async () => {
+    const app = harness("normal", { providerPolicy: fastPolicy, actualTier });
+    const original = JSON.stringify(app.response);
+    assert.equal(JSON.stringify(await app.run()), original);
+    assert.equal(app.insertedUsage[0].costMicrousd, costMicrousd);
+    assert.equal(app.insertedUsage[0].pricingStatus, "priced");
+    assert.equal(app.insertedUsage[0].searchCalls, 2, "the two searches still cost 20,000 microUSD in either tier");
+    assert.equal(app.stageUpdates[0].costMicrousd, costMicrousd);
+    assert.equal((app.stageUpdates[0].usage as Row).serviceTier, actualTier);
+    assert.equal(JSON.stringify(app.stageUpdates[0].output), original);
+    const before = JSON.stringify({ request: app.requestRow, ledger: app.insertedUsage, settlements: app.stageUpdates });
+    assert.equal(JSON.stringify(await app.run()), original);
+    assert.equal(app.providerCalls(), 1); assert.equal(app.projectionReads(), 1);
+    assert.equal(JSON.stringify({ request: app.requestRow, ledger: app.insertedUsage, settlements: app.stageUpdates }), before);
+    await assert.rejects(app.run({ ...app.request, providerPolicy: { ...fastPolicy, requestedServiceTier: "default" } }));
+    assert.equal(app.providerCalls(), 1, "changed policy cannot borrow the cached response or commission a replacement");
+    assert.equal(JSON.stringify({ request: app.requestRow, ledger: app.insertedUsage, settlements: app.stageUpdates }), before);
+  });
+}
+
+for (const tier of ["unknown-tier", null, undefined] as const) {
+  test(`Fast ${String(tier)} actual tier preserves unpriced usage and withholds the response without another call`, async () => {
+    const app = harness("normal", { providerPolicy: fastPolicy, ...(tier === undefined ? {} : { actualTier: tier }) });
+    await assert.rejects(app.run(), (error: unknown) => error instanceof HttpError && error.code === "provider_model_unpriced");
+    assert.equal(app.providerCalls(), 1); assert.equal(app.insertedUsage.length, 1);
+    assert.equal(app.insertedUsage[0].costMicrousd, null); assert.equal(app.insertedUsage[0].pricingStatus, "unpriced");
+    assert.equal(app.insertedUsage[0].inputTokens, 100); assert.equal(app.insertedUsage[0].outputTokens, 100);
+    assert.equal(app.insertedUsage[0].searchCalls, 2);
+    assert.equal(app.stageUpdates[0].status, "failed"); assert.equal(app.stageUpdates[0].output, null);
+    assert.deepEqual(plain(app.stageUpdates[0].usage), app.response.usage);
+    const before = JSON.stringify({ ledger: app.insertedUsage, settlements: app.stageUpdates });
+    await assert.rejects(app.run(), (error: unknown) => error instanceof HttpError && error.code === "provider_invalid");
+    assert.equal(app.providerCalls(), 1);
+    assert.equal(JSON.stringify({ ledger: app.insertedUsage, settlements: app.stageUpdates }), before);
+  });
+}
+
+test("fresh legacy explicit non-default tiers are unpriced, but absent/default metadata preserves standard pricing", async () => {
+  for (const options of [{}, { actualTier: "default" }] as HarnessOptions[]) {
+    const app = harness("normal", options);
+    await app.run(); assert.equal(app.insertedUsage[0].costMicrousd, 21_382);
+    assert.equal(app.insertedUsage[0].pricingStatus, "priced");
+  }
+  for (const actualTier of ["priority", "unknown-tier", null]) {
+    const app = harness("normal", { actualTier });
+    await assert.rejects(app.run(), (error: unknown) => error instanceof HttpError && error.code === "provider_model_unpriced");
+    assert.equal(app.providerCalls(), 1); assert.equal(app.insertedUsage[0].costMicrousd, null);
+    assert.equal(app.insertedUsage[0].pricingStatus, "unpriced"); assert.equal(app.stageUpdates[0].output, null);
+  }
+});
+
+test("Fast refusal records actual priority charges before surfacing the validation failure", async () => {
+  const app = harness("normal", { providerPolicy: fastPolicy, actualTier: "priority", transport: "refusal" });
+  await assert.rejects(app.run(), error => error === app.providerFailure);
+  assert.equal(app.providerCalls(), 1); assert.equal(app.insertedUsage.length, 1);
+  assert.equal(app.insertedUsage[0].costMicrousd, 22_764); assert.equal(app.insertedUsage[0].pricingStatus, "priced");
+  assert.equal(app.stageUpdates[0].status, "failed"); assert.equal(app.stageUpdates[0].output, null);
+  assert.deepEqual(plain(app.stageUpdates[0].usage), app.response.usage);
+  await assert.rejects(app.run(), (error: unknown) => error instanceof HttpError && error.code === "provider_invalid");
+  assert.equal(app.providerCalls(), 1); assert.equal(app.insertedUsage.length, 1);
+});
+
+test("Fast settlement rechecks changed parent policy only after retaining the incurred charge", async () => {
+  for (const parentPolicyAfterCall of [null, { ...fastPolicy, requestedServiceTier: "default" }]) {
+    const app = harness("normal", { providerPolicy: fastPolicy, actualTier: "priority", parentPolicyAfterCall });
+    await assert.rejects(app.run(), (error: unknown) => error instanceof HttpError && error.code === "provider_invalid");
+    assert.equal(app.providerCalls(), 1); assert.equal(app.insertedUsage.length, 1);
+    assert.equal(app.insertedUsage[0].costMicrousd, 22_764); assert.equal(app.insertedUsage[0].pricingStatus, "priced");
+    assert.equal(app.stageUpdates[0].status, "failed"); assert.equal(app.stageUpdates[0].output, null);
+    assert.deepEqual(plain(app.stageUpdates[0].usage), app.response.usage);
+    const before = JSON.stringify({ ledger: app.insertedUsage, settlements: app.stageUpdates });
+    await assert.rejects(app.run(), (error: unknown) => error instanceof HttpError && error.code === "provider_snapshot_mismatch");
+    assert.equal(app.providerCalls(), 1);
+    assert.equal(JSON.stringify({ ledger: app.insertedUsage, settlements: app.stageUpdates }), before);
+  }
+});
+
+test("Fast unknown transport stays uncertain with its existing reservation and cannot call again", async () => {
+  const app = harness("normal", { providerPolicy: fastPolicy, transport: "unknown" });
+  const before = JSON.stringify(app.requestRow);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await assert.rejects(app.run(), (error: unknown) => error instanceof HttpError && error.code === "provider_uncertain");
+  }
+  assert.equal(app.providerCalls(), 1); assert.equal(app.insertedUsage.length, 0);
+  assert.equal(app.stageUpdates.length, 1); assert.equal(app.stageUpdates[0].status, "uncertain");
+  assert.equal(JSON.stringify(app.requestRow), before);
+  assert.equal(app.projectionReads(), 0, "no invented response usage can settle the unresolved provider call");
+});
