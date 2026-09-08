@@ -4,35 +4,52 @@ import { articleCategorySchema, uuidSchema } from "./common";
 export const citationSchema = z.object({
   sourceId: uuidSchema,
   label: z.string().min(1).max(24),
-});
+}).strict();
 
 export const articleBlockSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("paragraph"),
     text: z.string().min(1),
     citations: z.array(citationSchema).default([]),
-  }),
+  }).strict(),
   z.object({
     type: z.literal("heading"),
     level: z.literal(2),
     text: z.string().min(1),
-  }),
+  }).strict(),
   z.object({
     type: z.literal("quote"),
     text: z.string().min(1),
     attribution: z.string().max(240).nullable().default(null),
     citations: z.array(citationSchema).default([]),
-  }),
+  }).strict(),
 ]);
+
+export const sourceUrlSchema = z
+  .string()
+  .url()
+  .max(2048)
+  .refine((value) => {
+    try {
+      const url = new URL(value);
+      return (
+        (url.protocol === "https:" || url.protocol === "http:") &&
+        !url.username &&
+        !url.password
+      );
+    } catch {
+      return false;
+    }
+  }, "Source URLs must use HTTP(S) without embedded credentials.");
 
 export const articleSourceSchema = z.object({
   id: uuidSchema,
   title: z.string().min(1),
   publisher: z.string().min(1),
-  url: z.string().url(),
+  url: sourceUrlSchema,
   publishedAt: z.string().datetime().nullable(),
   accessedAt: z.string().datetime(),
-});
+}).strict();
 
 export const articleCardSchema = z.object({
   id: uuidSchema,
@@ -56,6 +73,10 @@ export const articleSchema = articleCardSchema.extend({
   sources: z.array(articleSourceSchema),
   writtenFor: z.string().min(1),
   shareId: uuidSchema.nullable(),
+  correction: z.object({
+    note: z.string().trim().min(1).max(500),
+    correctedAt: z.string().datetime(),
+  }).strict().nullable().optional(),
 });
 
 export const articleFeedbackRequestSchema = z.object({
@@ -98,7 +119,43 @@ export const sharedArticleSnapshotSchema = z
     publishedAt: z.string().datetime().nullable(),
     sources: z.array(articleSourceSchema),
   })
-  .strict();
+  .strict()
+  .superRefine((snapshot, context) => {
+    const sourceIds = new Set(snapshot.sources.map((source) => source.id));
+    if (sourceIds.size !== snapshot.sources.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["sources"],
+        message: "Article sources must have unique IDs.",
+      });
+    }
+    if (snapshot.sourceCount !== snapshot.sources.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["sourceCount"],
+        message: "The source count must match the included sources.",
+      });
+    }
+    snapshot.body.forEach((block, blockIndex) => {
+      if (block.type === "heading") return;
+      if (block.citations.length === 0) {
+        context.addIssue({
+          code: "custom",
+          path: ["body", blockIndex, "citations"],
+          message: "Every published prose block must include a citation.",
+        });
+      }
+      block.citations.forEach((citation, citationIndex) => {
+        if (!sourceIds.has(citation.sourceId)) {
+          context.addIssue({
+            code: "custom",
+            path: ["body", blockIndex, "citations", citationIndex, "sourceId"],
+            message: "Every citation must reference an included source.",
+          });
+        }
+      });
+    });
+  });
 
 export const publicArticleShareSchema = z.object({
   shareId: uuidSchema,

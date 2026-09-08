@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(23);
+select plan(28);
 
 select has_schema('private', 'private workflow schema exists');
 select has_table('public', 'profiles', 'profiles table exists');
@@ -140,6 +140,34 @@ select ok(
 );
 
 select ok(
+  (
+    select not rolsuper
+      and not rolinherit
+      and not rolcreaterole
+      and not rolcreatedb
+      and not rolcanlogin
+      and not rolbypassrls
+    from pg_catalog.pg_roles
+    where rolname = 'edison_api'
+  )
+    and not pg_has_role('edison_api', 'supabase_auth_admin', 'member')
+    and not pg_has_role('edison_api', 'service_role', 'member'),
+  'the Edison API role keeps no-login, no-default-inherit, and no admin capabilities'
+);
+
+select ok(
+  pg_has_role('edison_api', 'authenticated', 'member')
+    and pg_has_role('edison_api', 'authenticated', 'usage')
+    and not pg_has_role('edison_api', 'authenticated', 'set')
+    and not pg_has_role(
+      'edison_api',
+      'authenticated',
+      'member with admin option'
+    ),
+  'the Edison API role only inherits authenticated privileges on a non-delegable edge'
+);
+
+select ok(
   has_schema_privilege('edison_api', 'auth', 'usage'),
   'the Edison API role can resolve Auth helpers used by RLS policies'
 );
@@ -147,6 +175,60 @@ select ok(
 select ok(
   has_function_privilege('edison_api', 'auth.uid()', 'execute'),
   'the Edison API role can execute the Auth identity helper'
+);
+
+select ok(
+  not exists (
+    select 1
+    from pg_catalog.pg_namespace as namespace_record
+    cross join lateral pg_catalog.aclexplode(
+      coalesce(namespace_record.nspacl, '{}'::aclitem[])
+    ) as grant_record
+    join pg_catalog.pg_roles as grantee_role
+      on grantee_role.oid = grant_record.grantee
+    where namespace_record.nspname = 'auth'
+      and grantee_role.rolname = 'edison_api'
+  )
+    and not exists (
+      select 1
+      from pg_catalog.pg_proc as function_record
+      cross join lateral pg_catalog.aclexplode(
+        coalesce(function_record.proacl, '{}'::aclitem[])
+      ) as grant_record
+      join pg_catalog.pg_roles as grantee_role
+        on grantee_role.oid = grant_record.grantee
+      where function_record.oid = to_regprocedure('auth.uid()')
+        and grantee_role.rolname = 'edison_api'
+    ),
+  'Auth helper access is inherited without direct Auth ACL grants'
+);
+
+select ok(
+  not has_schema_privilege('edison_api', 'auth', 'create')
+    and not has_any_column_privilege(
+      'edison_api',
+      'auth.users',
+      'select'
+    )
+    and not has_any_column_privilege(
+      'edison_api',
+      'auth.users',
+      'insert'
+    )
+    and not has_any_column_privilege(
+      'edison_api',
+      'auth.users',
+      'update'
+    )
+    and not has_table_privilege('edison_api', 'auth.users', 'delete')
+    and not has_table_privilege('edison_api', 'auth.users', 'truncate'),
+  'inherited Auth helper access grants no raw Auth user access or mutation capability'
+);
+
+select ok(
+  not pg_has_role('anon', 'edison_api', 'member')
+    and not pg_has_role('authenticated', 'edison_api', 'member'),
+  'browser roles do not inherit the Edison API role'
 );
 
 insert into auth.users (id, email)

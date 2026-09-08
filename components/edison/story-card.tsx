@@ -56,7 +56,7 @@ export function StoryCard({
   tone,
 }: {
   story: ArticleCard;
-  dataMode?: "prototype" | "live";
+  dataMode?: "prototype" | "guest" | "public" | "live";
   lead?: boolean;
   open: (story: ArticleCard) => Promise<void>;
   summary: (story: ArticleCard) => void;
@@ -79,9 +79,16 @@ export function StoryCard({
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = null;
   };
+  const saveLabel = dataMode === "guest"
+    ? `Sign in to save ${story.title}`
+    : dataMode === "public"
+      ? `Public starter story cannot be saved: ${story.title}`
+      : story.saved
+        ? "Remove from library"
+        : "Save to library";
 
   return (
-    <article className={`story-card story-tone-${tone} ${lead ? "lead" : ""}`}>
+    <article className={`story-card story-tone-${tone} ${lead ? "lead" : ""} ${dataMode === "prototype" ? "" : "without-art"}`}>
       <div className="story-main">
         <span className="kicker">{story.kicker}</span>
         <Title>{story.title}</Title>
@@ -137,12 +144,12 @@ export function StoryCard({
           Press Shift+F10 for a three-point summary.
         </span>
       </div>
-      <StoryArtwork story={story} tone={tone} />
+      {dataMode === "prototype" && <StoryArtwork story={story} tone={tone} />}
       <button
         className={`save ${story.saved ? "is-saved" : ""}`}
         onClick={() => void save(story)}
-        aria-label={story.saved ? "Remove from library" : "Save to library"}
-        aria-pressed={story.saved}
+        aria-label={saveLabel}
+        aria-pressed={dataMode === "live" || dataMode === "prototype" ? story.saved : undefined}
       >
         <Bookmark fill={story.saved ? "currentColor" : "none"} />
       </button>

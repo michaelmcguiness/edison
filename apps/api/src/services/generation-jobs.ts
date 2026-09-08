@@ -9,6 +9,7 @@ import {
 import { generationJobs, getDb } from "@edison/db";
 import { start } from "workflow/api";
 import { generateArticleWorkflow } from "../../workflows/generate-article";
+import { safeCaughtErrorMetadata } from "../observability/safe-error";
 
 const DISPATCH_LEASE_MS = 5 * 60 * 1000;
 const DISPATCH_RETRY_MS = 60 * 1000;
@@ -85,7 +86,7 @@ export async function dispatchGenerationJob(
     } catch (releaseError) {
       console.error("Failed to release generation-job dispatch lease", {
         jobId,
-        error: releaseError,
+        ...safeCaughtErrorMetadata(releaseError),
       });
     }
     throw error;
@@ -164,7 +165,7 @@ export async function reconcileQueuedGenerationJobs(
       failed += 1;
       console.error("Generation-job reconciliation dispatch failed", {
         jobId: candidate.id,
-        error,
+        ...safeCaughtErrorMetadata(error),
       });
     }
   }
