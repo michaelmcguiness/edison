@@ -9,6 +9,12 @@ import { z } from "zod";
 // No configurable URL and no provider credentials: only the named disposable
 // Supabase database, with synthetic recipients and an injected no-email sender.
 const LOCAL_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+function expiredInvitationFixture(inviterUserId:string,recipientEmail:string,now=new Date()) {
+  // SQL redemption uses statement_timestamp(), not the service's injected
+  // projection clock. Both timestamps must be historical to satisfy chronology.
+  const createdAt=new Date(now.getTime()-8*86_400_000),expiresAt=new Date(now.getTime()-1000);
+  return {id:randomUUID(),inviterUserId,recipientEmail,status:"sent" as const,createdAt,updatedAt:createdAt,sentAt:createdAt,expiresAt,deliveryAttempts:1};
+}
 const workerInput=z.object({run:z.string().uuid(),actor:z.string().uuid(),kind:z.enum(["create","redeem","revoke"]),
   key:z.string().min(8).max(128),email:z.string().email().optional(),invitationId:z.string().uuid().optional()}).strict();
 type Input=z.infer<typeof workerInput>;
@@ -32,6 +38,16 @@ function safety() {
   assert.throws(()=>guard({NODE_ENV:"production"}));assert.throws(()=>guard({DATABASE_URL:LOCAL_URL}));
   assert.equal(new URL(LOCAL_URL).hostname,"127.0.0.1");assert.equal(new URL(LOCAL_URL).port,"54322");
   console.log("Invitation safety checks passed; no DB/auth/provider imported or contacted.");
+}
+function fixtureChecks() {
+  guard(process.env);
+  const now=new Date("2026-09-07T12:00:00.000Z"),actor=randomUUID(),email=`${randomUUID()}-expired@example.test`;
+  const row=expiredInvitationFixture(actor,email,now);
+  assert.equal(row.inviterUserId,actor);assert.equal(row.recipientEmail,email);assert.equal(row.status,"sent");
+  assert.ok(row.createdAt<row.expiresAt&&row.expiresAt<now,"Expiry proof must not violate created/expiry ordering");
+  assert.equal(row.sentAt,row.createdAt);assert.equal(row.updatedAt,row.createdAt);
+  assert.equal(row.deliveryAttempts,1);
+  console.log("Invitation fixture checks passed: chronology-valid, synthetic, already-expired sent invitation; no database/auth/provider imported or contacted.");
 }
 async function runtime() {
   guard(process.env);localContainer();
@@ -109,6 +125,9 @@ async function integration() {
   try {
     const inviter=await user("sender","active"),other=await user("other","active"),recipient=await user("recipient"),existing=await user("existing","active"),unverified=await user("unverified","pending",false),revoked=await user("revoked","revoked");
     assert.equal((await r.listDemandInvitations(inviter.id,dependencies)).remaining,5);
+    await create(existing.id,"existing-reserved");
+    const existingGrantBefore=await r.database.select().from(r.demandInviteGrants).where(eq(r.demandInviteGrants.userId,existing.id));
+    assert.equal(existingGrantBefore.length,1);assert.equal((await r.listDemandInvitations(existing.id,dependencies)).remaining,4);
     await assert.rejects(create(recipient.id,"not-admitted"),code("invitation_membership_required"));
     const first=await create(inviter.id,"recipient");assert.equal(first.delivery,"sent");assert.equal(first.invitation.status,"sent");
     assert.equal(await membership(recipient.id),"pending","Sending or viewing does not admit");
@@ -132,7 +151,9 @@ async function integration() {
     const acceptedRevoke=await r.revokeDemandInvitation(inviter.id,first.invitation.id,{idempotencyKey:key("accepted-revoke")},dependencies);assert.equal(acceptedRevoke.invitation.status,"redeemed");assert.equal(acceptedRevoke.delivery,"not_attempted");
     const second=await create(inviter.id,"existing");await r.redeemDemandInvitation(existing.id,second.invitation.id,{idempotencyKey:key("existing-accept")},dependencies);
     assert.deepEqual(await r.previewDemandInvitation(second.invitation.id,{verifiedUserId:existing.id}),{state:"accepted"});
-    assert.equal((await r.listDemandInvitations(existing.id,dependencies)).remaining,5);assert.equal((await r.listDemandInvitations(inviter.id,dependencies)).redeemed,2);
+    assert.equal((await r.listDemandInvitations(existing.id,dependencies)).remaining,4,"Accepting another invitation cannot refill an existing member's reserved slot");
+    assert.deepEqual(await r.database.select().from(r.demandInviteGrants).where(eq(r.demandInviteGrants.userId,existing.id)),existingGrantBefore);
+    assert.equal((await r.listDemandInvitations(inviter.id,dependencies)).redeemed,2);
     const unknown=await r.createDemandInvitation(inviter.id,{email:email("unknown"),idempotencyKey:key("unknown")},{...dependencies,sender:async()=>({outcome:"unknown",code:"delivery_unknown"})});
     assert.equal(unknown.delivery,"unknown");assert.equal((await r.listDemandInvitations(inviter.id,dependencies)).reserved,1);
     const unknownReplay=await r.createDemandInvitation(inviter.id,{email:email("unknown"),idempotencyKey:key("unknown")},dependencies);assert.equal(unknownReplay.delivery,"unknown");assert.equal(sends,sentBefore+1);
@@ -162,6 +183,15 @@ async function integration() {
     assert.equal((await r.listDemandInvitations(lostSender.id,dependencies)).reserved,1);
     for(const target of [unverified,revoked]) {const invitation=await r.createDemandInvitation(other.id,{email:target.email,idempotencyKey:key(target.id)},dependencies);
       await assert.rejects(r.redeemDemandInvitation(target.id,invitation.invitation.id,{idempotencyKey:key(`deny-${target.id}`)},dependencies),code("invitation_unavailable"));}
+    const expiredRecipient=await user("expired-recipient"),expired=expiredInvitationFixture(other.id,expiredRecipient.email);
+    const beforeExpired=await r.listDemandInvitations(other.id,dependencies),sendsBeforeExpired=sends;
+    await r.database.insert(r.demandInvitations).values(expired);
+    assert.deepEqual(await r.previewDemandInvitation(expired.id),{state:"expired"});
+    await assert.rejects(r.redeemDemandInvitation(expiredRecipient.id,expired.id,{idempotencyKey:key("expired-accept")},dependencies),code("invitation_unavailable"));
+    assert.equal(await membership(expiredRecipient.id),"pending");
+    assert.equal((await r.listDemandInvitations(other.id,dependencies)).remaining,beforeExpired.remaining);
+    assert.equal((await r.database.select().from(r.demandInviteGrants).where(eq(r.demandInviteGrants.userId,expiredRecipient.id))).length,0);
+    assert.equal(sends,sendsBeforeExpired);
     await r.database.execute(sql`update public.alpha_memberships set status='revoked' where user_id=${recipient.id}::uuid`);
     assert.deepEqual(await r.previewDemandInvitation(first.invitation.id,{verifiedUserId:recipient.id}),{state:"unavailable"});
     await assert.rejects(r.redeemDemandInvitation(recipient.id,first.invitation.id,{idempotencyKey:key("accept")},dependencies),code("invitation_unavailable"));
@@ -217,5 +247,6 @@ async function integration() {
   }
 }
 if(process.argv.includes("--safety-only"))safety();
+else if(process.argv.includes("--fixture-only"))fixtureChecks();
 else if(process.argv[2]==="--worker")await worker(JSON.parse(process.argv[3]));
 else {try{await integration();process.exit(0);}catch(e){console.error(e);process.exit(1);}}

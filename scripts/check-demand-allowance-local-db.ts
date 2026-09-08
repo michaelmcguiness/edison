@@ -5,8 +5,23 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
+import type { OnDemandProviderRequest, OnDemandProviderResponse } from "../packages/ai/src/on-demand";
 
 const LOCAL_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+const SENTINEL_ENVIRONMENT={OPENAI_ARTICLE_MODEL:"gpt-5.6-terra",OPENAI_UTILITY_MODEL:"gpt-5.6-luna",OPENAI_WEB_SEARCH_COST_MICROUSD:"10000"};
+function sentinelFixture(principalId:string,loopId:string,requestId:string,prefix:string) {
+  // One source for the frozen parent and stage context. The real durable store
+  // compares these exactly before reserving or replaying any provider stage.
+  const context={loopId,revision:0};
+  const stage:OnDemandProviderRequest={stage:"answer",promptVersion:"constructed-local-allowance-sentinel",instructions:"Constructed local fixture only.",
+    input:{context},schema:z.object({text:z.string()}),model:SENTINEL_ENVIRONMENT.OPENAI_UTILITY_MODEL,
+    idempotencyKey:`${prefix}sentinel-stage`,safetyIdentifier:principalId,timeoutMs:10000,maxOutputTokens:1000,
+    research:false,researchPolicy:{mode:"none",reason:"No research in local fixtures",maxCalls:0}};
+  const response:OnDemandProviderResponse={output:{text:"Constructed local ledger sentinel."},
+    usage:{providerResponseId:`local-sentinel-${requestId}`,model:stage.model,inputTokens:100,cachedInputTokens:10,outputTokens:100,
+      webSearchCalls:0,webSearchToolCalls:0,webSearchPricingStatus:"priced"}};
+  return {snapshot:{version:2,context},stage,response,reservedMicrousd:250000};
+}
 const workerInput=z.object({run:z.string().uuid(),principalId:z.string().uuid(),loopId:z.string().uuid(),key:z.string().min(8).max(128),
   kind:z.enum(["refresh","reset","settle"]),requestId:z.string().uuid().optional(),accepted:z.number().int().min(0).max(6).optional(),
   revision:z.number().int().nonnegative().optional(),period:z.string().datetime().optional()}).strict();
@@ -31,10 +46,29 @@ function safety() {
   assert.equal(new URL(LOCAL_URL).hostname,"127.0.0.1");assert.equal(new URL(LOCAL_URL).port,"54322");
   console.log("Allowance safety checks passed; no DB/auth/provider imported or contacted.");
 }
+async function fixtureChecks() {
+  guard(process.env);
+  globalThis.fetch=async()=>{throw new Error("No HTTP requests are allowed in allowance fixture checks");};
+  const {prepareDemandStage,bindDemandResearchBudget,demandStagePricing,demandUsageWithinProviderLimits}=await import("../apps/api/src/services/demand-provider-stages");
+  const principalId=randomUUID(),loopId=randomUUID(),requestId=randomUUID(),item=sentinelFixture(principalId,loopId,requestId,`allowance:${randomUUID()}:`);
+  const prepared=prepareDemandStage(requestId,principalId,item.stage,SENTINEL_ENVIRONMENT);
+  assert.equal(item.snapshot.context.loopId,loopId);
+  assert.deepEqual((prepared.identity.snapshot.input as {context:unknown}).context,item.snapshot.context);
+  const bound=bindDemandResearchBudget(prepared.identity,0);
+  assert.equal(bound.snapshot.researchCallsBefore,0);assert.equal(bound.snapshot.requestedResearchMaxCalls,0);
+  assert.ok(bound.snapshot.estimatedCeilingMicrousd>0&&bound.snapshot.estimatedCeilingMicrousd<item.reservedMicrousd);
+  assert.deepEqual(demandStagePricing(item.response.usage,bound.snapshot.searchPriceMicrousd),{pricingStatus:"priced",costMicrousd:138});
+  assert.equal(demandUsageWithinProviderLimits(bound.snapshot,item.response.usage,0),true);
+  assert.deepEqual(prepareDemandStage(requestId,principalId,item.stage,SENTINEL_ENVIRONMENT),prepared,"Exact replay reconstructs the stage identity");
+  assert.throws(()=>prepareDemandStage(requestId,principalId,{...item.stage,model:"unapproved-fixture-model"},SENTINEL_ENVIRONMENT),
+    (e:unknown)=>(e as {code?:string}).code==="provider_model_not_allowed");
+  console.log("Allowance sentinel fixture checks passed: matching frozen context, approved model, stage identity, pricing138, bounded output and zero tools; no database/HTTP/provider call.");
+}
 async function runtime() {
   guard(process.env);localContainer();
   Object.assign(process.env,{DATABASE_URL:LOCAL_URL,NODE_ENV:"test",EDISON_ON_DEMAND_ENABLED:"true",EDISON_DEMAND_ALLOWANCE_RESET_PASSWORD:"bulb",
     EDISON_DEMAND_DAILY_MICROUSD:"10000000",EDISON_DEMAND_MONTHLY_MICROUSD:"40000000"});
+  globalThis.fetch=async()=>{throw new Error("No HTTP requests are allowed in allowance integration fixtures");};
   const db=await import("../packages/db/src/index");const database=db.getDb();
   const [server]=await database.execute<{pid:number;version:string}>(sql`select pg_backend_pid() as pid,current_setting('server_version_num') as version`);
   assert.equal(Math.floor(Number(server.version)/10000),17);
@@ -141,19 +175,26 @@ async function integration() {
     // Nonzero sentinels prove preservation of actual ledger rows and cached
     // stage identity, not merely equality between two empty collections.
     const sentinel=await owner(),sentinelLoop=await loop(sentinel.id),sentinelId=randomUUID();
+    const item=sentinelFixture(sentinel.id,sentinelLoop.id,sentinelId,prefix);
     await r.database.insert(r.demandRequests).values({id:sentinelId,principalId:sentinel.id,loopId:sentinelLoop.id,kind:"question",status:"running",stage:"answering",
-      idempotencyKey:`${prefix}spend-sentinel`,requestFingerprint:"d".repeat(64),snapshot:{version:2},reservedMicrousd:250000,leaseExpiresAt:new Date(Date.now()+300000)});
+      idempotencyKey:`${prefix}spend-sentinel`,requestFingerprint:"d".repeat(64),snapshot:item.snapshot,reservedMicrousd:item.reservedMicrousd,leaseExpiresAt:new Date(Date.now()+300000)});
     const {durableDemandProvider}=await import("../apps/api/src/services/demand-provider-stages");let stubCalls=0;
-    // Match the approved models in the existing durable-provider DB fixture;
-    // declaring a search price alone does not authorize the synthetic model.
-    const provider=durableDemandProvider(sentinelId,sentinel.id,{environment:{OPENAI_ARTICLE_MODEL:"gpt-5.6-terra",OPENAI_UTILITY_MODEL:"gpt-5.6-luna",OPENAI_WEB_SEARCH_COST_MICROUSD:"10000"},provider:async()=>{
-      stubCalls++;return {output:{text:"Constructed local ledger sentinel."},usage:{providerResponseId:`local-sentinel-${sentinelId}`,model:"gpt-5.6-luna",
-        inputTokens:100,cachedInputTokens:10,outputTokens:100,webSearchCalls:0,webSearchToolCalls:0,webSearchPricingStatus:"priced"}};
+    const provider=durableDemandProvider(sentinelId,sentinel.id,{environment:SENTINEL_ENVIRONMENT,provider:async request=>{
+      assert.deepEqual(request.input,{context:item.snapshot.context});assert.equal(request.researchPolicy?.maxCalls,0);
+      stubCalls++;return item.response;
     }});
-    await provider({stage:"answer",promptVersion:"constructed-local-allowance-sentinel",instructions:"Constructed local fixture only.",input:{context:{loopId:sentinelLoop.id,revision:0}},
-      schema:z.object({text:z.string()}),model:"gpt-5.6-luna",idempotencyKey:`${prefix}sentinel-stage`,safetyIdentifier:sentinel.id,
-      timeoutMs:10000,maxOutputTokens:1000,research:false,researchPolicy:{mode:"none",reason:"No research in local fixtures",maxCalls:0}});
+    await assert.rejects(provider({...item.stage,input:{context:{...item.snapshot.context,revision:1}}}),code("provider_snapshot_mismatch"));
+    assert.equal(stubCalls,0,"A mismatched fixture context is still denied before any provider work");
+    assert.deepEqual(await provider(item.stage),item.response);
+    const sentinelStages=await r.database.select().from(r.demandStages).where(eq(r.demandStages.requestId,sentinelId));
+    assert.equal(sentinelStages.length,1);const sentinelStage=sentinelStages[0];
+    const sentinelUsage=await r.database.select().from(r.demandUsage).where(eq(r.demandUsage.requestId,sentinelId));
+    assert.equal(sentinelStage.status,"succeeded");assert.deepEqual(sentinelStage.output,item.response);
+    assert.equal(sentinelUsage.length,1);assert.equal(sentinelUsage[0].stageId,sentinelStage.id);
+    assert.equal(sentinelUsage[0].responseId,item.response.usage.providerResponseId);assert.equal(sentinelUsage[0].costMicrousd,138);
+    assert.equal(sentinelUsage[0].pricingStatus,"priced");assert.equal(sentinelUsage[0].searchCalls,0);
     await r.database.update(r.demandRequests).set({status:"succeeded",stage:"ready",leaseExpiresAt:null,result:{}}).where(eq(r.demandRequests.id,sentinelId));
+    const [sentinelBefore]=await r.database.select().from(r.demandRequests).where(eq(r.demandRequests.id,sentinelId));
     await r.database.insert(r.usageLedger).values({userId:sentinel.accountUserId!,operation:"constructed_allowance_sentinel",model:"gpt-5.6-luna",
       providerResponseId:`local-legacy-${sentinelId}`,pricingStatus:"priced",costMicrousd:987,inputTokens:100,outputTokens:10});
     const moneyBefore=await ledger();
@@ -198,7 +239,8 @@ async function integration() {
     await settle(r,pending.id,2);const after=await r.demandAllowance(p);assert.equal(after.used,0);assert.equal(after.periodUsed,500);assert.equal(after.available,500);
     assert.deepEqual(await r.resetDemandAllowance(p,resetInput),{...reset,replayed:true});
     await assert.rejects(r.resetDemandAllowance(p,{...resetInput,expectedPeriodStart:new Date(Date.parse(before.periodStart)-7*86400000).toISOString()}),code("idempotency_key_reused"));
-    await assert.rejects(r.resetDemandAllowance(p,{...resetInput,idempotencyKey:`${prefix}stale-week`,expectedRevision:1,expectedPeriodStart:"2026-08-31T00:00:00.000Z"}),code("allowance_changed"));
+    await assert.rejects(r.resetDemandAllowance(p,{...resetInput,idempotencyKey:`${prefix}stale-week`,expectedRevision:1,
+      expectedPeriodStart:new Date(Date.parse(before.periodStart)-7*86400000).toISOString()}),code("allowance_changed"));
     for(let attempt=0;attempt<5;attempt++) await assert.rejects(r.resetDemandAllowance(p,{...resetInput,password:"wrong",idempotencyKey:`${prefix}wrong${attempt}`}),code("allowance_reset_password_invalid"));
     await assert.rejects(r.resetDemandAllowance(p,{...resetInput,password:"wrong"}),code("allowance_reset_rate_limited"));
     assert.equal((await r.resetDemandAllowance(p,resetInput)).replayed,true,"successful lost-response replay survives unrelated wrong attempts");
@@ -266,6 +308,9 @@ async function integration() {
     await r.withDemandWorkerDb(async tx=>{await r.lockDemandAdmission(tx,weekOwner.id);const next=await r.demandAllowanceInTransaction(tx,weekOwner.id,period.resetsAt);assert.equal(next.revision,0);assert.equal(next.available,500);});
     await r.database.execute(sql`update public.alpha_memberships set status='revoked' where user_id=${account.accountUserId}::uuid`);
     await assert.rejects(r.resolveDemandResourcePrincipal(claim,{requestId:first.id}),code("reading_session_expired"));
+    assert.deepEqual(await provider(item.stage),item.response,"A terminal parent's exact succeeded stage replays without provider work");
+    const [sentinelAfter]=await r.database.select().from(r.demandRequests).where(eq(r.demandRequests.id,sentinelId));
+    assert.deepEqual(sentinelAfter,sentinelBefore,"Allowance operations and cached replay preserve the request identity, result and reservation");
     assert.deepEqual(await ledger(),moneyBefore,"entitlement/reset/claim never changes provider stages or either spend ledger");
     assert.equal(stubCalls,1);
     console.log("Disposable allowance integration passed: final1–6,500/501,partial0–6,replay,reserve/reset/settlement contention,old-revision retry,week rollover,guest/account merge,isolation,history and unchanged nonzero spend. Synthetic settlement and one local stub stage; no external provider/workflow calls.");
@@ -287,5 +332,6 @@ async function integration() {
   }
 }
 if(process.argv.includes("--safety-only")) safety();
+else if(process.argv.includes("--fixture-only")) await fixtureChecks();
 else if(process.argv[2]==="--worker") await worker(JSON.parse(process.argv[3]));
 else {try{await integration();process.exit(0);}catch(e){console.error(e);process.exit(1);}}

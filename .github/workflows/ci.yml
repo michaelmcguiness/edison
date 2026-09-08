@@ -60,6 +60,7 @@ jobs:
         run: pnpm exec supabase db start
 
       - name: Run migrations and pgTAP tests
+        id: migrated_database
         run: pnpm exec supabase test db
 
       - name: Verify reviewed starter publication and replay in disposable Postgres
@@ -78,9 +79,11 @@ jobs:
         run: pnpm exec tsx scripts/check-demand-v10-local-db.ts
 
       - name: Verify weekly allowance, reset contention and guest continuity in disposable Postgres
+        if: ${{ !cancelled() && steps.migrated_database.outcome == 'success' }}
         run: pnpm exec tsx scripts/check-demand-allowance-local-db.ts
 
       - name: Verify invite slots, acceptance races and uncertain email recovery in disposable Postgres
+        if: ${{ !cancelled() && steps.migrated_database.outcome == 'success' }}
         run: pnpm exec tsx scripts/check-demand-invitations-local-db.ts
 
       - name: Lint migrated application schemas
