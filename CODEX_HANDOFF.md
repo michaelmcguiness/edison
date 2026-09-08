@@ -15,16 +15,20 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
-### September 8 — D50 checker-format candidate
+### September 8 — D50 checker-format correction live
 
-The bounded article/Ask correction is implemented and independently reviewed on
-`codex/checker-clean-pass`, based on receipt-only `9b1f08f` above live `c71af50`.
-All 1,053 local tests, both standalone types and lint pass; clean exact-source CI
-must verify builds and disposable database checks before API-only rollout. Web,
-Auth, existing requests, budgets and historical failures are unchanged. See the
+API source `bd528f59145f0878351d665f444d945c8ebdaf31` is live as
+`dpl_3TUAXZC4E5poyaf61sF1jZVyb8zm`, READY 16:17:56.361 UTC. Exact-source
+CI34249541600 passed all 1,053 application tests, 320 pgTAP assertions, seven
+DB proofs, both builds/types and lint. Live health/access/CORS/cron checks pass;
+all aliases and three schedule cadences are retained. Web remains c71af50.
+New article/Ask requests use the approved version-pinned clean-pass format;
+legacy requests, raw receipts, sole repair, Auth and budgets remain unchanged.
+No historical failure was rerun or rescued. Real signed-in acceptance is next.
+See the
 [checker-format receipt](docs/operations/CHECKER_FORMAT_RELEASE_2026-09-08.md) for authority, compatibility evidence and limits.
 
-### September 8 — article connection recovery live
+### Previous — September 8 article connection recovery live
 
 Both existing production projects run `c71af50de829eef6f236991972332a8b7be81066`:
 API `dpl_4FnWzhobqu6WwE94csCJ6xyMt9Z1`, Ready 15:44:52.521 UTC;
@@ -39,12 +43,10 @@ at 15:47:43.874 UTC passed health/access/CORS, safe login returns, nonce CSP and
 all three cron bindings and unchanged cadences. Existing apex/www/web/API addresses
 are retained. No Auth/template, migration, secret, domain or budget changes.
 
-The separate checker-format correction is now implemented under Michael's
-explicit D50 approval for articles and follow-up answers. The earlier automatic
-review rejection was respected with no checker edits before the stop; his direct
-“yes continue” subsequently resolved it. Independent compatibility review and
-exact-source CI precede an API-only deployment. No checker rollout is yet claimed.
-CTO owns the single real first-session acceptance journey after release.
+The separate checker-format correction subsequently shipped under Michael's
+explicit D50 approval, as recorded above. The earlier automatic review rejection
+was respected with no checker edits before the stop; his direct “yes continue”
+resolved it. CTO owns the single real first-session acceptance journey.
 Signed-out browser verification is not fresh article/Ask or mail-delivery proof.
 D49 invitations remains queued. D48 strict-six-digit sign-in remains blocked and
 excluded: canonical HEAD contains a prepared patch and is NOT the live release.
