@@ -360,7 +360,7 @@ export const alphaMemberships = pgTable(
     userId: uuid("user_id")
       .primaryKey()
       .references(() => profiles.id, { onDelete: "cascade" }),
-    status: text("status").notNull().default("active"),
+    status: text("status").notNull().default("pending"),
     invitedBy: uuid("invited_by").references(() => profiles.id, {
       onDelete: "set null",
     }),
@@ -372,7 +372,7 @@ export const alphaMemberships = pgTable(
   (table) => [
     check(
       "alpha_memberships_status_valid",
-      sql`${table.status} in ('active', 'revoked')`,
+      sql`${table.status} in ('pending', 'active', 'revoked')`,
     ),
   ],
 );
@@ -1741,3 +1741,73 @@ export const demandShareOperations = privateSchema.table("demand_share_operation
     foreignColumns: [demandPublicShares.principalId, demandPublicShares.articleRequestId, demandPublicShares.id] }).onDelete("restrict"),
   check("demand_share_operations_idempotency_key_check", sql`char_length(${table.idempotencyKey}) between 8 and 128 and ${table.idempotencyKey} ~ '^[A-Za-z0-9._:-]+$'`),
 ]);
+
+// D43: append-only reader entitlement, distinct from the monetary ledgers.
+// The additive SQL migration owns forced RLS, grants and immutable triggers.
+export const demandPrincipalClaims=privateSchema.table("demand_principal_claims",{
+  principalId:uuid("principal_id").primaryKey().references(()=>demandPrincipals.id,{onDelete:"restrict"}),
+  accountPrincipalId:uuid("account_principal_id").notNull().references(()=>demandPrincipals.id,{onDelete:"restrict"}),
+  guestTokenHash:text("guest_token_hash").notNull().unique(),
+  createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow(),
+},table=>[index("demand_principal_claims_account").on(table.accountPrincipalId),check("demand_principal_claims_guest_token_hash_check",sql`${table.guestTokenHash} ~ '^[0-9a-f]{64}$'`)]);
+export const demandAllowanceGrants=privateSchema.table("demand_allowance_grants",{
+  id:uuid("id").primaryKey().defaultRandom(),principalId:uuid("principal_id").notNull().references(()=>demandPrincipals.id,{onDelete:"restrict"}),
+  periodStart:timestamp("period_start",{withTimezone:true}).notNull(),revision:integer("revision").notNull(),
+  createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow(),
+},table=>[unique().on(table.principalId,table.periodStart,table.revision),check("demand_allowance_grants_revision_check",sql`${table.revision}>=0`),
+  check("demand_allowance_grants_period_start_check",sql`${table.periodStart}=date_trunc('week',${table.periodStart} AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`)]);
+export const demandAllowanceAllocations=privateSchema.table("demand_allowance_allocations",{
+  requestId:uuid("request_id").primaryKey().references(()=>demandRequests.id,{onDelete:"restrict"}),
+  grantId:uuid("grant_id").notNull().references(()=>demandAllowanceGrants.id,{onDelete:"restrict"}),units:integer("units").notNull(),
+  createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow(),
+},table=>[index("demand_allowance_allocations_grant").on(table.grantId),check("demand_allowance_allocations_units_check",sql`${table.units} between 1 and 6`)]);
+export const demandAllowanceCarryovers=privateSchema.table("demand_allowance_carryovers",{
+  sourceGrantId:uuid("source_grant_id").primaryKey().references(()=>demandAllowanceGrants.id,{onDelete:"restrict"}),
+  targetGrantId:uuid("target_grant_id").notNull().references(()=>demandAllowanceGrants.id,{onDelete:"restrict"}),
+  createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow(),
+},table=>[check("demand_allowance_carryovers_check",sql`${table.sourceGrantId}<>${table.targetGrantId}`)]);
+export const demandAllowanceResets=privateSchema.table("demand_allowance_resets",{
+  id:uuid("id").primaryKey().defaultRandom(),principalId:uuid("principal_id").notNull().references(()=>demandPrincipals.id,{onDelete:"restrict"}),
+  idempotencyKey:text("idempotency_key").notNull(),previousGrantId:uuid("previous_grant_id").notNull().references(()=>demandAllowanceGrants.id,{onDelete:"restrict"}),
+  grantId:uuid("grant_id").notNull().unique().references(()=>demandAllowanceGrants.id,{onDelete:"restrict"}),
+  createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow(),
+},table=>[unique().on(table.principalId,table.idempotencyKey),check("demand_allowance_resets_idempotency_key_check",sql`char_length(${table.idempotencyKey}) between 8 and 128 and ${table.idempotencyKey} ~ '^[A-Za-z0-9._:-]+$'`)]);
+export const demandAllowanceResetAttempts=privateSchema.table("demand_allowance_reset_attempts",{
+  id:uuid("id").primaryKey().defaultRandom(),principalId:uuid("principal_id").notNull().references(()=>demandPrincipals.id,{onDelete:"restrict"}),
+  accepted:boolean("accepted").notNull(),createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow(),
+},table=>[index("demand_allowance_reset_attempts_reader_time").on(table.principalId,table.createdAt)]);
+
+export const demandInviteGrants=privateSchema.table("demand_invite_grants",{
+  userId:uuid("user_id").primaryKey().references(()=>profiles.id,{onDelete:"restrict"}),
+  allowance:integer("allowance").notNull().default(5),createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow(),
+},table=>[check("demand_invite_grants_allowance_check",sql`${table.allowance}=5`)]);
+export const demandInvitations=privateSchema.table("demand_invitations",{
+  id:uuid("id").primaryKey().defaultRandom(),inviterUserId:uuid("inviter_user_id").notNull().references(()=>demandInviteGrants.userId,{onDelete:"restrict"}),
+  recipientEmail:text("recipient_email").notNull(),status:text("status").notNull().default("pending"),
+  expiresAt:timestamp("expires_at",{withTimezone:true}).notNull().default(sql`now()+interval '7 days'`),
+  createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow(),updatedAt:timestamp("updated_at",{withTimezone:true}).notNull().defaultNow(),
+  sentAt:timestamp("sent_at",{withTimezone:true}),redeemedAt:timestamp("redeemed_at",{withTimezone:true}),
+  redeemedBy:uuid("redeemed_by").references(()=>profiles.id,{onDelete:"restrict"}),deliveryAttempts:integer("delivery_attempts").notNull().default(0),
+  deliveryLeaseExpiresAt:timestamp("delivery_lease_expires_at",{withTimezone:true}),lastErrorCode:text("last_error_code"),
+},table=>[index("demand_invitations_inviter_created").on(table.inviterUserId,table.createdAt),
+  uniqueIndex("demand_invitations_open_recipient").on(table.inviterUserId,table.recipientEmail).where(sql`${table.status} in ('pending','sending','sent')`),
+  check("demand_invitations_status_check",sql`${table.status} in ('pending','sending','sent','failed','expired','revoked','redeemed')`),
+  check("demand_invitations_recipient_email_check",sql`${table.recipientEmail}=lower(btrim(${table.recipientEmail})) and char_length(${table.recipientEmail}) between 3 and 320 and ${table.recipientEmail} ~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$'`),
+  check("demand_invitations_delivery_attempts_check",sql`${table.deliveryAttempts} between 0 and 100`),
+  check("demand_invitations_check",sql`${table.expiresAt}>${table.createdAt}`),
+  check("demand_invitations_check1",sql`(${table.status}='redeemed')=(${table.redeemedBy} is not null and ${table.redeemedAt} is not null)`),
+  check("demand_invitations_last_error_code_check",sql`${table.lastErrorCode} is null or char_length(${table.lastErrorCode})<=80`)]);
+export const demandInvitationOperations=privateSchema.table("demand_invitation_operations",{
+  id:uuid("id").primaryKey().defaultRandom(),actorUserId:uuid("actor_user_id").notNull().references(()=>profiles.id,{onDelete:"restrict"}),
+  idempotencyKey:text("idempotency_key").notNull(),requestFingerprint:text("request_fingerprint").notNull(),
+  invitationId:uuid("invitation_id").notNull().references(()=>demandInvitations.id,{onDelete:"restrict"}),operation:text("operation").notNull(),
+  receipt:jsonb("receipt").$type<Record<string,unknown>>().notNull(),createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow(),
+},table=>[unique().on(table.actorUserId,table.idempotencyKey),
+  check("demand_invitation_operations_idempotency_key_check",sql`char_length(${table.idempotencyKey}) between 8 and 128 and ${table.idempotencyKey} ~ '^[A-Za-z0-9._:-]+$'`),
+  check("demand_invitation_operations_request_fingerprint_check",sql`${table.requestFingerprint} ~ '^[0-9a-f]{64}$'`),
+  check("demand_invitation_operations_operation_check",sql`${table.operation} in ('create','resend','revoke','redeem')`),
+  check("demand_invitation_operations_receipt_check",sql`jsonb_typeof(${table.receipt})='object' and octet_length(${table.receipt}::text)<=32768`)]);
+export const demandInvitationDeliveryResults=privateSchema.table("demand_invitation_delivery_results",{
+  operationId:uuid("operation_id").primaryKey().references(()=>demandInvitationOperations.id,{onDelete:"restrict"}),
+  outcome:text("outcome").notNull(),createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow(),
+},table=>[check("demand_invitation_delivery_results_outcome_check",sql`${table.outcome} in ('sent','failed','unknown','not_attempted')`)]);

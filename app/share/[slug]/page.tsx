@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { isDemoMode } from "@/lib/app-mode";
 import { EdisonLogo, EdisonMark } from "@/components/edison/brand";
+import { memberApiFetch, requireMemberSession } from "@/lib/member-access";
 import {
   publicArticleShareSchema,
   type ArticleSource,
@@ -10,15 +11,12 @@ import {
 
 export const dynamic = "force-dynamic";
 
-async function getShare(slug: string): Promise<PublicArticleShare | null> {
+async function getShare(slug: string, accessToken: string): Promise<PublicArticleShare | null> {
   if (isDemoMode()) return null;
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
   if (!apiUrl) return null;
 
-  const response = await fetch(
-    `${apiUrl.replace(/\/$/, "")}/shares/${encodeURIComponent(slug)}`,
-    { cache: "no-store" },
-  );
+  const response = await memberApiFetch(`shares/${encodeURIComponent(slug)}`, accessToken);
   if (response.status === 404 || response.status === 410) return null;
   if (!response.ok) throw new Error("Edison could not open this shared article.");
 
@@ -32,7 +30,8 @@ export default async function SharedArticlePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const share = await getShare(slug);
+  const session = await requireMemberSession(`/share/${slug}`);
+  const share = await getShare(slug, session.accessToken);
   if (!share) notFound();
 
   const { article } = share;

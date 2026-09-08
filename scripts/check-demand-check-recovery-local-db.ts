@@ -146,7 +146,7 @@ async function integrationChecks() {
   const { readerFirstFingerprint } = await import("../packages/ai/src/reader-first");
   const { createEmptyLoopPrincipleState } = await import("../packages/domain/src/loop-principles");
   const { HttpError } = await import("../apps/api/src/http/errors");
-  const runId = randomUUID(); const owners = new Set<string>(); let stubCalls = 0;
+  const runId = randomUUID(); const owners = new Set<string>(); const accountIds = new Set<string>(); let stubCalls = 0;
   const empty = { sources: [], passages: [] };
   const cap = { daily: 10_000_000, monthly: 50_000_000 };
   const prefix = `check-recovery:${runId}:`;
@@ -157,15 +157,26 @@ async function integrationChecks() {
 
   async function cleanup() {
     if (owners.size) await database.delete(demandPrincipals).where(inArray(demandPrincipals.id, [...owners]));
-    owners.clear(); Object.assign(process.env, settings);
+    owners.clear();
+    if (accountIds.size) await database.execute(sql`delete from auth.users where id in (${sql.join([...accountIds].map((id) => sql`${id}::uuid`), sql`, `)})`);
+    accountIds.clear(); Object.assign(process.env, settings);
   }
   async function fixture(failed = true) {
     const principalId = randomUUID(); owners.add(principalId);
+    const accountUserId = randomUUID(); accountIds.add(accountUserId);
     const loopId = randomUUID(); const batchId = randomUUID(); const ideaId = randomUUID();
     const originalCuriosity = "How does a sensor connect an input to an output?";
-    const [principal] = await database.insert(demandPrincipals).values({ id: principalId,
-      guestTokenHash: createHash("sha256").update(`${runId}:${principalId}`).digest("hex"),
-      createdAt: new Date(Date.now() - 60_000), expiresAt: new Date(Date.now() + 3_600_000) }).returning();
+    // Only these exact disposable accounts are admitted. D44 production
+    // membership and the pending-by-default auth trigger remain unchanged.
+    await database.execute(sql`insert into auth.users(id,email,email_confirmed_at)
+      values(${accountUserId}::uuid,${`recovery-${runId}-${accountUserId}@example.test`},now())`);
+    const admitted = await database.execute(sql`update public.alpha_memberships set status='active'
+      where user_id=${accountUserId}::uuid returning user_id`);
+    assert.equal(admitted.length, 1);
+    const [principal] = await database.insert(demandPrincipals).values({ id: principalId, accountUserId,
+      createdAt: new Date(Date.now() - 60_000), expiresAt: null }).returning();
+    const [active] = await database.execute<{ active: boolean }>(sql`select private.demand_principal_is_active(${principalId}::uuid) as active`);
+    assert.equal(active.active, true);
     const principles = createEmptyLoopPrincipleState({ loopId, originalCuriosity });
     await database.insert(demandLoops).values({ id: loopId, principalId, title: "Constructed recovery test", originalCuriosity,
       principles: principles as unknown as Record<string, unknown> });
@@ -327,10 +338,18 @@ async function integrationChecks() {
     const exhausted = await records(limited);
     await assert.rejects(prepareDemandRetry(limited.principalId, limited.requestId), (error: unknown) => error instanceof HttpError && error.code === "request_retry_exhausted");
     assert.deepEqual(await records(limited), exhausted);
-    await database.update(demandPrincipals).set({ expiresAt: new Date(Date.now() - 1000) }).where(eq(demandPrincipals.id, limited.principalId));
+    await database.update(demandPrincipals).set({ revokedAt: new Date() }).where(eq(demandPrincipals.id, limited.principalId));
     await assert.rejects(prepareDemandRetry(limited.principalId, limited.requestId), (error: unknown) => error instanceof HttpError && error.status === 401);
     assert.deepEqual(await records(limited), exhausted);
-    console.log("Disposable recovery: independent-session same-request and fresh-admission budget races, unpriced-spend blocking, concurrency, ownership, expiry, attempt cap, unchanged history/accounting and cached checker replay passed. Provider responses were constructed local stubs; no workflow started.");
+    // Keep the legacy expired-guest rejection case separate from valid D44
+    // accounts, whose schema correctly forbids an expiration timestamp.
+    const expiredGuestId = randomUUID(); owners.add(expiredGuestId);
+    await database.insert(demandPrincipals).values({ id: expiredGuestId,
+      guestTokenHash: createHash("sha256").update(`${runId}:${expiredGuestId}`).digest("hex"),
+      createdAt: new Date(Date.now() - 60_000), expiresAt: new Date(Date.now() - 1000) });
+    await assert.rejects(prepareDemandRetry(expiredGuestId, limited.requestId), (error: unknown) => error instanceof HttpError && error.status === 401);
+    assert.deepEqual(await records(limited), exhausted);
+    console.log("Disposable recovery: independent-session same-request and fresh-admission budget races, unpriced-spend blocking, concurrency, ownership, account revocation, expired-guest denial, attempt cap, unchanged history/accounting and cached checker replay passed. Provider responses were constructed local stubs; no workflow started.");
   } finally { await cleanup(); }
 }
 

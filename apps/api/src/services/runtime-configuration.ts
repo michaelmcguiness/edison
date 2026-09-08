@@ -77,6 +77,18 @@ export function productionRuntimeConfigurationIssues(
 ) {
   const issues = new Set<string>();
   const demandFlag = environment.EDISON_ON_DEMAND_ENABLED;
+  const invitationFlag=environment.EDISON_MEMBER_INVITATIONS_ENABLED;
+  if(invitationFlag!==undefined&&invitationFlag!=="true"&&invitationFlag!=="false") issues.add("EDISON_MEMBER_INVITATIONS_ENABLED");
+  const invitationSecret=value(environment,"SUPABASE_SECRET_KEY");
+  if(invitationFlag==="true") {
+    if(demandFlag!=="true") issues.add("EDISON_MEMBER_INVITATIONS_ENABLED");
+    if(!/^sb_secret_[A-Za-z0-9_-]+$/.test(invitationSecret)) issues.add("SUPABASE_SECRET_KEY");
+  } else if(invitationSecret) issues.add("SUPABASE_SECRET_KEY");
+  for(const name of ["SUPABASE_SERVICE_ROLE_KEY","SUPABASE_SERVICE_KEY","SUPABASE_DB_PASSWORD","SUPABASE_ACCESS_TOKEN"])
+    if(value(environment,name)) issues.add(name);
+  const signupFlag=environment.EDISON_DEMAND_PUBLIC_SIGNUP_ENABLED;
+  if(signupFlag!==undefined&&signupFlag!=="false") issues.add("EDISON_DEMAND_PUBLIC_SIGNUP_ENABLED");
+  if(demandFlag==="true"&&!environment.EDISON_DEMAND_ALLOWANCE_RESET_PASSWORD) issues.add("EDISON_DEMAND_ALLOWANCE_RESET_PASSWORD");
   if (demandFlag !== undefined && demandFlag !== "true" && demandFlag !== "false") issues.add("EDISON_ON_DEMAND_ENABLED");
   if (demandFlag === "true") {
     try { demandLimits(environment); } catch { issues.add("on_demand_limits"); }

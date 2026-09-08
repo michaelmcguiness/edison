@@ -15,9 +15,15 @@ select is((select count(*)::integer from information_schema.role_table_grants
     and grantee in ('anon','authenticated','service_role','edison_api','edison_public','edison_demand_api')), 0, 'receipts expose no reader, legacy or public grants');
 select ok(not has_table_privilege('edison_demand_worker','private.demand_loops','delete'), 'worker cannot hard-delete a retained loop');
 
-insert into private.demand_principals (id,guest_token_hash,expires_at) values
-  ('70000000-0000-4000-8000-000000000001',repeat('d',64),'2099-01-01'),
-  ('70000000-0000-4000-8000-000000000002',repeat('e',64),'2099-01-01');
+-- Valid-work fixtures are admitted accounts, not newly authorized guests.
+insert into auth.users(id,email,email_confirmed_at) values
+  ('70000000-0000-4000-8000-000000000101','loop-owner@example.test',now()),
+  ('70000000-0000-4000-8000-000000000102','loop-other@example.test',now());
+update public.alpha_memberships set status='active' where user_id in
+  ('70000000-0000-4000-8000-000000000101','70000000-0000-4000-8000-000000000102');
+insert into private.demand_principals (id,account_user_id) values
+  ('70000000-0000-4000-8000-000000000001','70000000-0000-4000-8000-000000000101'),
+  ('70000000-0000-4000-8000-000000000002','70000000-0000-4000-8000-000000000102');
 insert into private.demand_loops (id,principal_id,title,original_curiosity,revision,principles) values
   ('70000000-0000-4000-8000-000000000011','70000000-0000-4000-8000-000000000001','Sensors','Explain sensor mechanisms.',3,'{}'),
   ('70000000-0000-4000-8000-000000000012','70000000-0000-4000-8000-000000000002','Other loop','Keep the other reader separate.',0,'{}');

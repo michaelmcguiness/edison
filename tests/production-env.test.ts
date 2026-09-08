@@ -52,6 +52,47 @@ test("accepts a minimal credential-separated web production environment", () => 
   assert.equal(result.errorCount, 0);
 });
 
+test("D44 rejects retired open signup and does not waive legacy account controls", () => {
+  for (const target of ["web", "api"] as const) {
+    const base = target === "web" ? validWebEnvironment() : validApiEnvironment();
+    const demand = { ...base, EDISON_ON_DEMAND_ENABLED: "true",
+      ...(target === "api" ? { EDISON_DEMAND_ALLOWANCE_RESET_PASSWORD: "reset-SENTINEL" } : {}) };
+    assert.equal(checkProductionEnvironment({ ...demand, EDISON_DEMAND_PUBLIC_SIGNUP_ENABLED: "false" }, target).ok, true);
+    for (const flag of ["true", "TRUE", "yes", " true ", "1", ""]) {
+      assert.equal(checkProductionEnvironment({ ...demand, EDISON_DEMAND_PUBLIC_SIGNUP_ENABLED: flag }, target).ok, false);
+    }
+    assert.equal(checkProductionEnvironment({ ...base, EDISON_DEMAND_PUBLIC_SIGNUP_ENABLED: "true" }, target).ok, false);
+  }
+  const environment = { ...validApiEnvironment(), EDISON_ON_DEMAND_ENABLED: "true", EDISON_DEMAND_PUBLIC_SIGNUP_ENABLED: "true",
+    EDISON_DEMAND_ALLOWANCE_RESET_PASSWORD: "reset-SENTINEL", EDISON_ALLOWED_EMAILS: "" };
+  const report = formatProductionEnvironmentReport(checkProductionEnvironment(environment, "api"));
+  assert.match(report, /ERROR.*EDISON_ALLOWED_EMAILS/);
+  assert.doesNotMatch(report, /reset-SENTINEL/);
+});
+
+test("only explicitly enabled API invitation delivery may carry its server-only secret", () => {
+  const credential = "sb_secret_invitation_SENDER_SENTINEL_123456789";
+  const environment = { ...validApiEnvironment(), EDISON_ON_DEMAND_ENABLED: "true", EDISON_DEMAND_ALLOWANCE_RESET_PASSWORD: "test-reset",
+    EDISON_MEMBER_INVITATIONS_ENABLED: "true", SUPABASE_SECRET_KEY: credential };
+  const report = checkProductionEnvironment(environment, "api");
+  assert.equal(report.ok, true);
+  assert.doesNotMatch(formatProductionEnvironmentReport(report), /SENDER_SENTINEL/);
+  assert.equal(checkProductionEnvironment({ ...environment, EDISON_MEMBER_INVITATIONS_ENABLED: "false" }, "api").ok, false);
+  assert.equal(checkProductionEnvironment({ ...environment, EDISON_ON_DEMAND_ENABLED: "false" }, "api").ok, false);
+  assert.equal(checkProductionEnvironment({ ...environment, SUPABASE_SERVICE_ROLE_KEY: credential }, "api").ok, false);
+  assert.equal(checkProductionEnvironment({ ...validWebEnvironment(), EDISON_MEMBER_INVITATIONS_ENABLED: "true", SUPABASE_SECRET_KEY: credential }, "web").ok, false);
+});
+
+test("temporary reset password is required only by enabled demand API and never allowed in web environment", () => {
+  const enabled = { ...validApiEnvironment(), EDISON_ON_DEMAND_ENABLED: "true" };
+  assert.equal(checkProductionEnvironment(enabled, "api").ok, false);
+  for (const password of ["", "x".repeat(101)]) assert.equal(checkProductionEnvironment({ ...enabled, EDISON_DEMAND_ALLOWANCE_RESET_PASSWORD: password }, "api").ok, false);
+  const good = checkProductionEnvironment({ ...enabled, EDISON_DEMAND_ALLOWANCE_RESET_PASSWORD: "synthetic-wall-password" }, "api");
+  assert.equal(good.ok, true);
+  assert.doesNotMatch(formatProductionEnvironmentReport(good), /synthetic-wall-password/);
+  assert.equal(checkProductionEnvironment({ ...validWebEnvironment(), EDISON_DEMAND_ALLOWANCE_RESET_PASSWORD: "synthetic-wall-password" }, "web").ok, false);
+});
+
 test("rejects demo mode and server credentials in the web project", () => {
   const environment = {
     ...validWebEnvironment(),

@@ -9,8 +9,11 @@ import {
   requestDemandArticleSchema,
   requestDemandIdeasSchema,
   editDemandLoopSchema, archiveDemandLoopSchema, createDemandArticleShareSchema, parseDemandConversationQuery,
+  resetDemandAllowanceSchema, demandAllowanceResetReceiptSchema, parseDemandLoopsQuery, demandLoopsSchema,
+  createDemandInvitationSchema, demandInvitationActionSchema, demandInvitationMutationSchema,
+  demandInvitationsSchema, demandInvitationRedemptionSchema, uuidSchema,
 } from "@edison/contracts";
-import { resolveDemandPrincipal } from "../../../../src/auth/verify-demand-principal";
+import { resolveDemandPrincipal, resolveDemandResourcePrincipal } from "../../../../src/auth/verify-demand-principal";
 import {
   json,
   publicApiHandler,
@@ -38,6 +41,11 @@ import { demandHistory, demandIdeaResult } from "../../../../src/services/demand
 import { demandArticleResult, demandConversation } from "../../../../src/services/demand-conversation";
 import { editDemandLoop, archiveDemandLoop } from "../../../../src/services/demand-loop-management";
 import { createDemandArticleShare } from "../../../../src/services/demand-sharing";
+import { resetDemandAllowance } from "../../../../src/services/demand-allowance";
+import { demandLoopPage, demandLoopResult } from "../../../../src/services/demand-loop-list";
+import { verifyAccessToken } from "../../../../src/auth/verify-access-token";
+import { withActiveMember } from "../../../../src/services/members";
+import { createDemandInvitation, listDemandInvitations, previewDemandInvitation, redeemDemandInvitation, resendDemandInvitation, revokeDemandInvitation } from "../../../../src/services/demand-invitations";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -55,7 +63,7 @@ async function mutationResponse(
   request: DemandRequestRow,
 ) {
   if (request.status === "queued") {
-    await dispatchDemandRequest(request.id, principal.id);
+    await dispatchDemandRequest(request.id, request.principalId);
   }
   const workspace = demandWorkspaceSchema.parse(
     await demandWorkspace(principal),
@@ -69,6 +77,39 @@ async function mutationResponse(
 async function handleDemandRoute(request: Request, context: RouteContext) {
   return publicApiHandler(request, async () => {
     const { path } = await context.params;
+    if (request.method === "GET" && path.length === 1 && path[0] === "access") {
+      if (new URL(request.url).search) throw new HttpError(400, "invalid_request", "Query parameters are not supported here.");
+      const claims = await verifyAccessToken(request.headers.get("authorization"), { demand: true });
+      return withActiveMember(claims, async () => json({ member: true }));
+    }
+    if (path[0] === "invitations") {
+      const params = new URL(request.url).searchParams;
+      const list = path.length === 1 && request.method === "GET";
+      const create = path.length === 1 && request.method === "POST";
+      const exact = path.length === 3 && uuidSchema.safeParse(path[1]).success;
+      const preview = exact && path[2] === "preview" && request.method === "GET";
+      const redeem = exact && path[2] === "redeem" && request.method === "POST";
+      const resend = exact && path[2] === "resend" && request.method === "POST";
+      const revoke = exact && path[2] === "revoke" && request.method === "POST";
+      if (params.size || !(list || create || preview || redeem || resend || revoke)) throw new HttpError(404, "not_found", "That invitation resource was not found.");
+      const headers = { "Referrer-Policy": "no-referrer", "X-Robots-Tag": "noindex, nofollow" };
+      if (preview) {
+        const authorization = request.headers.get("authorization");
+        const claims = authorization ? await verifyAccessToken(authorization, { demand: true }) : null;
+        return json(await previewDemandInvitation(path[1], { verifiedUserId: claims?.sub }), { headers });
+      }
+      const claims = await verifyAccessToken(request.headers.get("authorization"), { demand: true });
+      // Redemption is the sole verified-but-not-yet-member mutation. The
+      // transaction checks the exact recipient email and invitation itself.
+      if (redeem) return json(demandInvitationRedemptionSchema.parse(await redeemDemandInvitation(claims.sub, path[1], demandInvitationActionSchema.parse(await parsedBody(request)))), { headers });
+      return withActiveMember(claims, async () => {
+        if (list) return json(demandInvitationsSchema.parse(await listDemandInvitations(claims.sub)), { headers });
+        const result = create ? await createDemandInvitation(claims.sub, createDemandInvitationSchema.parse(await parsedBody(request)))
+          : resend ? await resendDemandInvitation(claims.sub, path[1], demandInvitationActionSchema.parse(await parsedBody(request)))
+            : await revokeDemandInvitation(claims.sub, path[1], demandInvitationActionSchema.parse(await parsedBody(request)));
+        return json(demandInvitationMutationSchema.parse(result), { headers });
+      });
+    }
     const route = matchDemandRoute(request.method, path);
     if (!route) {
       throw new HttpError(
@@ -78,7 +119,7 @@ async function handleDemandRoute(request: Request, context: RouteContext) {
       );
     }
     const params = new URL(request.url).searchParams;
-    if (params.size && route.kind !== "history" && route.kind !== "conversation") {
+    if (params.size && route.kind !== "history" && route.kind !== "conversation" && route.kind !== "loops") {
       throw new HttpError(400, "invalid_request", "Query parameters are not supported here.");
     }
 
@@ -99,7 +140,26 @@ async function handleDemandRoute(request: Request, context: RouteContext) {
       );
     }
 
-    const { principal } = await resolveDemandPrincipal(request);
+    const { principal: accountPrincipal } = await resolveDemandPrincipal(request);
+    // Resource IDs are locators, never caller-selected owners. Resolve only
+    // within this authenticated reader's canonical workspace/claimed aliases.
+    const resource = "loopId" in route ? { loopId: route.loopId }
+      : "ideaId" in route ? { ideaId: route.ideaId }
+      : "articleId" in route ? { articleId: route.articleId }
+      : "requestId" in route ? { requestId: route.requestId } : null;
+    const principal = resource ? await resolveDemandResourcePrincipal(accountPrincipal, resource) : accountPrincipal;
+    if (route.kind === "loop-result") return json(demandLoopsSchema.parse(await demandLoopResult(principal, route.loopId)));
+    if (route.kind === "reset-allowance") {
+      const input = resetDemandAllowanceSchema.parse(await parsedBody(request));
+      const receipt = demandAllowanceResetReceiptSchema.parse(await resetDemandAllowance(principal, input));
+      return json({ workspace: demandWorkspaceSchema.parse(await demandWorkspace(principal)), receipt });
+    }
+    if (route.kind === "loops") {
+      let input;
+      try { input = parseDemandLoopsQuery(params); }
+      catch { throw new HttpError(400, "invalid_request", "That loop list request is not valid."); }
+      return json(demandLoopsSchema.parse(await demandLoopPage(principal, input)));
+    }
     if (route.kind === "article-result") return json(await demandArticleResult(principal, route.articleId));
     if (route.kind === "conversation") {
       let input;

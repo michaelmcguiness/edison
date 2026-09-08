@@ -2,7 +2,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { HttpError } from "../http/errors";
-import { enforceAlphaEmailAllowlist } from "./verify-access-token";
+import { assertDemandVerifiedUser, enforceAlphaEmailAllowlist } from "./verify-access-token";
+
+test("demand signup requires confirmed provider user identity; user metadata cannot self-confirm",()=>{
+  const claims={sub:"11111111-1111-4111-8111-111111111111",email:"reader@example.com"};
+  const user={id:claims.sub,email:claims.email,is_anonymous:false,email_confirmed_at:"2026-09-07T00:00:00Z"};
+  assert.doesNotThrow(()=>assertDemandVerifiedUser(claims,user));
+  for(const changed of [null,{}, {...user,id:"another-user"},{...user,email:"someone@example.com"},{...user,is_anonymous:true},
+    {...user,email_confirmed_at:null,user_metadata:{email_verified:true,email_confirmed_at:"2026-09-07T00:00:00Z"}},
+    {...user,email_confirmed_at:"not-a-date"},{...user,is_anonymous:undefined}]) assert.throws(()=>assertDemandVerifiedUser(claims,changed),
+      (e:unknown)=>e instanceof HttpError&&e.code==="verified_account_required");
+});
 
 test("production authentication fails closed without a private-alpha allowlist", () => {
   assert.throws(

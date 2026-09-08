@@ -15,7 +15,7 @@ export function loopRevealScroll(scrollLeft: number, clientWidth: number, itemLe
 }
 
 export function ReaderShell({ loops, activeLoopId, children, onSelectLoop, onAddLoop, onOpenHome,
-  onOpenLibrary, onOpenProfile, onEditLoop, showLoopNavigation, showEditLoop }: {
+  onOpenLibrary, onOpenProfile, onEditLoop, showLoopNavigation, showEditLoop, onMoreLoops, loadingMoreLoops }: {
   loops: readonly { id: string; title: string }[];
   activeLoopId: string;
   children?: ReactNode;
@@ -27,6 +27,8 @@ export function ReaderShell({ loops, activeLoopId, children, onSelectLoop, onAdd
   onEditLoop: () => void;
   showLoopNavigation: boolean;
   showEditLoop: boolean;
+  onMoreLoops?: () => void;
+  loadingMoreLoops?: boolean;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const [overflow, setOverflow] = useState({ left: false, right: false });
@@ -58,12 +60,12 @@ export function ReaderShell({ loops, activeLoopId, children, onSelectLoop, onAdd
     buttons[next]?.focus();
   }
 
-  return <div className="pulse-app demand-v10"><div className="pulse-shell">
+  return <div className="pulse-app demand-v10 demand-v11"><div className="pulse-shell">
     <header className="pulse-masthead">
       <button type="button" className="pulse-logo" onClick={onOpenHome} aria-label="Edison home — For You"><EdisonLogo /></button>
       <nav className="pulse-header-actions" aria-label="Your reading and account">
         <button type="button" className="pulse-icon-action" onClick={onOpenLibrary} aria-label="Open Library" title="Library"><Library aria-hidden="true" /></button>
-        <button type="button" className="pulse-icon-action" onClick={onOpenProfile} aria-label="Open Profile" title="Profile"><CircleUserRound aria-hidden="true" /></button>
+        <button type="button" className="pulse-icon-action" onClick={onOpenProfile} aria-label="Open Account" title="Account"><CircleUserRound aria-hidden="true" /></button>
       </nav>
     </header>
     {showLoopNavigation ? <nav className="demand-loop-strip" aria-label="Your learning loops">
@@ -73,9 +75,10 @@ export function ReaderShell({ loops, activeLoopId, children, onSelectLoop, onAdd
           aria-current={activeLoopId === loop.id ? "page" : undefined} title={loop.title} onClick={() => onSelectLoop(loop.id)}><span>{loop.title}</span></button>)}
       </div>
       {overflow.right ? <button type="button" className="demand-nav-chevron" aria-label="Scroll loops right" onClick={() => scroller.current?.scrollBy({ left: 240 })}><ChevronRight aria-hidden="true" /></button> : null}
+      {onMoreLoops ? <button type="button" className="demand-more-loops" disabled={loadingMoreLoops} onClick={onMoreLoops}>{loadingMoreLoops ? "Loading…" : "More loops"}</button> : null}
       <button type="button" className="demand-new-loop" onClick={onAddLoop} aria-label="Add a learning loop"><Plus aria-hidden="true" /><span>New loop</span></button>
     </nav> : null}
     <div className="pulse-main">{children}</div>
-    {showEditLoop ? <button type="button" className="pulse-curate-fab" onClick={onEditLoop}><Pencil aria-hidden="true" /><span>Edit loop</span></button> : null}
+    {showEditLoop ? <button type="button" className="pulse-curate-fab" onClick={onEditLoop}><Pencil aria-hidden="true" /><span>Curate</span></button> : null}
   </div></div>;
 }

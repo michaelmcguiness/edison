@@ -45,6 +45,9 @@ values (
   '71000000-0000-4000-8000-000000000001',
   'public-share-owner@edison.test'
 );
+-- Admit only this synthetic positive-case owner; revocation cases below remain.
+update public.alpha_memberships set status='active'
+where user_id='71000000-0000-4000-8000-000000000001';
 
 insert into public.articles (
   id,

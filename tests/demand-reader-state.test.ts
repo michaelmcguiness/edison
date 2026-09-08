@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { DemandRequest, DemandWorkspace } from "@edison/contracts";
+import { demandWorkspaceSchema, type DemandAllowance, type DemandRequest, type DemandWorkspace } from "@edison/contracts";
 import {
   clearsSubmittedDemandFeedback, DEMAND_READING_POSITION_LIMIT, demandReadingPositionForIdea,
-  DemandWorkspaceResponses, mergeDemandWorkspaces, rememberDemandReadingPosition, restoreDemandReadingPositions,
+  DemandWorkspaceResponses, mergeDemandLoops, mergeDemandWorkspaces, rememberDemandReadingPosition, restoreDemandReadingPositions,
   restoreDemandContinuity, restoredDemandArticlePosition, runScopedDemandRequest,
   type DemandContinuity,
 } from "../lib/demand-reader-state";
@@ -32,6 +32,138 @@ function deferred<T>() {
   const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
   return { promise, resolve, reject };
 }
+
+function entitled(base = workspace(), changes: Partial<DemandAllowance> = {}): DemandWorkspace {
+  const allowance = { limit: 500 as const, used: 6, periodUsed: 6, reserved: 0,
+    periodStart: "2026-09-07T00:00:00.000Z", resetsAt: "2026-09-14T00:00:00.000Z", revision: 0, manualResetAt: null,
+    ...changes };
+  return { ...base, readerKind: "account", accountGate: { canCreateLoop: true, canRefresh: true, reason: null },
+    loopsNextCursor: "cursor-one", allowance: { ...allowance, remaining: Math.max(0, 500 - allowance.used),
+      available: Math.max(0, 500 - allowance.used - allowance.reserved) } };
+}
+
+test("polls retain entitlement, account gate and cursor; historical omissions cannot erase them", () => {
+  const base = entitled(); const responses = new DemandWorkspaceResponses(base);
+  const polled = responses.acceptPoll(responses.beginPoll(), base)!;
+  assert.deepEqual(polled.allowance, base.allowance);
+  assert.deepEqual(polled.accountGate, base.accountGate);
+  assert.equal(polled.loopsNextCursor, "cursor-one");
+  const historic = mergeDemandWorkspaces(polled, { ...workspace(), readerKind: "account" });
+  assert.deepEqual(historic.allowance, base.allowance);
+  assert.deepEqual(historic.accountGate, base.accountGate);
+  assert.equal(historic.loopsNextCursor, "cursor-one");
+  assert.equal(mergeDemandWorkspaces(historic, { ...base, loopsNextCursor: null }).loopsNextCursor, null);
+  assert.ok(demandWorkspaceSchema.safeParse(historic).success);
+});
+
+test("reverse mutation snapshots cannot erase newly queued allowance reservations or restore a stale cursor", () => {
+  const base = entitled(); const responses = new DemandWorkspaceResponses(base);
+  const old = responses.beginMutation(); const newest = responses.beginMutation();
+  responses.acceptMutation(newest, { ...entitled(base, { reserved: 6 }), loopsNextCursor: null });
+  const final = responses.acceptMutation(old, base)!;
+  assert.equal(final.allowance?.reserved, 6);
+  assert.equal(final.allowance?.available, 488);
+  assert.equal(final.loopsNextCursor, null);
+  const release = responses.beginMutation();
+  assert.equal(responses.acceptMutation(release, base)?.allowance?.reserved, 0, "a newer failed admission can release its reservation");
+});
+
+test("settlement is monotonic even when an older mutation ticket carries later committed use", () => {
+  const base = entitled(); const responses = new DemandWorkspaceResponses(base);
+  const old = responses.beginMutation(); const newest = responses.beginMutation();
+  responses.acceptMutation(newest, entitled(base, { reserved: 6 }));
+  const completed = responses.acceptMutation(old, entitled(base, { used: 12, periodUsed: 12 }))!;
+  assert.equal(completed.allowance?.used, 12);
+  assert.equal(completed.allowance?.reserved, 0);
+  const stale = mergeDemandWorkspaces(completed, entitled(base, { reserved: 6 }));
+  assert.equal(stale.allowance?.used, 12);
+  assert.equal(stale.allowance?.reserved, 0, "stale queued snapshot cannot reserve a settled batch twice");
+});
+
+test("reset revisions and weekly periods never regress while late old-revision history remains counted", () => {
+  const spent = entitled(workspace(), { used: 500, periodUsed: 500 });
+  const responses = new DemandWorkspaceResponses(spent);
+  const beforeReset = responses.beginMutation(); const reset = responses.beginMutation();
+  const resetSnapshot = entitled(spent, { used: 0, periodUsed: 500, revision: 1, manualResetAt: "2026-09-07T18:00:00.000Z" });
+  responses.acceptMutation(reset, resetSnapshot);
+  const late = responses.acceptMutation(beforeReset, entitled(spent, { used: 502, periodUsed: 502 }))!;
+  assert.equal(late.allowance?.revision, 1);
+  assert.equal(late.allowance?.used, 0);
+  assert.equal(late.allowance?.periodUsed, 502);
+  assert.equal(late.allowance?.remaining, 500);
+  const nextWeek = entitled(late, { used: 0, periodUsed: 0, revision: 0, manualResetAt: null,
+    periodStart: "2026-09-14T00:00:00.000Z", resetsAt: "2026-09-21T00:00:00.000Z" });
+  assert.deepEqual(mergeDemandWorkspaces(late, nextWeek, false).allowance, nextWeek.allowance);
+  assert.deepEqual(mergeDemandWorkspaces(nextWeek, late).allowance, nextWeek.allowance);
+  assert.ok(demandWorkspaceSchema.safeParse(late).success);
+});
+
+test("in-place account upgrade cannot be downgraded by a delayed guest snapshot", () => {
+  const guest = { ...workspace(), accountGate: { canCreateLoop: true, canRefresh: false, reason: "account_required" as const } };
+  const usedGuest = { ...guest, accountGate: { ...guest.accountGate, canCreateLoop: false } };
+  assert.equal(mergeDemandWorkspaces(usedGuest, guest).accountGate?.canCreateLoop, false);
+  const account = entitled(usedGuest);
+  const retained = mergeDemandWorkspaces(account, guest);
+  assert.equal(retained.readerKind, "account");
+  assert.deepEqual(retained.accountGate, account.accountGate);
+});
+
+function batch(base: DemandWorkspace, batchId: number, time: string, status: DemandRequest["status"] = "succeeded", count = 6) {
+  const request: DemandRequest = { id: id(batchId), loopId: base.loops[0].id, ideaId: null, kind: "ideas", status,
+    stage: status === "succeeded" ? "ready" : "queued", failure: null, createdAt: time, updatedAt: time };
+  return { ...base, loops: base.loops.map((loop, index) => index ? loop : { ...loop, currentBatchRequestId: request.id }),
+    requests: [request], ideas: Array.from({ length: count }, (_, index) => ({ ...base.ideas[0], id: id(batchId * 10 + index),
+      batchRequestId: request.id, rank: index + 1, createdAt: time })) };
+}
+
+test("newest nonempty succeeded batch wins without a loop edit and does not append old cards to that batch", () => {
+  const older = batch(workspace(), 100, now);
+  const newer = batch(workspace(), 101, "2026-09-06T17:00:00.000Z");
+  for (const preferIncoming of [false, true]) {
+    for (const [left, right] of [[older, newer], [newer, older]]) {
+      const merged = mergeDemandWorkspaces(left, right, preferIncoming);
+      assert.equal(merged.loops[0].currentBatchRequestId, id(101));
+      assert.equal(merged.ideas.length, 12, "older reading stays in the bounded cache");
+      assert.equal(merged.ideas.filter((idea) => idea.batchRequestId === merged.loops[0].currentBatchRequestId).length, 6);
+      assert.equal(merged.loops[0].updatedAt, now);
+    }
+  }
+  const combined = [...older.ideas, ...newer.ideas];
+  assert.equal(mergeDemandLoops(newer.loops, older.loops, combined, [...older.requests, ...newer.requests])[0].currentBatchRequestId, id(101));
+});
+
+test("pending, failed and empty batches cannot replace delivered cards; request creation breaks completion order", () => {
+  const ready = batch(workspace(), 100, now);
+  for (const status of ["queued", "running", "failed"] as const) {
+    const nonready = batch(workspace(), 101, "2026-09-06T17:00:00.000Z", status);
+    assert.equal(mergeDemandWorkspaces(ready, nonready).loops[0].currentBatchRequestId, id(100));
+  }
+  const empty = batch(workspace(), 102, "2026-09-06T18:00:00.000Z", "succeeded", 0);
+  assert.equal(mergeDemandWorkspaces(ready, empty).loops[0].currentBatchRequestId, id(100));
+  const newer = batch(workspace(), 101, "2026-09-06T17:00:00.000Z");
+  const lateOld = { ...ready, requests: ready.requests.map((request) => ({ ...request, updatedAt: "2026-09-06T19:00:00.000Z" })) };
+  assert.equal(mergeDemandWorkspaces(newer, lateOld).loops[0].currentBatchRequestId, id(101));
+  const sameTime = batch(workspace(), 103, now);
+  assert.equal(mergeDemandWorkspaces(ready, sameTime).loops[0].currentBatchRequestId, id(103));
+});
+
+test("workspace caps retain sixty loops and 240 requests and exact recovery cannot regress a terminal request", () => {
+  const base = workspace();
+  const many = { ...base, loops: Array.from({ length: 65 }, (_, index) => ({ ...base.loops[0], id: id(index + 1000) })),
+    requests: Array.from({ length: 245 }, (_, index): DemandRequest => ({ id: id(index + 2000), loopId: base.loops[0].id,
+      ideaId: null, kind: "ideas", status: "succeeded", stage: "ready", failure: null, createdAt: now, updatedAt: now })) };
+  const merged = mergeDemandWorkspaces(base, many);
+  assert.equal(merged.loops.length, 60); assert.equal(merged.requests.length, 240);
+  assert.ok(demandWorkspaceSchema.safeParse(merged).success);
+  const responses = new DemandWorkspaceResponses(merged);
+  const request = merged.requests[0];
+  const recovered = responses.recoverRequest({ ...request, status: "queued", stage: "queued" })!;
+  assert.equal(recovered.requests.length, 240);
+  assert.equal(recovered.requests.find((entry) => entry.id === request.id)?.status, "succeeded");
+  const exactOld = responses.recoverRequest({ ...request, id: id(9999), createdAt: "2025-01-01T00:00:00.000Z" })!;
+  assert.equal(exactOld.requests.length, 240);
+  assert.equal(exactOld.requests[0].id, id(9999), "exact historical recovery is retained even at the workspace cap");
+});
 
 test("a delayed retry updates shared records but never selects A or overwrites B's error after navigation", async () => {
   for (const shouldFail of [false, true]) {

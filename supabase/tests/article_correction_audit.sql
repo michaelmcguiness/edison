@@ -86,6 +86,9 @@ values (
   '81000000-0000-4000-8000-000000000001',
   'correction-owner@edison.test'
 );
+-- Admit only this synthetic positive-case owner; new auth users stay pending.
+update public.alpha_memberships set status='active'
+where user_id='81000000-0000-4000-8000-000000000001';
 
 insert into public.articles (
   id,

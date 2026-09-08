@@ -57,10 +57,10 @@ export function SharePanel({ articleId, workspaceId, title, createLink, onClose 
   return <section ref={panel} className="demand-floating-panel demand-share-panel" role="dialog" aria-modal="false" aria-labelledby={`${id}-title`}
     onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); onClose(); } }}>
     <header className="demand-mini-head"><h2 id={`${id}-title`}>Share article</h2><button ref={close} type="button" onClick={onClose} aria-label="Close sharing"><X aria-hidden="true" /></button></header>
-    <p>{link ? "Anyone with this link can read this article. Your loop instructions and conversations are not included." : "Create a public, read-only version of this article. Your loop instructions and conversations won’t be included."}</p>
-    {link ? <><label className="demand-visually-hidden" htmlFor={`${id}-link`}>Public article link</label><input id={`${id}-link`} className="demand-share-link" value={link} readOnly onFocus={(event) => event.currentTarget.select()} />
+    <p>{link ? "Edison members with this link can read this article. Your loop instructions and conversations are not included." : "Create a read-only article link for Edison members. Your loop instructions and conversations won’t be included."}</p>
+    {link ? <><label className="demand-visually-hidden" htmlFor={`${id}-link`}>Article link for Edison members</label><input id={`${id}-link`} className="demand-share-link" value={link} readOnly onFocus={(event) => event.currentTarget.select()} />
       <div className="demand-editor-actions">{native ? <button type="button" disabled={pending} onClick={() => void share()}>Share…</button> : null}<button type="button" className="demand-primary" disabled={pending} onClick={() => void copy()}>Copy link</button></div></>
-      : <button type="button" className="demand-primary" disabled={pending} onClick={() => void create()}>{pending ? "Creating your share link…" : "Create public link"}</button>}
+      : <button type="button" className="demand-primary" disabled={pending} onClick={() => void create()}>{pending ? "Creating your share link…" : "Create article link"}</button>}
     {message ? <p role="status">{message}</p> : null}{error ? <p role="alert" className="demand-dialog-error">{error}</p> : null}
   </section>;
 }

@@ -31,6 +31,20 @@ test("runtime readiness validates every production setting", () => {
   assert.deepEqual(productionRuntimeConfigurationIssues(validEnvironment()), []);
 });
 
+test("only explicitly enabled member invitations permit a scoped Auth admin secret",()=>{
+  const base={...validEnvironment(),EDISON_ON_DEMAND_ENABLED:"true",EDISON_DEMAND_ALLOWANCE_RESET_PASSWORD:"bulb"};
+  assert.deepEqual(productionRuntimeConfigurationIssues(base),[]);
+  const enabled={...base,EDISON_MEMBER_INVITATIONS_ENABLED:"true",SUPABASE_SECRET_KEY:"sb_secret_constructed_test_only"};
+  assert.deepEqual(productionRuntimeConfigurationIssues(enabled),[]);
+  for(const patch of [{EDISON_MEMBER_INVITATIONS_ENABLED:"yes"},{EDISON_MEMBER_INVITATIONS_ENABLED:"false"},
+    {EDISON_ON_DEMAND_ENABLED:"false"},{SUPABASE_SECRET_KEY:"legacy-jwt"},{SUPABASE_SECRET_KEY:""}])
+    assert.ok(productionRuntimeConfigurationIssues({...enabled,...patch}).length);
+  for(const name of ["SUPABASE_SERVICE_ROLE_KEY","SUPABASE_SERVICE_KEY","SUPABASE_DB_PASSWORD","SUPABASE_ACCESS_TOKEN"])
+    assert.ok(productionRuntimeConfigurationIssues({...enabled,[name]:"constructed"}).includes(name));
+  assert.ok(productionRuntimeConfigurationIssues({...base,SUPABASE_SECRET_KEY:enabled.SUPABASE_SECRET_KEY}).includes("SUPABASE_SECRET_KEY"));
+  assert.ok(productionRuntimeConfigurationIssues({...enabled,EDISON_DEMAND_PUBLIC_SIGNUP_ENABLED:"true"}).includes("EDISON_DEMAND_PUBLIC_SIGNUP_ENABLED"));
+});
+
 test("runtime readiness rejects missing, unpriced, and out-of-range settings", () => {
   const environment = {
     ...validEnvironment(),

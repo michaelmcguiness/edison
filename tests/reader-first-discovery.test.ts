@@ -4,6 +4,7 @@ import {
   generateReaderFirstIdeas, checkReaderFirstIdeas, writeReaderFirstArticle, repairReaderFirstArticle,
   answerReaderFirstQuestion, repairReaderFirstAnswer, compileReaderFirstArticle, compileReaderFirstAnswer,
   readerFirstResearchOutputSchema, readerFirstWriterProviderSchema, readerFirstAnswerProviderSchema,
+  READER_FIRST_IDEAS_ART_PROMPT_VERSION,
   type ReaderFirstResearchOutput, type ReaderFirstSelection, type ReaderFirstQuestion, type ReaderFirstStageOptions,
 } from "../packages/ai/src/reader-first";
 import type { OnDemandEvidence, OnDemandProviderRequest, OnDemandProviderResponse } from "../packages/ai/src/on-demand";
@@ -61,7 +62,7 @@ test("inconsistent discovery date hints normalize only a cloned new result, reta
   assert.deepEqual(result.output.sources[0], { ...raw.sources[0], publishedDate: null, datePrecision: "unknown" });
   assert.deepEqual(raw, before); assert.notEqual(result.output, raw); assert.notEqual(result.output.sources[0], raw.sources[0]);
   assert.equal(result.usage, usage); assert.equal(result.researchProvenance, actual);
-  assert.equal(calls[0].promptVersion, "edison-reader-first-v2.5"); assert.equal(calls.length, 1);
+  assert.equal(calls[0].promptVersion, READER_FIRST_IDEAS_ART_PROMPT_VERSION); assert.equal(calls.length, 1);
 });
 
 test("ideas quarantine an exact HTML/PDF provenance mismatch and its whole dependent idea without changing surviving briefs", async () => {

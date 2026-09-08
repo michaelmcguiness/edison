@@ -23,9 +23,21 @@ select ok(has_table_privilege('edison_demand_worker','private.demand_public_shar
   'normal sharing is append-only, with no worker revocation or rewrite privilege');
 
 -- Synthetic fixtures only. Rollback removes them without deleting published data.
+-- Preserve the original guest-owned snapshot as claimed account history. This
+-- SQL function is a trusted server projection; HTTP membership is checked before
+-- it is called, and browser roles still have no execution/table permission.
+insert into auth.users(id,email,email_confirmed_at) values
+ ('d3400000-0000-4000-8000-000000000701','share-owner@example.test',now()),
+ ('d3400000-0000-4000-8000-000000000702','share-other@example.test',now());
+update public.alpha_memberships set status='active' where user_id in
+ ('d3400000-0000-4000-8000-000000000701','d3400000-0000-4000-8000-000000000702');
+insert into private.demand_principals(id,account_user_id) values
+ ('d3400000-0000-4000-8000-000000000111','d3400000-0000-4000-8000-000000000701'),
+ ('d3400000-0000-4000-8000-000000000102','d3400000-0000-4000-8000-000000000702');
 insert into private.demand_principals(id, guest_token_hash, created_at, expires_at) values
- ('d3400000-0000-4000-8000-000000000101', repeat('c',64), '2020-01-01', '2099-01-01'),
- ('d3400000-0000-4000-8000-000000000102', repeat('d',64), '2020-01-01', '2099-01-01');
+ ('d3400000-0000-4000-8000-000000000101', repeat('c',64), '2020-01-01', '2099-01-01');
+insert into private.demand_principal_claims(principal_id,account_principal_id,guest_token_hash) values
+ ('d3400000-0000-4000-8000-000000000101','d3400000-0000-4000-8000-000000000111',repeat('c',64));
 insert into private.demand_loops(id, principal_id, title, original_curiosity) values
  ('d3400000-0000-4000-8000-000000000201', 'd3400000-0000-4000-8000-000000000101', 'Synthetic loop', 'PRIVATE CURIOSITY');
 insert into private.demand_requests(id, principal_id, loop_id, kind, status, stage, idempotency_key, request_fingerprint, snapshot, reserved_microusd) values
@@ -71,7 +83,7 @@ select throws_ok($$delete from private.demand_principals where id='d3400000-0000
 grant usage on schema extensions to edison_public;
 set local role edison_public;
 select is((select snapshot->>'basis' from edison_public_api.read_demand_article_share(repeat('1',64))),
-  'general_knowledge', 'anonymous reading preserves an uncited article without invented research');
+  'general_knowledge', 'the trusted share projection preserves an uncited article without invented research');
 select is((select snapshot->'sources' from edison_public_api.read_demand_article_share(repeat('1',64))),
   '[]'::jsonb, 'source-free reading has no invented bibliography');
 select is((select snapshot#>>'{body,0,citations,0,sourceId}' from edison_public_api.read_demand_article_share(repeat('2',64))),

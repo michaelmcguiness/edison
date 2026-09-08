@@ -56,6 +56,8 @@ test("history and exact idea recovery are GET-only bounded demand routes", () =>
 test("history source retains exact timestamp keysets, explicit authorization, bounded joins and no commissioning", () => {
   const source = readFileSync(new URL("./demand-history.ts", import.meta.url), "utf8");
   assert.match(source, /withDemandDb\(principal.id/);
+  assert.match(source, /withDemandDb\(workspaceId/);
+  assert.match(source, /inArray\(demandIdeas.principalId, owners\)/);
   assert.match(source, /private\.demand_principal_is_active/);
   assert.match(source, /createdAt: sql<string>`\$\{demandIdeas.createdAt\}::text`/);
   assert.match(source, /orderBy\(desc\(demandIdeas.createdAt\), asc\(demandIdeas.rank\), desc\(demandIdeas.id\)\)/);
@@ -68,11 +70,14 @@ test("workspace and history metadata selects never materialize private generatio
   assert.deepEqual(Object.keys(demandRequestSummarySelection).sort(),
     ["id", "loopId", "ideaId", "kind", "status", "stage", "failureCode", "createdAt", "updatedAt"].sort());
   assert.deepEqual(Object.keys(demandIdeaSummarySelection).sort(),
-    ["id", "loopId", "batchRequestId", "batchRevision", "rank", "title", "deck", "articleRequestId", "saved", "createdAt"].sort());
+    ["id", "loopId", "batchRequestId", "batchRevision", "rank", "title", "deck", "articleRequestId", "saved", "createdAt", "art"].sort());
   const reading = readFileSync(new URL("./demand-reading.ts", import.meta.url), "utf8");
   const workspace = reading.slice(reading.indexOf("export async function demandWorkspace"), reading.indexOf("export async function demandRequestResult"));
-  assert.match(workspace, /select\(demandIdeaSummarySelection\)\.from\(demandIdeas\)/);
-  assert.match(workspace, /select\(demandRequestSummarySelection\)\.from\(demandRequests\)/);
+  assert.match(workspace, /demandLoopPage\(principal/);
+  const listing = readFileSync(new URL("./demand-loop-list.ts", import.meta.url), "utf8");
+  assert.match(listing, /select\(demandIdeaSummarySelection\)\.from\(demandIdeas\)/);
+  assert.match(listing, /select\(demandRequestSummarySelection\)\.from\(demandRequests\)/);
+  assert.doesNotMatch(listing, /select\(\)\.from\(demand(?:Ideas|Requests)\)/);
   const history = readFileSync(new URL("./demand-history.ts", import.meta.url), "utf8");
   assert.doesNotMatch(history, /select\(\)\.from\(demand(?:Ideas|Requests)\)/);
 });

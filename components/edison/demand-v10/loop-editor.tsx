@@ -4,7 +4,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { X } from "lucide-react";
 import type { DemandLoop } from "@edison/contracts";
 import { loopDraftChanged, readScopedDraft, resolvedLoopEditDraft, saveScopedDraft, type LoopEditDraft } from "./reader-state";
-import { useReaderViewport } from "./use-reader-viewport";
+import { useEditorialDialogViewport } from "@/components/edison/editorial-composer";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 type EditAttempt = { fingerprint: string; id: string; baseRevision: number; deleting: boolean; draft: LoopEditDraft };
 function validAttempt(value: unknown): value is EditAttempt | null {
@@ -49,7 +50,7 @@ export function LoopEditor({ loop, workspaceId, instructions, onSave, onDelete, 
   const name = useRef<HTMLInputElement>(null);
   const keep = useRef<HTMLButtonElement>(null);
   const id = useId();
-  const panel = useReaderViewport<HTMLElement>(true, "panel");
+  const panel = useEditorialDialogViewport(true);
   const changed = loopDraftChanged(draft, saved);
   useEffect(() => { mounted.current = true; name.current?.focus({ preventScroll: true }); return () => { mounted.current = false; }; }, []);
   useEffect(() => { if (confirmDelete) keep.current?.focus({ preventScroll: true }); }, [confirmDelete]);
@@ -92,21 +93,18 @@ export function LoopEditor({ loop, workspaceId, instructions, onSave, onDelete, 
       }
     } finally { lock.current = false; if (mounted.current) setPending(false); }
   }
-  return <section ref={panel} className="demand-floating-panel demand-loop-editor" role="dialog" aria-modal="false" aria-labelledby={`${id}-title`}
-    onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); onClose(); } }}>
-    <header className="demand-mini-head"><h2 id={`${id}-title`}>{confirmDelete ? "Delete this loop?" : "Edit loop"}</h2><button type="button" onClick={onClose} aria-label="Close loop editor"><X aria-hidden="true" /></button></header>
+  return <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}><DialogContent ref={panel} className="demand-loop-editor demand-v11-editor" showCloseButton={false} onOpenAutoFocus={(event) => { event.preventDefault(); name.current?.focus(); }}>
+    <header className="demand-mini-head"><DialogTitle id={`${id}-title`}>{confirmDelete ? "Delete this loop?" : "Edit loop"}</DialogTitle><button type="button" onClick={onClose} aria-label="Close loop editor"><X aria-hidden="true" /></button></header>
+    <DialogDescription className="demand-visually-hidden">Edit this loop’s name and Direction. Changes apply to future articles.</DialogDescription>
     {confirmDelete ? <><p><strong>{loop.title}</strong> will disappear from your loops. Saved reading stays in Library. Existing articles and conversations remain available through reading history and their article links.</p><p className="demand-scope-note">Already-started generation is not cancelled by deleting this loop.</p>
       <div className="demand-editor-actions"><button ref={keep} type="button" disabled={pending} onClick={() => setConfirmDelete(false)}>Keep loop</button><button type="button" className="demand-danger" disabled={pending} onClick={() => void submit(true)}>{pending ? "Deleting…" : "Delete loop"}</button></div></>
       : <><form onSubmit={(event) => { event.preventDefault(); if (draft.name.trim() && changed) void submit(false); }} aria-busy={pending}>
         <label htmlFor={`${id}-name`}>Name</label><input id={`${id}-name`} ref={name} value={draft.name} maxLength={Math.max(80, loop.title.length)} required readOnly={pending} onChange={(event) => update({ ...draft, name: event.target.value })} />
-        <label htmlFor={`${id}-instructions`}>Instructions for this loop</label><textarea id={`${id}-instructions`} value={draft.instructions} maxLength={500} rows={4} readOnly={pending}
+        <label htmlFor={`${id}-instructions`}>Direction</label><textarea id={`${id}-instructions`} value={draft.instructions} maxLength={500} rows={4} readOnly={pending}
           placeholder="What should Edison focus on, explain or avoid?" onChange={(event) => update({ ...draft, instructions: event.target.value })} />
-        <details><summary>What’s shaping this loop now</summary>{instructions ? <p className="demand-saved-instructions">{instructions}</p> : <p>No added instructions. Edison’s defaults apply.</p>}
-          {loop.principles.length ? <ul>{loop.principles.map((principle) => <li key={principle.id}>{principle.instruction} <span>— {principle.kind === "knowledge" ? "your declared knowledge" : principle.kind === "preference" ? "your preference" : "your direction"}</span></li>)}</ul> : null}
-          <p>Explanations are checked for accuracy and useful detail — Edison default.</p>
-          {onUndo ? <button type="button" className="demand-text-action" disabled={pendingUndo || pending || Boolean(uncertain)} onClick={() => void onUndo()}>Undo latest direction update</button> : null}
-        </details>
-        <p className="demand-scope-note">Changes apply to future ideas and articles in this loop. Existing reading stays as it is.{onUndo ? " Saving changes replaces the previous undo checkpoint." : ""}</p>
+        {loop.principles.some((principle) => principle.instruction !== instructions) ? <details><summary>Previously learned preferences</summary><ul>{loop.principles.filter((principle) => principle.instruction !== instructions).map((principle) => <li key={principle.id}>{principle.instruction} <span>— {principle.kind === "knowledge" ? "your declared knowledge" : principle.kind === "preference" ? "your preference" : "your direction"}</span></li>)}</ul></details> : null}
+        {onUndo ? <button type="button" className="demand-text-action" disabled={pendingUndo || pending || Boolean(uncertain)} onClick={() => void onUndo()}>Undo latest direction update</button> : null}
+        <p className="demand-scope-note">Changes apply to future articles in this loop. Existing reading stays as it is.{onUndo ? " Saving changes replaces the previous undo checkpoint." : ""}</p>
         <div className="demand-editor-actions"><button type="button" onClick={onClose}>Cancel</button><button type="submit" className="demand-primary" disabled={!changed || !draft.name.trim() || pending || pendingUndo || Boolean(uncertain)}>{pending ? "Saving…" : "Save changes"}</button></div>
         {changed ? <p className="demand-scope-note">Unsaved changes</p> : null}
       </form><footer><button type="button" className="demand-delete-loop" onClick={() => setConfirmDelete(true)} disabled={pending || pendingUndo || Boolean(uncertain)}>Delete loop</button></footer></>}
@@ -114,5 +112,5 @@ export function LoopEditor({ loop, workspaceId, instructions, onSave, onDelete, 
     {error ? <p role="alert" className="demand-dialog-error">{error}</p> : null}
     {undoError ? <p role="alert" className="demand-dialog-error">{undoError}</p> : null}
     {status || pendingUndo ? <p role="status">{pendingUndo ? "Updating this loop…" : status}</p> : null}
-  </section>;
+  </DialogContent></Dialog>;
 }

@@ -5,7 +5,7 @@ import {
   DEMAND_HISTORY_PAGE_SIZE, demandHistoryCursorSchema, demandHistoryQuerySchema,
   demandHistorySchema, demandIdeaResultSchema, uuidSchema, type DemandHistoryQuery,
 } from "@edison/contracts";
-import type { DemandPrincipal } from "../auth/verify-demand-principal";
+import { demandOwnerIds, demandWorkspaceId, type DemandPrincipal } from "../auth/verify-demand-principal";
 import { HttpError } from "../http/errors";
 import {
   demandIdeaDto, demandRequestDto, demandIdeaSummarySelection, demandRequestSummarySelection,
@@ -47,15 +47,17 @@ async function assertActiveReader(tx: DemandTransaction, workspaceId: string) {
 /** Bounded keyset pagination over immutable creation time, rank and identity. */
 export async function demandHistory(principal: DemandPrincipal, rawInput: DemandHistoryQuery) {
   const input = demandHistoryQuerySchema.parse(rawInput);
-  const anchorId = decodeDemandHistoryCursor(principal.id, input);
-  return withDemandDb(principal.id, async (tx) => {
-    await assertActiveReader(tx, principal.id);
+  const workspaceId = demandWorkspaceId(principal);
+  const owners = demandOwnerIds(principal);
+  const anchorId = decodeDemandHistoryCursor(workspaceId, input);
+  return withDemandDb(workspaceId, async (tx) => {
+    await assertActiveReader(tx, workspaceId);
     if (input.loopId) {
       const [loop] = await tx.select({ id: demandLoops.id }).from(demandLoops)
-        .where(and(eq(demandLoops.principalId, principal.id), eq(demandLoops.id, input.loopId))).limit(1);
+        .where(and(inArray(demandLoops.principalId, owners), eq(demandLoops.id, input.loopId))).limit(1);
       if (!loop) throw new HttpError(404, "loop_not_found", "That learning loop was not found.");
     }
-    const ownership = and(eq(demandIdeas.principalId, principal.id), input.loopId ? eq(demandIdeas.loopId, input.loopId) : undefined);
+    const ownership = and(inArray(demandIdeas.principalId, owners), input.loopId ? eq(demandIdeas.loopId, input.loopId) : undefined);
     const [anchor] = anchorId ? await tx.select({
       id: demandIdeas.id, rank: demandIdeas.rank,
       // PostgreSQL can retain microseconds that a JavaScript Date would drop.
@@ -73,13 +75,13 @@ export async function demandHistory(principal: DemandPrincipal, rawInput: Demand
     const page = rows.slice(0, DEMAND_HISTORY_PAGE_SIZE);
     const articleIds = [...new Set(page.flatMap((row) => row.articleRequestId ? [row.articleRequestId] : []))];
     const requests = articleIds.length ? await tx.select(demandRequestSummarySelection).from(demandRequests).where(and(
-      eq(demandRequests.principalId, principal.id), eq(demandRequests.kind, "article"),
+      inArray(demandRequests.principalId, owners), eq(demandRequests.kind, "article"),
       inArray(demandRequests.id, articleIds), inArray(demandRequests.ideaId, page.map((row) => row.id)),
     )).limit(DEMAND_HISTORY_PAGE_SIZE) : [];
     return demandHistorySchema.parse({
-      workspaceId: principal.id, ideas: page.map(demandIdeaDto), requests: requests.map(demandRequestDto),
+      workspaceId, ideas: page.map(demandIdeaDto), requests: requests.map(demandRequestDto),
       nextCursor: rows.length > DEMAND_HISTORY_PAGE_SIZE
-        ? encodeDemandHistoryCursor(principal.id, input, page[page.length - 1].id) : null,
+        ? encodeDemandHistoryCursor(workspaceId, input, page[page.length - 1].id) : null,
     });
   });
 }
@@ -98,7 +100,7 @@ export async function demandIdeaResult(principal: DemandPrincipal, rawIdeaId: st
       eq(demandRequests.ideaId, idea.id), eq(demandRequests.kind, "article"),
     )).limit(1) : [];
     return demandIdeaResultSchema.parse({
-      workspaceId: principal.id, idea: demandIdeaDto(idea), request: request ? demandRequestDto(request) : null,
+      workspaceId: demandWorkspaceId(principal), idea: demandIdeaDto(idea), request: request ? demandRequestDto(request) : null,
     });
   });
 }

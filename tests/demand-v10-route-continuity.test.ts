@@ -121,7 +121,8 @@ test("reader restoration and every selection exit use the validated shared route
   const source = readFileSync(new URL("../components/edison/demand-reader.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(source, /candidate.ideaId === result.idea.id|demandFeed|demandOrigin/);
   assert.match(source, /returnToOrigin\(origin, navigationIntentRef.current\)/);
-  assert.match(source, /returnToOrigin\(availableDemandOrigin\(origin, workspace\), intent\)/);
+  assert.match(source, /workspaceForOrigin\(workspace, origin\)/);
+  assert.match(source, /returnToOrigin\(availableDemandOrigin\(origin, next\), intent\)/);
   assert.match(source, /const \{ cursor, \.\.\.query \} = origin.history;\s*void loadHistoryPage\(query, cursor\)/);
   assert.match(source, /readStoredAttempt\("article", `\$\{workspace.workspaceId\}:\$\{idea.id\}`\)/);
   assert.match(source, /writeStoredAttempt\("article", `\$\{workspace.workspaceId\}:\$\{idea.id\}`, attempt\)/);

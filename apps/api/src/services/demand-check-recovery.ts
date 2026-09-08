@@ -8,6 +8,7 @@ import { advanceReaderFirstPipeline, readerFirstSelection, type ReaderFirstPipel
 import { bindDemandResearchBudget, demandRecordedSearchToolCalls, demandStagePricing,
   demandUsageWithinProviderLimits, prepareDemandStage } from "./demand-provider-stages";
 import { demandRequestHeldMicrousd } from "./demand-admission";
+import { demandReadableIdeaBrief } from "./demand-idea-art";
 
 type Stage = typeof demandStages.$inferSelect;
 type Usage = typeof demandUsage.$inferSelect;
@@ -56,7 +57,7 @@ export async function qualifyDemandCheckRecovery(input: DemandCheckRecoveryInput
       (!saved.checkRecoveries || (Array.isArray(saved.checkRecoveries) && saved.checkRecoveries.length === 0)));
     requireProof(saved.models?.article === environment.OPENAI_ARTICLE_MODEL && saved.models.utility === environment.OPENAI_UTILITY_MODEL);
     const selection = readerFirstSelection(request, saved.evidence);
-    requireProof(same(selection.idea, idea.brief));
+    requireProof(same(selection.idea, demandReadableIdeaBrief(idea.brief)));
     requireProof(stages.length === 2 && usage.length === 2 && new Set(stages.map((stage) => stage.id)).size === 2 &&
       new Set(usage.map((entry) => entry.responseId)).size === 2);
     const write = stages.find((stage) => stage.snapshot.stage === "write");

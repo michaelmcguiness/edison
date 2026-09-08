@@ -1,20 +1,20 @@
 import { publicStarterEditionSchema } from "@edison/contracts";
 import {
   json,
-  publicApiHandler,
+  memberApiHandler,
 } from "../../../../../../src/http/api-handler";
 import { getCurrentPublicNewsEdition } from "../../../../../../src/services/public-starter-editions";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  return publicApiHandler(request, async () =>
+  return memberApiHandler(request, async () =>
     json(publicStarterEditionSchema.parse(await getCurrentPublicNewsEdition())),
   );
 }
 
 export async function OPTIONS(request: Request) {
-  return publicApiHandler(request, async () =>
+  return memberApiHandler(request, async () =>
     new Response(null, { status: 204 }),
   );
 }

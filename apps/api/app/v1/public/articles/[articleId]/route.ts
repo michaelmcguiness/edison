@@ -1,5 +1,5 @@
 import { publicStarterArticleSchema, uuidSchema } from "@edison/contracts";
-import { json, publicApiHandler } from "../../../../../src/http/api-handler";
+import { json, memberApiHandler } from "../../../../../src/http/api-handler";
 import { getPublicStarterArticle } from "../../../../../src/services/public-starter-editions";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +8,7 @@ export async function GET(
   request: Request,
   context: { params: Promise<{ articleId: string }> },
 ) {
-  return publicApiHandler(request, async () => {
+  return memberApiHandler(request, async () => {
     const { articleId } = await context.params;
     const id = uuidSchema.parse(articleId);
     return json(
@@ -18,7 +18,7 @@ export async function GET(
 }
 
 export async function OPTIONS(request: Request) {
-  return publicApiHandler(request, async () =>
+  return memberApiHandler(request, async () =>
     new Response(null, { status: 204 }),
   );
 }

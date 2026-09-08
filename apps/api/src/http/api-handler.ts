@@ -1,6 +1,7 @@
 import { HttpError, toHttpError } from "./errors";
 import { verifyAccessToken, type EdisonClaims } from "../auth/verify-access-token";
 import { safeCaughtErrorMetadata } from "../observability/safe-error";
+import { withActiveMember } from "../services/members";
 
 type ApiContext = {
   claims: EdisonClaims;
@@ -206,4 +207,14 @@ export async function publicApiHandler(
       responseHeaders(requestId, origin),
     );
   }
+}
+
+/** Shared articles remain shareable between admitted readers, never anonymous.
+ * Health and Auth resources continue using their separate public handlers. */
+export async function memberApiHandler(request: Request, handler: ApiHandler) {
+  return publicApiHandler(request, async ({ requestId }) => {
+    if (request.method === "OPTIONS") return new Response(null, { status: 204 });
+    const claims = await verifyAccessToken(request.headers.get("authorization"), { demand: true });
+    return withActiveMember(claims, async () => handler({ claims, requestId }));
+  });
 }

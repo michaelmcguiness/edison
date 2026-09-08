@@ -350,6 +350,34 @@ async function databaseIsReady() {
           and has_function_privilege('edison_public',p.oid,'execute')
           and not has_function_privilege('anon',p.oid,'execute'))
         and not has_table_privilege('edison_demand_worker','private.demand_loops','DELETE')
+        and (select count(*) from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid=c.relnamespace
+          where n.nspname='private' and c.relname in ('demand_principal_claims','demand_allowance_grants','demand_allowance_allocations',
+            'demand_allowance_carryovers','demand_allowance_resets','demand_allowance_reset_attempts')
+          and c.relrowsecurity and c.relforcerowsecurity and has_table_privilege('edison_demand_worker',c.oid,'SELECT')
+          and has_table_privilege('edison_demand_worker',c.oid,'INSERT') and not has_table_privilege('edison_demand_worker',c.oid,'UPDATE')
+          and not has_table_privilege('edison_demand_worker',c.oid,'DELETE') and not has_table_privilege('edison_demand_api',c.oid,'SELECT')
+          and not has_table_privilege('anon',c.oid,'SELECT') and not has_table_privilege('authenticated',c.oid,'SELECT'))=6
+        and exists(select 1 from pg_catalog.pg_proc p where p.oid=to_regprocedure('private.demand_reader_id(uuid)') and p.prosecdef
+          and p.proconfig @> array['search_path=pg_catalog']::text[] and has_function_privilege('edison_demand_worker',p.oid,'EXECUTE'))
+        and (select count(*) from pg_catalog.pg_trigger where tgname in ('demand_principal_claims_immutable','demand_allowance_grants_immutable',
+          'demand_allowance_allocations_immutable','demand_allowance_carryovers_immutable','demand_allowance_resets_immutable','demand_allowance_reset_attempts_immutable')
+          and not tgisinternal and tgenabled='O')=6
+        and (select count(*) from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid=c.relnamespace
+          where n.nspname='private' and c.relname in('demand_invite_grants','demand_invitations','demand_invitation_operations','demand_invitation_delivery_results')
+          and c.relrowsecurity and c.relforcerowsecurity and has_table_privilege('edison_demand_worker',c.oid,'SELECT')
+          and has_table_privilege('edison_demand_worker',c.oid,'INSERT') and not has_table_privilege('edison_demand_worker',c.oid,'DELETE')
+          and not has_table_privilege('edison_demand_api',c.oid,'SELECT') and not has_table_privilege('authenticated',c.oid,'SELECT')
+          and not has_table_privilege('anon',c.oid,'SELECT'))=4
+        and (select count(*) from pg_catalog.pg_trigger where tgname in('demand_invite_grants_immutable','demand_invitations_immutable',
+          'demand_invitation_operations_immutable','demand_invitation_delivery_results_immutable') and not tgisinternal and tgenabled='O')=4
+        and not has_schema_privilege('anon','edison_public_api','USAGE') and not has_schema_privilege('authenticated','edison_public_api','USAGE')
+        and not has_function_privilege('anon','edison_public_api.read_article_share(text)','EXECUTE')
+        and not has_function_privilege('authenticated','edison_public_api.read_article_share(text)','EXECUTE')
+        and not has_function_privilege('anon','edison_public_api.read_demand_article_share(text)','EXECUTE')
+        and not has_function_privilege('authenticated','edison_public_api.read_demand_article_share(text)','EXECUTE')
+        and (select count(*) from pg_catalog.pg_proc p where p.oid in(to_regprocedure('private.demand_invitation_member(uuid)'),
+          to_regprocedure('private.redeem_demand_invitation(uuid,uuid)')) and p.prosecdef and p.proconfig @> array['search_path=pg_catalog']::text[]
+          and has_function_privilege('edison_demand_worker',p.oid,'EXECUTE') and not has_function_privilege('authenticated',p.oid,'EXECUTE'))=2
         and (select count(*) from pg_catalog.pg_trigger where tgname in ('demand_requests_identity_immutable','demand_stages_identity_immutable')
           and tgrelid in (to_regclass('private.demand_requests'),to_regclass('private.demand_stages')) and not tgisinternal) = 2
         as ready

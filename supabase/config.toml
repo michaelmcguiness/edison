@@ -245,8 +245,16 @@ otp_expiry = 3600
 
 # Uncomment to customize email template
 [auth.email.template.invite]
-subject = "Your Edison Reader invitation"
+subject = "You’re invited to Edison"
 content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.magic_link]
+subject = "Continue to Edison"
+content_path = "./supabase/templates/magic-link.html"
+
+[auth.email.template.confirmation]
+subject = "Continue to Edison"
+content_path = "./supabase/templates/confirmation.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]

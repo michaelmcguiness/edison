@@ -6,7 +6,7 @@ import {
   demandConversationSchema, demandConversationTurnSchema, demandHistoryCursorSchema, uuidSchema,
   type DemandConversationQuery,
 } from "@edison/contracts";
-import type { DemandPrincipal } from "../auth/verify-demand-principal";
+import { demandWorkspaceId, type DemandPrincipal } from "../auth/verify-demand-principal";
 import { HttpError } from "../http/errors";
 import { demandIdeaDto, demandLoopDto, demandIdeaSummarySelection, demandRequestDto, demandRequestSummarySelection,
   demandRequestWithRecovery, type DemandRequestRow } from "./demand-reading";
@@ -49,7 +49,7 @@ export async function demandArticleResult(principal: DemandPrincipal, rawArticle
     if (!idea) throw new HttpError(404, "article_not_found", "That article was not found in your reading.");
     const [loop] = await tx.select().from(demandLoops).where(and(eq(demandLoops.principalId, principal.id), eq(demandLoops.id, idea.loopId))).limit(1);
     if (!loop) throw new HttpError(404, "article_not_found", "That article was not found in your reading.");
-    return demandArticleResultSchema.parse({ workspaceId: principal.id, idea: demandIdeaDto(idea),
+    return demandArticleResultSchema.parse({ workspaceId: demandWorkspaceId(principal), idea: demandIdeaDto(idea),
       request: demandRequestDto(request), article: request.result!.article, loop: demandLoopDto(loop) });
   });
 }
@@ -68,7 +68,8 @@ export function demandConversationTurn(row: Pick<DemandRequestRow,
 export async function demandConversation(principal: DemandPrincipal, rawArticleId: string, rawInput: DemandConversationQuery = {}) {
   const articleId = uuidSchema.parse(rawArticleId);
   const input = demandConversationQuerySchema.parse(rawInput);
-  const anchorId = decodeDemandConversationCursor(principal.id, articleId, input.cursor);
+  const workspaceId = demandWorkspaceId(principal);
+  const anchorId = decodeDemandConversationCursor(workspaceId, articleId, input.cursor);
   const page = await withDemandDb(principal.id, async (tx) => {
     const article = await ownedArticle(tx, principal.id, articleId);
     const ownership = and(eq(demandRequests.principalId, principal.id), eq(demandRequests.ideaId, article.ideaId!),
@@ -87,9 +88,9 @@ export async function demandConversation(principal: DemandPrincipal, rawArticleI
       (${anchor.createdAt}::timestamptz, ${anchor.id}::uuid)` : undefined))
       .orderBy(desc(demandRequests.createdAt), desc(demandRequests.id)).limit(DEMAND_CONVERSATION_PAGE_SIZE + 1);
     const selected = rows.slice(0, DEMAND_CONVERSATION_PAGE_SIZE);
-    return demandConversationSchema.parse({ workspaceId: principal.id, articleId,
+    return demandConversationSchema.parse({ workspaceId, articleId,
       nextCursor: rows.length > DEMAND_CONVERSATION_PAGE_SIZE
-        ? encodeDemandConversationCursor(principal.id, articleId, selected[selected.length - 1].id) : null,
+        ? encodeDemandConversationCursor(workspaceId, articleId, selected[selected.length - 1].id) : null,
       turns: selected.reverse().map(demandConversationTurn) });
   });
   const eligible = await recoverableDemandCheckIds(principal.id, page.turns.filter((turn) =>

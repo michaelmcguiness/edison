@@ -158,7 +158,7 @@ function transactionHarness() {
   } as unknown as DemandTransaction;
   return { tx, receipts, queries, locks, current: () => current, updates: () => updates,
     revoke: () => { principal = { revokedAt: now, expiresAt: null }; },
-    expire: () => { principal = { revokedAt: null, expiresAt: new Date(0) }; },
+    expire: () => { principal = { revokedAt: null, expiresAt: new Date(0) }; active=false; },
     inactive: () => { active = false; }, foreign: () => { hasLoop = false; }, missing: () => { principal = undefined; } };
 }
 
@@ -184,7 +184,7 @@ test("atomic service receipt supports exact repeat after later edits and rejects
 });
 
 test("foreign, revoked, expired and inactive-member readers cannot edit or replay receipts", async () => {
-  for (const [method, expected] of [["foreign", "loop_not_found"], ["revoke", "reading_session_expired"], ["expire", "reading_session_expired"],
+  for (const [method, expected] of [["foreign", "loop_not_found"], ["revoke", "reading_session_expired"], ["expire", "reading_session_required"],
     ["inactive", "reading_session_required"], ["missing", "reading_session_required"]] as const) {
     const h = transactionHarness(); h[method]();
     await assert.rejects(manageDemandLoopInTransaction(h.tx, principalId, loopId, edit()), code(expected));

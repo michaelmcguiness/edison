@@ -6,7 +6,8 @@ import {
   onDemandContextSchema,
 } from "./on-demand";
 import { ProviderResponseValidationError } from "./provider-response-error";
-import { READER_FIRST_PROMPTS, READER_FIRST_PROMPT_VERSION } from "./reader-first-prompts";
+import { READER_FIRST_PROMPTS, READER_FIRST_PROMPT_VERSION, READER_FIRST_IDEAS_ART_PROMPT_VERSION } from "./reader-first-prompts";
+import { normalizeOnDemandIdeaArt } from "./on-demand-art";
 import {
   readerFirstSavedWriterInputSchema, readerFirstWriterOutputSchema, readerFirstWriterProviderSchema,
   readerFirstAnswerOutputSchema, readerFirstAnswerProviderSchema, readerFirstResearchOutputSchema,
@@ -16,7 +17,7 @@ import {
 } from "./reader-first-schemas";
 
 export * from "./reader-first-schemas";
-export { READER_FIRST_PROMPT_VERSION, READER_FIRST_PROMPTS } from "./reader-first-prompts";
+export { READER_FIRST_PROMPT_VERSION, READER_FIRST_PROMPTS, READER_FIRST_IDEAS_ART_PROMPT_VERSION } from "./reader-first-prompts";
 export type ReaderFirstStageOptions = OnDemandStageOptions & { researchPolicy?: NonNullable<OnDemandProviderRequest["researchPolicy"]> };
 export type ReaderFirstSelection = { context: OnDemandContext; idea: ReaderFirstIdea; evidence: OnDemandEvidence };
 const referenceKey = z.string().min(1).max(40);
@@ -41,7 +42,7 @@ export type ReaderFirstQuestion = {
   question: string; previousMessages: ReaderFirstPreviousMessage[];
 };
 export type ReaderFirstStageResult<T> = Omit<OnDemandProviderResponse, "output"> & {
-  output: T; stage: OnDemandProviderRequest["stage"]; promptVersion: typeof READER_FIRST_PROMPT_VERSION;
+  output: T; stage: OnDemandProviderRequest["stage"]; promptVersion: typeof READER_FIRST_PROMPT_VERSION | typeof READER_FIRST_IDEAS_ART_PROMPT_VERSION;
 };
 export type ReaderFirstValidationFinding = { location: string; reason: string };
 export class ReaderFirstDraftValidationError extends Error {
@@ -72,16 +73,17 @@ async function stage<T>(
   const researchPolicy = checking ? none : options.researchPolicy ?? { mode: "auto", reason: "Selectively verify the reader's question and specific assertions", maxCalls: 8 };
   if (!Number.isInteger(researchPolicy.maxCalls) || researchPolicy.maxCalls < 0 || researchPolicy.maxCalls > 8 || !researchPolicy.reason.trim() || researchPolicy.reason.length > 500 || (researchPolicy.mode === "none" && researchPolicy.maxCalls !== 0)) invalid("Invalid bounded research policy");
   const providerStage = name === "answer_repair" ? "repair" : name;
+  const promptVersion = name === "ideas" ? READER_FIRST_IDEAS_ART_PROMPT_VERSION : READER_FIRST_PROMPT_VERSION;
   const response = await options.provider({
-    stage: providerStage, promptVersion: READER_FIRST_PROMPT_VERSION, instructions: READER_FIRST_PROMPTS[name],
+    stage: providerStage, promptVersion, instructions: READER_FIRST_PROMPTS[name],
     input, schema, model: options.model, idempotencyKey: options.idempotencyKey, safetyIdentifier: options.safetyIdentifier,
     timeoutMs: options.timeoutMs ?? 90_000, maxOutputTokens: providerStage === "write" || providerStage === "repair" ? 12_000 : 8000,
     research: researchPolicy.mode !== "none", researchPolicy,
   });
   try {
-    const output = schema.parse(response.output);
+    const output = schema.parse(name === "ideas" ? normalizeOnDemandIdeaArt(response.output) : response.output);
     normalize?.(output, response);
-    return { ...response, output, stage: providerStage, promptVersion: READER_FIRST_PROMPT_VERSION };
+    return { ...response, output, stage: providerStage, promptVersion };
   } catch {
     // The durable provider already retains the original response. Preserve its
     // observed usage even if strict parsing or provenance validation fails.

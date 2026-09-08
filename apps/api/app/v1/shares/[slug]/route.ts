@@ -9,7 +9,7 @@ import { withPublicDb } from "@edison/db";
 import { z } from "zod";
 import {
   json,
-  publicApiHandler,
+  memberApiHandler,
 } from "../../../../src/http/api-handler";
 import { HttpError } from "../../../../src/http/errors";
 
@@ -28,7 +28,7 @@ const publicShareRowSchema = z.object({
 });
 
 export async function GET(request: Request, context: RouteContext) {
-  return publicApiHandler(request, async () => {
+  return memberApiHandler(request, async () => {
     const { slug: rawSlug } = await context.params;
     const slug = shareSlugSchema.parse(rawSlug);
 
@@ -60,7 +60,7 @@ export async function GET(request: Request, context: RouteContext) {
 }
 
 export async function OPTIONS(request: Request) {
-  return publicApiHandler(request, async () =>
+  return memberApiHandler(request, async () =>
     new Response(null, { status: 204 }),
   );
 }

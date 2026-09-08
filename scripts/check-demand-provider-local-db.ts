@@ -68,14 +68,26 @@ async function integrationChecks() {
   assert.equal(server.database, "postgres");
   assert.equal(Math.floor(Number(server.version) / 10000), 17);
   const principalIds: string[] = [];
+  const accountIds: string[] = [];
   const runId = randomUUID();
   let providerCalls = 0;
   type Fixture = { principalId: string; loopId: string; requestId: string; context: { loopId: string; revision: number } };
 
   async function principal() {
     const id = randomUUID();
-    await database.insert(demandPrincipals).values({ id, guestTokenHash: createHash("sha256").update(`${runId}:${id}`).digest("hex"), expiresAt: new Date(Date.now() + 3600000) });
+    const accountUserId = randomUUID();
+    accountIds.push(accountUserId);
+    // D44: ordinary valid-work fixtures are explicitly admitted synthetic
+    // accounts. New auth users are pending by default; guests cannot do work.
+    await database.execute(sql`insert into auth.users(id,email,email_confirmed_at)
+      values(${accountUserId}::uuid,${`provider-${runId}-${accountUserId}@example.test`},now())`);
+    const admitted = await database.execute(sql`update public.alpha_memberships set status='active'
+      where user_id=${accountUserId}::uuid returning user_id`);
+    assert.equal(admitted.length, 1);
     principalIds.push(id);
+    await database.insert(demandPrincipals).values({ id, accountUserId, expiresAt: null });
+    const [active] = await database.execute<{ active: boolean }>(sql`select private.demand_principal_is_active(${id}::uuid) as active`);
+    assert.equal(active.active, true);
     return id;
   }
   async function fixture(principalId: string): Promise<Fixture> {
@@ -216,6 +228,7 @@ async function integrationChecks() {
     // Only this run's randomly generated principals; FK cascades remove their
     // constructed loops/requests/stages/usage. No existing fixture is touched.
     if (principalIds.length) await database.delete(demandPrincipals).where(inArray(demandPrincipals.id, principalIds));
+    if (accountIds.length) await database.execute(sql`delete from auth.users where id in (${sql.join(accountIds.map((id) => sql`${id}::uuid`), sql`, `)})`);
   }
 }
 

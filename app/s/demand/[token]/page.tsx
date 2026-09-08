@@ -1,23 +1,22 @@
-import { cache } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EdisonLogo, EdisonMark } from "@/components/edison/brand";
-import { fetchDemandPublicShare, demandPublicShareMetadata } from "@/lib/demand-public-share";
+import { fetchDemandPublicShare } from "@/lib/demand-public-share";
+import { memberApiFetch, requireMemberSession } from "@/lib/member-access";
 import type { ArticleSource } from "@edison/contracts";
 
 export const dynamic = "force-dynamic";
-const getShare = cache((token: string) => fetchDemandPublicShare(token, {
-  apiUrl: process.env.NEXT_PUBLIC_API_URL, production: process.env.NODE_ENV === "production",
-}));
-
-export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
-  const share = await getShare((await params).token);
-  return share ? demandPublicShareMetadata(share) : { title: "Article unavailable — Edison", robots: { index: false, follow: false } };
-}
+// Link previews are public clients too: do not fetch or reveal article metadata.
+export const metadata: Metadata = { title: "Shared reading — Edison", robots: { index: false, follow: false }, referrer: "no-referrer" };
 
 export default async function PublicReadingPage({ params }: { params: Promise<{ token: string }> }) {
-  const share = await getShare((await params).token);
+  const { token } = await params;
+  const session = await requireMemberSession(`/s/demand/${token}`);
+  const share = await fetchDemandPublicShare(token, {
+    apiUrl: process.env.NEXT_PUBLIC_API_URL, production: process.env.NODE_ENV === "production", accessToken: session.accessToken,
+    fetcher: () => memberApiFetch(`public/demand-shares/${token}`, session.accessToken),
+  });
   if (!share) notFound();
   const { article } = share;
   const sources = new Map(article.sources.map((source) => [source.id, source]));
@@ -43,7 +42,7 @@ export default async function PublicReadingPage({ params }: { params: Promise<{ 
       })}</div>
       {article.sources.length > 0 && <section className="sources"><h2>Sources</h2><ol>{article.sources.map((source, index) =>
         <li key={source.id}><a href={source.url} target="_blank" rel="noopener noreferrer"><span>{index + 1}</span><div><b>{source.publisher}</b><small>{source.title}</small></div></a></li>)}</ol></section>}
-      <footer className="shared-cta"><p>A public, read-only copy. The reader’s instructions and conversation are private.</p>
+      <footer className="shared-cta"><p>A read-only copy for invited Edison members. The reader’s instructions and conversation stay private.</p>
         <Link className="primary" href="/" prefetch={false}>Explore Edison</Link></footer>
     </main>
   </div>;

@@ -19,6 +19,7 @@ import { DEMAND_EVIDENCE_PACKET_BYTES } from "./demand-pipeline";
 import type { DemandRequestRow } from "./demand-reading";
 import { readDemandStoredDraft } from "./demand-result-compatibility";
 import { evidenceUrl, retrieveEvidencePage } from "./evidence-retrieval";
+import { demandReadableIdeaBrief } from "./demand-idea-art";
 
 type Acquisition = {
   research: ReaderFirstResearch;
@@ -67,7 +68,7 @@ export function boundedReaderFirstEvidence(value: unknown): OnDemandEvidence {
 export function readerFirstSelection(request: DemandRequestRow, evidence?: OnDemandEvidence): ReaderFirstSelection {
   const context = onDemandContextSchema.parse(request.snapshot.context);
   const selection = request.snapshot.selection as { idea?: unknown; evidence?: unknown } | undefined;
-  const idea = readerFirstIdeaSchema.parse(selection?.idea);
+  const idea = readerFirstIdeaSchema.parse(demandReadableIdeaBrief(selection?.idea));
   if (context.loopId !== request.loopId || idea.loopId !== request.loopId ||
     (request.ideaId !== null && request.ideaId !== idea.id) || idea.loopRevision > context.revision) stop("pipeline_snapshot_invalid");
   return { context, idea, evidence: boundedReaderFirstEvidence(evidence ?? selection?.evidence) };

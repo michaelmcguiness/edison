@@ -23,7 +23,7 @@ const clientSource = readFileSync(new URL("lib/demand-client.ts", root), "utf8")
 const pageSource = readFileSync(new URL("app/demand/page.tsx", root), "utf8");
 const conversationSource = readFileSync(new URL("components/edison/demand-v10/article-conversation.tsx", root), "utf8");
 const editorSource = readFileSync(new URL("components/edison/demand-v10/loop-editor.tsx", root), "utf8");
-const stateSource = readFileSync(new URL("components/edison/demand-v10/reader-state.ts", root), "utf8");
+const feedStateSource = readFileSync(new URL("components/edison/demand-v11/state.ts", root), "utf8");
 const styles = readFileSync(new URL("app/demand.css", root), "utf8");
 
 const loopId = "00000000-0000-4000-8000-000000000101";
@@ -107,20 +107,14 @@ test("the demand reader renders only persisted workspace ideas and truthful requ
   const html = renderToStaticMarkup(createElement(DemandReader, properties));
 
   assert.match(html, /A topic returned by the server/);
-  assert.match(html, /What’s shaping this loop/);
-  assert.match(html, /Shade is infrastructure/);
+  assert.match(html, /Curate/);
+  assert.doesNotMatch(html, /Shade is infrastructure/, "superseded choices remain in history, not the current set");
   assert.match(html, /The night that never cools/);
-  assert.match(html, /Read article/);
   assert.match(html, /Checking explanation…/);
-  assert.match(html, /Choose an article\. We’ll write it for you\./);
-  assert.match(html, /aria-label="Read article: Shade is infrastructure"/);
   assert.match(html, /aria-label="Checking explanation…: The night that never cools"/);
-  assert.match(html, /Open article/);
-  assert.doesNotMatch(html, /Article idea|Earlier ideas/);
-  assert.ok(html.indexOf("Shade is infrastructure") < html.indexOf("The night that never cools"));
-  assert.equal((html.match(/>More articles/g) ?? []).length, 2);
-  assert.match(html, /Checking your explanation/);
-  assert.match(html, /aria-label="Remove saved idea: Shade is infrastructure"/);
+  assert.doesNotMatch(html, /Article idea|Earlier ideas|We’ll write it for you|More articles/);
+  assert.equal((html.match(/Refresh articles/g) ?? []).length, 1);
+  assert.match(html, /aria-label="Save article: The night that never cools"/);
   assert.doesNotMatch(html, /Opening your reading workspace/);
   assert.doesNotMatch(html, /Share/);
   assert.equal((html.match(/<main/g) ?? []).length, 1);
@@ -153,8 +147,8 @@ test("queued and running fresh ideas display the current request rather than an 
     assert.equal(demandIdeasPendingLabel(current, false), label);
     const value = { ...workspace, requests: [oldFailed, ...workspace.requests, current] };
     const html = renderToStaticMarkup(createElement(DemandReader, { initialWorkspace: value }));
-    assert.ok(html.includes(`<h2>${label}</h2>`));
-    assert.match(html, /Distinct article ideas will appear here after they’ve been checked/);
+    assert.match(html, /Finding your first articles…|Refreshing your articles…/);
+    assert.match(html, /Your articles will appear here when they’re ready|Your current articles stay here until the new set is ready/);
     assert.doesNotMatch(html, /Couldn’t finish|We couldn’t finish these ideas|The earlier attempt failed/);
     assert.deepEqual(value.requests[0], oldFailed);
   }
@@ -164,9 +158,9 @@ test("a latest terminal ideas failure retains its real error and fresh-ideas act
   const failed: DemandRequest = { ...workspace.requests[0]!, id: newestBatchId, ideaId: null, kind: "ideas",
     status: "failed", stage: "failed", failure: { code: "provider_invalid", message: "The latest attempt failed.", retryable: false } };
   const html = renderToStaticMarkup(createElement(DemandReader, { initialWorkspace: { ...workspace, requests: [failed] } }));
-  assert.match(html, /We couldn’t finish these ideas/);
+  assert.match(html, /We couldn’t refresh your articles/);
   assert.match(html, /The latest attempt failed/);
-  assert.match(html, /Find fresh ideas/);
+  assert.match(html, /Refresh articles/);
   assert.doesNotMatch(html, /Starting your ideas|Distinct article ideas will appear here after they’ve been checked/);
 });
 
@@ -177,7 +171,8 @@ test("approved creation stays topic-general and editing replaces or removes expl
   for (const topic of ["Health", "History", "Technology", "Science", "Sports", "Culture", "Cryptocurrency", "Startups", "Design", "Architecture", "Writing", "Art"]) {
     assert.ok(readerSource.includes(`"${topic}"`));
   }
-  for (const copy of ["What’s shaping this loop", "Instructions for this loop", "Save changes", "Unsaved changes", "your declared knowledge", "Edison default"]) assert.ok(editorSource.includes(copy));
+  for (const copy of [">Direction<", "Previously learned preferences", "Save changes", "Unsaved changes", "your declared knowledge"]) assert.ok(editorSource.includes(copy));
+  assert.doesNotMatch(editorSource, /What’s shaping this loop|demand-saved-instructions|Edison default/);
   assert.doesNotMatch(readerSource, /includes\(\s*["']medicine|includes\(\s*["']DNA/i);
 });
 
@@ -216,8 +211,9 @@ test("the browser client uses the same-origin proxy and keeps session credential
   assert.match(clientSource, /cache:\s*"no-store"/);
   assert.match(clientSource, /let sessionPromise:/);
   assert.match(clientSource, /getSession\(\)/);
-  assert.doesNotMatch(clientSource, /localStorage|sessionStorage|document\.cookie/);
-  assert.doesNotMatch(clientSource, /access_token[^\n]*(?:localStorage|sessionStorage)/);
+  assert.doesNotMatch(clientSource, /document\.cookie|(?:localStorage|sessionStorage)\.setItem/);
+  assert.match(clientSource, /saveDemandAccountContinuation\(\{\s*intent, id: crypto.randomUUID\(\), storage: window.localStorage/);
+  assert.doesNotMatch(clientSource, /(?:access_token|authorization)[^\n]*(?:localStorage|sessionStorage)|(?:localStorage|sessionStorage)[^\n]*(?:access_token|authorization)/i);
 });
 
 test("guest access requires a successful no-session read and auth failures fail closed", async () => {
@@ -315,11 +311,11 @@ test("pending work is recovered from the server workspace and next-reading copy 
   assert.match(readerSource, /client\.getDemandWorkspace\(\)/);
   assert.match(readerSource, /client\.getDemandResult\(selectedRequestId\)/);
   assert.match(readerSource, /setSelectedRequestId\(idea\.articleRequestId\)/);
-  assert.match(readerSource, /!nextIdea\.articleRequestId \? "Write next article"/);
+  assert.match(readerSource, /!nextIdea\.articleRequestId \|\| nextRequest\?\.status === "succeeded"/);
   assert.match(readerSource, /nextRequest\?\.status === "succeeded" \? "Next article" : "View next article"/);
   assert.match(readerSource, /maxLength=\{500\}/);
   assert.match(editorSource, /maxLength=\{500\}/);
-  assert.match(readerSource, /Your loop is saved\. Try again when you’re ready\./);
+  assert.match(readerSource, /Your loop is saved\./);
   assert.match(readerSource, /Nothing was published\./);
 });
 
@@ -343,7 +339,7 @@ test("mutations are synchronously locked, scoped, replayable, and truthful about
   assert.match(readerSource, /readStoredAttempt\("feedback", activeLoop\.id\)/);
   assert.match(conversationSource, /readScopedDraft\(storageKey/);
   assert.match(readerSource, /failure\?\.retryable \? "Try again" : "Back to your loops"/);
-  assert.match(readerSource, /canRetryIdeas \? "Try again" : "Find fresh ideas"/);
+  assert.match(readerSource, /canRetryIdeas \? "Try again" : "Refresh articles"/);
   const freshPolicy = readerSource.slice(
     readerSource.indexOf("function canRequestFreshIdeasAfter"),
     readerSource.indexOf("function latestRequest"),
@@ -440,9 +436,10 @@ test("Ask uses compact nonmodal entry and durable full conversation; For You has
   assert.match(conversationSource, /aria-modal="false"/);
   assert.match(conversationSource, /Continue conversation/);
   assert.match(conversationSource, /Back to article/);
-  assert.match(readerSource, /combinedIdeas.map\(\(idea\) => <IdeaCard/);
+  assert.match(readerSource, /feedIdeas.map\(\(idea\) => <IdeaCard/);
   assert.doesNotMatch(readerSource, /activeLoop \?\? workspace\?\.loops\[0\]/);
-  assert.match(readerSource, /href="\/\?view=profile">Account reading preferences/);
+  assert.match(readerSource, /<ReaderAccount/);
+  assert.doesNotMatch(readerSource, /href="\/\?view=profile">Account reading preferences/);
   assert.match(readerSource, /showEditLoop=\{view === "loop"/);
 });
 
@@ -474,10 +471,12 @@ test("older history is a separate paged surface and all exact-recovery errors re
   assert.doesNotMatch(readerSource, /const saved = combinedIdeas\.filter/);
 });
 
-test("server identity and provider rank control stable append rather than replacing earlier cards", () => {
-  assert.match(readerSource, /appendStableIdeas\(previous, workspace.ideas\)/);
-  assert.match(stateSource, /a.rank - b.rank/);
-  assert.match(readerSource, /View new articles/);
+test("server current-batch identity controls replacement while provider rank and origin sets stay stable", () => {
+  assert.match(readerSource, /currentReadingArticles\(projection.loops, projection.ideas, projection.requests\)/);
+  assert.match(feedStateSource, /a.rank - b.rank/);
+  assert.match(feedStateSource, /currentBatchRequestId/);
+  assert.match(readerSource, /Latest articles/);
+  assert.match(readerSource, /storeReadingSet\(snapshot\)/);
   assert.match(readerSource, /previousRequestId/);
   assert.doesNotMatch(readerSource, /Earlier ideas/);
 });

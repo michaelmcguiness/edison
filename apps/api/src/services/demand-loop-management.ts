@@ -7,7 +7,7 @@ import {
   managedDemandLoopSchema, DEMAND_LOOP_NAME_LIMIT,
   type ArchiveDemandLoop, type EditDemandLoop, type DemandLoopManagementResult,
 } from "@edison/contracts";
-import { assertDemandPrincipalActive, type DemandPrincipal } from "../auth/verify-demand-principal";
+import { demandWorkspaceId, type DemandPrincipal } from "../auth/verify-demand-principal";
 import { HttpError } from "../http/errors";
 
 type LoopRow = typeof demandLoops.$inferSelect;
@@ -122,7 +122,9 @@ export async function manageDemandLoopInTransaction(tx: DemandTransaction, princ
   // because this operation never admits work or changes a reservation.
   const [principal] = await tx.select().from(demandPrincipals).where(eq(demandPrincipals.id, principalId)).for("update").limit(1);
   if (!principal) throw new HttpError(401, "reading_session_required", "That reading session is unavailable.");
-  assertDemandPrincipalActive(principal);
+  if(principal.revokedAt) throw new HttpError(401,"reading_session_expired","This reading session is no longer available.");
+  // A claimed guest's original expiry is historical; the database checks the
+  // canonical account membership and original principal revocation together.
   const [active] = await tx.execute<{ active: boolean }>(sql`select private.demand_principal_is_active(${principalId}::uuid) as active`);
   if (active?.active !== true) throw new HttpError(401, "reading_session_required", "That reading session is unavailable.");
   const requestFingerprint = fingerprint({ loopId, operation });
@@ -165,10 +167,12 @@ export async function manageDemandLoopInTransaction(tx: DemandTransaction, princ
 
 export async function editDemandLoop(principal: DemandPrincipal, loopId: string, input: EditDemandLoop) {
   const operation: Operation = { kind: "edit", input: editDemandLoopSchema.parse(input) };
-  return withDemandWorkerDb((tx) => manageDemandLoopInTransaction(tx, principal.id, loopId, operation));
+  const result=await withDemandWorkerDb((tx) => manageDemandLoopInTransaction(tx, principal.id, loopId, operation));
+  return {...result,workspaceId:demandWorkspaceId(principal)};
 }
 
 export async function archiveDemandLoop(principal: DemandPrincipal, loopId: string, input: ArchiveDemandLoop) {
   const operation: Operation = { kind: "archive", input: archiveDemandLoopSchema.parse(input) };
-  return withDemandWorkerDb((tx) => manageDemandLoopInTransaction(tx, principal.id, loopId, operation));
+  const result=await withDemandWorkerDb((tx) => manageDemandLoopInTransaction(tx, principal.id, loopId, operation));
+  return {...result,workspaceId:demandWorkspaceId(principal)};
 }

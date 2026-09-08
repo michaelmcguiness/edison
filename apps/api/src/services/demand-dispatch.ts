@@ -24,6 +24,7 @@ import { safeCaughtErrorMetadata } from "../observability/safe-error";
 import { assertDemandAdmissionCapacity, lockDemandAdmission } from "./demand-admission";
 import { loadDemandCheckRecovery } from "./demand-check-recovery";
 import type { DemandRequestRow } from "./demand-reading";
+import { assertDemandAllowanceRetry } from "./demand-allowance";
 
 const DISPATCH_LEASE_MS = 5 * 60 * 1000;
 const DISPATCH_RETRY_MS = 60 * 1000;
@@ -46,6 +47,9 @@ export type DemandDispatchResult =
 export type DemandRoute =
   | { kind: "session" }
   | { kind: "workspace" }
+  | { kind: "reset-allowance" }
+  | { kind: "loops" }
+  | { kind: "loop-result"; loopId: string }
   | { kind: "history" }
   | { kind: "idea-result"; ideaId: string }
   | { kind: "article-result"; articleId: string }
@@ -79,8 +83,18 @@ export function matchDemandRoute(
   if (method === "GET" && path.length === 1 && path[0] === "workspace") {
     return { kind: "workspace" };
   }
+  if (method === "POST" && path.length === 2 && path[0] === "allowance" && path[1] === "reset") {
+    return { kind: "reset-allowance" };
+  }
   if (method === "GET" && path.length === 1 && path[0] === "history") {
     return { kind: "history" };
+  }
+  if (method === "GET" && path.length === 1 && path[0] === "loops") {
+    return { kind: "loops" };
+  }
+  if (method === "GET" && path.length === 2 && path[0] === "loops") {
+    const loopId = parsedUuid(path[1]);
+    return loopId ? { kind: "loop-result", loopId } : null;
   }
   if (method === "GET" && path.length === 2 && path[0] === "ideas") {
     const ideaId = parsedUuid(path[1]);
@@ -542,6 +556,7 @@ export async function prepareDemandRetry(
     // Ordinary interrupted work already holds its unused reservation. Only a
     // proved terminal postvalidation failure must reacquire released capacity.
     await assertDemandAdmissionCapacity(tx, { principalId, additionalMicrousd: recovery?.releasedHoldMicrousd ?? 0 });
+    await assertDemandAllowanceRetry(tx, current);
 
     const [requeued] = await tx
       .update(demandRequests)

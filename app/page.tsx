@@ -3,6 +3,7 @@ import { getWebAppMode } from "@/lib/app-mode";
 import { createClient } from "@/lib/supabase/server";
 import { EdisonMark } from "@/components/edison/brand";
 import { DemandReader } from "@/components/edison/demand-reader";
+import { requireMemberSession } from "@/lib/member-access";
 import "./demand.css";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,10 @@ export default async function Home({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const mode = getWebAppMode();
+  if (mode === "live") {
+    const query = await searchParams;
+    await requireMemberSession(typeof query.idea === "string" ? `/?idea=${query.idea}` : "/");
+  }
   let returnHomeToDemand = false;
   if (mode === "live" && process.env.EDISON_ON_DEMAND_ENABLED === "true") {
     const query = await searchParams;

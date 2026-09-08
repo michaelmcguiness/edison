@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { demandArtDescriptorSchema } from "@edison/contracts";
 import { generatedArticleFormatSchema, onDemandArticleFormatSchema } from "./schemas";
 import { onDemandSourceSchema } from "./on-demand-schemas";
 
@@ -30,6 +31,9 @@ export const readerFirstIdeaCandidateSchema = z.object({
   key, headline: z.string().min(1).max(180), deck: z.string().min(1).max(500),
   readerQuestion: text, payoff: text, advanceBeyondPrevious: text,
   qualifications: z.array(text).max(8), passageIds: z.array(key).max(12),
+  // Older retained briefs have no art. Provider strict JSON requires the
+  // nullable field; runtime decoding keeps historical absence unchanged.
+  art: demandArtDescriptorSchema.nullable().optional(),
 }).strict();
 export const readerFirstIdeaSchema = readerFirstIdeaCandidateSchema.extend({
   id: z.string().min(1).max(200), loopId: z.string().min(1).max(120), loopRevision: z.number().int().nonnegative(),

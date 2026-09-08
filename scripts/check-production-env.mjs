@@ -199,8 +199,17 @@ function requireInteger(environment, audit, name, minimum, maximum) {
   return parsed;
 }
 
+function checkDemandSignup(environment, audit) {
+  const name = "EDISON_DEMAND_PUBLIC_SIGNUP_ENABLED";
+  if (!has(environment, name)) return;
+  const configured = environment[name];
+  if (configured !== "false") audit.error(name, "D44 requires invite-only access; remove this retired flag or set it to false");
+  else audit.ok(name, "open signup is disabled; admitted membership is required");
+}
+
 function checkWebEnvironment(environment) {
   const audit = createAudit("web");
+  checkDemandSignup(environment, audit);
 
   requireLiteral(environment, audit, "EDISON_DEMO_MODE", "false");
   requireLiteral(environment, audit, "ENABLE_EXPERIMENTAL_COREPACK", "1");
@@ -214,6 +223,7 @@ function checkWebEnvironment(environment) {
 
   const forbidden = [
     "CRON_SECRET",
+    "EDISON_DEMAND_ALLOWANCE_RESET_PASSWORD",
     "DATABASE_URL",
     "DIRECT_URL",
     "OPENAI_ADMIN_KEY",
@@ -388,6 +398,27 @@ function parseEmailList(environment, audit, name, required) {
 
 function checkApiEnvironment(environment) {
   const audit = createAudit("api");
+  checkDemandSignup(environment, audit);
+  const invitations = environment.EDISON_MEMBER_INVITATIONS_ENABLED;
+  if (invitations !== undefined && invitations !== "true" && invitations !== "false") {
+    audit.error("EDISON_MEMBER_INVITATIONS_ENABLED", "must be exactly true or false");
+  }
+  if (invitations === "true") {
+    if (environment.EDISON_ON_DEMAND_ENABLED !== "true") audit.error("EDISON_MEMBER_INVITATIONS_ENABLED", "requires the member-only demand application");
+    const credential = value(environment, "SUPABASE_SECRET_KEY");
+    if (!credential.startsWith("sb_secret_") || credential.length < 24 || looksLikePlaceholder(credential)) {
+      audit.error("SUPABASE_SECRET_KEY", "requires a server-only Auth invitation-sender secret key; legacy service-role tokens are not accepted");
+    } else audit.ok("SUPABASE_SECRET_KEY", "server-only invitation-sender credential selected; never permitted in web/client or other service modules");
+  } else if (has(environment, "SUPABASE_SECRET_KEY")) audit.error("SUPABASE_SECRET_KEY", "must not exist unless the reviewed invitation sender is explicitly enabled");
+  if (environment.EDISON_ON_DEMAND_ENABLED === "true") {
+    // The selected temporary wall is intentionally not a security-grade access
+    // secret. Require it without printing it or prescribing password strength.
+    const name = "EDISON_DEMAND_ALLOWANCE_RESET_PASSWORD";
+    const configured = environment[name];
+    if (typeof configured !== "string" || configured.length < 1 || configured.length > 100) {
+      audit.error(name, "must be a server-only reset password from 1 through 100 characters");
+    } else audit.ok(name, "present; value redacted; does not override service spending limits");
+  }
 
   requireLiteral(environment, audit, "ENABLE_EXPERIMENTAL_COREPACK", "1");
   checkDatabaseUrl(environment, audit);
@@ -539,7 +570,6 @@ function checkApiEnvironment(environment) {
   for (const name of [
     "DIRECT_URL",
     "OPENAI_ADMIN_KEY",
-    "SUPABASE_SECRET_KEY",
     "SUPABASE_SERVICE_ROLE_KEY",
   ]) {
     if (has(environment, name)) {

@@ -16,6 +16,10 @@ import {
   editDemandLoopSchema, archiveDemandLoopSchema, type EditDemandLoop, type ArchiveDemandLoop,
   requestDemandArticleSchema,
   requestDemandIdeasSchema,
+  resetDemandAllowanceSchema, demandAllowanceResetReceiptSchema, type ResetDemandAllowance,
+  demandLoopsQuerySchema, demandLoopsSchema, type DemandLoopsQuery,
+  demandInvitationsSchema, createDemandInvitationSchema, demandInvitationActionSchema, demandInvitationMutationSchema,
+  type CreateDemandInvitation, type DemandInvitationAction,
   uuidSchema,
   type DemandResult,
   type DemandWorkspace,
@@ -24,6 +28,13 @@ import {
 } from "@edison/contracts";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import {
+  demandLoginPath,
+  saveDemandAccountContinuation,
+  takeDemandAccountContinuation,
+  type DemandAccountIntent,
+} from "@/lib/demand-auth-continuation";
+export type { DemandAccountIntent } from "@/lib/demand-auth-continuation";
 
 export class DemandClientError extends Error {
   readonly code: string;
@@ -50,6 +61,19 @@ export type DemandMutationResponse = {
 };
 
 let sessionPromise: Promise<DemandWorkspace> | null = null;
+
+export async function getDemandInvitations() {
+  return demandInvitationsSchema.parse(await demandFetch("invitations"));
+}
+export async function sendDemandInvitation(input: CreateDemandInvitation) {
+  return demandInvitationMutationSchema.parse(await demandFetch("invitations", { method: "POST", body: JSON.stringify(createDemandInvitationSchema.parse(input)) }));
+}
+export async function resendDemandInvitation(id: string, input: DemandInvitationAction) {
+  return demandInvitationMutationSchema.parse(await demandFetch(`invitations/${uuidSchema.parse(id)}/resend`, { method: "POST", body: JSON.stringify(demandInvitationActionSchema.parse(input)) }));
+}
+export async function revokeDemandInvitation(id: string, input: DemandInvitationAction) {
+  return demandInvitationMutationSchema.parse(await demandFetch(`invitations/${uuidSchema.parse(id)}/revoke`, { method: "POST", body: JSON.stringify(demandInvitationActionSchema.parse(input)) }));
+}
 
 type DemandSessionRead = {
   data: {
@@ -187,8 +211,85 @@ export function startDemandSession() {
   return sessionPromise;
 }
 
+export function beginDemandAccountFlow(intent: DemandAccountIntent) {
+  // An expiring nonce permits a magic link to open in another tab of this same
+  // browser without putting the private curiosity in a URL or an auth email.
+  let returnPath: string;
+  try {
+    returnPath = saveDemandAccountContinuation({
+      intent, id: crypto.randomUUID(), storage: window.localStorage,
+    });
+  } catch {
+    // Do not silently discard the draft when browser storage is unavailable.
+    throw new DemandClientError({ code: "continuation_unavailable", status: 503,
+      message: "Your browser couldn’t save this draft for sign-in. Keep it here and try again." });
+  }
+  window.location.assign(demandLoginPath(returnPath));
+}
+
+/** Call only after the server has returned an account-owned workspace. */
+export function readDemandAccountContinuation() {
+  if (typeof window === "undefined") return null;
+  try {
+    const intent = takeDemandAccountContinuation({
+      returnPath: `${window.location.pathname}${window.location.search}`, storage: window.localStorage,
+    });
+    if (intent) {
+      // URL cleanup is cosmetic; a browser history failure must not lose the
+      // already recovered draft after its storage record was consumed.
+      try { window.history.replaceState(window.history.state, "", "/"); } catch { /* Keep the recovered intent. */ }
+    }
+    return intent;
+  } catch { return null; }
+}
+
+export async function getDemandAccountIdentity(): Promise<{ email: string } | null> {
+  if (!isSupabaseConfigured()) return null;
+  try {
+    const { data, error } = await createClient().auth.getUser();
+    if (error) throw sessionUnavailableError();
+    const user = data.user;
+    if (!user || user.is_anonymous || !user.email || !user.email_confirmed_at) return null;
+    return { email: user.email };
+  } catch { throw sessionUnavailableError(); }
+}
+
+export async function signOutDemandAccount() {
+  if (!isSupabaseConfigured()) throw sessionUnavailableError();
+  const { error } = await createClient().auth.signOut({ scope: "local" });
+  if (error) throw new DemandClientError({ code: "sign_out_failed", status: 503,
+    message: "Edison couldn’t sign you out. Please try again." });
+  sessionPromise = null;
+}
+
 export async function getDemandWorkspace() {
   return workspaceEnvelope(await demandFetch("workspace"));
+}
+
+export async function getDemandLoops(input: DemandLoopsQuery = {}) {
+  const query = demandLoopsQuerySchema.parse(input);
+  const suffix = query.cursor ? `?${new URLSearchParams({ cursor: query.cursor })}` : "";
+  const result = demandLoopsSchema.safeParse(await demandFetch(`loops${suffix}`));
+  if (!result.success) throw new DemandClientError({ code: "invalid_response", status: 502,
+    message: "Edison couldn’t load those loops. Your existing reading is still available." });
+  return result.data;
+}
+
+export async function getDemandLoop(loopId: string) {
+  const result = demandLoopsSchema.safeParse(await demandFetch(`loops/${uuidSchema.parse(loopId)}`));
+  if (!result.success) throw new DemandClientError({ code: "invalid_response", status: 502,
+    message: "Edison couldn’t load that loop. Your existing reading is still available." });
+  return result.data;
+}
+
+export async function resetDemandAllowance(input: ResetDemandAllowance) {
+  const body = resetDemandAllowanceSchema.parse(input);
+  const payload = await demandFetch("allowance/reset", { method: "POST", body: JSON.stringify(body) });
+  const workspace = workspaceEnvelope(payload);
+  const receipt = demandAllowanceResetReceiptSchema.safeParse(payload?.receipt);
+  if (!receipt.success) throw new DemandClientError({ code: "invalid_response", status: 502,
+    message: "Edison couldn’t confirm the allowance reset. Retry this same request." });
+  return { workspace, receipt: receipt.data };
 }
 
 export async function getDemandHistory(input: Partial<DemandHistoryQuery> = {}) {

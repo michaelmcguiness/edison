@@ -7,7 +7,7 @@ import {
   type OnDemandWriterOutput, type OnDemandCheckOutput, type OnDemandFeedbackOutput,
   type OnDemandAnswerOutput, type SelectedOnDemandInput,
 } from "@edison/ai";
-import { demandIdeas, demandLoops, demandMutations, demandPrincipals, demandRequests,
+import { demandIdeas, demandLoops, demandMutations, demandRequests,
   withDemandWorkerDb, type DemandTransaction } from "@edison/db";
 import { LoopPrincipleError, reduceLoopPrinciples } from "@edison/domain";
 import { demandFingerprint, demandPrincipleState, type DemandRequestRow } from "./demand-reading";
@@ -21,6 +21,8 @@ import {
   type ReaderFirstPipelineState,
 } from "./reader-first-pipeline";
 import { publishReaderFirstAnswer, publishReaderFirstArticle } from "./reader-first-publication";
+import { lockDemandAdmission } from "./demand-admission";
+import { assertDemandAllowanceSettlement } from "./demand-allowance";
 
 const JOB_LEASE_MS = 5 * 60_000;
 const DEMAND_PIPELINE_VERSION = 1;
@@ -130,8 +132,9 @@ export function demandIdeaDisplay(idea: Pick<OnDemandIdea, "headline" | "deck">)
 async function lockRequest(tx: DemandTransaction, id: string) {
   const [identity] = await tx.select({ principalId: demandRequests.principalId }).from(demandRequests).where(eq(demandRequests.id, id)).limit(1);
   if (!identity) return null;
-  // Same parent-first lock order as the provider-stage ledger.
-  await tx.select({ id: demandPrincipals.id }).from(demandPrincipals).where(eq(demandPrincipals.id, identity.principalId)).for("update");
+  // Weekly reservations, settlement, claims and reset use one lock order.
+  // Inactive work still needs to reach its ordinary terminal failure path.
+  await lockDemandAdmission(tx, identity.principalId, false);
   const [request] = await tx.select().from(demandRequests).where(and(eq(demandRequests.id, id), eq(demandRequests.principalId, identity.principalId))).for("update").limit(1);
   return request ?? null;
 }
@@ -183,6 +186,7 @@ async function finish(tx: DemandTransaction, request: DemandRequestRow, state: R
   if (outcome === "ideas") {
     const ideas = state.ideas as OnDemandIdea[];
     if (!ideas?.length) throw new Error("evidence_unavailable");
+    await assertDemandAllowanceSettlement(tx,request.id,ideas.length);
     const rows = ideas.map((idea, index) => {
       const id = demandArtifactId(`${request.id}:idea:${idea.key}`);
       if (idea.loopId !== loop.id || idea.loopRevision !== loop.revision) throw new Error("loop_changed");

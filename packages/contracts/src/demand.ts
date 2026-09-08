@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { articleBlockSchema, articleSchema, articleSourceSchema } from "./articles";
 import { idempotencyKeySchema, uuidSchema } from "./common";
+import { demandAccountGateSchema, demandAllowanceSchema } from "./demand-allowance";
+import { demandArtDescriptorSchema } from "./demand-art";
 
 export const demandPrincipleSchema = z.object({
   id: uuidSchema,
@@ -15,6 +17,7 @@ export const demandLoopSchema = z.object({
   originalCuriosity: z.string().min(1).max(500),
   instructions: z.string().max(500).optional(),
   archivedAt: z.string().datetime().nullable().optional(),
+  currentBatchRequestId: uuidSchema.nullable().optional(),
   revision: z.number().int().nonnegative(),
   principles: z.array(demandPrincipleSchema).max(20),
   lastMutationId: uuidSchema.nullable(),
@@ -48,6 +51,7 @@ export const demandIdeaSchema = z.object({
   deck: z.string().min(1).max(500),
   articleRequestId: uuidSchema.nullable(),
   saved: z.boolean(),
+  art: demandArtDescriptorSchema.nullable().optional(),
   createdAt: z.string().datetime(),
 }).strict();
 
@@ -56,10 +60,15 @@ export const demandWorkspaceSchema = z.object({
   // switch. This is not a credential and cannot authorize API access.
   workspaceId: uuidSchema,
   readerKind: z.enum(["guest", "account"]),
+  // Optional only for historical clients/fixtures. The current server always
+  // supplies these fields; clients must not invent capacity when absent.
+  allowance: demandAllowanceSchema.optional(),
+  accountGate: demandAccountGateSchema.optional(),
+  loopsNextCursor: z.string().max(512).nullable().optional(),
   // Up to 30 visible loops plus a bounded recent archived-context window.
   loops: z.array(demandLoopSchema).max(60),
   ideas: z.array(demandIdeaSchema).max(360),
-  requests: z.array(demandRequestSchema).max(120),
+  requests: z.array(demandRequestSchema).max(240),
 }).strict();
 
 export const DEMAND_HISTORY_PAGE_SIZE = 60;

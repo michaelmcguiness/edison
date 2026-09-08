@@ -7,6 +7,7 @@ import {
   answerReaderFirstQuestion, compileReaderFirstAnswer, checkReaderFirstAnswer, repairReaderFirstAnswer,
   assertAcceptedReaderFirstAnswerCheck, readerFirstAnswerText, readerFirstArticleFingerprint,
   ReaderFirstDraftValidationError, READER_FIRST_PROMPT_VERSION, readerFirstWriterProviderSchema,
+  READER_FIRST_IDEAS_ART_PROMPT_VERSION,
   READER_FIRST_PROMPTS,
   readerFirstAnswerProviderSchema, readerFirstResearchOutputSchema, readerFirstCheckOutputSchema,
   readerFirstIdeaCandidateSchema,
@@ -105,7 +106,7 @@ test("stable concept ideas use no invented sources and are independently offered
   assert.equal(checked.ideas[0].id, "batch-new:cell"); assert.deepEqual(checked.ideas[0].passageIds, []);
   assert.equal("article" in researched.output, false);
   assert.deepEqual(calls.map((call) => call.researchPolicy?.mode), ["auto", "none"]);
-  assert.equal(calls.every((call) => call.promptVersion === READER_FIRST_PROMPT_VERSION), true);
+  assert.deepEqual(calls.map((call) => call.promptVersion), [READER_FIRST_IDEAS_ART_PROMPT_VERSION, READER_FIRST_PROMPT_VERSION]);
 });
 
 test("a checker-identified empirical idea cannot pass without independently retrieved support", async () => {

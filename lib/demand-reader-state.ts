@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { demandHistoryCursorSchema, uuidSchema, type DemandIdea, type DemandIdeaResult, type DemandRequest, type DemandWorkspace } from "@edison/contracts";
+import { demandHistoryCursorSchema, uuidSchema, type DemandAllowance, type DemandIdea, type DemandIdeaResult, type DemandLoop, type DemandRequest, type DemandWorkspace } from "@edison/contracts";
 
 function mergeById<T extends { id: string }>(current: T[], incoming: T[], choose: (old: T, next: T) => T) {
   const records = new Map(current.map((record) => [record.id, record]));
@@ -8,34 +8,88 @@ function mergeById<T extends { id: string }>(current: T[], incoming: T[], choose
 }
 
 const requestRank: Record<DemandRequest["status"], number> = { queued: 0, running: 1, failed: 2, succeeded: 3 };
+function mergeRequest(old: DemandRequest, next: DemandRequest, preferIncoming: boolean) {
+  const time = next.updatedAt.localeCompare(old.updatedAt);
+  if (time) return time > 0 ? next : old;
+  if (next.status !== old.status) return requestRank[next.status] > requestRank[old.status] ? next : old;
+  return preferIncoming ? next : old;
+}
+
+/** Batch delivery does not edit a loop's revision or updatedAt. Reconcile its
+ * pointer against nonempty, succeeded batches separately from editable fields.
+ * Request creation time/id matches the server's current-batch ordering. */
+export function mergeDemandLoops(current: DemandLoop[], incoming: DemandLoop[], ideas: DemandIdea[], requests: DemandRequest[], preferIncoming = true) {
+  const merged = mergeById(current, incoming, (old, next) => {
+    let selected = preferIncoming ? next : old;
+    if (next.revision !== old.revision) selected = next.revision > old.revision ? next : old;
+    else if (next.updatedAt !== old.updatedAt) selected = next.updatedAt > old.updatedAt ? next : old;
+    return { ...selected, currentBatchRequestId: selected.currentBatchRequestId ?? old.currentBatchRequestId ?? next.currentBatchRequestId };
+  });
+  const nonempty = new Set(ideas.map((idea) => `${idea.loopId}:${idea.batchRequestId}`));
+  return merged.map((loop) => {
+    const batch = requests.filter((request) => request.loopId === loop.id && request.kind === "ideas" &&
+      request.status === "succeeded" && nonempty.has(`${loop.id}:${request.id}`))
+      .toSorted((left, right) => right.createdAt.localeCompare(left.createdAt) || right.id.localeCompare(left.id))[0];
+    if (!batch) return loop;
+    // A bounded response can omit the pointed-to request. Do not replace that
+    // server pointer with an older retained batch merely because it is present.
+    const pointed = loop.currentBatchRequestId;
+    if (pointed && pointed !== batch.id && !requests.some((request) => request.id === pointed)) {
+      const pointedIdea = ideas.filter((idea) => idea.loopId === loop.id && idea.batchRequestId === pointed)
+        .toSorted((left, right) => left.rank - right.rank)[0];
+      const candidateIdea = ideas.filter((idea) => idea.loopId === loop.id && idea.batchRequestId === batch.id)
+        .toSorted((left, right) => left.rank - right.rank)[0];
+      if (!pointedIdea || !candidateIdea || pointedIdea.createdAt >= candidateIdea.createdAt) return loop;
+    }
+    return { ...loop, currentBatchRequestId: batch.id };
+  });
+}
+
+function mergeAllowance(current: DemandAllowance | undefined, incoming: DemandAllowance | undefined, preferIncoming: boolean) {
+  if (!current || !incoming) return incoming ?? current;
+  const period = incoming.periodStart.localeCompare(current.periodStart);
+  if (period) return period > 0 ? incoming : current;
+  let selected: DemandAllowance;
+  if (incoming.revision !== current.revision) selected = incoming.revision > current.revision ? incoming : current;
+  // Settled use is immutable within one revision. A response with less use is
+  // observably older, including its queued reservations, regardless of arrival.
+  else if (incoming.used !== current.used) selected = incoming.used > current.used ? incoming : current;
+  else selected = preferIncoming ? incoming : current;
+  return { ...selected, periodUsed: Math.max(current.periodUsed, incoming.periodUsed) };
+}
 
 /** Workspace snapshots are bounded server views, not deletion instructions. */
-export function mergeDemandWorkspaces(current: DemandWorkspace | null, incoming: DemandWorkspace, preferIncoming = true): DemandWorkspace {
+export function mergeDemandWorkspaces(current: DemandWorkspace | null, incoming: DemandWorkspace, preferIncoming = true,
+  preferIncomingSnapshot = preferIncoming): DemandWorkspace {
   if (!current || current.workspaceId !== incoming.workspaceId) return incoming;
-  const requests = mergeById(current.requests, incoming.requests, (old, next) => {
-    const time = next.updatedAt.localeCompare(old.updatedAt);
-    if (time) return time > 0 ? next : old;
-    if (next.status !== old.status) return requestRank[next.status] > requestRank[old.status] ? next : old;
-    return preferIncoming ? next : old;
-  }).toSorted((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 120);
-  const loops = mergeById(current.loops, incoming.loops, (old, next) => {
-    if (next.revision !== old.revision) return next.revision > old.revision ? next : old;
-    const time = next.updatedAt.localeCompare(old.updatedAt);
-    return time ? time > 0 ? next : old : preferIncoming ? next : old;
-  }).slice(0, 30);
+  const mergedRequests = mergeById(current.requests, incoming.requests, (old, next) => mergeRequest(old, next, preferIncoming));
   const ideas = mergeById(current.ideas, incoming.ideas, (old, next) => ({
     ...(preferIncoming ? next : old),
     // Commissioning is irreversible for an idea: an older snapshot must not
     // turn its existing request into another "unwritten" commission.
     articleRequestId: next.articleRequestId ?? old.articleRequestId,
   })).toSorted((a, b) => b.createdAt.localeCompare(a.createdAt) || a.rank - b.rank).slice(0, 360);
-  return { workspaceId: incoming.workspaceId, readerKind: incoming.readerKind, loops, ideas, requests };
+  const requests = mergedRequests.toSorted((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id)).slice(0, 240);
+  const loops = mergeDemandLoops(current.loops, incoming.loops, ideas, mergedRequests, preferIncoming).slice(0, 60);
+  const readerKind = current.readerKind === "account" || incoming.readerKind === "account" ? "account" : "guest";
+  const snapshots = preferIncomingSnapshot ? [incoming, current] : [current, incoming];
+  const gateSnapshots = snapshots.filter((snapshot) => snapshot.readerKind === readerKind && snapshot.accountGate);
+  let accountGate = gateSnapshots[0]?.accountGate;
+  if (readerKind === "guest" && accountGate && gateSnapshots.some((snapshot) => snapshot.accountGate?.canCreateLoop === false)) {
+    accountGate = { ...accountGate, canCreateLoop: false };
+  }
+  const allowance = mergeAllowance(current.allowance, incoming.allowance, preferIncomingSnapshot);
+  const loopsNextCursor = snapshots.find((snapshot) => snapshot.loopsNextCursor !== undefined)?.loopsNextCursor;
+  return { workspaceId: incoming.workspaceId, readerKind, loops, ideas, requests,
+    ...(allowance ? { allowance } : {}), ...(accountGate ? { accountGate } : {}),
+    ...(loopsNextCursor !== undefined ? { loopsNextCursor } : {}) };
 }
 
 export class DemandWorkspaceResponses {
   private epoch = 0;
   private sequence = 0;
   private lastPoll = 0;
+  private lastSnapshot = 0;
   private pending = new Map<number, { workspaceId: string | null; savedIdeaId?: string }>();
   private savedVersions = new Map<string, number>();
   constructor(private workspace: DemandWorkspace | null) {}
@@ -47,6 +101,7 @@ export class DemandWorkspaceResponses {
   beginPoll() { return { epoch: this.epoch, sequence: ++this.sequence }; }
   private replaceWorkspace(next: DemandWorkspace) {
     this.workspace = next;
+    this.lastSnapshot = this.sequence;
     this.epoch++;
     this.pending.clear();
     this.savedVersions.clear();
@@ -57,6 +112,7 @@ export class DemandWorkspaceResponses {
     this.lastPoll = ticket.sequence;
     if (this.workspace && this.workspace.workspaceId !== next.workspaceId) return this.replaceWorkspace(next);
     this.workspace = mergeDemandWorkspaces(this.workspace, next);
+    this.lastSnapshot = ticket.sequence;
     return this.workspace;
   }
   isCurrentPoll(ticket: { epoch: number; sequence: number }) {
@@ -73,7 +129,8 @@ export class DemandWorkspaceResponses {
     if (!scope || scope.workspaceId !== (this.workspace?.workspaceId ?? null)) return null;
     if (this.workspace && this.workspace.workspaceId !== next.workspaceId) return this.replaceWorkspace(next);
     const previous = this.workspace;
-    this.workspace = mergeDemandWorkspaces(previous, next, false);
+    this.workspace = mergeDemandWorkspaces(previous, next, false, ticket > this.lastSnapshot);
+    this.lastSnapshot = Math.max(ticket, this.lastSnapshot);
     // Only a save mutation owns the mutable saved bit. Other mutation snapshots
     // may predate an independent save, even when they arrive later.
     if (scope.savedIdeaId && ticket > (this.savedVersions.get(scope.savedIdeaId) ?? -1)) {
@@ -92,8 +149,12 @@ export class DemandWorkspaceResponses {
   recoverRequest(request: DemandRequest) {
     if (!this.workspace) return null;
     const existing = this.workspace.requests.find(({ id }) => id === request.id);
-    const recovered = existing && existing.updatedAt > request.updatedAt ? existing : request;
-    this.workspace = { ...this.workspace, requests: [recovered, ...this.workspace.requests.filter(({ id }) => id !== request.id)].slice(0, 120) };
+    const recovered = existing ? mergeRequest(existing, request, false) : request;
+    // Exact recovery retains this requested identity even when it predates the
+    // newest bounded workspace rows; it must not be sorted straight back out.
+    const requests = [recovered, ...this.workspace.requests.filter(({ id }) => id !== request.id)].slice(0, 240);
+    this.workspace = { ...this.workspace, requests,
+      loops: mergeDemandLoops(this.workspace.loops, [], this.workspace.ideas, requests, false) };
     return this.workspace;
   }
 }

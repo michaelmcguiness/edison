@@ -1,10 +1,11 @@
 import { demandShareTokenSchema, publicDemandArticleShareSchema, type PublicDemandArticleShare } from "@edison/contracts";
 
-/** No account/guest cookies, authorization headers or private endpoint are used. */
+/** Shared snapshot access is member-only. Never forward browser cookies. */
 export async function fetchDemandPublicShare(token: string, options: {
-  apiUrl?: string; production?: boolean; fetcher?: typeof fetch;
+  apiUrl?: string; production?: boolean; fetcher?: typeof fetch; accessToken?: string;
 }): Promise<PublicDemandArticleShare | null> {
   if (!demandShareTokenSchema.safeParse(token).success) return null;
+  if (!options.accessToken) throw new Error("Invited sign-in is required to read shared articles.");
   let base: URL;
   try {
     base = new URL(options.apiUrl ?? "");
@@ -13,7 +14,7 @@ export async function fetchDemandPublicShare(token: string, options: {
         (base.protocol !== "https:" && !(local && base.protocol === "http:"))) return null;
   } catch { return null; }
   const response = await (options.fetcher ?? fetch)(`${base.href.replace(/\/$/, "")}/public/demand-shares/${token}`, {
-    cache: "no-store", redirect: "error", credentials: "omit", signal: AbortSignal.timeout(15_000),
+    cache: "no-store", redirect: "error", credentials: "omit", headers: { Authorization: `Bearer ${options.accessToken}` }, signal: AbortSignal.timeout(15_000),
   });
   if (response.status === 404 || response.status === 410) return null;
   if (!response.ok) throw new Error("The shared article is temporarily unavailable.");

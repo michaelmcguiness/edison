@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(69);
+select plan(71);
 
 select has_table('private', 'demand_principals', 'demand principals are private');
 select has_table('private', 'demand_loops', 'demand loops are private');
@@ -257,18 +257,6 @@ insert into private.demand_principals (
 )
 values
   (
-    '91000000-0000-4000-8000-000000000001',
-    repeat('1', 64),
-    '2099-01-01T00:00:00Z',
-    '2026-01-01T00:00:00Z'
-  ),
-  (
-    '91000000-0000-4000-8000-000000000002',
-    repeat('2', 64),
-    '2099-01-01T00:00:00Z',
-    '2026-01-01T00:00:00Z'
-  ),
-  (
     '91000000-0000-4000-8000-000000000003',
     repeat('3', 64),
     '2021-01-01T00:00:00Z',
@@ -279,23 +267,37 @@ values
     repeat('4', 64),
     '2099-01-01T00:00:00Z',
     '2020-01-01T00:00:00Z'
+  ),
+  (
+    '91000000-0000-4000-8000-000000000006',
+    repeat('6', 64),
+    '2099-01-01T00:00:00Z',
+    '2026-01-01T00:00:00Z'
   );
 
 update private.demand_principals
 set revoked_at = '2021-01-01T00:00:00Z'
 where id = '91000000-0000-4000-8000-000000000004';
 
-insert into auth.users (id, email)
-values (
+-- D44 valid readers are explicitly admitted synthetic accounts; auth-user
+-- insertion alone deliberately leaves membership pending.
+insert into auth.users (id, email, email_confirmed_at)
+values
+ ('93000000-0000-4000-8000-000000000001','demand-account@edison.test',now()),
+ ('93000000-0000-4000-8000-000000000002','demand-first@edison.test',now()),
+ ('93000000-0000-4000-8000-000000000003','demand-second@edison.test',now());
+update public.alpha_memberships set status='active'
+where user_id in (
   '93000000-0000-4000-8000-000000000001',
-  'demand-account@edison.test'
+  '93000000-0000-4000-8000-000000000002',
+  '93000000-0000-4000-8000-000000000003'
 );
 
 insert into private.demand_principals (id, account_user_id)
-values (
-  '91000000-0000-4000-8000-000000000005',
-  '93000000-0000-4000-8000-000000000001'
-);
+values
+ ('91000000-0000-4000-8000-000000000005','93000000-0000-4000-8000-000000000001'),
+ ('91000000-0000-4000-8000-000000000001','93000000-0000-4000-8000-000000000002'),
+ ('91000000-0000-4000-8000-000000000002','93000000-0000-4000-8000-000000000003');
 
 insert into private.demand_loops (
   id, principal_id, title, original_curiosity
@@ -304,8 +306,8 @@ values
   (
     '92000000-0000-4000-8000-000000000002',
     '91000000-0000-4000-8000-000000000002',
-    'Second guest',
-    'What belongs only to the second guest?'
+    'Second member',
+    'What belongs only to the second member?'
   ),
   (
     '92000000-0000-4000-8000-000000000003',
@@ -324,6 +326,12 @@ values
     '91000000-0000-4000-8000-000000000005',
     'Account loop',
     'What remains behind membership?'
+  ),
+  (
+    '92000000-0000-4000-8000-000000000006',
+    '91000000-0000-4000-8000-000000000006',
+    'Unclaimed historical guest',
+    'What must remain unavailable without admitted membership?'
   );
 
 grant usage on schema extensions to edison_demand_api, edison_demand_worker;
@@ -354,12 +362,12 @@ select extensions.lives_ok(
       'How can cells be programmed safely?'
     )
   $$,
-  'an active guest can create an owned loop'
+  'an admitted account can create an owned loop'
 );
 select extensions.is(
   (select count(*)::integer from private.demand_loops),
   1,
-  'an active guest sees only its own loop'
+  'an admitted account sees only its own loop'
 );
 select extensions.throws_ok(
   $$
@@ -373,7 +381,20 @@ select extensions.throws_ok(
   $$,
   '42501',
   null,
-  'RLS rejects writes for another guest principal'
+  'RLS rejects writes for another member principal'
+);
+
+set local "request.edison.demand_principal_id" =
+  '91000000-0000-4000-8000-000000000006';
+select extensions.is(
+  (select count(*)::integer from private.demand_loops),
+  0,
+  'an unexpired but unclaimed guest cannot read retained demand rows'
+);
+select extensions.throws_ok(
+  $$insert into private.demand_loops (principal_id,title,original_curiosity)
+    values ('91000000-0000-4000-8000-000000000006','Unauthorized loop','No guest commissioning.')$$,
+  '42501', null, 'an unclaimed guest cannot create a loop'
 );
 
 set local "request.edison.demand_principal_id" =
@@ -774,8 +795,8 @@ select extensions.is(
   (select article_length || ':' || depth::text from private.demand_reader_preferences('91000000-0000-4000-8000-000000000005')),
   'brief:85', 'active account preferences retain their saved length and depth');
 select extensions.is(
-  (select count(*)::integer from private.demand_reader_preferences('91000000-0000-4000-8000-000000000002')),
-  0, 'a guest does not inherit account reading defaults');
+  (select count(*)::integer from private.demand_reader_preferences('91000000-0000-4000-8000-000000000006')),
+  0, 'an unclaimed guest does not inherit account reading defaults');
 reset role;
 update public.alpha_memberships set status='revoked', revoked_at=now()
 where user_id='93000000-0000-4000-8000-000000000001';

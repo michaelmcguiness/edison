@@ -119,13 +119,23 @@ async function integrationChecks() {
   const { demandArticleResult, demandConversation, encodeDemandConversationCursor } = await import("../apps/api/src/services/demand-conversation");
   const { editDemandLoop, archiveDemandLoop } = await import("../apps/api/src/services/demand-loop-management");
   const { createDemandLoop, demandWorkspace } = await import("../apps/api/src/services/demand-reading");
+  const { demandLoopPage, demandLoopResult } = await import("../apps/api/src/services/demand-loop-list");
   const { HttpError } = await import("../apps/api/src/http/errors");
-  const runId = randomUUID(); const prefix = `v10:${runId}:`; const ownerIds: string[] = [];
+  const runId = randomUUID(); const prefix = `v10:${runId}:`; const ownerIds: string[] = []; const accountIds: string[] = [];
   const code = (expected: string) => (error: unknown) => error instanceof HttpError && error.code === expected;
-  async function owner() {
+  async function owner(account = true) {
     const id = randomUUID();
+    const accountUserId = account ? randomUUID() : null;
+    if (accountUserId) {
+      accountIds.push(accountUserId);
+      await database.execute(sql`insert into auth.users(id,email,email_confirmed_at)
+        values(${accountUserId}::uuid,${`v10-${accountUserId}@example.test`},now())`);
+      // Positive fixtures model the retained admitted cohort, never public signup.
+      await database.execute(sql`update public.alpha_memberships set status='active' where user_id=${accountUserId}::uuid`);
+    }
     const [principal] = await database.insert(demandPrincipals).values({ id,
-      guestTokenHash: createHash("sha256").update(`${runId}:${id}`).digest("hex"), expiresAt: new Date(Date.now() + 3600000) }).returning();
+      accountUserId, guestTokenHash: account ? null : createHash("sha256").update(`${runId}:${id}`).digest("hex"),
+      expiresAt: account ? null : new Date(Date.now() + 3600000) }).returning();
     ownerIds.push(id); return principal;
   }
   async function fixture(principalId: string, sourced = false) {
@@ -166,9 +176,13 @@ async function integrationChecks() {
   }
   try {
     const principal = await owner(), foreign = await owner();
+    const legacyGuest=await owner(false),legacyReading=await fixture(legacyGuest.id);
+    await assert.rejects(createDemandArticleShare(legacyGuest,legacyReading.articleId,{confirmPublic:true,idempotencyKey:`${prefix}guest-denied`}),code("reading_session_expired"));
+    await database.update(demandPrincipals).set({expiresAt:new Date(Date.now()-1000)}).where(eq(demandPrincipals.id,legacyGuest.id));
+    await assert.rejects(createDemandArticleShare(legacyGuest,legacyReading.articleId,{confirmPublic:true,idempotencyKey:`${prefix}expired-guest-denied`}),code("reading_session_expired"));
     const first = await fixture(principal.id), second = await fixture(principal.id, true), third = await fixture(foreign.id);
-    // 121 real persisted turns exceed the workspace's120-request cap. Include
-    // ready/failed/pending receipts; never invent answers for unfinished turns.
+    // 121 real persisted turns exercise independent conversation pagination.
+    // Workspace now projects current batches/bodies, not arbitrary old turns.
     const questionIds: string[] = [];
     const conversationSecond = new Date(Date.now() - 10000).toISOString().slice(0, 19);
     for (let index = 0; index < 121; index++) {
@@ -190,8 +204,8 @@ async function integrationChecks() {
     const firstRead = await demandArticleResult(principal, first.articleId);
     assert.equal(firstRead.article.id, first.articleId);
     const workspace = await demandWorkspace(principal);
-    assert.equal(workspace.requests.length, 120);
-    assert.equal(workspace.requests.some((request) => request.id === first.articleId), false);
+    assert.equal(workspace.requests.some((request) => request.kind === "question"), false);
+    assert.equal(workspace.requests.some((request) => request.id === first.articleId), true);
     async function conversation() {
       let cursor: string | undefined; const pages = [];
       do {
@@ -277,8 +291,8 @@ async function integrationChecks() {
     assert.equal((await archiveDemandLoop(principal, first.loopId, archive)).operationId, archived.operationId);
     await assert.rejects(editDemandLoop(principal, first.loopId, { ...edit, instructions: "Different key payload" }), code("idempotency_key_reused"));
     await assert.rejects(editDemandLoop(foreign, first.loopId, { ...edit, idempotencyKey: `${prefix}foreign-edit` }), code("loop_not_found"));
-    const retainedLoop = (await demandWorkspace(principal)).loops.find((loop) => loop.id === first.loopId);
-    assert.ok(retainedLoop?.archivedAt, "Owner metadata is retained; the UI excludes archived loops from navigation");
+    const retainedLoop = (await demandLoopResult(principal, first.loopId)).loops[0];
+    assert.ok(retainedLoop?.archivedAt, "Exact owner metadata is retained outside active-loop navigation");
     assert.equal(retainedLoop.originalCuriosity, "How does a constructed feedback controller work?");
     const reopened = await demandArticleResult(principal, first.articleId);
     assert.deepEqual(reopened.article, firstRead.article);
@@ -301,9 +315,9 @@ async function integrationChecks() {
     assert.equal(outsideWindow.loop.id, first.loopId); assert.ok(outsideWindow.loop.archivedAt);
     assert.deepEqual(await conversation(), pages); assert.deepEqual(await getDemandArticleShare(firstToken), publicFirst);
 
-    // A separate owner exercises actual free-slot admission without dispatch.
-    // Retained archives must not become a lifetime30-loop cap or erase history.
-    const boundaryOwner = await owner();
+    // A verified-account fixture exercises removal of the old30-loop product
+    // cap. No auth email, Workflow, provider or paid generation is involved.
+    const boundaryOwner = await owner(true);
     async function insertLoops(count: number, archived: boolean) {
       const entries = Array.from({ length: count }, (_, index) => {
         const id = randomUUID(), originalCuriosity = `Constructed ${archived ? "archived" : "active"} loop ${index}`;
@@ -320,11 +334,16 @@ async function integrationChecks() {
     const firstBoundary = await retained(boundaryOwner.id);
     assert.equal(firstBoundary.requests.length, 1); assert.equal(firstBoundary.stages.length, 0); assert.equal(firstBoundary.usage.length, 0);
     await insertLoops(29, false);
-    await assert.rejects(createDemandLoop(boundaryOwner, { curiosity: "A blocked thirty-first active loop", idempotencyKey: `${prefix}active-limit` }), code("loop_limit"));
-    assert.deepEqual(await retained(boundaryOwner.id), firstBoundary, "Rejected active-limit admission cannot create work or usage");
-    await archiveDemandLoop(boundaryOwner, admitted.loopId, { confirmed: true, baseRevision: 0, idempotencyKey: `${prefix}archive-active` });
-    const replacement = await createDemandLoop(boundaryOwner, { curiosity: "A replacement active constructed loop", idempotencyKey: `${prefix}active-replacement` });
+    const replacement = await createDemandLoop(boundaryOwner, { curiosity: "An allowed thirty-first active loop", idempotencyKey: `${prefix}active-thirty-first` });
     assert.equal(replacement.status, "queued"); assert.notEqual(replacement.loopId, admitted.loopId);
+    const firstLoopPage = await demandLoopPage(boundaryOwner, {});
+    assert.equal(firstLoopPage.loops.length, 30); assert.ok(firstLoopPage.nextCursor);
+    const secondLoopPage = await demandLoopPage(boundaryOwner, { cursor: firstLoopPage.nextCursor });
+    assert.equal(secondLoopPage.loops.length, 1); assert.equal(secondLoopPage.nextCursor, null);
+    assert.equal(new Set([...firstLoopPage.loops, ...secondLoopPage.loops].map((loop) => loop.id)).size, 31);
+    const exactOlderLoop = await demandLoopResult(boundaryOwner, secondLoopPage.loops[0].id);
+    assert.equal(exactOlderLoop.loops[0].id, secondLoopPage.loops[0].id);
+    await archiveDemandLoop(boundaryOwner, admitted.loopId, { confirmed: true, baseRevision: 0, idempotencyKey: `${prefix}archive-active` });
     const [loopCounts] = await database.execute<{ active: number; archived: number }>(sql`
       select count(*) filter (where archived_at is null)::integer as active,
         count(*) filter (where archived_at is not null)::integer as archived
@@ -337,9 +356,10 @@ async function integrationChecks() {
     assert.equal(finalBoundary.requests.reduce((sum, request) => sum + request.reservedMicrousd, 0), 1200000);
     assert.equal(finalBoundary.stages.length, 0); assert.equal(finalBoundary.usage.length, 0); assert.equal(finalBoundary.events.length, 0);
     const boundedWorkspace = await demandWorkspace(boundaryOwner);
-    assert.equal(boundedWorkspace.loops.length, 60);
+    assert.equal(boundedWorkspace.loops.length, 30);
     assert.equal(boundedWorkspace.loops.filter((loop) => !loop.archivedAt).length, 30);
-    assert.equal(boundedWorkspace.loops.filter((loop) => loop.archivedAt).length, 30);
+    assert.equal(boundedWorkspace.loops.filter((loop) => loop.archivedAt).length, 0);
+    assert.ok((await demandLoopResult(boundaryOwner, admitted.loopId)).loops[0].archivedAt);
     console.log("Disposable v10 integration passed: actual same/different-key concurrent sharing, lost-response recovery, private/public isolation,121-turn cursor history, exact article access, edit/remove/archive retention and unchanged request/history/provider ledgers. No provider or workflow calls.");
   } finally {
     if (ownerIds.length) await database.transaction(async (tx) => {
@@ -348,11 +368,30 @@ async function integrationChecks() {
       // same transaction; rollback restores them too if any cleanup step fails.
       await tx.execute(sql`alter table private.demand_share_operations disable trigger demand_share_operations_immutable`);
       await tx.execute(sql`alter table private.demand_public_shares disable trigger demand_public_shares_immutable`);
+      await tx.execute(sql`alter table private.demand_allowance_resets disable trigger demand_allowance_resets_immutable`);
+      await tx.execute(sql`alter table private.demand_allowance_reset_attempts disable trigger demand_allowance_reset_attempts_immutable`);
+      await tx.execute(sql`alter table private.demand_allowance_allocations disable trigger demand_allowance_allocations_immutable`);
+      await tx.execute(sql`alter table private.demand_allowance_carryovers disable trigger demand_allowance_carryovers_immutable`);
+      await tx.execute(sql`alter table private.demand_allowance_grants disable trigger demand_allowance_grants_immutable`);
+      await tx.execute(sql`alter table private.demand_principal_claims disable trigger demand_principal_claims_immutable`);
       const owners = sql.join(ownerIds.map((id) => sql`${id}::uuid`), sql`, `);
       await tx.execute(sql`delete from private.demand_share_operations where principal_id in (${owners})`);
       await tx.execute(sql`delete from private.demand_public_shares where principal_id in (${owners})`);
       await tx.execute(sql`delete from private.demand_loop_edits where principal_id in (${owners})`);
+      await tx.execute(sql`delete from private.demand_allowance_resets where principal_id in (${owners})`);
+      await tx.execute(sql`delete from private.demand_allowance_reset_attempts where principal_id in (${owners})`);
+      await tx.execute(sql`delete from private.demand_allowance_allocations where grant_id in (select id from private.demand_allowance_grants where principal_id in (${owners}))`);
+      await tx.execute(sql`delete from private.demand_allowance_carryovers where source_grant_id in (select id from private.demand_allowance_grants where principal_id in (${owners})) or target_grant_id in (select id from private.demand_allowance_grants where principal_id in (${owners}))`);
+      await tx.execute(sql`delete from private.demand_allowance_grants where principal_id in (${owners})`);
+      await tx.execute(sql`delete from private.demand_principal_claims where principal_id in (${owners}) or account_principal_id in (${owners})`);
       await tx.delete(demandPrincipals).where(inArray(demandPrincipals.id, ownerIds));
+      if (accountIds.length) await tx.execute(sql`delete from auth.users where id in (${sql.join(accountIds.map((id) => sql`${id}::uuid`), sql`, `)})`);
+      await tx.execute(sql`alter table private.demand_allowance_resets enable trigger demand_allowance_resets_immutable`);
+      await tx.execute(sql`alter table private.demand_allowance_reset_attempts enable trigger demand_allowance_reset_attempts_immutable`);
+      await tx.execute(sql`alter table private.demand_allowance_allocations enable trigger demand_allowance_allocations_immutable`);
+      await tx.execute(sql`alter table private.demand_allowance_carryovers enable trigger demand_allowance_carryovers_immutable`);
+      await tx.execute(sql`alter table private.demand_allowance_grants enable trigger demand_allowance_grants_immutable`);
+      await tx.execute(sql`alter table private.demand_principal_claims enable trigger demand_principal_claims_immutable`);
       await tx.execute(sql`alter table private.demand_share_operations enable trigger demand_share_operations_immutable`);
       await tx.execute(sql`alter table private.demand_public_shares enable trigger demand_public_shares_immutable`);
     });

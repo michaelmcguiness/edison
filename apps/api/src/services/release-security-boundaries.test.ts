@@ -83,7 +83,7 @@ test("Auth helper access uses only the bounded PG17 membership edge", () => {
   );
 });
 
-test("dashboard invitations target the SSR invite confirmation route", () => {
+test("invitation templates preserve exact invitation context and GET cannot consume tokens", () => {
   const inviteTemplate = source(
     "../../../../supabase/templates/invite.html",
   );
@@ -92,7 +92,7 @@ test("dashboard invitations target the SSR invite confirmation route", () => {
 
   assert.match(
     inviteTemplate,
-    /href="\{\{ \.SiteURL \}\}\/auth\/confirm\?token_hash=\{\{ \.TokenHash \}\}&amp;type=invite"/,
+    /href="\{\{ \.RedirectTo \}\}&amp;token_hash=\{\{ \.TokenHash \}\}&amp;type=invite"/,
   );
   assert.doesNotMatch(
     inviteTemplate,
@@ -100,12 +100,16 @@ test("dashboard invitations target the SSR invite confirmation route", () => {
   );
   assert.match(
     confirmRoute,
-    /verifyOtp\(\{\s*token_hash: tokenHash,\s*type: "invite",\s*\}\)/,
+    /verifyOtp\(\{ token_hash: context.tokenHash, type: context.type \}\)/,
   );
-  assert.match(
-    inviteScript,
-    /redirectTo: new URL\("\/auth\/confirm", webUrl\)\.toString\(\)/,
-  );
+  assert.match(inviteScript, /Direct Auth invitations are retired/);
+  assert.doesNotMatch(inviteScript, /inviteUserByEmail\(|createClient\(|process\.env/);
+  assert.doesNotMatch(confirmRoute.split("export async function POST")[0], /verifyOtp\(|memberApiFetch\(|redeemDemandInvitation\(/);
+  for (const template of ["magic-link", "confirmation"]) {
+    const markup = source(`../../../../supabase/templates/${template}.html`);
+    assert.match(markup, /href="\{\{ \.RedirectTo \}\}&amp;token_hash=\{\{ \.TokenHash \}\}&amp;type=email"/);
+    assert.doesNotMatch(markup, /ConfirmationURL|type=recovery|type=email_change/);
+  }
 });
 
 test("dispatch and reconciliation logs never serialize caught error objects", () => {

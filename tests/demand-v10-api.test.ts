@@ -89,11 +89,11 @@ const publicArticle = { version: 1 as const, title: "A synthetic shared explanat
   sources: [], sourceCount: 0, basis: "general_knowledge" as const, researchedAt: null, readingMinutes: 1, publishedAt: now, correction: null };
 const share = { token: "a".repeat(64), createdAt: now, article: publicArticle };
 
-test("recipient fetch and metadata use only validated public projection without private cookies or credentials", async () => {
-  const fetched = await fetchDemandPublicShare(share.token, { apiUrl: "https://api.example.org/v1", production: true, fetcher: (async (url, init) => {
+test("member recipient fetch uses a verified snapshot and bearer credential, never private cookies", async () => {
+  const fetched = await fetchDemandPublicShare(share.token, { apiUrl: "https://api.example.org/v1", production: true, accessToken: "synthetic-member-token", fetcher: (async (url, init) => {
     assert.equal(url, `https://api.example.org/v1/public/demand-shares/${share.token}`);
     assert.equal(init?.credentials, "omit"); assert.equal(init?.cache, "no-store");
-    assert.equal(init?.headers, undefined); assert.equal(init?.redirect, "error"); return Response.json(share);
+    assert.equal(new Headers(init?.headers).get("authorization"), "Bearer synthetic-member-token"); assert.equal(init?.redirect, "error"); return Response.json(share);
   }) as typeof fetch });
   assert.deepEqual(fetched, share);
   const metadata = demandPublicShareMetadata(fetched!);
@@ -108,12 +108,14 @@ test("public fetch refuses invalid tokens, unsafe targets, foreign identity and 
   let calls = 0;
   const fetcher = (async () => { calls++; return Response.json(share); }) as typeof fetch;
   for (const apiUrl of ["http://remote.example/v1", "https://user:pass@api.example/v1", "https://api.example/private", "https://api.example/v1?url=other"]) {
-    assert.equal(await fetchDemandPublicShare(share.token, { apiUrl, production: true, fetcher }), null);
+    assert.equal(await fetchDemandPublicShare(share.token, { apiUrl, production: true, accessToken: "synthetic-member-token", fetcher }), null);
   }
   assert.equal(await fetchDemandPublicShare("bad", { apiUrl: "https://api.example/v1", fetcher }), null);
   assert.equal(calls, 0);
+  await assert.rejects(() => fetchDemandPublicShare(share.token, { apiUrl: "https://api.example/v1", fetcher }), /Invited sign-in/);
+  assert.equal(calls, 0);
   for (const invalid of [{ ...share, ownerId: id(1) }, { ...share, article: { ...publicArticle, whyWritten: "private" } }, { ...share, token: "b".repeat(64) }]) {
-    await assert.rejects(() => fetchDemandPublicShare(share.token, { apiUrl: "https://api.example/v1", fetcher: (async () => Response.json(invalid)) as typeof fetch }));
+    await assert.rejects(() => fetchDemandPublicShare(share.token, { apiUrl: "https://api.example/v1", accessToken: "synthetic-member-token", fetcher: (async () => Response.json(invalid)) as typeof fetch }));
   }
 });
 

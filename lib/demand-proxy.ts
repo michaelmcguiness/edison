@@ -1,10 +1,10 @@
-import { demandWorkspaceSchema, parseDemandHistoryQuery, parseDemandConversationQuery } from "@edison/contracts";
+import { demandWorkspaceSchema, parseDemandHistoryQuery, parseDemandConversationQuery, parseDemandLoopsQuery } from "@edison/contracts";
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
 const routes: Record<string, RegExp[]> = {
-  GET: [/^workspace$/, /^history$/, new RegExp(`^ideas/${UUID}$`), new RegExp(`^requests/${UUID}$`),
+  GET: [/^workspace$/, /^history$/, /^loops$/, /^invitations$/, new RegExp(`^loops/${UUID}$`), new RegExp(`^ideas/${UUID}$`), new RegExp(`^requests/${UUID}$`),
     new RegExp(`^articles/${UUID}(?:/conversation)?$`)],
-  POST: [/^session$/, /^loops$/, new RegExp(`^loops/${UUID}/(?:ideas|feedback|edit|archive)$`), new RegExp(`^articles/${UUID}/share$`),
+  POST: [/^session$/, /^loops$/, /^allowance\/reset$/, /^invitations$/, new RegExp(`^invitations/${UUID}/(?:resend|revoke)$`), new RegExp(`^loops/${UUID}/(?:ideas|feedback|edit|archive)$`), new RegExp(`^articles/${UUID}/share$`),
     new RegExp(`^ideas/${UUID}/(?:article|questions)$`), new RegExp(`^requests/${UUID}/retry$`)],
   PUT: [new RegExp(`^ideas/${UUID}/events$`)],
 };
@@ -28,8 +28,9 @@ export async function proxyDemandRequest(request: Request, path: string, options
   const ownUrl = new URL(request.url);
   if (ownUrl.search) {
     const conversation = request.method === "GET" && new RegExp(`^articles/${UUID}/conversation$`).test(path);
-    if (path !== "history" && !conversation) return fail(400, "invalid_request", "Query parameters are not supported here.");
-    try { if (conversation) parseDemandConversationQuery(ownUrl.searchParams); else parseDemandHistoryQuery(ownUrl.searchParams); }
+    const loops = request.method === "GET" && path === "loops";
+    if (path !== "history" && !conversation && !loops) return fail(400, "invalid_request", "Query parameters are not supported here.");
+    try { if (conversation) parseDemandConversationQuery(ownUrl.searchParams); else if (loops) parseDemandLoopsQuery(ownUrl.searchParams); else parseDemandHistoryQuery(ownUrl.searchParams); }
     catch { return fail(400, "invalid_request", "That reading history request is not valid."); }
   }
   const origin = request.headers.get("origin");
@@ -107,8 +108,13 @@ export async function proxyDemandRequest(request: Request, path: string, options
       const payload = await response.json() as { workspace?: unknown; newGuestToken?: unknown };
       const workspace = demandWorkspaceSchema.parse(payload.workspace);
       if (payload.newGuestToken !== undefined) {
+        if (workspace.readerKind !== "guest") throw new Error("invalid_session_response");
         if (typeof payload.newGuestToken !== "string" || !/^[a-f0-9]{64}$/.test(payload.newGuestToken)) throw new Error("invalid_session_response");
         outputHeaders.set("Set-Cookie", `${cookieName}=${payload.newGuestToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=7776000${insecureLocal ? "" : "; Secure"}`);
+      } else if (workspace.readerKind === "account" && authorization && token) {
+        // Only a confirmed account-session response can retire a transferred
+        // guest credential. Failed claims must leave the original cookie intact.
+        outputHeaders.set("Set-Cookie", `${cookieName}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${insecureLocal ? "" : "; Secure"}`);
       }
       return Response.json({ workspace }, { status: response.status, headers: outputHeaders });
     }

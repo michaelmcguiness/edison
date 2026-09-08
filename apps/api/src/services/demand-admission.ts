@@ -1,15 +1,16 @@
 import { and, count, eq, inArray, sql } from "drizzle-orm";
 import { demandPrincipals, demandRequests, type DemandTransaction } from "@edison/db";
-import { assertDemandPrincipalActive } from "../auth/verify-demand-principal";
 import { HttpError } from "../http/errors";
 import { demandLimits } from "./demand-configuration";
 
 /** Fresh work and released-hold recovery must share this lock order. */
-export async function lockDemandAdmission(tx: DemandTransaction, principalId: string) {
+export async function lockDemandAdmission(tx: DemandTransaction, principalId: string, requireActive = true) {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended('edison-demand-admission', 0))`);
+  const [reader] = await tx.execute<{id:string}>(sql`select private.demand_reader_id(${principalId}::uuid) as id`);
+  if (reader?.id && reader.id !== principalId) await tx.select().from(demandPrincipals).where(eq(demandPrincipals.id,reader.id)).for("update");
   const [principal] = await tx.select().from(demandPrincipals).where(eq(demandPrincipals.id, principalId)).for("update").limit(1);
   if (!principal) throw new HttpError(401, "reading_session_required", "That reading session is unavailable.");
-  assertDemandPrincipalActive(principal);
+  if (!requireActive) return;
   const [active] = await tx.execute<{ active: boolean }>(sql`select private.demand_principal_is_active(${principalId}::uuid) as active`);
   if (active?.active !== true) throw new HttpError(401, "reading_session_required", "That reading session is unavailable.");
 }
@@ -49,7 +50,7 @@ export async function assertDemandAdmissionCapacity(tx: DemandTransaction, input
 }, environment: Readonly<Record<string, string | undefined>> = process.env) {
   const limits = demandLimits(environment);
   const [{ outstanding }] = await tx.select({ outstanding: count() }).from(demandRequests)
-    .where(and(eq(demandRequests.principalId, input.principalId), inArray(demandRequests.status, ["queued", "running"])));
+    .where(and(sql`private.demand_reader_id(${demandRequests.principalId})=private.demand_reader_id(${input.principalId}::uuid)`, inArray(demandRequests.status, ["queued", "running"])));
   if (outstanding >= limits.maxConcurrent) {
     throw new HttpError(429, "reading_busy", "Two requests are already being prepared. You can keep reading while they finish.");
   }
