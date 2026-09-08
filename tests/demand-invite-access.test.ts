@@ -21,7 +21,7 @@ function compile(path: string, imports: Record<string, unknown>, globals: Record
   return exports;
 }
 function context() { return { nonce: id(2), tokenHash: hash, type: "invite" as const, invitationId: id(1), returnPath: `/articles/${id(3)}`, createdAt: Date.now() }; }
-function route(options: { stored?: acceptance.InvitationAcceptance; current?: boolean; verifyError?: boolean; authThrows?: boolean; memberStatus?: number; redeemStatus?: number } = {}) {
+function route(options: { stored?: acceptance.InvitationAcceptance; current?: boolean; verifyError?: { status?: number; code?: string }; authThrows?: boolean; memberStatus?: number; redeemStatus?: number } = {}) {
   const calls: string[] = [];
   const verifiedHashes: string[] = [];
   const compiled = compile("app/auth/confirm/route.ts", {
@@ -30,7 +30,7 @@ function route(options: { stored?: acceptance.InvitationAcceptance; current?: bo
     "@/lib/supabase/server": { createClient: async () => ({ auth: {
       getUser: async () => { if (options.authThrows) throw new Error("synthetic transport failure"); return { data: { user: options.current ? { id: id(4) } : null } }; },
       getSession: async () => ({ data: { session: { access_token: "current-account-token" } } }),
-      verifyOtp: async (input: { token_hash: string }) => { calls.push("verify"); verifiedHashes.push(input.token_hash); return { error: options.verifyError ? {} : null, data: { session: { access_token: "confirmed-recipient-token" } } }; },
+      verifyOtp: async (input: { token_hash: string }) => { calls.push("verify"); verifiedHashes.push(input.token_hash); return { error: options.verifyError ?? null, data: { session: { access_token: "confirmed-recipient-token" } } }; },
     } }) },
     "@/lib/member-access": { memberApiFetch: async (path: string, token: string) => {
       calls.push(`${path}:${token}`); return Response.json({ member: true }, { status: path.endsWith("redeem") ? options.redeemStatus ?? 200 : options.memberStatus ?? 200 });
@@ -94,11 +94,21 @@ test("only same-origin exact-context POST verifies then redeems and returns to t
 });
 
 test("expired verification cannot activate and ambiguous redemption preserves retry context", async () => {
-  const expired = route({ stored: context(), verifyError: true });
+  const expired = route({ stored: context(), verifyError: { status: 403, code: "otp_expired" } });
   const failure = await expired.POST(post()); assert.match(failure.headers.get("location")!, /error=expired/); assert.deepEqual(expired.calls, ["verify"]);
   const unknown = route({ stored: context(), redeemStatus: 503 });
   const pending = await unknown.POST(post()); assert.match(pending.headers.get("location")!, /error=unconfirmed/); assert.equal(pending.headers.get("set-cookie"), null);
   assert.equal(unknown.calls.some((x) => x.startsWith("demand/access")), false);
+});
+
+test("verification throttling and transport uncertainty keep the same acceptance context without claiming expiry", async () => {
+  for (const status of [undefined, 408, 429, 500, 503]) {
+    const app = route({ stored: context(), verifyError: { status, code: status === 429 ? "over_request_rate_limit" : undefined } });
+    const result = await app.POST(post());
+    assert.match(result.headers.get("location")!, /error=unconfirmed/);
+    assert.equal(result.headers.get("set-cookie"), null);
+    assert.deepEqual(app.calls, ["verify"]);
+  }
 });
 
 test("existing wrong account is never silently exchanged for the invitation recipient", async () => {

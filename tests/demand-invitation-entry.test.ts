@@ -87,6 +87,15 @@ test("terminal expiry, unavailable and wrong-account states cannot offer accepta
   assert.equal(entry.acceptanceView({ hasContext: true, invitation: true, preview: "unconfirmed", error: "expired" }).action, "refresh", "unknown invitation status after OTP expiry is a read-only status check");
 });
 
+test("fresh invitation expiry, revocation and wrong-account state outrank stale Auth-link expiry", () => {
+  for (const [preview, title] of [["expired", "This invitation has expired."], ["unavailable", "This invitation is no longer available."], ["wrong_account", "Use the email this invitation was sent to."]] as const) {
+    const view = entry.acceptanceView({ hasContext: true, invitation: true, preview, error: "expired" });
+    assert.equal(view.title, title);
+    assert.equal(view.action, null);
+    assert.doesNotMatch(view.message, /new sign-in link|same invitation/);
+  }
+});
+
 test("ordinary email sign-in and invitation recovery use truthful distinct copy", () => {
   const normal = entry.acceptanceView({ hasContext: true, invitation: false, preview: "available" });
   assert.equal(normal.action, "signin");
@@ -149,6 +158,19 @@ test("actual page preserves exact nonce on unknown outcome and hides expired OTP
   assert.match(normal.html, /Continue signing in/);
   assert.doesNotMatch(normal.html, /received this invitation|Accept invitation/);
   assert.equal(normal.calls.length, 0);
+});
+
+test("actual page uses current terminal or wrong-account invitation recovery after Auth-link expiry", async () => {
+  for (const [state, title] of [["expired", "This invitation has expired."], ["unavailable", "This invitation is no longer available."], ["wrong_account", "Use the email this invitation was sent to."]] as const) {
+    const result = await page({ state }, "expired");
+    assert.ok(result.html.includes(`<h1>${title}</h1>`));
+    assert.doesNotMatch(result.html, /Get new sign-in link|same invitation|action="\/auth\/confirm"|Accept invitation/);
+    assert.match(result.html, /Already a member\? Sign in/);
+    if (state === "wrong_account") {
+      assert.match(result.html, /Use another account/);
+      assert.match(result.html, /name="next" value="\/auth\/accept"/);
+    }
+  }
 });
 
 test("login source exposes explicit controlled resend, no signup/provider-detail branch, and usable errors", () => {

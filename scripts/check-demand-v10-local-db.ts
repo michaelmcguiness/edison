@@ -135,7 +135,10 @@ async function integrationChecks() {
     }
     const [principal] = await database.insert(demandPrincipals).values({ id,
       accountUserId, guestTokenHash: account ? null : createHash("sha256").update(`${runId}:${id}`).digest("hex"),
-      expiresAt: account ? null : new Date(Date.now() + 3600000) }).returning();
+      // Keep the guest's active and expired fixture states on one database
+      // timeline; expiration must remain strictly after immutable creation.
+      createdAt: account ? undefined : sql`now() - interval '2 hours'`,
+      expiresAt: account ? null : sql`now() + interval '1 hour'` }).returning();
     ownerIds.push(id); return principal;
   }
   async function fixture(principalId: string, sourced = false) {
@@ -178,7 +181,11 @@ async function integrationChecks() {
     const principal = await owner(), foreign = await owner();
     const legacyGuest=await owner(false),legacyReading=await fixture(legacyGuest.id);
     await assert.rejects(createDemandArticleShare(legacyGuest,legacyReading.articleId,{confirmPublic:true,idempotencyKey:`${prefix}guest-denied`}),code("reading_session_expired"));
-    await database.update(demandPrincipals).set({expiresAt:new Date(Date.now()-1000)}).where(eq(demandPrincipals.id,legacyGuest.id));
+    const [expiredGuest] = await database.update(demandPrincipals)
+      .set({ expiresAt: sql`${demandPrincipals.createdAt} + interval '1 hour'` })
+      .where(eq(demandPrincipals.id, legacyGuest.id))
+      .returning({ validExpiredTimeline: sql<boolean>`${demandPrincipals.createdAt} < ${demandPrincipals.expiresAt} and ${demandPrincipals.expiresAt} < now()` });
+    assert.equal(expiredGuest.validExpiredTimeline, true);
     await assert.rejects(createDemandArticleShare(legacyGuest,legacyReading.articleId,{confirmPublic:true,idempotencyKey:`${prefix}expired-guest-denied`}),code("reading_session_expired"));
     const first = await fixture(principal.id), second = await fixture(principal.id, true), third = await fixture(foreign.id);
     // 121 real persisted turns exercise independent conversation pagination.

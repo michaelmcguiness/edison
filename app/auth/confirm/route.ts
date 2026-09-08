@@ -74,7 +74,12 @@ export async function POST(request: Request) {
       accessToken = existing.data.session?.access_token;
     } else {
       const verified = await supabase.auth.verifyOtp({ token_hash: context.tokenHash, type: context.type });
-      if (verified.error) return back(verified.error.status && verified.error.status >= 500 ? "unconfirmed" : "expired");
+      if (verified.error) {
+        const status = verified.error.status;
+        // Throttling and transport uncertainty do not establish token expiry.
+        // Retain the existing context instead of prompting another email send.
+        return back(!status || status === 408 || status === 429 || status >= 500 ? "unconfirmed" : "expired");
+      }
       accessToken = verified.data.session?.access_token;
     }
     if (!accessToken) return back("unavailable");
