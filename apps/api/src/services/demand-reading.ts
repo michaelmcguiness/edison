@@ -114,13 +114,14 @@ export function rejectDistinctPendingIdeasRequest(
 export async function demandWorkspace(principal: DemandPrincipal): Promise<DemandWorkspace> {
   const page = await demandLoopPage(principal,{});
   const allowance = await demandAllowance(principal);
-  const workspace = await withDemandDb(principal.id,async(tx)=>{
+  const account = Boolean(principal.accountUserId);
+  const canCreateLoop = account || await withDemandDb(principal.id,async(tx)=>{
     const [{size}]=await tx.select({size:count()}).from(demandLoops).where(inArray(demandLoops.principalId,demandOwnerIds(principal)));
-    const account=Boolean(principal.accountUserId);
-    return demandWorkspaceSchema.parse({workspaceId:demandWorkspaceId(principal),readerKind:account?"account":"guest",
-      loops:page.loops,ideas:page.ideas,requests:page.requests,loopsNextCursor:page.nextCursor,allowance,
-      accountGate:{canCreateLoop:account||size===0,canRefresh:account,reason:account?null:"account_required"}});
+    return size === 0;
   });
+  const workspace = demandWorkspaceSchema.parse({workspaceId:demandWorkspaceId(principal),readerKind:account?"account":"guest",
+    loops:page.loops,ideas:page.ideas,requests:page.requests,loopsNextCursor:page.nextCursor,allowance,
+    accountGate:{canCreateLoop,canRefresh:account,reason:account?null:"account_required"}});
   const candidates=workspace.requests.filter(request=>request.failure?.code==="provider_invalid").map(request=>request.id);
   const owners=candidates.length?await withDemandDb(principal.id,tx=>tx.select({id:demandRequests.id,principalId:demandRequests.principalId}).from(demandRequests)
     .where(inArray(demandRequests.id,candidates)).orderBy(desc(demandRequests.updatedAt)).limit(8)):[];

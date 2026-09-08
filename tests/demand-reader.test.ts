@@ -107,7 +107,7 @@ test("the demand reader renders only persisted workspace ideas and truthful requ
   const html = renderToStaticMarkup(createElement(DemandReader, properties));
 
   assert.match(html, /A topic returned by the server/);
-  assert.match(html, /Curate/);
+  assert.match(html, />Edit loop</);
   assert.doesNotMatch(html, /Shade is infrastructure/, "superseded choices remain in history, not the current set");
   assert.match(html, /The night that never cools/);
   assert.match(html, /Checking explanation…/);
@@ -309,7 +309,8 @@ test("the approved dialogs remain bounded, responsive, touch-sized and reduced-m
 test("pending work is recovered from the server workspace and next-reading copy does not claim unwritten content is ready", () => {
   assert.match(readerSource, /workspace\?\.requests\.some/);
   assert.match(readerSource, /client\.getDemandWorkspace\(\)/);
-  assert.match(readerSource, /client\.getDemandResult\(selectedRequestId\)/);
+  assert.match(readerSource, /const requestId = selectedRequestId/);
+  assert.match(readerSource, /client\.getDemandResult\(requestId\)/);
   assert.match(readerSource, /setSelectedRequestId\(idea\.articleRequestId\)/);
   assert.match(readerSource, /!nextIdea\.articleRequestId \|\| nextRequest\?\.status === "succeeded"/);
   assert.match(readerSource, /nextRequest\?\.status === "succeeded" \? "Next article" : "View next article"/);
@@ -321,7 +322,8 @@ test("pending work is recovered from the server workspace and next-reading copy 
 
 test("article completion cannot steal navigation and reading progress starts at the article top", () => {
   assert.match(readerSource, /view !== "request"/);
-  assert.match(readerSource, /selectedRequestIdeaId !== selectedIdeaId/);
+  assert.match(readerSource, /selectedRequest\.ideaId !== selectedIdeaId/);
+  assert.match(readerSource, /result\.request\.id !== requestId \|\| result\.request\.ideaId !== ideaId/);
   assert.match(readerSource, /setSelectedRequestId\(idea\.articleRequestId\)/);
   assert.match(readerSource, /window\.scrollTo\(0, 0\)/);
   assert.match(readerSource, /window\.scrollTo\(0, origin.scrollY\)/);

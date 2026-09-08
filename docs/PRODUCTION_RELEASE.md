@@ -6,7 +6,26 @@ launching; they can change without a code release.
 
 ## Decision and current status
 
-### September 8 — D50 checker-format correction live
+### September 8 — first generation-delivery speed increment live
+
+Both production projects run `3a526fad880bdb389b0560805ce96957898986cf`:
+API `dpl_D1uSkD5rV3Cu5snw5u6RYX1f26qV`, READY17:31:25.851 UTC;
+web `dpl_5pXE8cMFCnqspuxDkB71KcgZeAoj`, READY17:33:04.250 UTC.
+Exact-source CI34256980244 passed1,078 application tests,320 pgTAP assertions,
+seven disposable DB proofs, types/lint/builds and schema lint. Independent source,
+CI and live identity/alias/schedule reviews are closed; public smoke passed
+17:36:54.432 UTC. All existing destinations, schedules and spending caps remain.
+
+Known articles now read result/body immediately, loop polling survives unrelated
+updates, verified accounts skip an unused database transaction and settlement
+reads less data. The approved **Edit loop** label is restored. This improves
+finished-result delivery; no actual model-generation speedup was measured.
+Writing/checking/models remain unchanged. No new paid generation, QA identity,
+mail, migration, Auth, secret, domain or tier change occurred. The next bounded
+Fast candidate remains off by default pending exact accounting/replay review.
+See the [generation-latency receipt](operations/GENERATION_LATENCY_RELEASE_2026-09-08.md) for evidence and limits.
+
+### Previous — September 8 D50 checker-format correction live
 
 API source `bd528f59145f0878351d665f444d945c8ebdaf31` is live as
 `dpl_3TUAXZC4E5poyaf61sF1jZVyb8zm`, READY 16:17:56.361 UTC. Exact-source

@@ -79,6 +79,6 @@ export function ReaderShell({ loops, activeLoopId, children, onSelectLoop, onAdd
       <button type="button" className="demand-new-loop" onClick={onAddLoop} aria-label="Add a learning loop"><Plus aria-hidden="true" /><span>New loop</span></button>
     </nav> : null}
     <div className="pulse-main">{children}</div>
-    {showEditLoop ? <button type="button" className="pulse-curate-fab" onClick={onEditLoop}><Pencil aria-hidden="true" /><span>Curate</span></button> : null}
+    {showEditLoop ? <button type="button" className="pulse-curate-fab" onClick={onEditLoop}><Pencil aria-hidden="true" /><span>Edit loop</span></button> : null}
   </div></div>;
 }

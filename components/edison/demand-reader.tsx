@@ -670,6 +670,7 @@ export function DemandReader({
   const [retryingRequestId, setRetryingRequestId] = useState<string | null>(null);
   const [resultLoadNonce, setResultLoadNonce] = useState(0);
   const [resultLoadFailed, setResultLoadFailed] = useState(false);
+  const selectedResultPoll = useRef<{ wake: () => void } | null>(null);
   const [returnTarget, setReturnTarget] = useState<ReturnTarget | null>(null);
   const [pageError, setPageError] = useState("");
   const [canContinueAccount, setCanContinueAccount] = useState(false);
@@ -1094,8 +1095,11 @@ export function DemandReader({
 
   const selectedRequest = readingRecords.requests.find(({ id }) => id === selectedRequestId);
   const selectedRequestStatus = selectedRequest?.status;
-  const selectedRequestIdeaId = selectedRequest?.ideaId;
+  const selectedRequestLoopId = readingRecords.ideas.find(({ id }) => id === selectedIdeaId)?.loopId;
+  const selectedRequestFailed = selectedRequestStatus === "failed";
   const canonicalArticleRequestId = readingRecords.ideas.find(({ id }) => id === selectedIdeaId)?.articleRequestId;
+  const selectedRequestMismatch = Boolean((canonicalArticleRequestId && canonicalArticleRequestId !== selectedRequestId) ||
+    (selectedRequest && (selectedRequest.ideaId !== selectedIdeaId || selectedRequest.loopId !== selectedRequestLoopId || selectedRequest.kind !== "article")));
   // A workspace poll for unrelated work can discover this admission too. Bind
   // its canonical identity even when the initial POST never returned an ID.
   useEffect(() => {
@@ -1184,61 +1188,82 @@ export function DemandReader({
     return () => { current = false; clearTimeout(timer); };
   }, [historicalPending, historyPollKey, historyReader, loadHistoryPage]);
 
-  const selectedPendingOutsidePage = Boolean(selectedIdeaId && (selectedRequestStatus === "queued" || selectedRequestStatus === "running") &&
-    !history.window?.page?.requests.some(({ id }) => id === selectedRequestId));
   useEffect(() => {
-    if (!selectedIdeaId || !selectedPendingOutsidePage || (view !== "request" && view !== "article")) return;
+    if (view !== "request" || !selectedRequestId || !selectedIdeaId || !selectedRequestLoopId || selectedRequestFailed || selectedRequestMismatch) return;
+    const workspaceId = workspaceIdentityRef.current;
+    const intent = navigationIntentRef.current;
     const ideaId = selectedIdeaId;
+    const requestId = selectedRequestId;
+    const loopId = selectedRequestLoopId;
     let current = true;
-    let timer: ReturnType<typeof setTimeout>;
-    const refresh = async () => {
-      try { await recoverIdea(ideaId); }
-      catch (error) { if (current && selectedIdeaRef.current === ideaId) setPageError(readableError(error)); }
-      if (current) timer = setTimeout(refresh, 2_000);
-    };
-    timer = setTimeout(refresh, 2_000);
-    return () => { current = false; clearTimeout(timer); };
-  }, [recoverIdea, selectedIdeaId, selectedPendingOutsidePage, view]);
-  useEffect(() => {
-    if (
-      view !== "request" ||
-      !selectedRequestId ||
-      !selectedIdeaId ||
-      (selectedRequestStatus && (selectedRequestStatus !== "succeeded" || selectedRequestIdeaId !== selectedIdeaId))
-    ) return;
-    const resultIdeaId = selectedIdeaId;
-    let current = true;
+    let inFlight = false;
+    let stopped = false;
+    let retryableReadFailure = false;
     let retries = 0;
-    let retryTimer: ReturnType<typeof setTimeout> | undefined;
-    const load = () => { void client.getDemandResult(selectedRequestId)
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const isCurrent = () => current && mountedRef.current && workspaceIdentityRef.current === workspaceId &&
+      selectedIdeaRef.current === ideaId && navigationIntentRef.current === intent;
+    const schedule = (delay: number) => { timer = setTimeout(load, delay); };
+    const load = () => {
+      if (!isCurrent() || stopped || inFlight) return;
+      if (timer !== undefined) clearTimeout(timer);
+      inFlight = true;
+      void client.getDemandResult(requestId)
       .then((result) => {
-        if (!current || selectedIdeaRef.current !== resultIdeaId) return;
-        if (result.request.ideaId !== resultIdeaId) throw new Error("Edison returned a different article request.");
-        publishWorkspace(workspaceResponses.recoverRequest(result.request));
-        if (!result.article) {
-          if (result.request.status === "succeeded") throw new Error("Edison returned a ready request without its article.");
+        if (!isCurrent()) return;
+        if (result.request.id !== requestId || result.request.ideaId !== ideaId || result.request.loopId !== loopId || result.request.kind !== "article" ||
+          (result.article && result.article.id !== requestId)) {
+          stopped = true;
+          throw new Error("Edison returned a different article request.");
+        }
+        const recovered = workspaceResponses.recoverRequest(result.request);
+        if (!publishWorkspace(recovered) || !isCurrent()) return;
+        // A newer workspace response can already own a terminal outcome. Do
+        // not let this read's older status restart or publish over that state.
+        const status = demandHistoryRecords(recovered, historyReader.snapshot()).requests.find(({ id }) => id === requestId)?.status;
+        if (status === "failed") { stopped = true; return; }
+        if (status !== "succeeded" || result.request.status !== "succeeded") {
+          retries = 0; schedule(2_000);
           return;
         }
+        if (!result.article) throw new Error("Edison returned a ready request without its article.");
+        stopped = true;
         setSelectedArticle(result.article);
         setResultLoadFailed(false);
         setPageError("");
         setView("article");
       })
       .catch((error) => {
-        if (!current || selectedIdeaRef.current !== resultIdeaId) return;
-        if (ambiguousArticleAdmission(error) && retries < 3) {
-          retryTimer = setTimeout(load, [1_200, 2_500, 5_000][retries++]);
+        if (!isCurrent()) return;
+        if (!stopped && ambiguousArticleAdmission(error) && retries < 3) {
+          schedule([1_200, 2_500, 5_000][retries++]);
           return;
         }
+        retryableReadFailure = !stopped && ambiguousArticleAdmission(error);
+        stopped = true;
         setResultLoadFailed(true);
         setPageError(readableError(error));
-      }); };
+      }).finally(() => { inFlight = false; });
+    };
+    const poll = { wake: () => {
+      if (retryableReadFailure) { stopped = false; retryableReadFailure = false; retries = 0; }
+      load();
+    } };
+    selectedResultPoll.current = poll;
+    // A known request already has a result endpoint; read it immediately,
+    // including its published body, without a preceding metadata roundtrip.
     load();
     return () => {
       current = false;
-      if (retryTimer !== undefined) clearTimeout(retryTimer);
+      if (timer !== undefined) clearTimeout(timer);
+      if (selectedResultPoll.current === poll) selectedResultPoll.current = null;
     };
-  }, [client, publishWorkspace, resultLoadNonce, selectedIdeaId, selectedRequestIdeaId, selectedRequestStatus, selectedRequestId, view, workspaceResponses]);
+  }, [client, historyReader, publishWorkspace, resultLoadNonce, selectedIdeaId, selectedRequestLoopId, selectedRequestFailed, selectedRequestMismatch, selectedRequestId, view, workspaceResponses, workspace?.workspaceId]);
+  useEffect(() => {
+    // Workspace/history reads may learn completion first. Wake the existing
+    // loop, never replace it or duplicate an in-flight result read.
+    if (selectedRequestStatus === "succeeded") selectedResultPoll.current?.wake();
+  }, [selectedRequestId, selectedRequestStatus]);
 
   const feedbackRequest = workspace?.requests.find(({ id }) => id === feedbackRequestId);
   useEffect(() => {
@@ -1346,22 +1371,27 @@ export function DemandReader({
       requestedBatches.current.delete(loopId);
     }
   }, [combinedIdeas, workspace, view, activeLoopId, projection]);
+  const offWindowPollKey = workspace ? JSON.stringify([workspace.workspaceId,
+    offWindowPendingLoops(workspace, projection.requests, requestedBatches.current.keys()).sort().map((loopId) => [loopId,
+      projection.requests.filter((request) => request.loopId === loopId && request.kind === "ideas" && (request.status === "queued" || request.status === "running")).map(({ id }) => id).sort(),
+      requestedBatches.current.get(loopId)?.requestId ?? null])]) : null;
   useEffect(() => {
-    if (!workspace) return;
-    const offWindow = offWindowPendingLoops(workspace, projection.requests, requestedBatches.current.keys());
-    if (!offWindow.length) return;
+    if (!offWindowPollKey) return;
+    const [workspaceId, pending] = JSON.parse(offWindowPollKey) as [string, [string, string[], string | null][]];
+    if (!pending.length) return;
     let current = true;
     let timer: ReturnType<typeof setTimeout>;
+    const isCurrent = () => current && workspaceIdentityRef.current === workspaceId;
     const refresh = async () => {
-      await Promise.all([...offWindow].map(async (loopId) => {
-        try { const page = await client.getDemandLoop(loopId); if (current) acceptLoopPage(page, true); }
-        catch (error) { if (current) setLoopsError(readableError(error)); }
+      await Promise.all(pending.map(async ([loopId]) => {
+        try { const page = await client.getDemandLoop(loopId); if (isCurrent()) acceptLoopPage(page, true); }
+        catch (error) { if (isCurrent()) setLoopsError(readableError(error)); }
       }));
-      if (current) timer = setTimeout(() => void refresh(), 2000);
+      if (isCurrent()) timer = setTimeout(() => void refresh(), 2000);
     };
     timer = setTimeout(() => void refresh(), 1500);
     return () => { current = false; clearTimeout(timer); };
-  }, [workspace, projection, client, acceptLoopPage, ideasSubmittingLoopId]);
+  }, [offWindowPollKey, client, acceptLoopPage]);
   const retainedIdeas = retainedFeedSet && retainedFeedSet.workspaceId === workspace?.workspaceId && retainedFeedSet.view === view && (view !== "loop" || retainedFeedSet.loopId === activeLoopId)
     ? retainedFeedSet.ideas.map((idea) => readingRecords.ideas.find(({ id }) => id === idea.id) ?? idea) : null;
   const feedIdeas = retainedIdeas ?? combinedIdeas;
@@ -2037,7 +2067,7 @@ export function DemandReader({
               {request.failure?.retryable ? "Try again" : "Back to your loops"}
             </button>
           ) : null}
-          {(!request || request.status === "succeeded") && !selectedArticle && resultLoadFailed ? (
+          {request?.status !== "failed" && !selectedArticle && resultLoadFailed ? (
             <button type="button" onClick={() => { setResultLoadFailed(false); setResultLoadNonce((value) => value + 1); }}>
               Load article again
             </button>

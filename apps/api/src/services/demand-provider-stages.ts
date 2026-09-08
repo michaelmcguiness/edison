@@ -254,7 +254,7 @@ const databaseStore: DemandStageStore = {
       const sameLease = stage.leaseExpiresAt?.getTime() === result.stage.leaseExpiresAt.getTime();
       const returnedExpectedModel = result.usage.model === result.identity.snapshot.model || (result.usage.model.startsWith(`${result.identity.snapshot.model}-`) && /^\d{4}-\d{2}-\d{2}$/.test(result.usage.model.slice(result.identity.snapshot.model.length + 1)));
       const withinBudget = Boolean(request && totalSpent <= request.reservedMicrousd);
-      const previousStages = await tx.select().from(demandStages).where(and(eq(demandStages.requestId, result.identity.requestId), eq(demandStages.principalId, result.identity.principalId)));
+      const previousStages = await tx.select({ id: demandStages.id, snapshot: demandStages.snapshot, usage: demandStages.usage }).from(demandStages).where(and(eq(demandStages.requestId, result.identity.requestId), eq(demandStages.principalId, result.identity.principalId)));
       const totalToolCalls = demandRecordedSearchToolCalls([...previousStages.filter((previous) => previous.id !== stage.id), { snapshot: stage.snapshot, usage: result.usage }]);
       const withinProviderLimits = demandUsageWithinProviderLimits(result.identity.snapshot, result.usage, totalToolCalls);
       const usable = !result.invalid && Boolean(result.response) && pricing.pricingStatus === "priced" && returnedExpectedModel && withinBudget && withinProviderLimits && stage.status === "reserved" && sameLease && Boolean(stage.leaseExpiresAt && stage.leaseExpiresAt > now) && Boolean(principal && access?.active) && request?.status === "running";
