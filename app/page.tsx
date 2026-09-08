@@ -1,13 +1,33 @@
-import { redirect } from "next/navigation";
 import { EdisonApp } from "./reader";
 import { getWebAppMode } from "@/lib/app-mode";
 import { createClient } from "@/lib/supabase/server";
 import { EdisonMark } from "@/components/edison/brand";
+import { DemandReader } from "@/components/edison/demand-reader";
+import { requireMemberSession } from "@/lib/member-access";
+import "./demand.css";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const mode = getWebAppMode();
+  if (mode === "live") {
+    const query = await searchParams;
+    await requireMemberSession(typeof query.idea === "string" ? `/?idea=${query.idea}` : "/");
+  }
+  let returnHomeToDemand = false;
+  if (mode === "live" && process.env.EDISON_ON_DEMAND_ENABLED === "true") {
+    const query = await searchParams;
+    // Preserve the existing account link without opening a general legacy-view
+    // switch. Its normal Auth check and guest restrictions still apply below.
+    const accountProfile = query.view === "profile" && Object.keys(query).length === 1;
+    if (!accountProfile) return <DemandReader />;
+    returnHomeToDemand = true;
+  }
+
   if (mode !== "live") {
     if (mode === "setup") {
       return (
@@ -27,7 +47,7 @@ export default async function Home() {
 
     return (
       <EdisonApp
-        reader={{ name: "Michael", email: "reader@edison.local" }}
+        reader={{ name: "", email: "" }}
         dataMode="prototype"
         prototypeResearchedAt={new Date().toISOString()}
       />
@@ -35,18 +55,39 @@ export default async function Home() {
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.getClaims();
-  if (error || !data?.claims) redirect("/login");
+  const { data } = await supabase.auth.getClaims();
+  const requestedAt = new Date().toISOString();
+
+  // Ready public reading is intentionally available before authentication.
+  // Private API calls remain bearer-authenticated in the client.
+  if (!data?.claims) {
+    return (
+      <EdisonApp
+        reader={{ name: "", email: "" }}
+        dataMode="guest"
+        returnHomeToDemand={returnHomeToDemand}
+        prototypeResearchedAt={requestedAt}
+      />
+    );
+  }
 
   const claims = data.claims as {
+    sub?: string;
     email?: string;
     user_metadata?: { display_name?: string; full_name?: string };
   };
-  const email = claims.email ?? "reader@edison.local";
+  const email = claims.email ?? "";
   const name =
     claims.user_metadata?.display_name ??
     claims.user_metadata?.full_name ??
-    email.split("@")[0];
+    email.split("@")[0] ?? "";
 
-  return <EdisonApp reader={{ name, email }} dataMode="live" />;
+  return (
+    <EdisonApp
+      reader={{ id: claims.sub, name, email }}
+      dataMode="live"
+      returnHomeToDemand={returnHomeToDemand}
+      prototypeResearchedAt={requestedAt}
+    />
+  );
 }

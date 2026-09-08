@@ -1,0 +1,326 @@
+<div id="edison-personal-publication" aria-label="Edison personal publication design reference">
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Libre+Caslon+Display&family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Libre+Franklin:wght@400;500;600&family=Newsreader:opsz,wght@6..72,700&display=swap");
+    #edison-personal-publication { --pp-paper:#fcfbf8; --pp-surface:#fff; --pp-ink:#0b0b0b; --pp-soft:#30302e; --pp-caption:#6d6b67; --pp-rule:#d9d7d2; --pp-red:#d12f32; font-family:"Libre Franklin",Arial,sans-serif; color:var(--pp-ink); width:100%; }
+    #edison-personal-publication * { box-sizing:border-box; }
+    #edison-personal-publication [hidden] { display:none!important; }
+    #edison-personal-publication button,#edison-personal-publication input,#edison-personal-publication textarea,#edison-personal-publication select { font:inherit; }
+    #edison-personal-publication button { cursor:pointer; }
+    #edison-personal-publication .pp-reference { display:flex; flex-wrap:wrap; align-items:center; gap:8px 20px; color:var(--pp-caption); background:var(--pp-surface); padding:12px 20px; border-bottom:1px solid var(--pp-rule); font-size:11px; }
+    #edison-personal-publication .pp-reference label { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+    #edison-personal-publication .pp-reference select { max-width:100%; color:var(--pp-ink); background:var(--pp-surface); border:1px solid var(--pp-caption); border-radius:2px; min-height:44px; padding:8px; font-size:12px; }
+    #edison-personal-publication .pp-reference button { color:var(--pp-ink); background:transparent; border:0; text-decoration:underline; text-underline-offset:4px; min-height:44px; padding:6px 0; font-size:12px; }
+    #edison-personal-publication .pp-paper { background:var(--pp-paper); color-scheme:light; padding:0 clamp(24px,4vw,50px); }
+    #edison-personal-publication .pp-shell { max-width:1280px; margin:0 auto; }
+    #edison-personal-publication .pp-masthead { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:16px; min-height:96px; }
+    #edison-personal-publication .pp-desk { font-size:11px; letter-spacing:.11em; text-transform:uppercase; font-weight:600; }
+    #edison-personal-publication .pp-brand { display:inline-flex; align-items:center; gap:7px; background:transparent; border:0; color:var(--pp-ink); padding:0; min-height:44px; }
+    #edison-personal-publication .pp-brand img { width:31px; height:31px; }
+    #edison-personal-publication .pp-wordmark { font-family:"Newsreader",Georgia,serif; font-weight:700; font-size:30.4px; letter-spacing:-.03em; line-height:.82; }
+    #edison-personal-publication .pp-profile { justify-self:end; border:0; background:transparent; color:var(--pp-ink); width:44px; height:44px; display:grid; place-items:center; border-radius:50%; }
+    #edison-personal-publication .pp-avatar { display:grid; place-items:center; height:34px; width:34px; border:1px solid var(--pp-caption); border-radius:50%; font-size:12px; }
+    #edison-personal-publication .pp-avatar svg { width:17px; height:17px; }
+    #edison-personal-publication .pp-promise { margin:-7px 0 26px; text-align:center; font-family:"Libre Caslon Text",Georgia,serif; color:var(--pp-soft); font-size:13px; line-height:1.5; }
+    #edison-personal-publication .pp-folio { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px 20px; padding:18px 0; border-top:1px solid var(--pp-rule); border-bottom:1px solid var(--pp-ink); font-size:11px; }
+    #edison-personal-publication .pp-folio-label { letter-spacing:.08em; text-transform:uppercase; font-weight:600; }
+    #edison-personal-publication .pp-personal { font-family:"Libre Caslon Text",Georgia,serif; font-size:13px; font-style:italic; }
+    #edison-personal-publication .pp-date { color:var(--pp-caption); font-variant-numeric:tabular-nums; }
+    #edison-personal-publication .pp-steering { padding:23px 0 27px; border-bottom:1px solid var(--pp-rule); }
+    #edison-personal-publication .pp-steering-top { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:6px; }
+    #edison-personal-publication .pp-steering label { font-size:12px; font-weight:500; }
+    #edison-personal-publication .pp-text-action { min-height:44px; display:inline-flex; align-items:center; gap:7px; border:0; background:transparent; color:var(--pp-ink); padding:7px 0; font-size:12px; text-align:left; }
+    #edison-personal-publication .pp-text-action svg { width:16px; height:16px; stroke-width:1.6; }
+    #edison-personal-publication .pp-direction-link { font-size:11px; color:var(--pp-caption); }
+    #edison-personal-publication .pp-input-row { display:flex; align-items:center; max-width:640px; border:1px solid var(--pp-caption); background:var(--pp-surface); border-radius:2px; padding:3px 4px 3px 14px; }
+    #edison-personal-publication .pp-input-row textarea { min-width:0; flex:1; min-height:46px; padding:11px 0; border:0; color:var(--pp-ink); background:transparent; font-size:16px; line-height:1.45; resize:vertical; }
+    #edison-personal-publication .pp-input-row textarea::placeholder { color:var(--pp-caption); opacity:1; }
+    #edison-personal-publication .pp-apply { display:grid; place-items:center; min-width:44px; height:44px; border:0; color:var(--pp-ink); background:transparent; }
+    #edison-personal-publication .pp-apply svg { height:18px; width:18px; stroke-width:1.5; }
+    #edison-personal-publication .pp-options { display:flex; align-items:center; flex-wrap:wrap; gap:8px 20px; padding-top:12px; }
+    #edison-personal-publication .pp-scope { display:flex; align-items:center; gap:8px; }
+    #edison-personal-publication .pp-scope select { min-height:44px; font-size:12px; background:transparent; color:var(--pp-ink); border:1px solid var(--pp-caption); border-radius:2px; padding:8px; }
+    #edison-personal-publication .pp-help { font-size:11px; color:var(--pp-caption); line-height:1.5; }
+    #edison-personal-publication .pp-receipt { margin:17px 0 0; padding:15px 0 0; border-top:1px solid var(--pp-rule); }
+    #edison-personal-publication .pp-receipt p { margin:0; color:var(--pp-soft); font-size:12px; line-height:1.65; max-width:640px; }
+    #edison-personal-publication .pp-receipt-actions { display:flex; flex-wrap:wrap; gap:20px; }
+    #edison-personal-publication .pp-receipt-actions button { text-decoration:underline; text-underline-offset:4px; }
+    #edison-personal-publication .pp-error { margin:12px 0 0; color:var(--pp-ink); font-size:12px; line-height:1.5; }
+    #edison-personal-publication .pp-feed { padding:33px 0 0; }
+    #edison-personal-publication .pp-lead { display:grid; grid-template-columns:1.52fr 1fr; align-items:start; gap:38px; padding-bottom:34px; }
+    #edison-personal-publication .pp-kicker { margin:0 0 13px; font-size:11px; line-height:1.3; text-transform:uppercase; letter-spacing:.11em; font-weight:600; color:var(--pp-red); }
+    #edison-personal-publication .pp-headline { font-family:"Libre Caslon Display",Georgia,serif; font-size:clamp(48px,6.2vw,76px); line-height:.98; letter-spacing:-.018em; font-weight:400; margin:0; }
+    #edison-personal-publication .pp-title-link { font:inherit; line-height:inherit; letter-spacing:inherit; display:block; color:var(--pp-ink); background:transparent; border:0; text-align:left; padding:0; }
+    #edison-personal-publication .pp-dek { margin:21px 0 0; font-family:"Libre Caslon Text",Georgia,serif; font-size:19px; line-height:1.45; color:var(--pp-soft); }
+    #edison-personal-publication .pp-meta { margin:16px 0 0; font-size:11px; line-height:1.5; color:var(--pp-caption); }
+    #edison-personal-publication .pp-lead-note { border-left:1px solid var(--pp-rule); padding:4px 0 0 28px; margin-top:28px; }
+    #edison-personal-publication .pp-lead-note .pp-note-label { margin:0 0 18px; font-family:"Libre Caslon Text",Georgia,serif; font-size:13px; font-style:italic; color:var(--pp-caption); }
+    #edison-personal-publication .pp-opening { font-family:"Libre Caslon Text",Georgia,serif; font-size:17px; color:var(--pp-soft); line-height:1.65; margin:0 0 13px; }
+    #edison-personal-publication .pp-reason { font-size:11px; color:var(--pp-caption); line-height:1.5; }
+    #edison-personal-publication .pp-reason summary { min-height:44px; padding:12px 0; cursor:pointer; }
+    #edison-personal-publication .pp-reason p { margin:0 0 10px; }
+    #edison-personal-publication .pp-story-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px 26px; border-top:1px solid var(--pp-rule); padding:25px 0; }
+    #edison-personal-publication .pp-row-title { font-family:"Libre Caslon Text",Georgia,serif; font-size:26px; line-height:1.1; letter-spacing:-.012em; font-weight:700; margin:0; max-width:780px; }
+    #edison-personal-publication .pp-row-dek { font-family:"Libre Caslon Text",Georgia,serif; font-size:16px; line-height:1.5; color:var(--pp-soft); margin:12px 0 0; max-width:760px; }
+    #edison-personal-publication .pp-save { display:grid; place-items:center; border:0; background:transparent; color:var(--pp-ink); width:44px; height:44px; }
+    #edison-personal-publication .pp-save svg { height:19px; width:19px; stroke-width:1.6; }
+    #edison-personal-publication .pp-save[aria-pressed="true"] { text-decoration:underline; font-size:11px; }
+    #edison-personal-publication .pp-end { border-top:1px solid var(--pp-rule); text-align:center; padding:34px 24px 22px; }
+    #edison-personal-publication .pp-end h2 { font-family:"Libre Caslon Text",Georgia,serif; font-size:19px; line-height:1.4; font-weight:400; margin:0 0 9px; }
+    #edison-personal-publication .pp-end p { font-size:12px; line-height:1.5; color:var(--pp-caption); margin:0; }
+    #edison-personal-publication .pp-bottom { display:flex; justify-content:space-between; align-items:center; gap:24px; padding:22px 0 30px; }
+    #edison-personal-publication .pp-bottom small { font-size:11px; color:var(--pp-caption); line-height:1.5; }
+    #edison-personal-publication .pp-create { flex-shrink:0; min-width:52px; height:52px; display:grid; place-items:center; border:0; border-radius:50%; background:var(--pp-ink); color:var(--pp-paper); }
+    #edison-personal-publication .pp-create svg { height:22px; width:22px; stroke-width:1.5; }
+    #edison-personal-publication .pp-reader { max-width:40rem; margin:auto; padding:24px 0 32px; }
+    #edison-personal-publication .pp-reader .pp-kicker { margin-top:23px; }
+    #edison-personal-publication .pp-reader h1 { font-family:"Libre Caslon Display",Georgia,serif; font-size:54px; line-height:.98; letter-spacing:-.018em; font-weight:400; margin:16px 0 26px; }
+    #edison-personal-publication .pp-reader-copy { font-family:"Libre Caslon Text",Georgia,serif; font-size:19px; line-height:1.66; color:var(--pp-soft); }
+    #edison-personal-publication .pp-reader-copy p { margin:0 0 1em; }
+    #edison-personal-publication .pp-reader-sources { border-top:1px solid var(--pp-rule); padding:15px 0; font-size:12px; line-height:1.6; }
+    #edison-personal-publication .pp-reader-sources a { color:var(--pp-ink); text-underline-offset:4px; }
+    #edison-personal-publication .pp-reader-actions { display:flex; flex-wrap:wrap; gap:24px; border-top:1px solid var(--pp-rule); }
+    #edison-personal-publication dialog { color:var(--pp-ink); background:var(--pp-surface); border:1px solid var(--pp-rule); border-radius:2px; padding:27px; width:calc(100% - 40px); max-width:560px; }
+    #edison-personal-publication dialog::backdrop { background:rgba(11,11,11,.24); }
+    #edison-personal-publication #pp-direction-dialog { max-width:420px; }
+    #edison-personal-publication .pp-dialog-heading { display:flex; align-items:center; justify-content:space-between; gap:20px; }
+    #edison-personal-publication .pp-dialog-heading h2 { font-family:"Libre Caslon Text",Georgia,serif; font-weight:400; font-size:24px; line-height:1.15; margin:0; }
+    #edison-personal-publication .pp-close { display:grid; place-items:center; width:44px; height:44px; background:transparent; border:0; color:var(--pp-ink); flex-shrink:0; }
+    #edison-personal-publication .pp-close svg { width:19px; height:19px; }
+    #edison-personal-publication .pp-dialog-description { font-size:12px; color:var(--pp-caption); line-height:1.6; margin:12px 0 20px; }
+    #edison-personal-publication .pp-dialog-label { display:block; font-size:12px; font-weight:500; margin:16px 0 8px; }
+    #edison-personal-publication .pp-dialog-text { width:100%; min-height:100px; resize:vertical; border:1px solid var(--pp-caption); border-radius:2px; background:var(--pp-surface); color:var(--pp-ink); padding:12px; font-size:16px; line-height:1.5; }
+    #edison-personal-publication .pp-primary { min-height:44px; border:0; border-radius:2px; background:var(--pp-ink); color:var(--pp-paper); padding:13px 18px; font-size:14px; font-weight:600; }
+    #edison-personal-publication .pp-dialog-actions { display:flex; flex-wrap:wrap; gap:12px 24px; align-items:center; margin-top:19px; }
+    #edison-personal-publication .pp-dialog-status { font-size:12px; line-height:1.6; color:var(--pp-caption); margin:16px 0 0; }
+    #edison-personal-publication .pp-brief-list { padding:0; list-style:none; font-size:13px; line-height:1.5; margin:15px 0; }
+    #edison-personal-publication .pp-brief-list li { padding:12px 0; border-bottom:1px solid var(--pp-rule); }
+    #edison-personal-publication .pp-brief-list small { display:block; font-size:11px; color:var(--pp-caption); margin-top:5px; }
+    @media(max-width:639px) {
+      #edison-personal-publication .pp-paper { padding:0 24px; }
+      #edison-personal-publication .pp-masthead { min-height:76px; }
+      #edison-personal-publication .pp-brand { gap:6px; }
+      #edison-personal-publication .pp-brand img { width:27px; height:27px; }
+      #edison-personal-publication .pp-wordmark { font-size:27.2px; }
+      #edison-personal-publication .pp-promise { font-size:12px; max-width:265px; margin:0 auto 23px; }
+      #edison-personal-publication .pp-folio { gap:9px; }
+      #edison-personal-publication .pp-personal { order:3; flex-basis:100%; font-size:12px; }
+      #edison-personal-publication .pp-steering { padding-top:14px; padding-bottom:21px; }
+      #edison-personal-publication .pp-input-row { padding-left:11px; }
+      #edison-personal-publication .pp-input-row textarea { font-size:16px; }
+      #edison-personal-publication .pp-feed { padding-top:27px; }
+      #edison-personal-publication .pp-lead { grid-template-columns:1fr; gap:20px; padding-bottom:27px; }
+      #edison-personal-publication .pp-headline { font-size:46px; line-height:.99; }
+      #edison-personal-publication .pp-dek { font-size:18px; }
+      #edison-personal-publication .pp-lead-note { border:0; padding:0; margin:0; }
+      #edison-personal-publication .pp-lead-note .pp-note-label { display:none; }
+      #edison-personal-publication .pp-opening { font-size:16px; }
+      #edison-personal-publication .pp-row-title { font-size:26px; }
+      #edison-personal-publication .pp-story-row { gap:12px; }
+      #edison-personal-publication .pp-row-dek { font-size:16px; }
+      #edison-personal-publication .pp-reader h1 { font-size:44px; }
+      #edison-personal-publication .pp-reader-copy { font-size:18px; line-height:1.62; }
+      #edison-personal-publication .pp-reference { padding:10px 16px; }
+      #edison-personal-publication dialog { padding:20px; }
+    }
+  </style>
+  <div class="pp-reference" aria-label="Design reference scenarios, not product controls">
+    <label for="pp-scenario">Preview state <select id="pp-scenario"><option value="returning">Returning reader</option><option value="guest">First visit</option><option value="applying">Saving direction</option><option value="ready">Direction applied · writing ready</option><option value="queued">New writing queued</option><option value="failed">Direction save failed</option><option value="generation-failed">Direction saved · writing failed</option></select></label>
+    <button type="button" id="pp-try">Try an editorial note</button>
+    <span>News · desktop & mobile · local sample content</span>
+  </div>
+  <section class="pp-paper">
+    <div class="pp-shell">
+      <header class="pp-masthead">
+        <span class="pp-desk">News</span>
+        <button class="pp-brand" id="pp-home" type="button" aria-label="Edison home"><img id="pp-mark" alt="" width="31" height="31" src="data:image/svg+xml,%3Csvg%20width='192'%20height='192'%20viewBox='0%200%2024%2024'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3E%3Cpath%20d='M12%201.45C16.53%201.45%2020.2%205.12%2020.2%209.65C20.2%2014.9%2017.25%2017.85%2012%2017.85C6.75%2017.85%203.8%2014.9%203.8%209.65C3.8%205.12%207.47%201.45%2012%201.45Z'%20stroke='%230B0B0B'%20stroke-width='1.75'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3Cpath%20d='M7.85%2020.55H16.15M9.35%2022.85H14.65'%20stroke='%230B0B0B'%20stroke-width='1.75'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E"><span class="pp-wordmark" aria-hidden="true">edison</span></button>
+        <button class="pp-profile" id="pp-profile" type="button" aria-label="Profile and editorial direction"><span class="pp-avatar" id="pp-avatar">M</span></button>
+      </header>
+      <p class="pp-promise">A publication written entirely for you, every day.</p>
+      <main id="pp-home-view">
+        <div class="pp-folio"><span class="pp-folio-label">Today’s edition</span><span class="pp-personal" id="pp-personal">Edited for Michael</span><time class="pp-date" datetime="2026-09-04">Friday, September 4</time><span class="pp-date" id="pp-count">4 stories</span></div>
+        <section class="pp-steering" aria-label="Shape your News edition">
+          <div class="pp-steering-top"><label for="pp-prompt">Shape your edition</label><button type="button" id="pp-direction-link" class="pp-text-action pp-direction-link">Editorial direction</button></div>
+          <form id="pp-steer-form">
+            <div class="pp-input-row"><textarea id="pp-prompt" rows="1" autocomplete="off" placeholder="More of this. Less of that…" aria-describedby="pp-help" aria-label="Shape your edition"></textarea><button class="pp-apply" id="pp-apply" type="submit" aria-label="Apply editorial direction"><i data-lucide="arrow-right" aria-hidden="true"></i></button></div>
+            <div class="pp-options" id="pp-options" hidden><div class="pp-scope"><label for="pp-scope">News ·</label><select id="pp-scope"><option value="future">From now on</option><option value="today">This edition only</option></select></div><span class="pp-help" id="pp-help">A direction for your publication, not a one-off article.</span></div>
+          </form>
+          <p class="pp-error" id="pp-validation" role="alert" hidden></p>
+          <div class="pp-receipt" id="pp-receipt" hidden><p id="pp-receipt-text" role="status"></p><div class="pp-receipt-actions"><button type="button" class="pp-text-action" id="pp-undo">Undo</button><button type="button" class="pp-text-action" id="pp-today">This edition only</button><button type="button" class="pp-text-action" id="pp-review">Review direction</button><button type="button" class="pp-text-action" id="pp-retry" hidden>Retry</button></div></div>
+        </section>
+        <div class="pp-feed" id="pp-feed"></div>
+        <div class="pp-end"><h2>That’s your edition.</h2><p id="pp-end-note">A fresh one tomorrow, shaped by what interests you.</p></div>
+      </main>
+      <article class="pp-reader" id="pp-reader" aria-labelledby="pp-reader-title" hidden><button class="pp-text-action" id="pp-back" type="button">← Back to your edition</button><p class="pp-kicker" id="pp-reader-kicker"></p><h1 id="pp-reader-title"></h1><div class="pp-reader-copy" id="pp-reader-copy"></div><div class="pp-reader-sources" id="pp-reader-sources"></div><div class="pp-reader-actions"><button class="pp-text-action" id="pp-reader-save" type="button">Save this read</button><button class="pp-text-action" id="pp-explore" type="button">Explore this further →</button></div><p class="pp-help" id="pp-reader-notice" role="status"></p></article>
+      <footer class="pp-bottom"><small>Design sample · no live research or account changes.<br>Books and Podcasts retain their existing approved layouts.</small><button class="pp-create" id="pp-create" type="button" aria-label="Create one article"><i data-lucide="plus" aria-hidden="true"></i></button></footer>
+    </div>
+  </section>
+  <dialog id="pp-direction-dialog" aria-labelledby="pp-direction-title">
+    <div class="pp-dialog-heading"><h2 id="pp-direction-title">Editorial direction</h2><button type="button" class="pp-close" data-close="pp-direction-dialog" aria-label="Close editorial direction"><i data-lucide="x" aria-hidden="true"></i></button></div>
+    <p class="pp-dialog-description">What shapes your News edition. Your instructions take precedence over inferred interests.</p>
+    <p class="pp-dialog-label">Your instructions</p><ul class="pp-brief-list" id="pp-brief-list"></ul>
+    <p class="pp-dialog-label">Learned interests</p><p class="pp-dialog-description" id="pp-learned">Built environment · example inference</p><button type="button" class="pp-text-action" id="pp-clear-learned">Remove this inferred interest</button>
+    <div class="pp-dialog-actions"><button type="button" class="pp-text-action" id="pp-edit-brief">Add or edit direction →</button><button type="button" class="pp-text-action" id="pp-clear-brief">Clear News instructions</button></div>
+    <p class="pp-dialog-status" id="pp-brief-status" role="status">Changes in this reference stay in this page only.</p>
+  </dialog>
+  <dialog id="pp-create-dialog" aria-labelledby="pp-create-title">
+    <div class="pp-dialog-heading"><h2 id="pp-create-title">What would you like to read?</h2><button type="button" class="pp-close" data-close="pp-create-dialog" aria-label="Close new article"><i data-lucide="x" aria-hidden="true"></i></button></div>
+    <p class="pp-dialog-description">One article, on any topic. This won’t change your ongoing editorial direction.</p>
+    <form id="pp-create-form"><label class="pp-dialog-label" for="pp-create-prompt">Your subject or question</label><textarea class="pp-dialog-text" id="pp-create-prompt" placeholder="How did the first public libraries change cities?"></textarea><div class="pp-dialog-actions"><button class="pp-primary" type="submit">Create article</button><span class="pp-help">News · one article</span></div></form>
+    <p class="pp-dialog-status" id="pp-create-status" role="status" hidden></p>
+  </dialog>
+  <script>
+    (() => {
+      const root = document.getElementById("edison-personal-publication");
+      const el = id => root.querySelector("#" + id);
+      const example = "More economic history, less startup news. Go deeper.";
+      const standard = ["heat","gps","startup","trees"];
+      const directed = ["canals","heat","gps","trees"];
+      const saved = new Set();
+      const readIds = new Set();
+      const data = {
+        heat:{desk:"The everyday world",title:"Why the city stays warm after the sun goes down",dek:"The afternoon doesn’t disappear at sunset. It’s still there, in the streets beneath your feet.",topic:"Environment",body:["Sunset switches off the source of heat, not the heat itself. Roads and buildings absorb energy through the day and release it as the air cools.","A city also replaces much of the landscape that would otherwise help it cool. Vegetation provides shade and releases water into the air. Concentrate heat-absorbing structures and remove greenery, and the result can be a warmer urban area: a heat island."],source:"EPA · Learn about heat island effects",url:"https://www.epa.gov/heatislands/learn-about-heat-island-effects"},
+        gps:{desk:"Science & technology",title:"Your phone’s blue dot needs Einstein",dek:"The clocks above our heads tick differently. Getting you to the right street means accounting for it.",topic:"Physics",body:["The clocks on GPS satellites do not naturally keep the same time as clocks on Earth. Their speed makes them tick more slowly, while the weaker gravity at their altitude makes them tick faster. The second effect wins.","NIST puts the combined difference at about 38 microseconds per day. GPS uses precisely timed signals from satellites to determine position, so engineers must account for the relativistic difference."],source:"NIST · Putting Einstein to the test",url:"https://www.nist.gov/atomic-clocks/a-powerful-tool-for-science/putting-einstein-test"},
+        startup:{desk:"Business & technology",title:"Beyond the next product launch",dek:"A closer look at the gap between building something new and making it part of everyday life.",topic:"Startups",body:["What should count as progress: a promising demonstration, a new product, or something that people use without having to think about it?","This is an editorial-copy sample for the design. A production article would need reported examples, verified claims, and source notes before publication."],source:"Editorial sample · not a researched article"},
+        trees:{desk:"The natural world",title:"A forest doesn’t just receive the weather",dek:"The small exchanges at the surface of a leaf help connect the land to the sky.",topic:"Living systems",body:["Plants release water vapor through transpiration, cooling themselves and their surroundings. Across a forest, those exchanges can add moisture to the air.","That moisture can contribute to cloud formation and rainfall. Climate shapes where plants can grow, while plants help change surface temperature and atmospheric humidity. The relationship depends on the landscape and atmospheric conditions."],source:"NASA Earth Observatory · Seeing leaves in a new light",url:"https://science.nasa.gov/earth/earth-observatory/seeing-leaves-in-a-new-light/"},
+        canals:{desk:"Economic history",title:"The infrastructure boom before the internet",dek:"Canals, railways, and the questions an earlier era of building raises about today’s AI investment.",topic:"Economic history",body:["Before asking whether a new technology will change the world, it is worth asking what else has to be built around it.","The proposed piece would examine the financing, complementary infrastructure, and uncertain demand behind an earlier infrastructure boom, then distinguish those conditions from today’s AI investment.","This is an editorial-copy sample, not a researched historical argument. In production, the deeper article would be written from verified sources before entering the edition."],source:"Editorial sample · new writing preview, not live generation"}
+      };
+      let state;
+      let currentRead = "heat";
+      let before = null;
+      let composing = false;
+      function reset(person="returning") {
+        state={person,order:[...standard],brief:person==="guest"?"":"Environment and technology. Keep a mix of familiar subjects and new ideas.",learned:person==="guest"?"":"Built environment",today:"",stage:"idle",scope:"future"};
+        before=null;
+        el("pp-prompt").value="";
+        el("pp-scope").value="future";
+        el("pp-options").hidden=true;
+        el("pp-validation").hidden=true;
+        el("pp-home-view").hidden=false;
+        el("pp-reader").hidden=true;
+        el("pp-brief-status").textContent="Changes in this reference stay in this page only.";
+        render();
+      }
+      function escapeText(value) {return String(value).replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[char]));}
+      function reason(key) {
+        if(state.person==="guest"&&!state.brief&&!state.today) return "Part of a varied starter edition. Edison has not inferred personal interests yet.";
+        if(key==="canals") return "You asked for more economic history and deeper explanations.";
+        if(state.person==="returning"&&key==="heat") return "In this returning-reader example, you follow environment and technology.";
+        return "Kept in the mix to leave room for discovery.";
+      }
+      function saveButton(key) {return `<button type="button" class="pp-save" data-save="${key}" aria-label="${saved.has(key)?"Unsave":"Save"} ${escapeText(data[key].title)}" aria-pressed="${saved.has(key)}">${saved.has(key)?"Saved":'<i data-lucide="bookmark" aria-hidden="true"></i>'}</button>`;}
+      function renderFeed() {
+        const [lead,...rest]=state.order;
+        const first=data[lead];
+        el("pp-feed").innerHTML=`<article class="pp-lead"><div><p class="pp-kicker">${first.desk}</p><h1 class="pp-headline"><button type="button" class="pp-title-link" data-read="${lead}">${first.title}</button></h1><p class="pp-dek">${first.dek}</p><p class="pp-meta">${first.topic} · ${lead==="canals"?"Deeper reading · sample":"Prepared read"}${readIds.has(lead)?" · Opened":""}</p></div><div class="pp-lead-note"><p class="pp-note-label">In this edition</p><p class="pp-opening">${first.body[0]}</p><button type="button" class="pp-text-action" data-read="${lead}">Keep reading →</button><details class="pp-reason"><summary>Why this story</summary><p>${reason(lead)}</p></details></div></article>`+rest.map(key=>{const item=data[key];return `<article class="pp-story-row"><div><p class="pp-kicker">${item.desk}</p><h2 class="pp-row-title"><button type="button" class="pp-title-link" data-read="${key}">${item.title}</button></h2><p class="pp-row-dek">${item.dek}</p><p class="pp-meta">${item.topic} · ${key==="startup"?"Editorial sample":"Prepared read"}${readIds.has(key)?" · Opened":""}</p></div>${saveButton(key)}</article>`;}).join("");
+        if(globalThis.lucide) lucide.createIcons({attrs:{width:18,height:18}});
+      }
+      function renderReceipt() {
+        const status=state.stage;
+        el("pp-receipt").hidden=status==="idle";
+        el("pp-undo").hidden=!before||["failed","applying"].includes(status);
+        el("pp-today").hidden=!["ready","queued","generation-failed"].includes(status)||state.scope==="today"||!before;
+        el("pp-retry").hidden=!["failed","generation-failed"].includes(status);
+        el("pp-retry").textContent=status==="generation-failed"?"Retry writing":"Retry saving";
+        el("pp-apply").disabled=status==="applying";
+        const scope=state.scope==="today"?"This edition only.":"For News, from now on.";
+        const changed=before?state.order.filter((key,index)=>before.order[index]!==key).length:0;
+        const readyChange=changed?changed+" unread positions updated in this preview.":"No ready stories changed; your kept reads remain in place.";
+        const lines={applying:"Saving your News direction. Your current edition is still available.",ready:"More economic history, fewer startup stories, deeper explanations. "+scope+" "+readyChange,queued:"Direction saved. "+scope+" A new economic-history piece is queued; your current edition is still available.",failed:"We couldn’t save your direction. Your editorial brief and edition haven’t changed.","generation-failed":"Your direction is saved. "+scope+" The new economic-history piece couldn’t be written. Your current edition is still available.",cleared:(state.brief||state.today?"Selected News instruction removed.":"News instructions cleared.")+" Existing reads remain available.",undone:"Change undone. Your previous direction is restored. Any newly opened or saved reads remain available."};
+        el("pp-receipt-text").textContent=lines[status]||"";
+      }
+      function renderBrief() {
+        const items=[];
+        if(state.brief)items.push(`<li>${escapeText(state.brief)}<small>News · from now on</small><button type="button" class="pp-text-action" data-edit-rule="future">Edit</button> · <button type="button" class="pp-text-action" data-remove-rule="future">Remove instruction</button></li>`);
+        if(state.today)items.push(`<li>${escapeText(state.today)}<small>News · September 4 edition only</small><button type="button" class="pp-text-action" data-edit-rule="today">Edit</button> · <button type="button" class="pp-text-action" data-remove-rule="today">Remove instruction</button></li>`);
+        el("pp-brief-list").innerHTML=items.join("")||"<li>No editorial instructions yet.<small>Your first edition starts with a varied selection.</small></li>";
+        el("pp-learned").textContent=state.learned?state.learned+" · example inference":"No inferred interests in this preview.";
+        el("pp-clear-learned").hidden=!state.learned;
+        el("pp-clear-brief").hidden=!state.brief&&!state.today;
+      }
+      function render() {
+        el("pp-personal").textContent=state.person==="guest"?(state.brief||state.today?"Shaped by your direction":"A place to begin"):"Edited for Michael";
+        el("pp-avatar").textContent=state.person==="guest"?"•":"M";
+        el("pp-end-note").textContent=state.person==="guest"?"Start anywhere. Your next edition can grow from what interests you.":"A fresh one tomorrow, shaped by what interests you.";
+        el("pp-count").textContent=state.order.length+" stories";
+        renderFeed();renderReceipt();renderBrief();fitPrompt();
+      }
+      function fitPrompt(){const field=el("pp-prompt");field.style.height="auto";field.style.height=Math.max(46,field.scrollHeight||46)+"px";}
+      function updateOrder() {
+        const protectedIds=state.order.filter(key=>readIds.has(key)||saved.has(key));
+        const next=directed.filter(key=>!protectedIds.includes(key));
+        state.order=state.order.map(key=>protectedIds.includes(key)?key:next.shift()).filter(Boolean);
+      }
+      function applyDirection(stage="ready") {
+        before=structuredClone(state);
+        state.scope=el("pp-scope").value;
+        state.stage=stage;
+        if(!["failed","applying"].includes(stage)) {
+          if(state.scope==="today") state.today=example; else state.brief=example;
+          if(stage==="ready") updateOrder();
+        }
+        el("pp-options").hidden=true;
+        el("pp-validation").hidden=true;
+        render();
+      }
+      function home(restoreFocus=false) {el("pp-home-view").hidden=false;el("pp-reader").hidden=true;render();if(restoreFocus){const trigger=root.querySelector(`[data-read="${currentRead}"]`);if(trigger)trigger.focus();}}
+      function openRead(key) {
+        currentRead=key;readIds.add(key);
+        const article=data[key];
+        el("pp-reader-kicker").textContent=article.desk;
+        el("pp-reader-title").textContent=article.title;
+        el("pp-reader-copy").innerHTML=article.body.map(p=>`<p>${p}</p>`).join("");
+        el("pp-reader-sources").innerHTML=article.url?`<a href="${article.url}" target="_blank" rel="noopener noreferrer">${article.source}</a>`:escapeText(article.source);
+        el("pp-reader-save").textContent=saved.has(key)?"Remove saved read":"Save this read";
+        el("pp-reader-notice").textContent="Prepared design sample. No live research or personalization service is connected.";
+        el("pp-home-view").hidden=true;el("pp-reader").hidden=false;
+        el("pp-back").focus();
+      }
+      function openCreate(value) {if(value!==undefined)el("pp-create-prompt").value=value;el("pp-create-status").hidden=true;el("pp-create-dialog").showModal();}
+      root.addEventListener("click",event=>{
+        const read=event.target.closest("[data-read]");if(read){openRead(read.dataset.read);return;}
+        const save=event.target.closest("[data-save]");if(save){const key=save.dataset.save;if(saved.has(key))saved.delete(key);else saved.add(key);save.setAttribute("aria-pressed",String(saved.has(key)));save.setAttribute("aria-label",(saved.has(key)?"Unsave ":"Save ")+data[key].title);save.innerHTML=saved.has(key)?"Saved":'<i data-lucide="bookmark" aria-hidden="true"></i>';if(globalThis.lucide)lucide.createIcons({attrs:{width:18,height:18}});return;}
+        const edit=event.target.closest("[data-edit-rule]");if(edit){el("pp-direction-dialog").close();home();el("pp-prompt").value=edit.dataset.editRule==="today"?state.today:state.brief;el("pp-scope").value=edit.dataset.editRule;el("pp-options").hidden=false;el("pp-prompt").focus();return;}
+        const remove=event.target.closest("[data-remove-rule]");if(remove){before=structuredClone(state);if(remove.dataset.removeRule==="today")state.today="";else state.brief="";state.stage="cleared";render();el("pp-brief-status").textContent="The selected News instruction was removed in this preview. Other guidance and saved reads are unchanged.";el("pp-edit-brief").focus();return;}
+        const close=event.target.closest("[data-close]");if(close)el(close.dataset.close).close();
+      });
+      el("pp-home").addEventListener("click",()=>home());el("pp-back").addEventListener("click",()=>home(true));
+      el("pp-prompt").addEventListener("compositionstart",()=>{composing=true;});el("pp-prompt").addEventListener("compositionend",()=>{composing=false;});
+      el("pp-prompt").addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.shiftKey&&!event.isComposing&&!composing){event.preventDefault();el("pp-steer-form").requestSubmit();}});
+      el("pp-prompt").addEventListener("focus",()=>{el("pp-options").hidden=false;});
+      el("pp-prompt").addEventListener("input",()=>{el("pp-options").hidden=false;el("pp-validation").hidden=true;fitPrompt();});
+      el("pp-steer-form").addEventListener("submit",event=>{
+        event.preventDefault();if(composing||state.stage==="applying")return;const value=el("pp-prompt").value.trim();
+        if(/^(write|create|generate) (me )?(an? |one )?(article|story|piece)/i.test(value)){openCreate(value);return;}
+        if(value.toLowerCase()!==example.toLowerCase()){el("pp-validation").textContent=value?"This reference supports the example editorial note only. Use ‘Try an editorial note’ above; your text has not been sent or saved.":"Add a direction, or keep reading your edition.";el("pp-validation").hidden=false;return;}
+        applyDirection("ready");
+      });
+      el("pp-try").addEventListener("click",()=>{home();el("pp-prompt").value=example;el("pp-options").hidden=false;fitPrompt();el("pp-prompt").focus();});
+      el("pp-scenario").addEventListener("change",()=>{
+        saved.clear();readIds.clear();const value=el("pp-scenario").value;
+        reset(value==="guest"?"guest":"returning");
+        if(["applying","ready","queued","failed","generation-failed"].includes(value)){el("pp-prompt").value=example;applyDirection(value);}
+      });
+      el("pp-undo").addEventListener("click",()=>{
+        if(!before)return;
+        const protectedNow=state.order.filter(key=>readIds.has(key)||saved.has(key));
+        const oldOrder=[...before.order];
+        const learnedNow=state.learned;
+        state=structuredClone(before);state.learned=learnedNow;
+        protectedNow.forEach(key=>{if(!oldOrder.includes(key))oldOrder.push(key);});
+        state.order=oldOrder;state.stage="undone";before=null;render();el("pp-review").focus();
+      });
+      el("pp-today").addEventListener("click",()=>{if(!before||!["ready","queued","generation-failed"].includes(state.stage))return;state.brief=before.brief;state.today=example;state.scope="today";el("pp-scope").value="today";render();el("pp-review").focus();});
+      el("pp-retry").addEventListener("click",()=>{if(state.stage==="generation-failed"){state.stage="ready";updateOrder();render();}else applyDirection("ready");el("pp-review").focus();});
+      function openBrief(){renderBrief();el("pp-direction-dialog").showModal();}
+      el("pp-profile").addEventListener("click",openBrief);el("pp-direction-link").addEventListener("click",openBrief);el("pp-review").addEventListener("click",openBrief);
+      el("pp-edit-brief").addEventListener("click",()=>{el("pp-direction-dialog").close();home();el("pp-prompt").value=state.today||state.brief;el("pp-scope").value=state.today?"today":"future";el("pp-options").hidden=false;el("pp-prompt").focus();});
+      el("pp-clear-brief").addEventListener("click",()=>{before=structuredClone(state);state.brief="";state.today="";state.stage="cleared";el("pp-brief-status").textContent="Direction cleared in this preview. Existing stories are unchanged; Undo is available on the edition.";render();el("pp-edit-brief").focus();});
+      el("pp-clear-learned").addEventListener("click",()=>{state.learned="";renderBrief();el("pp-brief-status").textContent="Inferred interest removed in this preview. Your instructions and saved reads are unchanged.";el("pp-edit-brief").focus();});
+      el("pp-create").addEventListener("click",()=>openCreate());
+      el("pp-explore").addEventListener("click",()=>openCreate("Explore further: "+data[currentRead].title));
+      el("pp-create-form").addEventListener("submit",event=>{event.preventDefault();el("pp-create-status").textContent=el("pp-create-prompt").value.trim()?"This is the one-off creation state. No generation service is connected; nothing has been submitted and your editorial direction is unchanged.":"Add a subject or question first.";el("pp-create-status").hidden=false;});
+      el("pp-reader-save").addEventListener("click",()=>{if(saved.has(currentRead))saved.delete(currentRead);else saved.add(currentRead);el("pp-reader-save").textContent=saved.has(currentRead)?"Remove saved read":"Save this read";el("pp-reader-notice").textContent=saved.has(currentRead)?"Saved in this preview. No account required; this reference resets on reload.":"Removed from the preview’s saved reads.";});
+      reset();
+    })();
+  </script>
+</div>

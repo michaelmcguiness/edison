@@ -13,6 +13,7 @@ import {
   presentExplicitInterests,
 } from "../../../../src/presenters/interest";
 import { withActiveMember } from "../../../../src/services/members";
+import { canRetainExplicitInterest } from "../../../../src/services/preference-bounds";
 
 export const dynamic = "force-dynamic";
 
@@ -64,13 +65,9 @@ export async function POST(request: Request) {
       const existing = interests.find(
         (interest) => normalizeInterestTopic(interest.topic) === normalizedTopic,
       );
-      const retainedCount = interests.filter(
-        (interest) => interest.status !== "deleted",
-      ).length;
-
       if (existing) {
         if (existing.status !== "active") {
-          if (existing.status === "deleted" && retainedCount >= 50) {
+          if (!canRetainExplicitInterest(interests, existing)) {
             throw new HttpError(
               409,
               "interest_limit_reached",
@@ -113,7 +110,7 @@ export async function POST(request: Request) {
         return json(explicitInterestSchema.parse(presented));
       }
 
-      if (retainedCount >= 50) {
+      if (!canRetainExplicitInterest(interests)) {
         throw new HttpError(
           409,
           "interest_limit_reached",

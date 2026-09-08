@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "accepted-sleep-history-v1",
+  "requestFingerprint": "a3f2f9e5bee9882891a7be35505b371088580e65d978a086a9889bb3519d3371",
+  "editionId": "dfe2cd80-07f0-4428-bc95-3d61c0701aed",
+  "editionDate": "2026-09-05",
+  "publishedAt": "2026-09-05T22:15:29.572Z",
+  "articles": [
+    {
+      "contentId": "sleep-attention",
+      "subjectId": "sleep",
+      "publicArticleId": "d7b98e46-21a1-49f0-a205-f73320a0631d",
+      "snapshotSha256": "38050ea2a01b61f8345a6bb14aaf463ae7475b98a1b6d774ec7d2f55a936f3b5"
+    },
+    {
+      "contentId": "longitude",
+      "subjectId": "history",
+      "publicArticleId": "fb3d3f0a-5a3c-4fc2-a3be-cc68330b4900",
+      "snapshotSha256": "724b751c18776faa6d9009ee65e189881466d4d6235852eecc2190bd0b50495c"
+    }
+  ],
+  "subjects": [
+    {
+      "id": "sleep",
+      "label": "Sleep",
+      "direction": "Understand sleep, attention and recovery.",
+      "publicArticleIds": ["d7b98e46-21a1-49f0-a205-f73320a0631d"]
+    },
+    {
+      "id": "history",
+      "label": "History",
+      "direction": "Explore how ideas and inventions changed everyday life.",
+      "publicArticleIds": ["fb3d3f0a-5a3c-4fc2-a3be-cc68330b4900"]
+    }
+  ]
+}

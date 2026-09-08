@@ -1,311 +1,1652 @@
-# Edison Reader — Codex Handoff
+# Edison Reader — Codex handoff
 
 ## Mission
 
-Build a real, responsive web MVP for **Edison Reader** at `edisonreader.com`.
+Build Edison Reader into a real, production-grade personal publication for the
+web now and iOS/Android later.
 
 > A publication written entirely for you, every day.
 
-Edison should learn what each reader finds valuable and produce a daily reading experience combining continuous learning, personalized news, biographies, history, and intellectual exploration. The MVP is pure AI-generated editorial content, grounded in current sources where appropriate.
+Edison learns what a reader finds worthwhile and publishes a finite daily News
+edition. Books and Podcasts are permanent top-level sections, but their content
+services must remain honestly unavailable until they are actually built.
 
-This project is independent. It is not affiliated with Perch.
+This project is independent and is not affiliated with Perch.
 
-## Current status
+## Latest owner decision
 
-- Latest owner decision: keep Edison a personal, non-commercial sample-data
-  demo on Vercel Hobby. Do not activate paid services or the live stack now.
-- The hosted demo uses only the root web project, with server-only
-  `EDISON_DEMO_MODE=true` in both Vercel Production and Preview. It needs no
-  Supabase, OpenAI, SMTP, API deployment, or cron configuration.
-- Set build-only `ENABLE_EXPERIMENTAL_COREPACK=1` in Production and Preview
-  as well, so Vercel honors the pinned pnpm 10.28.0 rather than selecting an
-  older version for the custom install command.
-- Demo interactions are in-memory UI exploration and reset on reload; no real
-  authentication, AI generation, persisted personalization, or public article
-  share links are available. Do not present sample data as a connected product.
-- The editorial web experience is implemented in canonical Next.js and has a
-  working sample-data mode plus honest production setup states.
-- The live client is wired to a versioned REST API for onboarding, feeds,
-  articles, saves, events/streaks, feedback, commands, Q&A, library, settings,
-  sanitized public shares, generation jobs, and admin diagnostics.
-- Supabase migrations define Postgres tables, triggers, grants, RLS policies,
-  invite-only Auth behavior, private job/cost tables, storage policies, and pgTAP
-  assertions.
-- AI article research/writing and preference interpretation use validated
-  structured outputs. Durable Vercel Workflows own generation, with idempotency,
-  retry leases, reconciliation of interrupted generation and feed-command
-  dispatches, and usage accounting.
-- Profile controls now directly manage article length, ordered category
-  visibility, and explicit active/muted interests.
-- The demo web production build, TypeScript, ESLint, and all 30 automated
-  tests pass. Local production-server checks confirm the sample home page,
-  disconnected live routes, and fail-closed setup state when demo is disabled.
-  Those local checks used the installed Node 24 runtime. The first hosted
-  deployment also passed its clean pnpm 10.28.0 install and Next 16.3.4 Webpack
-  production build; Vercel confirms the runtime and saved project setting are
-  Node.js 22.x. The Workflow-enabled API production build passed in the prior
-  live-stack work. Database tests remain
-  pending until Docker or a disposable hosted Supabase test project is available;
-  they are not required to deploy this disconnected sample-data demo.
-- The owner has authorized importing the repository into the Vercel Hobby
-  project [`edison`](https://vercel.com/mike-michaelmcguis-projects/edison) and
-  deploying the disconnected root demo. The initial deployment of commit
-  `4855596` is Ready and was verified on September 4, 2026 at
-  [edison-lake-phi.vercel.app](https://edison-lake-phi.vercel.app/).
-- The primary demo URL is now [edisonreader.com](https://edisonreader.com/).
-  The owner purchased the domain on Vercel and explicitly authorized connecting
-  it to this Production project. Vercel reports Valid Configuration for the
-  apex, and its HTTPS page returns 200 with the sample banner. The Vercel alias
-  is retained. Both apex and `www` passed TLS verification; `www` redirects to
-  the apex with 308 while preserving paths and query parameters, and HTTP
-  upgrades to HTTPS. Custom-domain checks also confirm `/login` redirects home
-  with 307 while share, API, and cron paths return 404.
-- Docs-only commit `87973fd` deployed successfully through the GitHub `main`
-  integration, confirming automatic production deployment. The application
-  code remains unchanged from the initial verified release.
-- All 12 unauthenticated production smoke checks passed: home and three assets
-  return 200; login, admin, callback, and confirmation redirect home with 307;
-  signout POST redirects home with 303; share, API, and cron paths return 404.
-  Desktop (1440px) and mobile (390px) UI checks found no horizontal overflow or
-  browser errors. Onboarding, reading, summary-to-full-story navigation,
-  saves/library, profile, and resetting session changes on reload were verified.
-- Standard Vercel Authentication remains enabled: the stable production URL is
-  publicly accessible, while the unique deployment URL redirects to Vercel
-  sign-in. Production and Preview variables are configured; a separate Preview
-  deployment has not been tested. No live backend or paid hosting upgrade was
-  activated; attaching the owner-approved demo domain does not authorize
-  live-service activation or a broader product launch.
-- The owner created `michaelmcguiness/edison` on GitHub and approved publishing
-  the reviewed code there, including public visibility. The canonical source
-  URL is `https://github.com/michaelmcguiness/edison`. Check Git status and
-  remote refs for the current commit/push state. Source publication and the
-  approved root demo deployment and domain attachment do not activate the live
-  backend; that remains a separate release step.
-- `OPENAI_API_KEY` is not configured or needed for the demo. Never commit it or
-  paste it into chat; add it directly to the API Vercel project only when the
-  later live stack is approved.
+### September 8 — v12 email-code sign-in live
 
-## Architecture decision (supersedes the original starter instructions)
+Web source `f3cde89bdf7ae57a691b70a183fc3432559acdd3` is live as
+`dpl_8kzhBZuCnfYvdpJnjywZGD6D7sTc`, Ready at 14:00:54.245 UTC. Existing
+edisonreader.com, www and project-qlqve alias assignments completed at
+14:00:54.492 UTC. API remains `785861a3a25a8b7bdbe5ee1d0fafb60f91ffc7ee`
+on `dpl_Fxu7wuq3jEMr85PxLFa5pj5fMp5N`; its three schedules are unchanged.
 
-The API-first Vercel/Supabase product architecture remains the later live
-target, so Edison can support future iOS and Android clients without rewriting
-its backend. The owner has deferred paid services and live deployment in favor
-of the Hobby demo described above. The former OpenAI
-Sites/Vinext/D1 requirements are retired. The registered Sites identity is
-archived under `docs/legacy`, but `.openai/hosting.json` is intentionally absent
-so it cannot select the wrong runtime.
+After the compatible web was Ready, only the Magic Link and Confirmation email
+bodies were saved. Reloaded editor readbacks matched both exact 1,771-character
+candidate bodies by 14:04:13 UTC; both subjects remain “Continue to Edison.”
+The initial Invite body was unchanged on readback and was not edited. Its subject
+was not established as matching the older summary; no subject change is claimed.
 
-- Now: repository-root Next.js sample-data web client on Vercel Hobby
-- Later: `apps/api` independent Next.js REST API on Vercel Pro
-- Later: Supabase Postgres, Auth, Storage, with Pro backups for the live alpha
-- Later: Vercel Workflow durable background generation
-- Later: OpenAI Responses API server-side research, writing, and command parsing
+[Exact-source CI 34233984377](https://github.com/michaelmcguiness/edison/actions/runs/34233984377)
+passed every job and step, including 1,004 application tests, 320 pgTAP assertions,
+seven disposable-database service proofs, types, lint, builds and schema lint.
+Design is closed. CTO's local invitation/recovery journeys passed; read-only
+production phone UI and CoS's anonymous app/article/share redirects with no-store
+responses passed. These checks establish neither real email delivery nor a fresh
+hosted signed-in reading journey; no test email or paid generation was used.
+Membership, invitation slots, allowance, spending limits and Auth settings remain
+unchanged. Use the [v12 live receipt](docs/V12_EMAIL_CODE_RELEASE_2026-09-08.md)
+for exact evidence, template identities and compatible rollback limits.
 
-The demo must set `EDISON_DEMO_MODE=true` explicitly for a production build.
-Without that flag, an unconfigured production app shows its setup screen and a
-configured live app retains its authentication requirement. Use Node.js 22.x,
-the pinned pnpm 10.28.0, and `pnpm build:web` from the root. Do not deploy
-`apps/api`, copy its `vercel.json` to the root, or remove its backend/workflows
-to make the web demo deployable. The root demo has no scheduled jobs.
+### Previous — September 8 v11.1 and D45 invitation configuration live
 
-On Vercel, set `ENABLE_EXPERIMENTAL_COREPACK=1` in Production and Preview to
-honor the package-manager pin with `pnpm install --frozen-lockfile`. Without
-Corepack, a custom pnpm install command can select an older supported version.
-See [Vercel package managers](https://vercel.com/docs/package-managers) and
-[Corepack configuration](https://vercel.com/docs/builds/configure-a-build#corepack).
+At this earlier checkpoint, application source was`785861a3a25a8b7bdbe5ee1d0fafb60f91ffc7ee`.
+Web remains`dpl_FBkgbqz8NBLTnSVGBH9TmTYAhz5n` on edisonreader.com; API is now
+`dpl_Fxu7wuq3jEMr85PxLFa5pj5fMp5N`, Ready12:31:32.348 UTC. Migrations004/005
+and the reviewed email templates are applied. D42–D44 select mobile-first reading,
+trusted SVG art,500 offered articles per UTC week and invite-only membership.
+D45 explicitly authorizes the existing Supabase server key in sensitive API-only
+Vercel Production configuration. The exact transfer passed normal review in
+Chief of Staff with Michael's direct approval; the earlier relay-context
+rejections are historical, not a pending approval. Invitation sending is enabled.
 
-Hobby is restricted to personal, non-commercial use; “demo” alone is not an
-exemption. Reassess the plan before commercial use or a product launch. See
-[Vercel Hobby](https://vercel.com/docs/plans/hobby) and
-[cron limits](https://vercel.com/docs/cron-jobs/usage-and-pricing).
+Exact-source CI passed949 application tests,320 pgTAP assertions, integrations,
+types/lint/builds and schema lint. Design review is closed. Existing spending
+limits and web deployment are unchanged. Health is not proof of privileged
+sender or SMTP delivery, and no test email or paid generation was used. Fresh
+authorized reading remains pending an available sign-in session. Use the
+[v11.1 live receipt and its verification limits](docs/V11_1_RELEASE_CANDIDATE_2026-09-07.md)
+and current PROJECT_STATUS before any older release history below.
 
-There is no paid staging stack now or initially during private alpha. For the
-later live phase, use local Supabase, tests, credential-free Vercel previews,
-and one backed-up production Supabase project. The owner-approved
-`edisonreader.com` domain serves the disconnected demo only; do not activate
-the live stack or add live API subdomains without separate approval.
+### September 7 — D34/D35 v10 live on edisonreader.com
 
-## Locked product decisions
+Both API and web now run `27c9944eb268b2ecc8a1735ac79322089effa294`.
+API `dpl_GesKd8nJZi9d21ne4qrA7QLDxUmP` was Ready16:10:58.747UTC;
+web `dpl_B6CTpmmg7M319mswhadVFL6yTVHQ` Ready16:13:13.790UTC. Exact-source
+[CI34128662833](https://github.com/michaelmcguiness/edison/actions/runs/34128662833)
+passed772 app tests, builds/types/lint,279 pgTAP assertions and all DB integrations.
+Design closed the bounded source and final desktop/phone findings.
 
-### Navigation
+CoS applied exactly the three D35-approved migrations through accepted normal
+review in the task containing Michael's direct approval. CTO independently
+verified up-to-date schema, exact functions/grants/RLS/triggers/index. The earlier
+approval-channel hold and CTO confirmation request are resolved: do not repeat
+either the question or migrations. API then web deployed from the clean exact
+candidate. Source/aliases/all three schedule hosts and cadences, health/access,
+nonce CSP and $10 daily/$40 monthly controls passed at16:13:44.499UTC; CoS's
+independent repeat passed16:17:46.702UTC. D33 and P10's unselected status remain.
 
-- One excellent infinite-scroll home feed; do not split Home and Explore.
-- No bottom navigation bar.
-- Header contains the Edison wordmark and three compact controls on the right:
-  1. Library bookmark
-  2. Reading-streak flame with count
-  3. User avatar/settings
-- Do not add a redundant feed title, date, refresh label, or “written for your interests” copy.
+The actual live same-session article and saved conversation loaded; Ask, Back,
+source history/focus, existing loop settings and current feed were checked without
+new generation, edit, save, archive or publication. Local constructed-data recovery,
+append and phone-width checks remain distinct from hosted or physical-device proof.
+No new paid AI test or historical failure reset. The broader writing-quality,
+physical-mobile and restore-rehearsal limitations are not closed by this release.
+See [the final D34/D35 receipt](docs/V10_READING_RELEASE_2026-09-07.md).
 
-### Categories
+### September 7 — D33 six titles in each new loop batch live
 
-Use these exact top tabs:
+Michael selected six titles per normal first/new ideas batch. Live API source
+`7f7c6cf6cbe26e6ab21674617399456fc5e8c906` pins
+six in new request snapshots and preserves four for historical snapshots/retries;
+existing accepted lists remain unchanged and bodies are still written only on
+selection. All 707 local tests, both typechecks and owned lint/diff checks pass;
+independent review passed 24 focused tests and verified both admission sites.
+Exact-source [CI 34120463122](https://github.com/michaelmcguiness/edison/actions/runs/34120463122)
+passed both jobs. Deployment `dpl_wzmxK43BDM6n1azkR17PYPEge12U` was Ready at
+12:15:38 UTC; source, public alias/target, three enabled schedules, health and
+access checks passed at 12:16:04 UTC. Both active-work and safe-retryable ideas
+prechecks were empty. Web remains `6eb811b`; D32's exact $10 daily setting and
+unchanged $40 monthly default were reverified. No paid sample, new UI,
+prompt-version/model change, quota or budget increase. Real-provider output count
+and quality were not sampled as part of this release.
+See [the execution record](docs/ON_DEMAND_RELEASE_2026-09-06.md).
 
-1. For you
-2. Tech & Science
-3. Business
-4. Arts & Culture
-5. Sports
-6. Entertainment
+### September 7 — D32 $10 daily Edison ceiling live
 
-Tabs scroll horizontally on small screens. A fixed manage button makes categories easy to show, hide, and reorder.
+Michael authorized a $10 daily API ceiling while reliability is being completed,
+with explicit instructions not to waste tokens testing. CTO changed only Production
+`EDISON_DEMAND_DAILY_MICROUSD` from absent/default $4 to `10000000`, rebuilding
+unchanged API source `0b7611f`. Deployment `dpl_G7KPS1UV5VitkgA2fcHSDj24Bos9`
+was Ready at 11:58:43 UTC; exact setting, deployment inclusion, source, public alias,
+three enabled schedules, health and access checks passed at 11:59:17 UTC.
+Web remains `6eb811b`. This is global rolling-24-hour Edison admission accounting,
+including held reservations and legacy usage, not an OpenAI-account billing cap.
+The $40 monthly default, reader allowances, concurrency, history and all other
+controls remain. No paid sample or source edit. Prefer saved-output/offline checks;
+small live samples need a specific unresolved acceptance question. Review this
+temporary ceiling at the daily-use milestone; no automatic expiry was selected.
+See [D32 execution evidence](docs/ON_DEMAND_RELEASE_2026-09-06.md).
 
-### Feed
+### September 7 — v2.5 checker-contract prevention live
 
-- Editorial rather than TikTok-like: calm, beautiful, dense enough to browse, optimized for choosing something worth reading.
-- A prominent lead story followed by a clean stream of secondary stories.
-- Useful metadata only: reading time, source count, research recency, the learning thread it extends, or the specific reason it was selected.
-- Infinite scroll, but prioritize quality over volume.
-- Long-pressing or pressing-and-holding a story opens a bottom sheet containing an X-style three-bullet summary. A normal tap opens the article.
+Owner: CTO. Exact API source `0b7611f9e737fb76c982e426a7bb67d1f00e1f37`
+passed [CI 34118061228](https://github.com/michaelmcguiness/edison/actions/runs/34118061228)
+(application and disposable-database jobs) and is Ready/Production behind
+**edisonreader.com**. Deployment `dpl_EGjCTJSkjoWsuzhBQteoRn88TWPq` was Ready
+at 11:49:31 UTC. A fresh predeploy aggregate found no queued/running requests.
+Exact source, retained public API alias, production target and all three enabled
+schedule hosts match. Configuration/database/Auth health 200, exact-apex CORS
+204 and all unauthenticated cron 401 checks passed at 11:50:43 UTC. Web remains
+`6eb811b51e6fa243654cbdca43cb084a394e3f60`; no web release or browser action.
 
-### Floating prompt
+The bounded fix constrains checker locations/retrieved passage IDs and preserves
+exact excerpt identity with narrowly unambiguous same-location initial-letter
+metadata correction. Raw responses, substantive findings, strict saved gates and
+the sole repair remain intact. All 699 local tests, both full typechecks and
+owned lint/diff checks passed; independent review passed 58 focused tests. No
+paid provider sample was added, so real-provider schema acceptance and failure-rate
+or writing-quality improvement are not established. Historical football failures
+remain terminal. No model, generation-prompt wording, budget, UI, configuration or
+database change; the larger pipeline recommendation remains proposed.
+See [the execution record](docs/ON_DEMAND_RELEASE_2026-09-06.md) for scope and limits.
 
-- A persistent floating composer sits near the bottom of the feed.
-- It accepts natural-language requests such as:
-  - “More history and less startup news.”
-  - “Teach me synthetic biology from first principles.”
-  - “Make today’s feed more surprising.”
-- The command must be stored, translated into structured preference changes, and visibly affect future ranking/generation.
-- In an article, the same composer becomes article-aware. Suggested prompts include **Go deeper**, **Counterpoint**, and **Historical context**.
+### Previous — v2.4 preference persistence and concept ideas verified
 
-### Article reader
+Exact API source `a38b535dddb5e5aefc83af219aca7c151fa4c3ac` is Ready/Production on
+the existing service behind **edisonreader.com**. Web remains `6eb811b`.
+[CI 34114058927](https://github.com/michaelmcguiness/edison/actions/runs/34114058927)
+passed application and disposable-database jobs. The no-active-work precheck,
+exact target/schedule identity, health, apex CORS and negative cron-access checks
+passed. The prospective preview correction described below is now live; historical
+failed output is unchanged.
 
-- Beautiful long-form typography and generous reading width.
-- Show a specific “Why Edison wrote this” explanation.
-- Clearly label the article as written by Edison for the reader.
-- Display sources and claim-level citations. Source links must be real and clickable.
-- Allow save, share, feedback, and article Q&A.
-- Mark an article complete near the end of the reading experience and update the daily streak.
-- Ask: “Was this worth your time?” with a lightweight yes/no response.
+An explicitly labeled QA preference was submitted through Curate in the existing
+loop. It retained the original subject, specified plain-language single-mechanism
+explanations and preserved the DNA-basics knowledge level. The three interpreted
+principles persisted identically after reload/reopen. Fresh ideas then produced
+four checked, complete, concept-led previews. A directly inspected two-input logic
+brief carries an explicit qualification against claiming clinical reliability.
+That actual card published after write/check with no repair. Root read the whole
+article in the apex UI: a concrete two-input mechanism, AND/OR distinction and
+leakage, timing and marker-selection limits. A natural question about the example
+also completed answer/check, distinguishing signals detected by one engineered
+cell from clues supplied by one target or its neighborhood. Both outputs truthfully
+retain a general-knowledge basis, no research timestamp and no invented sources.
+Root's direct sampled assessment finds a useful conceptual explanation; this is
+not independent actual-output review or certification of production quality.
 
-### Library and profile
+Michael subsequently confirmed the shared browser was free. Root resumed the
+same apex session and verified the completed article and latest saved answer
+after ordinary reload and reading-history reopen. Closing Ask restored focus to
+its opener; Back restored the originating loop and card. No unexpected navigation
+recurred. No new generation or bookmark action was performed. The visible Ask
+currently shows one answer, not a browsable transcript. Exact nonzero scroll
+restoration and phone-layout acceptance are not established by this sample.
+Independent source review also identified unsent-draft/reopen inconsistency and
+answer recovery beyond the bounded workspace as separate, unimplemented follow-ups.
+This is test preference/selection evidence, not Michael's personal preference
+change, controlled prompt improvement or a two-completed-article adaptation comparison.
 
-- Library stores saved stories and ongoing learning threads.
-- The user/settings page emphasizes:
-  - Current streak and weekly reading activity
-  - Topics and learning threads
-  - What the feed has learned
-  - Direct controls for interests, depth, novelty, article length, and category visibility
-- The compact streak remains visible in the home header.
+The current priority is the two owner-reported football failures, diagnosed from
+their existing records. One stopped at malformed checker metadata before repair;
+the other remained unsupported on a current player-usage claim after its sole
+repair and final check. Exact saved-response replay confirmed these distinct paths.
+A bounded prospective v2.5 checker-contract correction was prepared and has since
+passed the API-only rollout recorded above.
+All 699 local tests, both full typechecks and owned lint/diff checks pass;
+independent review passed 58 focused tests and closed the ambiguous-anchor case.
+Historical failures remain terminal; no reset, fuzzy source remapping, additional
+repair or automatic regeneration. CoS's broader single-pass proposal is not selected.
 
-### MVP exclusions
+### September 7 — D31 live; new sample withheld; v2.4 prepared
 
-- No audio or text-to-speech.
-- No ads or subscriptions yet.
-- No token/reward economy yet.
-- No native iOS or Android clients yet.
-- No complicated collaborative-filtering or custom ML system. Start with explicit preferences, behavioral events, LLM interpretation, and simple ranking.
+Michael answered yes in CoS to doubling ideas **3 → 6 batches per reader per
+rolling 24 hours**, keeping spending caps unchanged. D31 in the decision record
+supersedes the proposal/three-batch sampling holds below. CTO may commit, push
+and deploy the already-reviewed minimal change to the existing API, then resume
+normal apex reading verification in the existing session. Article allowance eight,
+concurrency, dollar limits, reservations and existing history remain unchanged.
+No replacement principal, reset, extra repair or manual content acceptance.
 
-## Visual direction
+Public source `1b05c1e1cc92fb6bcfe6c232afb6f2fc70a66927` is live on the existing
+production API; web remains `6eb811b51e6fa243654cbdca43cb084a394e3f60` on the apex.
+[Exact-source CI 34112267215](https://github.com/michaelmcguiness/edison/actions/runs/34112267215)
+passed application and disposable-database jobs. The three source/test files
+matched the previously reviewed hashes; prior 681-test/type/lint and independent
+21-test evidence applies to unchanged bytes. The deployment is Ready/Production;
+public target and all three enabled schedules match. Health/configuration/
+database/Auth, exact-apex CORS and unauthenticated cron-denial checks passed.
+The pre-rollout read-only check found no active work. No migration or web/config
+change was needed.
 
-The locked identity is the **White Edition** system. Its core rule is a quiet,
-black-and-white editorial house with a restrained red signal. It should feel
-authoritative, literary, contemporary, and almost invisible once a story
-begins.
+The existing apex session retained its old state and successfully admitted a
+fourth ordinary ideas batch. One checked idea was offered; three previews were
+withheld as unfinished. The selected article completed its sole repair and final
+check, then remained **editorial_withheld**. Final automated factual/verification
+flags passed, but its preview ended mid-word and the repaired explanation omitted
+parts of the selected payoff. No article was published, so useful reading, Ask,
+preference comparison and saved-reading return remain unverified in this sample.
+There is no unused checked idea; normal ideas allowance remains available.
+Further paid requests paused for diagnosis, not a quota reset or extra repair.
 
-- `docs/brand/WHITE_EDITION_HANDOFF.md` is the canonical visual specification
-  and overrides older brand boards, README files, and exploratory assets.
-- Mark: use the promoted v2 monoline globe-and-two-rule mark from
-  `public/brand/edison-mark.svg`. Do not restore the retired circle-and-curved-
-  socket drawing.
-- Wordmark: lowercase `edison` in live Newsreader Roman 700, unpunctuated. It is
-  a temporary live-type wordmark, not custom lettering.
-- Permanent colors: Paper `#FCFBF8`, White `#FFFFFF`, Ink `#0B0B0B`, Soft Ink
-  `#30302E`, Caption `#6D6B67`, Rule `#D9D7D2`, Edison Red `#D12F32`, and Red
-  Wash `#F2E5E3`. Red is a signal, never a field color.
-- Typography roles: Libre Caslon Display for large headlines, Libre Caslon Text
-  for reading, Libre Franklin for interface text, and Newsreader only for the
-  live wordmark.
-- Favor hairline rules, generous margins, square imagery, flat surfaces, and
-  full-color editorial art. Do not use gradients, glass effects, tinted image
-  filters, hover scaling, ornamental shadows, or rounded-card layouts.
-- Mobile-first, excellent on tablet, and centered editorial layout on desktop.
-- The brand line remains **The world, edited for one.**
+Root directly inspected the original/repaired output and retained evidence.
+Independent review inspected source/contracts only, not the private output.
+No application clipping was found: the model's repaired preview itself reached
+the 500-character cap unfinished. Both model-facing and internal limits match.
+CoS directed one bounded prospective correction: short complete previews well
+below the maximum across ideas, articles and repair, preserving qualifications.
+It is prepared as v2.4; this is not yet live or measured quality improvement.
+All 689 local tests, both full typechecks and owned lint/diff checks pass.
+Independent source review passed the 60 focused preview/version tests. The new
+examples have injected judgments: they test unchanged text, rejection and the
+sole repair, not actual model improvement. Literal v2.2 and v2.3 checkpoints and
+cached envelopes stay incompatible with v2.4, including relabel attempts.
+Exact-source CI, a fresh in-flight check and API-only rollout are next.
+Historical failed output, final verdicts and accounting remain unchanged. Detailed
+production packets stay in this task; only permitted non-sensitive findings and
+public source/CI evidence are shared.
 
-## Later live MVP requirements
+### Previous checkpoint — saved-check recovery verified; reading quality unfinished
 
-These remain the product target; they are not claims about the current
-sample-data demo or authorization to activate the live services now.
+Michael selected development and testing directly on **https://edisonreader.com**
+(D30). No staging setup or further generic rollout approval is needed. Live web
+source remains `6eb811b51e6fa243654cbdca43cb084a394e3f60`; live API source is
+`029dc18d7c2759452adffd484677770d25704b38`, with the existing public API connector,
+enabled schedules, security controls, article allowance of eight and dollar caps.
 
-1. Identity-aware private alpha using Supabase Auth bearer tokens and active membership checks.
-2. Supabase/Postgres durable state with grants and RLS for profiles, preferences, articles, feed items, reading events, saves, commands, and article conversations.
-3. First-run onboarding asking what the user wants to understand and preferred article length.
-4. A real feed populated from the database.
-5. AI article generation using the OpenAI Responses API.
-6. Web search for news/current topics and verifiable sources.
-7. Structured model output for article fields, summaries, topics, and feed-preference changes.
-8. Feed prompting that changes persisted preferences and refreshes recommendations.
-9. Article Q&A with stored message history.
-10. Long-press summaries, saves, feedback, reading completion, streak calculation, library, profile/settings, and shareable article routes.
-11. A small admin/diagnostic surface showing generation failures and recent jobs.
-12. Graceful seeded content and a clear setup state if `OPENAI_API_KEY` is missing; never fabricate AI results or fake a connected backend.
+The prior c646142 qualified saved-check recovery passed 670 local tests, both typechecks,
+focused lint and independent review. Exact-source
+[CI 34074016183](https://github.com/michaelmcguiness/edison/actions/runs/34074016183)
+passed application and disposable-database jobs, including real independent-
+session admission races. The API deployment and health were verified. Ordinary
+Try again on the apex reused the saved write/check stages, retained the original
+failure receipt and accounting, and completed only the existing sole repair and
+fresh final check. It did not commission another article.
 
-## Suggested data model
+The revised article passed its automated factual/verification checks but remained
+**withheld**: its batch-testing section did not explain the promised mechanism.
+No article was published. Useful reading, contextual Ask, changed-preference
+comparison and saved-reading return remain unverified. No further paid sampling,
+second repair, fourth ideas batch, terminal reset or new principal was performed.
+Detailed new production/accounting metadata remains in the CTO task; a detailed
+cross-task handoff was blocked by approval review. Shared records use the
+permitted non-sensitive outcome and public source/CI evidence, not an alternate
+route to that blocked packet.
 
-- `profiles`
-- `feed_preferences`
-- `user_interests`
-- `articles`
-- `article_sources`
-- `feed_items`
-- `reading_events`
-- `saved_articles`
-- `feed_commands`
-- `article_conversations`
-- `conversation_messages`
-- `generation_jobs`
+### Previous prompt rollout — v2.3 live before preview correction
 
-Use ownership checks on every user-specific server route. Execute user queries in
-a transaction that installs verified JWT claims and switches to the fixed
-non-login `edison_api` database role so RLS remains effective without granting
-Supabase browser/mobile roles direct access to core tables. Runtime transaction
-pooler connections use `prepare: false`. Generate and inspect migrations, but
-apply them only with Supabase CLI; do not create schema dynamically at runtime or
-use `drizzle-kit push` against production.
+CoS supplied the bounded refinement under D28: preserve accurate causal
+explanation while repairing unsupported claims or citation scope, and check what
+a relevant test establishes and cannot establish. CTO implemented it in
+`packages/ai/src/reader-first-prompts.ts`, preserving model settings, structured
+contracts, independent final checks and the sole repair. No extra stage, service
+or research allowance was added. Additional instruction text can affect input
+cost/latency; no real-output improvement or cost saving has been measured.
 
-## Later live AI behavior
+All **680 local tests**, both full typechecks and owned lint/diff checks pass.
+Independent exact-prompt review found no material issue. Six reusable constructed
+sensor contrasts exercise missing payoff, useful scoped correction, unsupported
+current/high-stakes claims, wrong citations and correct citation-only repair.
+Injected judgments prove enforcement, not model judgment. Terminal replay adds
+no fifth stage; original drafts, audits and request snapshots stay unchanged.
+Three explicit previous-version regressions guard old checkpoint/cache identity.
 
-- Use the Responses API server-side only.
-- For current events, use web search and preserve source URLs returned by the model/tooling.
-- Require structured JSON output matching a validated schema for generated articles and preference updates.
-- Prefer asynchronous or queued generation. The feed itself should normally be a fast database read, not a blocking model call.
-- Precompute each article’s three-bullet summary.
-- Store user commands and behavioral signals so personalization is explainable and reversible.
-- Start with a cost-conscious model. Make the model name configurable through `OPENAI_MODEL`.
-- Add sensible per-user generation limits and record approximate usage/cost metadata.
+The shared prompt version also covers ideas and Ask. Saved v2.2 progress cannot
+resume under v2.3 or qualify for cached-check recovery; changing only a version
+label cannot bypass exact cached snapshots. Queued requests with no progress
+adopt the current version when first started. Historical published reads remain
+compatible. The read-only pre-rollout check found no queued or running requests,
+so no older work needed draining. Do not rewrite old progress, grant another
+repair, reopen terminal requests or manufacture a new principal.
 
-## Quality bar
+[Exact-source CI 34075401770](https://github.com/michaelmcguiness/edison/actions/runs/34075401770)
+passed both application and disposable-database jobs, including the recovery
+admission races. The existing API-only deployment is Ready/Production at exact
+029dc18; public target and all three enabled schedule hosts match. Health reports
+configuration/database/Auth healthy; exact-apex preflight returns 204 and all
+three unauthenticated cron probes return 401. Ordinary apex reload restored the
+same selected-article failure state without reopening it. Web code is unchanged.
 
-- The eventual live MVP must be a functioning product, not a landing page or
-  static mock. The current owner-approved demo is an explicitly labeled
-  sample-data reading experience, not that live MVP.
-- Every visible control should work or be intentionally disabled with an honest explanation.
-- Include loading, empty, offline/error, and AI-not-configured states.
-- Meet basic keyboard, focus, contrast, and reduced-motion accessibility requirements.
-- Build successfully and run automated tests before the demo deployment.
-  Inspect/test Supabase migrations before a later live database deployment;
-  Docker and database tests are not prerequisites for the sample-data web demo.
-- Do not deploy, attach additional domains, or broaden public availability
-  without the owner's explicit approval. The current approval covers the
-  disconnected root demo on `edisonreader.com`, its `www` redirect, and its
-  Vercel alias; live services, paid hosting upgrades, and a broader product
-  launch remain separate. A Vercel URL is not inherently
-  access-controlled; check the chosen protection settings before sharing it.
+No further paid sample was run. The existing test session has no uncommissioned
+checked idea and is at its normal rolling ideas allowance; article quota is not
+the limiting factor. A future ordinary sample needs fresh ideas through normal
+admission. No quota bypass, replacement session or scheduled future sample was
+created. Useful generated reading, Ask, adaptation and saved-reading acceptance
+remain unverified, despite the now-live instruction change.
+
+### Historical preparation — six ideas batches before D31 approval
+
+At CoS's request, CTO prepared but did not commit, push or deploy the fixed
+per-reader ideas allowance change **3 → 6**. The only production change is
+`dailyIdeas` in `apps/api/src/services/demand-configuration.ts`; there is no
+ideas-specific environment override. This applies across every reader's loops,
+not as a QA exception. All positive-reservation ideas requests, including failed
+ones, continue to count in the rolling 24-hour window. Existing usage is not reset.
+
+Article allowance eight, two concurrent requests, all dollar/session/question/
+feedback ceilings and the $0.60 ideas reservation remain unchanged. Global
+spending limits can still block work before six count slots are used. No model,
+prompt, database schema, request history or production setting is changed.
+
+The prepared three-code/test-file diff passes **681 local tests**, both full
+typechecks and owned lint/diff checks. Independent review found no issue;
+21 focused configuration/admission/reading tests pass. New coverage checks the
+exact ideas-reservation daily/monthly budget boundary, one-unit excess and
+legacy/unknown usage; existing concurrency/replay checks still pass. Rolling
+count enforcement is unchanged and inspected; this is not a newly executed
+real-database sixth/seventh-request test or hosted admission proof.
+
+The proposal was held for Michael's separate decision at this checkpoint. D31
+above now supplies that approval; do not re-request it. No new paid sample or
+scheduled run was created during the preparation checkpoint.
+
+### Historical checkpoint — qualified E12 recovery candidate, DB gate pending
+
+The general saved-check recovery is implemented without changing prompts/models,
+wire schemas, quota caps, migrations or provider stages. It qualifies only an
+active owner's exact failed v2 article, before its sole repair, with exactly two
+priced successful cached write/check envelopes and matching frozen input/ledger.
+The original checker must explicitly request repair; only uniquely exact body
+location corrections may differ after offline replay. An application-preserved
+failure receipt is appended privately. Arbitrary provider_invalid stays terminal.
+
+Fresh work and retry now share global admission→principal locking. Conditional
+recovery atomically readmits only the unused released hold under current
+daily/monthly/legacy/unpriced/concurrency limits. UUID, creation time, original
+reservation, daily count, cached stages/charges and max3attempts remain unchanged.
+Workspace/detail expose Try again only after private qualification; POST proves
+eligibility again under locks. No raw draft, evidence or receipt enters the DTO.
+
+670localtests, API types and focused lint pass. Exact E12 offline qualification
+returns phasecheck/repairAttemptedfalse and1148179microUSD released hold, with
+original inputs and capture files unchanged,0modelcalls. Independent review
+found no residual issue. New local-only CI integration uses independent OS/DB
+clients and observes both waiting on the real admission lock before testing
+same-request and daily/monthly fresh-admission races. Docker is unavailable on
+this host; actual disposable-DB execution must pass in CI before this recovery
+release. Live API remains106cc12; no actual E12 recovery has occurred yet.
+
+### Historical checkpoint — E12 binding correction live; recovery in progress
+
+API `106cc1247fc84578f83de84f8584a85bd0de5f7a` is live in Ready Production
+`dpl_7zfEDhyXd6EMc7QHXzVcutGoZrzo`, unique
+`edison-haksh0jv9-mike-michaelmcguis-projects.vercel.app`; public target and all3
+existing cron hosts match. Web stays6eb811b at edisonreader.com. CI34072773689
+passed both application/database jobs. All652localtests/types/lint pass.
+Health/configuration/database/auth, all3unauthenticated cron401 and exact-apex
+CORS204 pass; public apex200/CSP and www308 were also checked.
+
+No provider call or recovery has occurred after E12. Its checker now replays
+offline into the intended repair with all6 findings preserved, not acceptance.
+The separate conditional recovery correction must prove exact cache identity,
+retain the failed event, and atomically readmit the unused hold. It is currently
+being implemented and independently tested with real disposable-DB races in CI;
+do not expose arbitrary provider_invalid retries or change the live row by hand.
+
+### E12 — article withheld at checker location binding
+
+The first actual article request `5502ae41-f3a2-49ba-8c0c-997b7e20af23` is
+terminal `provider_invalid`, not published. Both write/check provider stages
+succeeded, costing48818+3003=51821microUSD ($0.051821). Exact retained capture:
+`/private/tmp/edison-calibration-capture.5TyKIR`. Writer/check schemas, exact
+fingerprint and genuinely retrieved passage IDs pass. All six checker excerpts
+are exact unique draft text, but the checker indexed paragraphs without headings:
+claimed body.1→actual body.2 (twice),3→5,5→8,6→9,7→10. Strict `boundCheck`
+therefore rejects before the intended repair. Its verdict is repair, accuracy
+and verification false; no finding may be discarded or converted into acceptance.
+
+A bounded prospective correction is implemented and verified locally: resolve an existing but
+misindexed body.N finding only to a unique exact excerpt location in the same
+frozen artifact, then apply the unchanged strict check. Preserve raw output,
+all findings/verdict/usage, promptv2.2 and provider cache identity. Unknown,
+ambiguous, fabricated or unsupported references still fail. All652application
+tests, both typechecks and focused lint pass; independent50-test review found no
+actionable issue. Exact E12 offline replay yields accepted:false/repair, with
+all6 findings and original raw response/usage unchanged, zero model calls. No terminal
+request reset, new principal, quota bypass or additional paid attempt is made.
+Only one idea survived the three daily ideas requests; actual article/Ask,
+preference adaptation and saved-reading return remain unverified. Deployment
+is live under D30, not gated on pretending the reading journey passed.
+
+CoS confirmed a conditional recovery is within existing release authority, but
+it is a general product correction, not a database-status workaround. Implement
+only after exact cached-check proof, preserve the original failure receipt, and
+atomically readmit the unused released reservation through the same global
+admission lock/budget/concurrency checks as fresh work. Original identity,
+timestamps, daily counts, stage/repair/tool budgets and max3 dispatch attempts
+remain. Broad provider_invalid retries remain forbidden. This separate bounded
+milestone is in progress; no actual request has been reopened yet.
+
+### E11 recovery verified live; first actual article selected
+
+API `117ddcdb502bfb393d9b7f7bf7ad8ad4f1043d4d` is live in
+`dpl_8KFPNNN2KZQQ7HctATXk6R1NuBTD`; public API and all cron hosts match.
+Web remains verified6eb811b. CI34071694879 passes;647tests and final type/lint
+checks pass. Ordinary same-request retry succeeded with the EXACT original two
+provider-stage/response IDs, unchanged17712microUSD, and unchanged3dailyideas
+count. Approved brief remains original; only display deck's final space was removed.
+Card `dc96d4ea-0087-4244-8242-cdadf29bf101` is genuinely available/rendered.
+Its selected article request `5502ae41-f3a2-49ba-8c0c-997b7e20af23` started
+2026-09-07T01:06:21.637529Z through the normal UI and failed as recorded above.
+Only one card passed; do not fabricate another or exceed quota to complete QA.
+
+### E11 — approved idea saved-stage recovery, display whitespace fix
+
+The third v2.2 request completed both provider stages ($0.017712) and the checker
+approved one manufacturing idea. It correctly withheld two cut-off previews and
+one unsupported microbial premise. Saving the accepted row then failed because
+the preview's trailing ASCII space violates the live database's trimmed-column
+constraint. Saved progress remains `ideas_check`, failure `worker_interrupted`,
+attempt1; no new ideas batch is needed. Offline exact replay reaches ready with
+the one accepted idea; live read-only SQL confirms raw deck457chars/trimmed456,
+`deck=btrim(deck)` false and title valid.
+
+The tiny persistence fix trims only database DISPLAY title/deck columns. Approved
+brief, raw provider output, checker input/output, fingerprints and promptv2.2 are
+unchanged. Deploy the API fix then use the ordinary same-request “Try again”;
+verify existing durable stages/usage are reused before commissioning the article.
+No quota change, new identity or retry of either terminal content failure.
+
+### D30 v2.2 live — same-apex useful reading sample running
+
+Both web/API are **live** at exact `6eb811b51e6fa243654cbdca43cb084a394e3f60`:
+web `dpl_CeUv9T9DQCyxQeiQqDfFirXVmyuP` on edisonreader.com, API
+`dpl_Bn76eQspHcj4BHWmAb2Z1XgLJhks` on the unchanged public connector. All three
+cron hosts match the new API. CI34071031970/application+database passed;644local
+tests and type/lint checks pass. Actual fresh-submit UI now says “Starting your
+ideas,” then “Checking the article ideas,” not the prior failure's heading.
+Third same-apex ideas request `93b448ca-95ae-49fb-8024-0f6435c4d6aa` started
+2026-09-07T00:53:45.290761Z; useful output acceptance follows. Two earlier failures
+remain recorded. No source blacklist manager, podcast ingestion or more adapters
+are in scope. Stable explanations need no forced citation count or study hook.
+
+### D30 v2.1 live; E10 official-source retrieval correction ready locally
+
+API hotfix `f6de880f7b8f03b3b6d6181ae083f68a6e5b7553` is **live**, deployment
+`dpl_5CoTiDpnohopXJQwyERmKSNmxeiP`, with public API target and all three cron
+hosts verified. Web remains b2a5af2. CI34070125294 and626localtests pass.
+Same-apex retry `4059368d-f213-4e72-8733-be7a1ddd1ee0` cleared metadata validation
+but failed evidence checking: NCBI HTML fetches either failed or returned access
+challenges, not article text. Two completed stages cost $0.016678; no publication.
+
+The local v2.2 correction uses documented NCBI BioC APIs for exact PMC/PMID
+identities, preserves actual transport URLs in passage locators, and rejects
+access-check pages. Existing DNS/TLS, byte/time limits, source identity and
+independent factual checks remain; no fallback scraping/retry or new service/key.
+Read-only replay fetched all seven original sources and13substantive passages;
+it did not call a model, modify old requests or approve their prose. A narrow
+redirect-boundary review finding is fixed and independently rechecked. The pending
+UI label now distinguishes a fresh submission from the previous failed request.
+CoS-selected v2.2 prompts choose the explanation before sources and require complete
+preview copy, with deck included in independent checking. Final checks/deployment
+follow, then the same-session useful sample within the remaining one daily ideas
+batch (two failed batches already used). No quota reset/new identity/extra service.
+
+### D30 live checkpoint and v2.1 discovery correction
+
+The requested direct-apex release is **live** at `edisonreader.com`: web
+`dpl_69HsrL1T7LM8QadJDQg3c6cufZwa`, API
+`dpl_D3Rvc3e9k4mbDweCmsMU4jxq4eYS`, both source `b2a5af2d1fdc11ad24e553498a30acc3fd3a1c9c`.
+[CI 34068971798](https://github.com/michaelmcguiness/edison/actions/runs/34068971798)
+passed application/database gates; 618 local tests and both typechecks passed.
+Public API stays at `project-fjr95.vercel.app/v1`; all three existing cron hosts
+point to this same demand-enabled API. Apex/retained web 200, www308, health,
+exact-origin CORS, unauthorized API/cron denial and normal apex workspace/loop
+creation are verified. This supersedes older private-alias instructions below.
+
+First real apex ideas request `94e80796-4024-436f-bedf-03a1cd39d27b` failed safely
+after one completed provider stage ($0.015184): inconsistent model publication-date
+hints and one declared HTML URL absent from actual tool provenance (PDF only).
+Nothing was published. The historical failed request, raw output and charge remain.
+The bounded v2.1 correction is implemented locally: ignore untrusted discovery-date
+hints, exclude unknown-provenance sources and whole dependent ideas from idea
+discovery only, keep article/Ask provenance strict and preserve independent checks.
+Exact saved-response offline replay retains the original first three ideas and
+advances to retrieval without modifying raw history or making a provider call.
+New hotfix deployment and useful article/Ask/adaptation/return acceptance follow;
+see the current on-demand release record. Do not reset usage or create another
+principal; continue the ordinary same apex session within existing limits.
+
+### D29/D30 — deploy and test directly on edisonreader.com, eight articles
+
+Michael directly instructed CTO: “Let’s just operate everything on edisonreader.com
+- we have no users there right now so it’s fine if we break stuff there for the
+time being.” This supersedes the private-alias approval hold and requiring real
+value acceptance before routing the new app to the existing apex. Deploy and test
+there now; no separate staging or repeat generic approval. Keep existing data,
+security, paid services and dollar ceilings; do not mislabel unverified writing
+quality as production readiness. Existing private guest records stay intact;
+use the ordinary authorized apex session/account flow without credential transfer
+or repeated new principals to evade limits.
+
+Michael separately instructed CoS: “Double the article allowance to get this up
+and running.” The on-demand per-reader rolling article default and hard maximum
+are now 8 (previously 4), with five boundary regressions. Stored Production API
+`OPENAI_MAX_DAILY_GENERATIONS` is 8; other limits/reservations are unchanged. Both
+web/API Production on-demand flags are now true and the web uses the existing
+public `https://project-fjr95.vercel.app/v1` connector. These configuration writes
+are complete; the corrected public deployments and runtime verification follow.
+Do not redeploy another private pair or restore old demand-disabled cron behavior
+after the authorized public release. Actual writing/Ask/adaptation remain to test.
+
+### Latest D28 execution checkpoint — protected builds ready, test-address approval blocked
+
+Exact `4dc146342ce868dd2c5f2220128c41663328afde` is committed/pushed and green in
+[CI 34068194442](https://github.com/michaelmcguiness/edison/actions/runs/34068194442):
+application/database jobs, actual v2 provider accounting/replay, pgTAP and strict
+schema lint pass. All three Vercel source-linked contexts pass. The permitted
+existing-project protected API `dpl_C2Ac5CbB5AkjN4Y35UXeLkNhDyEJ` and web
+`dpl_QhTv1f6GoNhVBjVyau89ENJxWBFh` are Ready at this exact source; web is pinned to
+the exact API. Old a681331 cron recovery `dpl_EReEs8C2Qbnmn2HvPun6sQ9y8ca4` is
+Ready and fresh read-back verifies all three original schedules and unchanged
+public API/web targets. No paid generation or public promotion occurred.
+
+Automatic approval review rejected the existing stable calibration alias update,
+citing the earlier stop-before-domain-changes boundary. A same-command re-review
+after checking D22/D27/D28 and later deployment authority was also rejected as
+insufficiently explicit for this exact routing change. Do not bypass, switch to a
+new guest/origin, transfer credentials, or retry through another tool. The alias
+and existing browser session still serve c600d939/v1.6. Ask Michael explicitly to
+point only `edison-calibration-mike-michaelmcguis-projects.vercel.app` to the new
+protected web; this does not change edisonreader.com. Same-session rendered checks
+and Design screenshots remain unrun on D28. Actual new article/Ask acceptance also
+remains pending the same guest's normal September7 3:14:32PM EDT quota eligibility.
+No automatic run is scheduled. Detailed identities/limits are in the release record.
+
+### September 6 D28 — reader-first implementation authorized and integrated locally
+
+Michael approved implementation of the assessed reader-first approach and asked
+how soon Edison can be useful daily. This supersedes the v1.7 assessment/hosted-work
+hold below. CTO owns integration, verification, protected deployment and the
+already-authorized edisonreader.com release once actual reading/Ask quality passes.
+Reuse D26 presentation, existing infrastructure/models, identity/history/recovery,
+normal quotas and dollar ceilings. The separate Perplexity visual proposal is not
+an implementation dependency.
+
+The new local pipeline uses stable general knowledge where appropriate, selective
+bounded research, independent full-draft accuracy/payoff/reader-fit QA, one repair
+and exact accepted-artifact/evidence binding. Articles and Ask can acquire sources;
+answers own their sources while saved articles remain immutable. V2 requests are
+isolated from frozen v1 execution. Honest source-free metadata, legacy history
+compatibility and request-wide research accounting are integrated. No schema or
+service migration is required. The initial D28 checkpoint is committed/pushed as
+`9d28746355209c5c7011748c7e9a206ab35b6dd3` (32 CTO-owned files).
+
+All **430 web/163 API tests**, both standalone typechecks, warning-free lint and
+both production builds pass. Initial test-fixture/import type errors were corrected
+before these successful reruns. New Ask requests now freeze current owned loop
+instructions while preserving their original article. The added local-only real
+transaction check also passes in exact-head CI **34067166843**, together with the
+application job, pgTAP and strict schema lint; all three Vercel contexts are green.
+These checks establish the initial checkpoint, not the follow-up below or real
+model quality. No explicit protected D28 staging, paid request or public cutover
+has occurred. Details: `docs/ON_DEMAND_RELEASE_2026-09-06.md`.
+
+CoS's bounded source review then identified a chained-Ask gap: a question about
+an earlier answer's “source 1” lost its owned references/evidence. A focused
+correction is implemented and locally verified before staging. It retains message-local source identity,
+bounded retrieved support, honest original timestamps and exact replay; original
+articles remain immutable. Missing/overflowed/refreshed historical support is
+explicitly unavailable, not relabeled fresh. Existing context/evidence/tool/cost
+limits remain. All **449 web/163 API tests**, both final standalone typechecks,
+warning-free full lint and both production builds pass on the corrected source.
+The history helper has 15 regressions and the pipeline 14, including refreshed
+support becoming unavailable without changing historical reference identity.
+The correction was committed/pushed as `2beaea99a1525d219d6dcd7ab8023746c3304e5a`.
+A final independent review reproduced a persisted JSON field-order edge case;
+both evidence packets now normalize through the existing bounded schema before
+exact comparison. Its regression failed before the fix and passes afterward.
+All **450 web tests**, both standalone typechecks and focused lint pass on this
+tiny follow-up. Exact final CI and protected/rendered/real quality remain pending.
+
+CoS authorized the bounded successor sample in
+`docs/operations/LOOP_VALUE_ACCEPTANCE_2026-09-06.md`: at most two ideas batches,
+two selected articles, two Ask requests and one explicitly labeled QA preference
+change, all in the same existing guest under normal admission limits. The older
+aggregate sampling cap is superseded; normal quota/budget limits are not. First
+article eligibility is September 7 at **3:14:32 PM EDT or later**, with the second
+around 3:57:30 PM; other admission checks still apply. No quota reset, new principal,
+blocked-bookmark retry or raw-API bypass. No automatic run is scheduled. Stop paid
+sampling on material failure and diagnose; CoS owns selected-output review.
+
+Estimate remains **8–16 engineering/verification hours**, with a plausible first
+usable private-production checkpoint in **1–2 working days**, not a promise or
+evidence of sustained daily reliability. No known hosting/access blocker. The
+September 5 public deployment and protected c600d939/v1.6 pair remain unchanged.
+
+### September 6 v1.7 — locally verified correction, no further hosted work
+
+CoS closed the v1.6 lupus diagnosis: the checker misinterpreted design intent,
+but the short draft also failed to explain the core immune-reset concept and left
+unhelpful jargon. Keep the historical withheld outcome. CTO implemented one
+bounded prompt/contract-test correction for evidence-verdict precision, citation
+repair using already-retained background support, and preserving the central
+explanation/reader fit through repair. No schema/retrieval/ledger/gate redesign,
+model or budget change, extra repair, staging/publication or new paid call.
+
+All **373 web/149 API tests**, final typechecks/lint and both production builds
+pass; the frozen source has a reusable five-contrast corpus and six injected
+regressions, not a claim of semantic model improvement. CoS closed bounded prompt
+review; exact hashes are in the technical release record. The correction is retained
+in a local-only commit, with no further push-triggered hosted builds or staging.
+
+The same guest's next normal article slot opens September 7 at **3:14:31.067 PM
+EDT** (use 3:14:32 or later), subject to unchanged global-budget/session/concurrency
+checks. Quota availability does not authorize a new sample or establish useful
+output. No wakeup or paid test is scheduled. CoS owns the next bounded sampling
+decision/editorial review; CTO owns integration and eventual release execution.
+Public September 5 and protected c600d939/v1.6 remain unchanged.
+
+### September 6 v1.6 — adapted article withheld, paid work/rollout stopped
+
+Exact `c600d9393a6ae16ff78a61ce0a2efcf87e9addf1` is pushed, green in CI
+`34060400262` and all three Vercel contexts, and deployed as the protected web/API
+pair at the same calibration origin. Independent checks matched the clean copy,
+eight hashes, hosted identities, protection/trust and unchanged public targets.
+All three original crons are restored on old a681331 recovery
+`dpl_ASYND9pjYLVDdx29S17ifNwBy9oi`. Public September 5 remains unchanged.
+
+The agreed feedback succeeded and persisted three correctly attributed principles
+at loop revision 1; they survived UI reload. The final fresh adapted batch offered
+three medical ideas and rejected a fourth unsupported premise. The qualified lupus
+brief was reviewed without a concrete false premise. Its selected single article
+request `772dbf04-ed94-45ac-adc5-d3842b01fb48` failed `editorial_withheld` at
+21:47:34 UTC after all four stages, with no publication or runtime failure. Final
+check accepted all 14 authored claims but rejected one exact body definition of
+“hypoimmune”; that unchanged paragraph had passed the initial exact check. Both
+checks received the same complete evidence. Unpaid mechanical/editorial diagnosis
+is underway; no silent audit override or manual article rescue is allowed.
+
+The article cost $0.097269; cumulative ledger estimate is **$0.515594**, not invoice
+reconciliation. Terminal packet is `/private/tmp/edison-calibration-capture.YuLWR5`.
+No requests remain in flight. Preserve the same guest and old failed/false-positive
+records; the aggregate sampling plan is exhausted. **No new paid work/public rollout.**
+Ask/current accepted-body return remain unrun. CTO/CoS are closing the bounded
+diagnosis and next prompt/QA proposal, not waiting for credentials or a generic
+owner approval. Exact evidence and limits are in
+`docs/ON_DEMAND_RELEASE_2026-09-06.md`.
+
+### September 6 v1.6 — local verification complete, protected checkpoint next
+
+Title evidence now follows the independently checked neutral/material heading
+contract; question marks never exempt factual premises. The selected question,
+exact audit, all material checks and sole repair remain required. Prompts clarify
+evidence-bounded brief promises and study-scope qualifications versus global
+negatives; prior reading is continuity context, not factual authority. CoS closed
+the bounded title/prompt and retrieval source review. All **367 web/149 API tests**,
+both typechecks, full lint and both production builds pass; no source/code gate
+remains open. Commit/CI and the existing protected deployment sequence are next.
+
+Unpaid retrieval replay found two abstract leads exhausting two slots and a
+64-term concatenated query dropping important qualification terms. The bounded
+fix balances finding/payoff/qualification queries and substantive results/limits
+when present, retaining general-topic fallback and existing budgets. The real
+paper replay now retains measured results and the missing membrane-growth limit;
+All 19 selector tests pass, including the 13 prior cases and six new generic
+regressions. Actual replay retains three exact passages totaling 6,516 bytes,
+including measured results and the key limitation. This is retrieval evidence,
+not real generated quality acceptance. Final hashes are in the release record.
+
+After final source checks/CI/protected deployment, CoS selected the remaining
+**one ideas batch/one article for the adapted journey**, not another unadapted
+card. Save the agreed medicine/DNA/concise/examples feedback, verify persisted
+principles, then generate one fresh ideas batch and one selected article. Contextual
+Ask and return/reopen follow within existing caps. The pre-feedback ideas/body are
+before-context only; the v1.4 false positive is not trusted evidence. A fresh
+unadapted v1.6 body remains explicitly unrun. No new principal, reset, model,
+dollar-budget or historical-record change; stop paid work on a material failure.
+Public release remains September 5. The current paid hold has not been lifted.
+
+### September 6 v1.5 real baseline — withheld, diagnosis underway
+
+Exact `60da1482784152fc5a080ba328bf9b5c8cdbef94` is committed/pushed, green in
+CI `34058363433` and all Preview contexts, and deployed at the same protected
+calibration origin. The same guest selected the next Bag of Reactions card.
+Request `edfd42a4-ddb6-4716-a683-f01ecd54518c` completed all four stages but failed
+`editorial_withheld`; no article was published. Both exact-surface audits completed.
+The final check found remaining assertions beyond retained evidence, while both
+checks also requested an impossible nonfactual/unmapped rhetorical title. The title
+contract mismatch is not the sole failure; exact prose/evidence review is underway.
+
+Further paid requests/public rollout are paused. Preserve all failed/false-positive
+records and usage. This run cost $0.109861; cumulative on-demand ledger estimate
+is $0.399524. One ideas batch/one article remains, no feedback submitted, same
+guest and normal ceilings unchanged. Public September 5 release is untouched;
+all three original schedules are restored to old-source recovery
+`dpl_4vuYaoLhE9tc5sUwDkmf3evFdm6m`. Technical release record has exact hosted
+identities, terminal packet and verification limits. No new founder input is
+needed for the ongoing read-only diagnosis.
+
+### September 6 v1.5 — local verification complete, protected deployment next
+
+The bounded exact-text correction is implemented and independently source-reviewed
+by CoS. Every displayed factual surface, including headings, now requires its own
+fingerprint-bound assessment; article publication/replay reject absent or stale
+audits. Missing displayed support and heading mappings retain the same sole repair.
+The why-written explanation remains checked for privacy/fit without fabricated
+external evidence. Question format, models, caps, database and raw-stage records
+are unchanged. These checks enforce coverage; they do not prove model accuracy.
+
+All **354 web + 143 API tests**, both typechecks, lint and both production builds
+pass. A first typecheck encountered duplicate generated API type artifacts; both
+builds regenerated those artifacts and the final standalone typechecks passed.
+Final source hashes and review scope are in the technical release record. Commit,
+CI and protected deployment are next; public release remains unchanged. Resume
+only the already-authorized same-guest Bag of Reactions baseline, then feedback
+and one adapted batch/article if acceptable. The v1.4 false positive below remains
+preserved, not repaired or counted as editorial acceptance.
+
+### September 6 v1.4 real-output finding — paid calibration and rollout paused
+
+Exact `de8ce3d3c8e57635b38e2af87f78855f62881e64` is committed/pushed, green in
+CI `34056080702` and all Preview contexts, and deployed to the stable protected
+calibration origin. Article request `1c02f1c9-ce65-498a-94d2-89a1c0e6ac8f`
+completed writer/check/sole-repair/recheck and the app rendered it. **This is an
+automated acceptance false positive, not Editorial acceptance:** CoS found a
+material unsupported conditional in summary.1. The checker accepted the writer's
+weaker paraphrase rather than the actual summary's causal condition. All three
+unchanged headings were also relabeled neutral during repair, removing mappings.
+
+Do not commission further paid work or roll out publicly while the smallest
+exact-surface/complete-heading QA correction is resolved. No feedback or adapted
+batch has been submitted; no provider request is in flight. Preserve the accepted
+private record and its four raw stages/charges unchanged; do not manually rescue
+it. Baseline cost was $0.127128; total on-demand ledger estimates are $0.289663.
+CoS has clarified that the old aggregate article cap was its sampling limit, not
+a Michael-specified budget, and revised it by one article within this same guest's
+existing server allowance. Current remainder is **one ideas batch/two articles**
+(total across both existing guests at most three ideas/five articles). No server
+quota, dollar ceiling, model or principal change. After corrected source/review/
+deployment, use the next unselected **When Does a Bag of Reactions Become a Cell?**
+card as baseline; only if acceptable continue with the exact feedback and one
+adapted batch/article. Stop for diagnosis on a material failure.
+
+Actual desktop reading, same-origin Back/reopen and reload succeeded (retained
+nonzero position); exact-pixel return is not yet established. Source list renders;
+external source-opening behavior is unverified. Browser approval review rejected
+the accepted article's Save mutation; do not retry by another method or infer new
+permission. Prior failed-idea save/Library/reload/unsave evidence remains valid.
+Public September 5 release and protection remain unchanged. New legacy cron
+recovery is `dpl_7fJHWRo993aXNsy5i67SheKc1Umo`, exact a681331, all original
+schedules enabled. See the technical release record for precise hosted identities.
+
+### September 6 v1.4 integration — second failure retained, private correction only
+
+Exact `eeab414927f900950aff9e4428a0313534c4567a` passed CI `34053531026` and
+was deployed as a protected web/API pair. The approved one replacement guest now
+uses stable `edison-calibration-mike-michaelmcguis-projects.vercel.app`; preserve
+that origin and principal for subsequent candidate revisions. The real corrected
+ideas run offered four supported cards. Its selected PURE article was withheld
+after its sole repair: the checker supported all seven listed claims, but clipped
+24-character labels, missing factual-heading mapping and a contradictory demand
+for an unknown optional date prevented delivery. No article was published or
+rescued. Total on-demand calibration ledger estimates are **$0.162535**.
+
+The approved v1.4 fix now binds claims beside actual prose surfaces; the server
+derives IDs/locations, sources and complete labels from retained evidence. Source
+metadata is validated deterministically, with null unknown dates preserved. Full
+independent factual/payoff checking, material-heading review, sole repair,
+immutable raw output/usage and replay/version stops remain. All 338 web/143 API
+tests, both typechecks, lint and both production builds pass. CoS independently
+closed the exact source/prompt review. No v1.4 hosted or article acceptance is
+yet established; commit/CI and protected deployment are next.
+
+After final source checks/CI and a corrected protected deployment, select the next
+previously unselected card, **Before Rewriting Life’s Code, Can We Prototype a New
+One?**, as the new baseline. Then save the exact medicine/DNA/concise feedback and
+perform the final adapted ideas/article sequence. Aggregate remaining allowance is
+**one ideas batch and two article requests**, same replacement guest; no extra
+principal, quota reset or additional rounds. The two failed records stay charged
+and unpublished. The wider topic matrix and narrow-viewport rendering remain
+explicitly unverified; the supported viewport override did not take effect.
+
+The public September 5 deployment is unchanged. Latest old-source cron recovery is
+`dpl_9F3rBqaDqrvzxqKbo8tkyzZnnn7A`; all three original schedules remain enabled.
+Final API promotion must verify cron binding. Do not promote the protected web
+configuration unchanged: the final public web build must use the normal public
+API URL so existing account Profile calls do not target a protected unique host.
+See the technical release record for exact identities and verification limits.
+
+### September 6 real calibration — failure retained, bounded correction underway
+
+Current source checkpoint `343b474` is committed/pushed with green CI `34051930097`;
+the actual protected web/API below still run f5776ad. First source-informed ideas
+succeeded, but the selected article failed validation and was **not published**.
+The one retained source conflicted with the legacy two-source writer contract;
+the response also had incomplete claim mapping/citation fragments and its retained
+evidence was too narrow. Actual new ledger-estimated cost: **$0.053472**. Preserve
+the original failed request, provider response and charges; never retry/rescue it.
+
+CTO's bounded v1.3 correction separates one-or-more-unique-source on-demand schemas
+from legacy minimum-two, routes only parseable initial structural failures through
+the existing sole repair plus full recheck, clarifies claim indices/terms/citations,
+and selects distinct contextual windows from whole retrieved pages. Raw publisher
+HTML now has a tested 2-MiB streaming ceiling (all three formerly oversized public
+papers now retrieve), preserving transport protections and the 40KB retained packet
+cap. Models, prices, provider-stage accounting, budgets and old-version replay stops
+are unchanged. Final local correction passes 324 web + 143 API tests, both types,
+repository lint and both production builds. Independent safety review and CoS's
+v1.3 prompt/retained-evidence source review closed; neither is real article
+acceptance. Profile now has the minimal server-selected full-navigation return to
+the enabled demand homepage, with actual isolated callback/popstate tests. Final
+CI/Profile closure, corrected staged deployments and new real output remain pending.
+
+**Calibration continuity correction:** the first guest is tied to its immutable
+unique website URL. Cross-origin guest transfer is unsupported. CoS explicitly
+approved one replacement guest on a fresh stable protected alias of existing
+edison-app, with only the aggregate **remaining two ideas/three article requests**;
+original records/charges and all other limits remain intact. Stop paid work on the
+original guest. No cookie/token export, quota reset, special routing rule or extra
+principal beyond this one replacement. Corrected fresh baseline is ideas slot2,
+adapted is slot3; Architecture and the broader topic matrix are unrun follow-ups.
+Verify same-origin continuity on the stable alias. Account Profile return must
+resolve back to the enabled demand homepage rather than legacy client navigation.
+
+No new migration, trust approval, login, purchase, design or length selector is
+needed. See `docs/ON_DEMAND_RELEASE_2026-09-06.md` for exact evidence and next gates.
+Public September 5 web/API remain unchanged; final apex rollout is not complete.
+
+### Earlier September 6 execution — trust/migration applied, protected testing underway
+
+This supersedes the historical preparation holds below. Michael directly answered
+Yes in the CTO task to the exact `edison-app` Production → `edison-api` Production
+Trusted Sources rule. It is applied and independently verified; Standard Protection,
+reader permissions and spending limits remain intact. Do not request that approval again.
+
+Source `f5776ad3b610b959ed1549277ed8dd7417c2e87b` is committed/pushed with exact
+green CI `34050221734` (417 application tests, 234 Supabase PG17 assertions,
+types/lint/builds). The reviewed new001 migration is now applied to hosted PG17.6;
+ledger16, eight forced-RLS tables, policies/roles/indexes/constraints passed independent
+verification. Do not replay it or historical operators. The encrypted backup/recovery
+checkpoint below is complete within its documented logical limits.
+
+Protected API candidate: `dpl_6KwD5JV9CZv8uiNHNTQJaeJyEu5x`,
+`https://edison-l9i8daac3-mike-michaelmcguis-projects.vercel.app`.
+Protected web candidate: `dpl_5QAFAsqG5Ch1o2NsMtzxy2E9xwCM`,
+`https://edison-3ole3xlb9-mike-michaelmcguis-projects.vercel.app/demand`.
+Both build from clean f5776ad, use per-deployment flags and the approved short-lived
+OIDC connection with an exact pinned upstream. Anonymous requests get protection302.
+The actual web `/demand` opened in the normal browser and reached the new-loop dialog
+after its session request; the guest must be retained for the bounded real calibration.
+Raw API-page browser navigation returned `ERR_BLOCKED_BY_CLIENT`; do not bypass it,
+extract cookies or create a CLI guest. The actual web UI is permitted and functional.
+
+**Observed platform caution:** `--prod --skip-domain` preserved the public API alias
+and production target, but rebound all three cron hosts and the automatic system alias
+to the staged build. A clean old `a681331` redeploy with on-demand=false restored the
+original scheduled behavior on new recovery `dpl_2ipCwaY1wcg1d14V3GVZQT4zKXsY`
+(`edison-1496kct6u-mike-michaelmcguis-projects.vercel.app`). Crons remain enabled;
+no manual job invocation or domain promotion occurred. Public API remains dpl_JCo,
+and public web remains dpl_3pz, both healthy. The recovery host has no demand reconciler;
+verify direct Workflow pinning during calibration and intended cron binding at rollout.
+
+Full details: `docs/ON_DEMAND_RELEASE_2026-09-06.md`. Real article/editorial/connected
+acceptance and final apex rollout are not complete. A minimal flag-aware root mapping
+is separately prepared locally in `app/page.tsx` with seven new branch tests; 299 web
+tests, types, focused lint and web production build passed. This follow-up checkpoint
+includes the mapping, but neither protected f5776ad candidate contains it and it has
+not been deployed to the public site. Preserve unrelated team work. No new design or
+length selector.
+
+### Earlier September 6 preparation — superseded by execution above
+
+Read `docs/ON_DEMAND_RELEASE_2026-09-06.md` for current execution evidence.
+Exact committed/pushed `81ac136` passed full CI `34047355450`, including all
+410 application tests and 234 Supabase PG17 pgTAP assertions. Vercel CLI login
+**succeeded**; expected account `mike-9085` is verified. Do not generate another
+device code because older notes below say login expired.
+
+A fresh Supabase automatic backup is complete; an encrypted logical checkpoint
+was taken over certificate-verified TLS, restored into a network-isolated native
+PostgreSQL copy, and matched all 59 tables/190 rows by content digest. The exact
+new001 migration also passed against that restored current-data copy. The
+encrypted checkpoint is retained privately on the owner's Mac with its new key
+in Keychain. This is not a hosted physical/PITR restoration or a full service RTO
+drill. The hosted dry run still reports only new001 pending; none was applied.
+
+Private connected browser testing needs a narrow opt-in web→API OIDC connector
+and an existing-project Production→Production Trusted Sources rule. Both Vercel
+projects retain Standard Protection; no trust or auth-path activation occurred.
+Automatic approval review in CoS rejected this access-boundary change without
+Michael's explicit approval of its exact target/scope. Reversible default-off
+code/tests and the proposal may be completed, but do not activate or work around
+the rejection. CoS coordinates the required owner approval. Current public
+deployments/domains, budgets and reader authorization remain unchanged; real
+on-demand generation/browser acceptance and apex rollout are still ahead.
+
+### September 6 approved on-demand v8 — local implementation, not released
+
+Michael approved the exact v8 in Chief of Staff and requested CTO handoff (D26).
+The earlier pause for CoS/Design is resolved. Read
+`docs/brand/APPROVED_ON_DEMAND_LOOPS_CTO_HANDOFF_2026-09-06.md` and
+`docs/ON_DEMAND_IMPLEMENTATION_2026-09-06.md` before adopting older implementation
+gaps or approval holds below. The new general-topic guest/account reading flow,
+durable ideas → selected article → automated checks/one repair, scoped additive
+principles/Undo and questions are implemented locally on base `d084df4`, with
+prompt candidate v1.2. CoS owns editorial/value acceptance and Design reviews
+the built interface. Full real-provider/hosted acceptance is still incomplete.
+
+The combined history/continuity freeze passes 285 web tests, 125 API tests, both typechecks,
+repository lint and both production builds. Checkpoint `bd2bf2f` is pushed to PR #1;
+its CI application job and all three Vercel Preview builds passed. Supabase PG17
+CI caught a redundant privileged ALTER ROLE in new001. A narrow follow-up retains
+least-privilege CREATE attributes and rejects unsafe role collisions, with 69
+local pgTAP assertions and restricted-CREATEROLE checks passing. Correction
+`44534e8` passed full CI `34047052622`: application and disposable Supabase PG17
+database jobs, all 16 migrations, 234 pgTAP assertions, publication/correction
+replays and strict schema lint. Earlier bounded separate-process PostgreSQL 18.6 admission/provider-stage/
+checkpoint-contention/owner-isolation checks and all-16 native clean-chain
+rehearsal used the original migration before that role correction, with Supabase-owned
+prerequisites. A separate 420-row SQL history case passed. Final UI changes cover
+ordered responses, draft/Undo safety, half-read leave/reopen/reload, combined For
+You, scoped Ask, existing account Profile access and bounded 60-card older/saved
+history with exact status recovery beyond recent workspace caps (50 focused tests).
+Exact hashes and limits are in the implementation checkpoint; earlier rendered
+fixture checks do not establish browser acceptance of the corrected UI.
+Design independently closed the original continuity/history source cases at
+44/44. Its subsequent late-restoration/navigation finding now has a guarded
+success/failure/bootstrap/Retry correction and regressions, with final independent
+Design source closure and rendered/connected acceptance still separate.
+
+This record accompanies the scoped feature-off checkpoint for existing PR #1;
+the commit containing it identifies the source. The candidate remains off behind
+`EDISON_ON_DEMAND_ENABLED`; its reader is isolated at `/demand`. No hosted
+migration or explicit deployment has occurred for this assignment. Release-branch
+pushes may trigger Preview/CI only. The new additive migration has disposable
+PostgreSQL checks, not hosted acceptance. A linked read-only dry run reports only
+that migration pending. Vercel's one-time CLI device authorization expired; a
+fresh code is needed when Michael is ready. Do not reuse it, bypass the disabled
+control, expose saved credentials or substitute the old live generation pipeline.
+The implementation record describes the protected aliasless calibration path and
+the remaining history indexing/immutability hardening; it has not been executed.
+The existing September 5 deployment and domain/origin configuration remain
+unchanged. Preserve existing authority, funded capacity, private account
+membership and unrelated shared-checkout work. No fresh generic approval is
+needed for the selected implementation; do not claim it is production-ready
+from local tests or synthetic UI content.
+
+### September 5 apex cutover — completed and verified
+
+Michael explicitly requested, “can we deploy it at edisonreader.com too plese,”
+in Chief of Staff's task (user message `01a073c8-52bc-7f90-adc8-0447fa602586`).
+CTO verified that original user message. This supersedes the older apex-demo
+preservation restriction for the named existing domain only. The cutover is
+complete: the `edison-app` Production deployment serves both
+`https://edisonreader.com` and `https://project-qlqve.vercel.app`, while
+`https://www.edisonreader.com` preserves its path/query-aware `308` redirect to
+the apex. Vercel reports all three domain assignments Valid. The apex DOM was
+verified against web deployment `dpl_3pzB3bKXiX7qFUVpits8QxP3CFpt` and shows
+the approved Sleep/History Pulse application, not the former sample demo.
+
+The API intentionally remains at the temporary
+`https://project-fjr95.vercel.app/v1` URL. Its cache-free Production rebuild of
+`a681331` is `dpl_JCoE2yh9oxwA56wcjJu1JULq4hC6`, Ready at 23:10:44 UTC and
+confirmed after reload. `WEB_APP_URL` is the apex and
+`CORS_ALLOWED_ORIGINS` contains exactly the apex plus the retained temporary
+web origin. Supabase Auth now uses the apex Site URL and exactly four redirect
+entries: `/auth/callback` and `/auth/confirm` on each of those two web origins.
+No wildcard, `www` callback, new invitation, provider call, generation run,
+content write, paid service or secret inspection was part of the cutover.
+Owner-only access, budgets and rollback points remain unchanged. Detailed
+cutover and post-deploy evidence belongs in
+`docs/PULSE_RELEASE_2026-09-05.md`; do not duplicate or rerun it.
+
+### September 5 Pulse + loops release — latest implementation checkpoint
+
+Michael approved the selected Pulse + loops v5 and explicitly asked the CTO to
+get it live in Production. The controlling product scope is
+`docs/brand/APPROVED_PULSE_LOOPS_CTO_HANDOFF_2026-09-05.md` and its linked v5
+implementation details. This supersedes older interface descriptions below;
+this approval did not itself authorize a domain change, merge into `main`, new
+readers or paid services. The later apex authorization above supersedes only
+that named domain restriction. The older setup checkpoints are historical, not
+pending instructions.
+
+Release `f6b7bb1cb49244c28f37f70519b97184510708a9` passed full Node 22 CI
+`33995500057` including 165 pgTAP assertions and actual disposable publication/
+correction rehearsals. Explicit cache-free Production rebuilds are Ready:
+
+- Initial web: `dpl_ArHbfeAQeHmREgBQjkN91ivL977h`,
+  `https://project-qlqve.vercel.app`, September 5 at 22:29:22 UTC.
+- API: `dpl_4SBpQxDpes2wrnpGFpJ1z2AWEyHf`,
+  `https://project-fjr95.vercel.app`, September 5 at 22:23:54 UTC.
+
+The final web-only follow-up `a08c6a1a346f281182f23214500bc93e72075243`
+passed full Node 22 CI `33996724371` with 236 application tests and 165 pgTAP
+assertions. Production web `dpl_3pzB3bKXiX7qFUVpits8QxP3CFpt` was Ready at
+22:49:02 UTC on the same stable web URL. At that pre-cutover checkpoint the API
+remained f6; the follow-up changed only web files, focused tests and
+documentation. The later API rebuild is recorded in the cutover section above.
+Do not redeploy API or rerun migrations for a documentation-only closeout.
+
+All 15 migrations are applied. The accepted Sleep/History public edition is
+published and its real UUIDs/artwork are bound in the client; complete hosted
+snapshots were independently verified. The owner article's accepted manual
+editorial correction is applied with immutable protected before/after audit
+and a narrow owner-only disclosure. Do not repeat those writes or use obsolete
+starter/correction drafts. Generation jobs remain 4, usage rows 1, recorded
+cost $0.062654. Do not reset quotas or claim this correction improved the writer.
+
+Actual guest reading, Save/Library, Next/Back/card focus, loop matching, Curate
+save/undo, question-draft and scroll-position reload checks pass. The new API's
+health, private-route rejection, exact CORS and all negative cron checks pass.
+Design has rendered actual 320/390/760/1024/1280/1440px layouts without
+horizontal overflow. The bounded keyboard/focus/styling follow-up is live;
+root verified its deployment marker, heading focus, removed Pulse-only stripe,
+Ask dismissal restoring its control's focus and original-card return. Design's
+focused a08 recheck closed all five keyboard/styling findings at desktop and
+320/390px. Its exact report is linked from the release record. The controlled
+browser still has no authenticated owner session; owner-only rendered flows,
+the correction note, provider-dashboard reconciliation and backup restoration
+remain unverified. Do not extract credentials or resend invitations.
+
+The live release record is `docs/PULSE_RELEASE_2026-09-05.md`. Preserve rollback
+deployments and the former demo deployment, but do not describe the apex as an
+isolated demo after the cutover. `main` remains unmerged at `e559a6b`.
+
+### September 5 full-release authorization — pre-cutover release authority
+
+At that checkpoint, the owner's instruction was: “I trust you - let's just do
+everything to get this fully deployed and ready for production. Only ask me if
+you need me if you really think it's necessary.” This superseded the step-by-step stop
+boundaries in the historical setup record below. It authorizes secure release
+access, reviewed migrations, committing/pushing the candidate, deploying the
+existing live projects, and inviting/testing only the previously approved owner,
+`mike@michaelmcguiness.com`. Do not request another generic release approval.
+Never reveal existing secrets or ask for them in chat. At that checkpoint, no
+extra paid services, broader invitations, or website-domain changes were part
+of the first release. The separately verified decision above later authorized
+and completed the existing apex/`www` cutover only; it did not broaden reader
+access or authorize any additional domain.
+
+#### Historical pre-Pulse setup chronology
+
+The following checkpoint is retained as history and is superseded by the
+latest Pulse release and apex cutover above. Statements about the apex demo,
+single-origin configuration, or a missing starter describe their timestamped
+pre-cutover state and are not current instructions.
+
+Candidate `4f774eb` was committed and pushed on
+`codex/production-release-candidate` in draft PR #1; `main` is neither merged
+nor protected. [CI run 33987973278](https://github.com/michaelmcguiness/edison/actions/runs/33987973278)
+passed on Node 22.23.2/pnpm 10.28.0 with lint, both typechecks, 183 application tests,
+both production builds, all 107 pgTAP assertions, and strict application-schema
+lint. The application total is 110 web plus 73 API tests, with zero failures.
+
+The reviewed linked dry run and backup checkpoint preceded a successful
+production push of all 13 migrations to Supabase project
+`bcxxnntastmnormcmxbq`. A separate read-only metadata check on PostgreSQL 17.6
+found all 24 expected tables, all 21 expected RLS settings, 45 policies, 20
+triggers, zero invalid constraints, the expected Storage bucket, and the
+intended role/grant boundaries. Auth was empty during that audit; it now has
+exactly the single invited owner described below. Recovery from backup remains
+untested; do not describe the checkpoint as a restore rehearsal.
+
+Release-branch pushes now correctly target Preview; the current live-project
+deployments were explicit Production rebuilds. Web deployment
+`dpl_Eqed7bwPxcNaEACSj2Nxx8WtzRwZ` of `d463d44` is live at
+`https://project-qlqve.vercel.app`; it returned HTTP 200 with the expected
+nonce-based CSP at 19:12:56Z. The apex `edisonreader.com` continued to serve the
+older isolated sample-data demo with HTTP 200 at 19:12:58Z.
+
+The owner privately saved the actual Supabase Shared Transaction pooler URI; no
+secret was read or exposed. Candidate `df3e712` now shares one production TLS
+policy between runtime and preflight: a URI without a TLS query option receives
+explicit Postgres.js `ssl=require`, certificate-verifying requests remain at
+least as strong, and insecure, duplicate, or ambiguous URL controls fail closed.
+Explicit constructor precedence also prevents `PGSSL` or URI aliases from
+turning TLS off. Focused tests, independent security review, and a local TCP
+mock confirm TLS is attempted and a server refusing SSL is rejected without a
+plaintext startup fallback.
+
+Production API deployment `dpl_GVJFA1vDQks3eBya4ArrXGpCHzFU` of `df3e712` was
+Ready at 19:11:12Z (15:11:12 EDT). At 19:11:46Z, `/v1/health` returned HTTP 200
+with configuration, database, and Supabase Auth all `ok` (request
+`d641ae5d-26df-4974-b2cc-c1fcff4309ab`). Independent live checks then confirmed
+unauthenticated `/v1/me` is `401`, the configured web-origin preflight is `204`
+with exact origin reflection, an unapproved origin is `403` without reflection,
+and all six missing/wrong-token checks across the three GET cron routes are
+`401 invalid_cron_secret`. The unauthenticated public-starter read reached the
+real public SQL role and returned the expected `404 starter_edition_unavailable`
+because no starter is published. These negative checks preceded the first
+valid owner-only scheduler invocation described below.
+
+Vercel CLI 59.11.7 was available only through an ephemeral `pnpm dlx` run. Its
+login could not be completed and the pending attempt was canceled, so there is
+no authenticated local Vercel CLI session.
+
+OpenAI project `edison-production` (`proj_EFKsL4Yfs6pDFOzI4aGWThSf`) now has an
+enforced $50 monthly project cap and model access limited to `gpt-5.6-terra`
+and `gpt-5.6-luna`; the owner also funded the API account with $50 in credits.
+Its `edison-api-production` service-account key was privately saved as the API
+Production `OPENAI_API_KEY`; no secret was printed or stored in the repository.
+The owner explicitly approved Responses-only scope, and the key is now saved as
+Restricted. A fresh permission readback shows Write only for Responses
+(`/v1/responses`) and None for every other permission leaf. The safety reviewer
+initially rejected the save when the UI reported “2 selected permissions.” A
+non-saving check changed only the Responses control and observed that displayed
+count move from `0` at None to `1` at Read and `2` at Write while every other
+leaf remained None; the retry then succeeded. No further key-scope approval is
+pending. The first provider attempt reached OpenAI but was rejected for an
+unsupported output-schema format, as described below. The original
+default-project key remains unread and unrevoked.
+
+The single authorized owner invitation was sent once through the Supabase
+Dashboard at approximately 19:15Z after health and all ten safe live checks
+passed. Auth now contains exactly owner
+`5611f8fa-e0dd-460c-ae4d-5fb7dd7bfe83`, with
+`invited_at=2026-09-05 19:15:11.951927+00`; Resend metadata shows message
+`4fecf81e-099f-4144-acf6-4f26bf85ef51`, subject “Your Edison Reader
+invitation,” as Delivered. No email body, callback token, or secret was read.
+The owner has now redeemed the invitation: `email_confirmed_at` is
+`2026-09-05 19:23:00.363055+00` and `last_sign_in_at` is
+`2026-09-05 19:23:00.372394+00`. Live API logs show authenticated `/v1/me`,
+`/v1/feed`, and `/v1/editorial-direction` reads plus the first `/v1/me` PATCH
+all returning 200 at 19:23:02Z. Read-only metadata confirms active membership,
+`onboarding_complete=true`, and `timezone=America/New_York`. No additional
+sign-in, invitation, or credential change is required. The owner's signed-in
+browser is not connected to the current controlled browser session, so the
+rendered authenticated reading journey remains unverified. The hosted template is saved and
+fresh-reload verified with exactly one invitation link using the
+Dashboard-compatible `.SiteURL` `/auth/confirm` token-hash callback. The
+matching repository correction and focused release-boundary regression were
+included in pushed checkpoint `d463d44`. Candidate `df3e712` includes the safe
+database diagnostic and enforced TLS policy with the full green release gate.
+
+At 19:33:45.426Z, one authorized click on Vercel's existing daily-edition
+**Run** control returned 200. A read-only precheck confirmed the scheduler had
+exactly one eligible profile, the approved owner. It created exactly three
+`initial-edition` jobs and dispatched real Workflows. All three failed by
+19:33:57Z, with no article, feed item, provider response ID, or usage-ledger row.
+The Workflow inspector identifies the concrete provider error: HTTP 400,
+`sources.items.properties.url` emitted unsupported JSON Schema `format: uri`.
+Each generation step attempted four times within its one workflow run; the
+database job attempt count is one, not a provider-call count. Fix `4f774eb`
+separates the compatible provider wire format from unchanged canonical URL and
+citation validation and increments the request-envelope version to 2.
+Independent review found no P0/P1/P2 issues; actual SDK schema regressions and
+all 183 application tests pass.
+
+Production API deployment `dpl_12vWp1rShga96hTQ1yJzu8VTiRYh` of `4f774eb`
+was Ready at 19:47:17Z. Its 19:47:37Z health check returned 200 with all three
+checks `ok` (request `e3f2ec39-c7b6-4c9a-8004-5434ca61114e`). One subsequent
+dashboard scheduler invocation at 19:48:11Z created only the quota-permitted
+fresh slot-1 retry. Job `2bc18fba-142d-4be6-af9a-c1c18523809c` succeeded at
+19:48:41.516Z, publishing one owner article at rank 1 for September 5. Workflow
+`wrun_01M1SHTG1K70NG2D4NE3PC4QNS` is completed. Its one priced ledger row
+records `gpt-5.6-terra`, 14,045 input tokens, zero cached tokens, 2,047 output
+tokens, one web-search call, and estimated cost 62,654 micro-USD ($0.062654).
+The provider usage dashboard still showed no data at the initial follow-up, so
+provider-side billing reconciliation is not complete. No quota or history was
+reset: all four rolling daily job slots are consumed, and the edition is one
+article rather than a complete three-article acceptance.
+
+At this earlier checkpoint, the first genuine production article was not
+editorially accepted.
+Primary-source review found overconfident headline framing and incorrect precise
+source dates; the original private artifact is retained without silently changing
+the live article. Chief of Staff now owns Editorial, Strategy, and Growth; do not
+reactivate those archived tasks. Chief of Staff's independent final verdict is
+**withhold** this exact article pending bounded corrections: headline/opening
+certainty, source dates/labels, and clearer projection timing. The core numerical
+claims and grid lead-time explanation were supported. The bounded correction
+was subsequently accepted and applied with a protected audit as recorded at
+the top; this historical withhold is not a current instruction to repeat it.
+New unapproved product/design proposals must not enter
+engineering until Michael approves their design; existing release fixes continue.
+
+Head of Editorial accepted starter candidate v2 with exact SHA-256
+`aa26d2258cb391ad552466f39bee01ae4d1596d480fef59381dfeb9b184d8c50`
+in its isolated worktree. That older draft is superseded by the accepted and
+published Sleep/History fixture. Do not integrate or publish the obsolete v2.
+
+### Historical setup and approval record
+
+This section preserves dated setup authority and evidence only. Its stop
+boundaries were subsequently superseded by the scoped full-release and apex
+decisions above; do not treat them as the current deployment state.
+
+The owner has asked to build the actual production version and wants as much as
+possible completed autonomously. The approved technical direction is Vercel
+Pro + Supabase Pro + an Edison-specific OpenAI API project when the private
+alpha is released. A reasonable all-in budget is a few hundred dollars per
+month. There is no paid staging stack initially; use local Supabase,
+credential-free previews, and one backed-up production project.
+
+That authorizes code and documentation work. It does **not** by itself authorize
+buying plans, creating or mutating hosted services, entering/requesting secrets,
+applying migrations, deploying the production stack, attaching new domains,
+changing the apex deployment, publishing commits, or inviting readers. Stop at
+those boundaries unless the owner explicitly approves the exact action.
+
+Never ask the owner to paste a secret in chat. Provider credentials belong in
+the relevant provider dashboard or a short-lived uncommitted local environment.
+
+On September 4, 2026, the owner explicitly authorized committing and pushing the
+production release candidate and creating separate temporary Vercel web/API
+projects plus a Supabase production project. This authorization stops before
+paid upgrades, secret entry, live migrations, invitations, or domain changes.
+Publish the candidate on `codex/production-release-candidate` and review it in a
+draft pull request; at that time, `main` still automatically deployed the
+existing apex demo.
+Project creation does not authorize merging the release or activating live
+services.
+
+The owner subsequently approved signing into Supabase with the
+`michaelmcguiness` GitHub account and connecting only
+`michaelmcguiness/edison` to both new Vercel projects. The Git connections are
+complete. The owner completed Supabase sign-in as `michaelmcguiness` and
+created `edison-production` in Mike's Org, North Virginia
+(`us-east-1`). Project `bcxxnntastmnormcmxbq` reports Healthy and PostgreSQL
+`17.6.1.166`, matching the tested major version. No database password was
+read, generated, or entered by the agent. Secret entry and all other stop
+limits remain in force.
+
+The owner then upgraded the Vercel team and Mike's Org to Pro; refreshed
+dashboards independently confirm both plans. The owner saved `OPENAI_API_KEY`
+directly in `edison-api`; its environment list shows a Production-only Secret.
+Only metadata was inspected, never its value, and provider access/billing has
+not been tested. The owner created and signed into Resend via GitHub, then
+explicitly approved adding `mail.edisonreader.com` and its required email DNS
+records in Vercel while leaving website routing unchanged. That setup is now
+complete: Resend domain `81f985d3-02be-48bd-b9d1-9f7e6902114e`, North Virginia,
+reports Verified for DKIM and both sending/SPF records. Sending is enabled,
+Receiving is disabled, and tracking is unconfigured. Exactly three TTL-60
+records were added; both authoritative nameservers and a public resolver match
+the expected records. Apex/`www` HTTP/TLS smoke checks still pass. No optional
+DMARC policy, inbound-mail MX, or website routing change was made.
+
+The owner reports creating the Resend key and saving Supabase custom SMTP.
+A fresh settings page confirms SMTP enabled, sender
+`Edison <auth@mail.edisonreader.com>`, host `smtp.resend.com`, port `465`, and
+60-second minimum interval. The owner corrected the SMTP Username to `resend`;
+an independent fresh page on September 5 confirms it is saved and SMTP remains
+enabled. The password was not revealed, changed, or read by the agent; its
+validity and the Resend key's permissions have not been tested. No delivery
+test has run. Browser text/DOM inspection
+omits some email/username values; fresh screenshots confirmed the public
+settings without revealing the password. Do not mistake omitted text for
+unsaved settings or reveal secrets to verify them.
+
+No existing secret values or test emails were handled by the agent during
+SMTP setup. The separately authorized cron generation is recorded below.
+Migration, deployment, invitation, and domain-change boundaries remain in
+force; the email-domain approval does not authorize app/API domains.
+
+On September 5, the owner explicitly authorized the remaining non-secret
+web/API connection settings, initial usage quotas, temporary origins, and
+private-alpha allowlists, plus the hosted Auth restrictions and invitation
+template. That setup is complete as recorded below. It does **not** authorize
+entering or inspecting additional secrets, configuring the database or cron
+secret, applying migrations, pushing code, deploying either live project,
+sending an invitation, or changing domains.
+
+The owner then approved guided private credential entry, entered
+`DATABASE_URL`, and separately authorized generating `CRON_SECRET`. The agent
+generated 32 cryptographically random bytes, encoded them as 64 hexadecimal
+characters, and filled only the cron field without printing or reading back
+either secret. The database value was not inspected or changed. The owner
+clicked Save and confirmed completion. A September 5 metadata-only check
+independently confirms both names saved as Production-only Secret values in
+`edison-api`, alongside the existing OpenAI Secret. No values were revealed.
+
+All required API variable names are now present, but metadata does not prove
+database URL formatting/TLS, credential validity, or provider connectivity.
+Full API preflight and real connection tests remain pending. This approval
+does not authorize inspecting secrets, secure local migration access, schema
+application, deployment, or invitations. Never read an in-progress secret form
+or ask for keys in chat. The next gate is separately approved secure local
+migration access and a reviewed dry run, not another Vercel secret-entry form.
+
+## Hosted state versus working-tree state
+
+- [edisonreader.com](https://edisonreader.com/) now serves the approved live
+  Pulse application from `edison-app`; the retained
+  [temporary web URL](https://project-qlqve.vercel.app/) serves the same
+  Production deployment. `www` redirects to the apex with `308`, preserving
+  path and query. All three assignments were fresh-reload verified as Valid.
+- The former credential-free sample deployment remains a separate rollback/
+  historical deployment and has not received production Supabase, API, OpenAI,
+  SMTP, or cron credentials. It is no longer attached to the apex.
+- The public GitHub source is
+  [michaelmcguiness/edison](https://github.com/michaelmcguiness/edison). The
+  deployed checkpoints are `a08c6a1` (web) and `a681331` (API, with the same
+  f6 runtime source). They are on `codex/production-release-candidate` in
+  [draft PR #1](https://github.com/michaelmcguiness/edison/pull/1). `main` is
+  unmerged and unprotected.
+- Separate `edison-app` and `edison-api` Vercel projects exist with the intended
+  Next.js/Node 22/build settings and saved production branch `main`.
+  Release-branch pushes now target Preview; the current deployments were
+  explicit Production rebuilds. Web deployment
+  `dpl_3pzB3bKXiX7qFUVpits8QxP3CFpt` (`a08c6a1`) is live at both
+  `edisonreader.com` and `project-qlqve.vercel.app`. API deployment
+  `dpl_JCoE2yh9oxwA56wcjJu1JULq4hC6` (`a681331`, with unchanged f6 API
+  application source) is Ready at `project-fjr95.vercel.app`, and readiness is
+  fully healthy. The web project has the apex custom domain; the API still uses
+  its temporary Vercel URL.
+- `edison-app` has five Production Config values: Corepack, explicit live mode,
+  the temporary API `/v1` URL, and the production Supabase URL/publishable key.
+  Preview has only Corepack plus explicit demo mode. `edison-api` has 17
+  Production Config values for Corepack, Supabase public Auth metadata, JWT
+  audience, reviewed models and quotas, exact web/CORS origins, initial
+  edition scheduling, and the owner-only reader/admin allowlists. The existing
+  Production-only OpenAI Secret now contains the privately transferred
+  `edison-api-production` service-account key for the dedicated Edison project;
+  it was never printed or read back. Its saved Restricted policy grants only
+  Responses Write and leaves every other permission leaf at None; the key is
+  known to have returned one successful, priced article-generation response.
+  `DATABASE_URL` and `CRON_SECRET` are also verified Production-only Secrets;
+  the API has 17 Production Config values and three Production Secrets total.
+  API Preview had no variables
+  until the final authorized setup step; it now has exactly one Config value,
+  `ENABLE_EXPERIMENTAL_COREPACK=1`, and no live values. Future pushes can
+  trigger builds;
+  do not push merely to update setup notes before deployment is intended.
+  See `docs/DEPLOYMENT.md` for IDs and setup status.
+- Exact current wiring is web → `https://project-fjr95.vercel.app/v1`, both
+  projects → `https://bcxxnntastmnormcmxbq.supabase.co` with the matching public
+  key, API `WEB_APP_URL` → `https://edisonreader.com`, and API CORS → exactly
+  `https://edisonreader.com` plus `https://project-qlqve.vercel.app`. API models
+  are `gpt-5.6-terra`/`gpt-5.6-luna`; per-reader quotas are 4 generations,
+  20 article questions, and 10 commands; search accounting is 10000 microdollars
+  per call; edition settings are hour 5, target 3, batch 25. Both API email lists
+  contain only `mike@michaelmcguiness.com`. Do not put the literal publishable
+  key in documentation even though it is intentionally public client metadata.
+- The web and API Build Commands persist the production-only
+  `scripts/check-production-env.mjs` guards documented in the release runbook.
+  Fifteen focused authentication/configuration tests pass.
+- A read-only attempt to open Supabase's Direct Connection string was blocked
+  before execution because it could expose credentials. No database connection
+  value was read, copied, or inferred, and no workaround was attempted. Later
+  authorized Vercel entry is complete as recorded above. Secure local migration
+  access subsequently succeeded through the official CLI login/link flow;
+  never request credentials in chat.
+- Supabase project
+  [`edison-production`](https://supabase.com/dashboard/project/bcxxnntastmnormcmxbq)
+  exists and is Healthy, in the Pro organization in `us-east-1`, PostgreSQL
+  `17.6.1.166`; the organization inventory still labels compute Nano.
+  All 15 repository migrations are applied. Read-only hosted checks confirm the
+  expected schema, RLS, policies, triggers, Storage bucket, functions, and
+  constrained grants. Backup contents and recovery have not been verified. The
+  owner privately saved the actual Shared Transaction pooler URI. Runtime
+  and preflight now share the `df3e712` TLS policy, which explicitly defaults a
+  missing TLS query option to `ssl=require` and rejects insecure or ambiguous
+  overrides. Production database health passes; no further owner database edit
+  is pending.
+- Hosted Supabase Auth has global signup and anonymous sign-in disabled, the
+  email provider enabled for invitations, apex Site URL, and exactly four
+  redirects: `/auth/callback` and `/auth/confirm` on both
+  `https://edisonreader.com` and `https://project-qlqve.vercel.app`. There is no
+  wildcard or `www` callback. Its current signing key is already ECC P-256. The
+  hosted invitation template and subject
+  “Your Edison Reader invitation” are saved and fresh-reload verified; its
+  single CTA uses
+  `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=invite`
+  because Dashboard invitations cannot supply a callback override. One owner
+  invitation was sent and provider metadata reports Delivered; its body and
+  token were not read. The matching repository template
+  correction and focused regression are included in pushed checkpoint
+  `d463d44` and its green CI run.
+  In local `supabase/config.toml`, `[auth].enable_signup=false` is the
+  signup denial; `[auth.email].enable_signup=true` correctly keeps the email
+  provider available and maps to `GOTRUE_EXTERNAL_EMAIL_ENABLED`. Confirm-email
+  remains enabled. The dashboard template preview has an unresolved logo and
+  the owner has redeemed the invitation successfully. Owner-side email asset
+  rendering remains unverified, but the callback/authenticated API gate passes.
+- The cache-free API rebuild of `a681331` is deployed and Ready with
+  configuration, database, and Auth health all `ok`. The apex and temporary
+  web origins and Supabase schema are live. Owner authentication and timezone
+  persistence pass; one real article and its usage ledger now exist after the
+  provider-schema fix.
+  Accepted public articles and the audited manual correction are live. Guest
+  rendered acceptance passes; authenticated owner acceptance remains incomplete.
+- CI run `33996724371` is green for web follow-up `a08c6a1`: 236 application
+  tests, 165 pgTAP
+  assertions, strict schema lint, and both production builds. Hosted OpenAI
+  billing reconciliation, owner-side email rendering, end-to-end owner acceptance, and
+  a backup/restore rehearsal remain release gates.
+
+## Production topology
+
+Edison is an API-first modular monolith and a real client/server application:
+
+| Surface | Target | Responsibility |
+| --- | --- | --- |
+| Live web (`edison-app`) | `edisonreader.com`; retained alias `project-qlqve.vercel.app` | Next.js UI + Supabase Auth session |
+| Web redirect | `www.edisonreader.com` → `edisonreader.com` | Path/query-preserving `308` |
+| Live API (`edison-api`) | `project-fjr95.vercel.app/v1` | Authz, Postgres, OpenAI, Workflow, cron |
+| Former demo | Separate retained Vercel deployment | Credential-free rollback/history only |
+| Data/Auth | Supabase Pro | Canonical Postgres, Auth, reserved Storage |
+
+Web and future native clients authenticate through Supabase, then call the same
+versioned Edison API with a bearer token. They do not connect to Edison core
+tables or OpenAI directly. The API verifies tokens and the fail-closed alpha
+allowlist, executes reader queries under the non-login `edison_api` role, and
+relies on enabled RLS policies that are enforced for that non-owner role. The
+migrations do not use `FORCE ROW LEVEL SECURITY`; browser/mobile Supabase roles
+also have no core table grants.
+
+Use one region: API/Workflow in US East and a nearby Supabase project. The apex
+and temporary web alias intentionally share the same `edison-app` Production
+build and environment. Keep the former credential-free demo project separate;
+do not attach production credentials to it.
+
+## Locked product and design decisions
+
+The current canonical sources, newest last, are:
+
+1. `docs/brand/WHITE_EDITION_HANDOFF.md`
+2. `docs/brand/PERSONAL_PUBLICATION_HANDOFF.md`
+3. `docs/brand/SIDEBAR_CHAT_HANDOFF.md`
+4. `docs/brand/APPROVED_PULSE_LOOPS_CTO_HANDOFF_2026-09-05.md`
+5. `docs/brand/PULSE_LOOPS_V5_IMPLEMENTATION_DETAILS.md`
+
+The Pulse v5 sources supersede conflicting legacy shell, rail, dock, category
+tab and infinite-feed instructions for the current News experience.
+
+- The feed uses the normal page viewport, a white canvas, the existing Edison
+  bulb/wordmark, visible For You/loop navigation and Library/Profile controls.
+  It is two columns on desktop and one on phones, with no fixed-height or nested
+  scrolling prototype shell.
+- The finite feed ends honestly. For You deduplicates real articles across
+  loops; subject creation and empty states never fabricate or pad inventory.
+- One feed-only Curate control edits future direction. For You requires an
+  explicit target loop, and save/clear/undo reflect actual passed backend or
+  device-local state.
+- Article Ask is a separate article-scoped sheet. It never silently changes
+  loop direction or promises live answers when that capability is unavailable.
+- Article Next and Back use the actual frozen readable sequence, origin label
+  and return position; there is no forced Finish step or auto-advance.
+- Useful public reading appears before authentication. There is no blocking
+  onboarding/account gate before the reader can see a real public edition.
+- Books is a cover-led library and Podcasts is a listening queue only when real
+  services/data exist. No fake covers, books, audio, duration, progress, or play
+  actions.
+- Direction is durable, section-scoped, reviewable, editable, removable, and
+  undoable. Edition-only direction binds to a stable server edition identity.
+- Guest direction/drafts remain device-local and are explicitly reconciled on
+  sign-in without overwriting account state or creating duplicate jobs.
+- The White Edition identity remains quiet black-and-white editorial design
+  with restrained Edison Red, hairline rules, flat surfaces, square imagery,
+  and no gradients/glass/ornamental shadows/rounded-card language.
+
+## Implemented production behavior
+
+### Web
+
+- Prototype, signed-out guest, signed-in public-starter, and authenticated
+  private-live modes are separate.
+- Unauthenticated readers load only the sanitized current public starter News
+  edition. Signed-in readers can also read that starter without the UI
+  misrepresenting it as their private edition. Stable public deep links can
+  reopen archived immutable starter articles.
+- Authenticated readers load the bounded current News edition envelope and
+  runtime-validate it. Feed and direction edition identities are cross-checked;
+  a mismatch disables edition-scoped writes and safely shows the public starter.
+- News date/count/label come from the displayed edition rather than client time.
+- Public and guest cards do not promise a library save they cannot perform.
+- Article reading, saves, feedback, completion/streak, sharing, Q&A, library,
+  profile, explicit interests, inferred-interest removal, and category controls
+  use the live API where connected.
+- Guest directions and drafts receive an explicit additive sign-in import.
+  Exact duplicates are skipped, account drafts are never overwritten, the
+  logical request IDs are stable, and imports never dispatch generation.
+- Books and Podcasts render honest disconnected production states.
+- A nonce-based CSP and security headers protect the web surface.
+
+### API and data
+
+- Versioned REST API under `apps/api`; CORS uses exact origins.
+- Supabase bearer verification, active membership, required private-alpha email
+  allowlist, active-member admin allowlist, `edison_api`/`edison_public` roles,
+  grants, and RLS. Legacy public shares use one narrow security-definer lookup;
+  the public role cannot read the share or membership tables.
+- Revision-safe editorial-direction state/instructions/mutation history with
+  create, full edit, soft remove, Undo, CAS conflicts, and idempotency.
+- Immutable sanitized public starter editions, atomic admin publication, current
+  listing, and stable archived article reads.
+- Daily News edition identity/date rotation, deterministic scheduled ranks,
+  exact-edition feed filtering, and finite `nextCursor: null` response.
+- Active persistent plus current-edition News direction is captured for article
+  generation. The workflow rechecks direction revision/edition/date before
+  publish so stale output is accounted for but never inserted into the new
+  edition.
+- Slow article generation and feed-command parsing use Vercel Workflow with
+  authoritative database rows and reconciliation.
+- Article generation, Q&A, and feed commands use bounded per-reader quotas,
+  leases/attempts, invariant provider-request snapshots, provider idempotency,
+  timeouts, and usage accounting for every observed response, including invalid
+  structured output.
+- Usage accounting distinguishes priced responses from unexpected unpriced
+  provider model identities. An unpriced response retains its tokens and
+  provider ID with `cost_microusd = NULL`, stops the logical operation, and
+  makes the aggregate estimate unknown; it is never recorded as free.
+- API health/readiness and `scripts/check-production-env.mjs` fail closed on
+  missing production configuration and schema capabilities.
+
+## Deliberate product gaps
+
+- Books and Podcasts do not yet have production catalog/recommendation,
+  generation, object-storage, reader, playback, or progress services.
+- Exactly two genuine public starter articles, Sleep and History, are reviewed,
+  published and bound to their hosted UUIDs/artwork. Five prototype concepts
+  remain deliberately unwritten and must not be shown as readable inventory.
+  Future public editions still require sourced editorial acceptance and the
+  guarded operator; do not infer a recurring daily cadence from this prepared
+  pair or rerun the publisher for the domain cutover.
+- Resend's sending domain is verified and Supabase custom SMTP is configured,
+  including the corrected username. Provider metadata confirms the owner invite
+  was Delivered, and invitation redemption/authenticated API access pass.
+  Owner-side rendering remains unverified. Broad-launch edge policy, monitoring vendor,
+  privacy/support copy, and on-call owner still require operational decisions.
+- There is no paid staging environment. Add one when multiple developers,
+  frequent migrations, hosted CI, or meaningful production traffic justify it.
+- Native clients are not built yet, but the production API/auth boundary is the
+  intended mobile backend.
+
+## Required release gates
+
+The source, disposable-database, CI, production migration, live-web/API
+deployment, health, public-role, and negative auth/CORS/cron gates are complete
+through the latest Pulse checkpoint at the top, not just the historical
+`df3e712` setup release.
+The guest release is live at both approved web origins. Before the owner-only
+alpha is accepted as end-to-end verified:
+
+1. Owner invitation redemption, active membership, authenticated `/v1/me`, and
+   first-visit timezone persistence passed at 19:23Z. Do not resend an invitation.
+2. The provider output-schema fix is live and one bounded article generation
+   and priced ledger row pass. Complete provider-dashboard reconciliation;
+   preserve the saved Responses-only key, model allowlist, and $50 cap.
+3. Complete rendered owner acceptance for private reading, save/share, Q&A,
+   direction and the correction disclosure. Existing authenticated API reads
+   and the real article/citation/retry/cost-ledger path already pass; do not
+   create another owner, invitation or generation merely to test the cutover.
+4. Existing cron/Workflow logs and all negative cron checks pass. Do not invoke
+   a valid cron, generation or publication operator again for domain
+   verification. Add the planned WAF controls and complete a
+   backup/restore rehearsal before broader external readers. The accepted
+   Sleep/History starter publication is complete; older starter v2 instructions
+   are obsolete and must not be run.
+5. The authorized apex/`www` cutover is complete and the temporary web origin
+   must remain working. Merge the reviewed candidate and protect `main` when
+   the alpha is accepted. The API URL remains temporary; any API custom domain,
+   additional website domain or broader reader invitation requires a new owner
+   decision.
+
+The detailed runbook is `docs/PRODUCTION_RELEASE.md`; the shorter overview is
+`docs/DEPLOYMENT.md`. `docs/PRODUCTION_GAPS.md` must remain current with the
+working tree and must not list already-completed blockers.
+
+## Local commands
+
+Use Node.js 22.x and pnpm 10.28.0:
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build:all
+```
+
+`pnpm test` includes root web tests and API service tests. With Docker:
+
+```bash
+pnpm supabase:start
+pnpm supabase:reset
+pnpm exec supabase test db
+pnpm exec supabase db lint
+pnpm exec supabase db push --linked --dry-run
+```
+
+Apply schema only with the Supabase CLI. Never use `drizzle-kit push` against
+production. Vercel builds deliberately use Next’s Webpack path. Read relevant
+local Next 16 documentation under `node_modules/next/dist/docs/` before making
+framework changes; this repository’s Next version differs from remembered APIs.
 
 ## First prompt to give Codex
 
+For the current on-demand assignment, the September 6 checkpoint above and its
+approved v8 handoff supersede the older v5-only development scope in the retained
+first prompt below. Continue from the dirty candidate, not from scratch; read
+the technical checkpoint's remaining acceptance and coordinate with CoS/Design.
+
 > Continue building Edison Reader from this repository. Read
-> `CODEX_HANDOFF.md` completely and inspect the working tree before editing.
-> The current target is a personal, non-commercial sample-data web demo on
-> Vercel Hobby: root project only, `EDISON_DEMO_MODE=true`, no paid services,
-> live credentials, API deployment, or crons. Set build-only
-> `ENABLE_EXPERIMENTAL_COREPACK=1` for the pinned pnpm version on Vercel.
-> Preserve the Vercel/Supabase
-> API-first backend for the later live phase. Validate TypeScript, tests, web
-> and API builds, and the demo UI; test migrations/RLS before activating a live
-> database. Do as much as possible autonomously, but never request secrets in
-> source control or chat and never push, deploy, attach domains, or make the
-> app public without the owner's explicit approval. The recorded current
-> approval covers GitHub source publication, this root-only Vercel demo
-> deployment, and attaching `edisonreader.com` with its `www` redirect. It does
-> not authorize live-service activation or a paid hosting upgrade.
+> `CODEX_HANDOFF.md` completely, then inspect the working tree and current Git
+> state before editing. The target is the owner-only production alpha using the
+> separate Vercel web/API + Supabase architecture described here. The approved
+> Pulse application is live at both `https://edisonreader.com` and
+> `https://project-qlqve.vercel.app`; `www` redirects to the apex. The apex is no
+> longer the isolated sample demo. The API intentionally remains at
+> `https://project-fjr95.vercel.app/v1`. Preserve exact finite News, Pulse +
+> loops v5, article-scoped Ask, truthful guest/device boundaries and
+> non-overwriting explicit import. Use the latest checkpoint and
+> `docs/PULSE_RELEASE_2026-09-05.md`; older setup records are historical.
+>
+> The current web deployment is the verified a08 Production build and the API's
+> cache-free `a681331` Production rebuild is Ready. API `WEB_APP_URL` is the
+> apex; CORS contains exactly the apex and retained temporary web origin.
+> Supabase Auth uses the apex Site URL and exactly four callback/confirm URLs
+> across those two origins. Preserve those allowlists—no wildcard or `www`
+> callback.
+> `main` is still unmerged and unprotected.
+>
+> All 15 hosted migrations, the accepted Sleep/History publication, audited
+> owner-article correction, real UUID/artwork binding and Production deployment
+> are complete. Do not repeat migrations, publication/correction operators,
+> valid cron invocations, generation, quota resets or obsolete prepared SQL for
+> release verification. Generation jobs remain four, usage rows one, and known
+> cost $0.062654. The three original failed jobs remain intact and all four
+> daily slots are consumed.
+>
+> Production API health, exact dual-origin CORS, private-route rejection, public
+> reads and negative cron checks pass. Owner invitation redemption,
+> authenticated API reads, and timezone/onboarding persistence are verified.
+> The controlled browser still has no owner session, so authenticated rendered
+> reading/save/share/Q&A/direction and correction-note acceptance remain open.
+> Test only the existing owner; do not extract credentials or resend an
+> invitation. Provider usage-dashboard reconciliation and a backup restoration
+> rehearsal also remain pending.
+>
+> The dedicated OpenAI service-account key is already Restricted to Responses
+> Write with every other leaf None; do not inspect it or request another scope
+> approval. Route editorial review to Chief of Staff, not archived tasks. The
+> September 5 full-release and exact apex-cutover authorizations at the top
+> supersede historical stops only within their stated scope. Never ask for or
+> expose secrets, buy additional services, invite other readers, alter current
+> domains/origin allowlists, or broaden owner-only access without a new owner
+> decision. Report genuine blockers and distinguish an owner-only live alpha
+> from broader-reader readiness.

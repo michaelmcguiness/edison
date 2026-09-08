@@ -1,0 +1,482 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+import { createElement, type ComponentProps } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import {
+  demandWorkspaceSchema,
+  demandAnswerSchema,
+  type DemandRequest,
+  type DemandWorkspace,
+} from "@edison/contracts";
+import { DemandAnswerContent, demandIdeaAction, demandIdeasPendingLabel, DemandReader, DemandReadingMetadata, DemandSourceList,
+  restoreDemandDialogFocus } from "../components/edison/demand-reader";
+import {
+  DemandClientError,
+  resolveDemandAccessToken,
+  startDemandSession,
+} from "../lib/demand-client";
+
+const root = new URL("../", import.meta.url);
+const readerSource = readFileSync(new URL("components/edison/demand-reader.tsx", root), "utf8");
+const clientSource = readFileSync(new URL("lib/demand-client.ts", root), "utf8");
+const pageSource = readFileSync(new URL("app/demand/page.tsx", root), "utf8");
+const conversationSource = readFileSync(new URL("components/edison/demand-v10/article-conversation.tsx", root), "utf8");
+const editorSource = readFileSync(new URL("components/edison/demand-v10/loop-editor.tsx", root), "utf8");
+const feedStateSource = readFileSync(new URL("components/edison/demand-v11/state.ts", root), "utf8");
+const styles = readFileSync(new URL("app/demand.css", root), "utf8");
+
+const loopId = "00000000-0000-4000-8000-000000000101";
+const readyIdeaId = "00000000-0000-4000-8000-000000000102";
+const pendingIdeaId = "00000000-0000-4000-8000-000000000103";
+const pendingRequestId = "00000000-0000-4000-8000-000000000104";
+const omittedIdeaId = "00000000-0000-4000-8000-000000000107";
+const omittedRequestId = "00000000-0000-4000-8000-000000000108";
+const olderBatchId = "00000000-0000-4000-8000-000000000109";
+const newestBatchId = "00000000-0000-4000-8000-000000000110";
+const now = "2026-09-06T16:00:00.000Z";
+
+const workspace: DemandWorkspace = demandWorkspaceSchema.parse({
+  workspaceId: "00000000-0000-4000-8000-000000000100",
+  readerKind: "guest",
+  loops: [{
+    id: loopId,
+    title: "A topic returned by the server",
+    originalCuriosity: "How do cities keep summer heat from becoming dangerous?",
+    revision: 2,
+    principles: [{
+      id: "00000000-0000-4000-8000-000000000105",
+      kind: "preference",
+      instruction: "Compare practical tradeoffs without pretending there is one universal answer.",
+      source: "reader",
+    }],
+    lastMutationId: "00000000-0000-4000-8000-000000000106",
+    canUndo: true,
+    createdAt: now,
+    updatedAt: now,
+  }],
+  ideas: [{
+    id: readyIdeaId,
+    loopId,
+    batchRequestId: olderBatchId,
+    batchRevision: 2,
+    rank: 1,
+    title: "Shade is infrastructure",
+    deck: "What street trees and building shadows can do—and where they fall short.",
+    articleRequestId: null,
+    saved: true,
+    createdAt: "2026-09-06T16:01:00.000Z",
+  }, {
+    id: pendingIdeaId,
+    loopId,
+    batchRequestId: newestBatchId,
+    batchRevision: 2,
+    rank: 1,
+    title: "The night that never cools",
+    deck: "Why overnight temperature can matter more than the afternoon peak.",
+    articleRequestId: pendingRequestId,
+    saved: false,
+    createdAt: "2026-09-06T16:02:00.000Z",
+  }, {
+    id: omittedIdeaId,
+    loopId,
+    batchRequestId: olderBatchId,
+    batchRevision: 1,
+    rank: 2,
+    title: "An older commissioned article",
+    deck: "Its request is intentionally outside the bounded workspace history.",
+    articleRequestId: omittedRequestId,
+    saved: false,
+    createdAt: "2026-09-06T15:00:00.000Z",
+  }],
+  requests: [{
+    id: pendingRequestId,
+    loopId,
+    ideaId: pendingIdeaId,
+    kind: "article",
+    status: "running",
+    stage: "checking",
+    failure: null,
+    createdAt: "2026-09-06T16:03:00.000Z",
+    updatedAt: "2026-09-06T16:04:00.000Z",
+  }],
+});
+
+test("the demand reader renders only persisted workspace ideas and truthful request states", () => {
+  const properties: ComponentProps<typeof DemandReader> = { initialWorkspace: workspace };
+  const html = renderToStaticMarkup(createElement(DemandReader, properties));
+
+  assert.match(html, /A topic returned by the server/);
+  assert.match(html, /Curate/);
+  assert.doesNotMatch(html, /Shade is infrastructure/, "superseded choices remain in history, not the current set");
+  assert.match(html, /The night that never cools/);
+  assert.match(html, /Checking explanation…/);
+  assert.match(html, /aria-label="Checking explanation…: The night that never cools"/);
+  assert.doesNotMatch(html, /Article idea|Earlier ideas|We’ll write it for you|More articles/);
+  assert.equal((html.match(/Refresh articles/g) ?? []).length, 1);
+  assert.match(html, /aria-label="Save article: The night that never cools"/);
+  assert.doesNotMatch(html, /Opening your reading workspace/);
+  assert.doesNotMatch(html, /Share/);
+  assert.equal((html.match(/<main/g) ?? []).length, 1);
+});
+
+test("a fresh ideas submission never borrows the preceding request's terminal heading", () => {
+  const oldFailed: DemandRequest = { ...workspace.requests[0]!, id: olderBatchId, ideaId: null, kind: "ideas",
+    status: "failed", stage: "failed", failure: { code: "provider_invalid", message: "The earlier attempt failed.", retryable: false } };
+  const before = structuredClone(oldFailed);
+  assert.equal(demandIdeasPendingLabel(oldFailed, true), "Starting your ideas");
+  assert.equal(demandIdeasPendingLabel(oldFailed, false), null, "an idle terminal failure is not masked as pending");
+  assert.equal(demandIdeasPendingLabel({ ...oldFailed, status: "succeeded", stage: "ready", failure: null }, true), "Starting your ideas");
+  assert.equal(demandIdeasPendingLabel(undefined, true), "Starting your ideas");
+  assert.equal(demandIdeasPendingLabel(undefined, false), null);
+  assert.deepEqual(oldFailed, before, "the historical failure remains intact");
+});
+
+test("queued and running fresh ideas display the current request rather than an older failed snapshot", () => {
+  const oldFailed: DemandRequest = { ...workspace.requests[0]!, id: olderBatchId, ideaId: null, kind: "ideas",
+    status: "failed", stage: "failed", failure: { code: "provider_invalid", message: "The earlier attempt failed.", retryable: false },
+    createdAt: "2026-09-06T16:00:00.000Z" };
+  for (const [status, stage, label] of [
+    ["queued", "queued", "Queued"],
+    ["running", "queued", "Queued"],
+    ["running", "checking-ideas", "Checking the article ideas"],
+  ] as const) {
+    const current: DemandRequest = { ...oldFailed, id: newestBatchId, status, stage, failure: null,
+      createdAt: "2026-09-06T16:10:00.000Z", updatedAt: "2026-09-06T16:11:00.000Z" };
+    assert.equal(demandIdeasPendingLabel(current, true), label);
+    assert.equal(demandIdeasPendingLabel(current, false), label);
+    const value = { ...workspace, requests: [oldFailed, ...workspace.requests, current] };
+    const html = renderToStaticMarkup(createElement(DemandReader, { initialWorkspace: value }));
+    assert.match(html, /Finding your first articles…|Refreshing your articles…/);
+    assert.match(html, /Your articles will appear here when they’re ready|Your current articles stay here until the new set is ready/);
+    assert.doesNotMatch(html, /Couldn’t finish|We couldn’t finish these ideas|The earlier attempt failed/);
+    assert.deepEqual(value.requests[0], oldFailed);
+  }
+});
+
+test("a latest terminal ideas failure retains its real error and fresh-ideas action when no submission is active", () => {
+  const failed: DemandRequest = { ...workspace.requests[0]!, id: newestBatchId, ideaId: null, kind: "ideas",
+    status: "failed", stage: "failed", failure: { code: "provider_invalid", message: "The latest attempt failed.", retryable: false } };
+  const html = renderToStaticMarkup(createElement(DemandReader, { initialWorkspace: { ...workspace, requests: [failed] } }));
+  assert.match(html, /We couldn’t refresh your articles/);
+  assert.match(html, /The latest attempt failed/);
+  assert.match(html, /Refresh articles/);
+  assert.doesNotMatch(html, /Starting your ideas|Distinct article ideas will appear here after they’ve been checked/);
+});
+
+test("approved creation stays topic-general and editing replaces or removes explicit direction", () => {
+  for (const copy of ["What do you want to learn about?", "e.g. art, history, synthetic biology, writing, etc.", "Suggested topics"]) {
+    assert.ok(readerSource.includes(copy));
+  }
+  for (const topic of ["Health", "History", "Technology", "Science", "Sports", "Culture", "Cryptocurrency", "Startups", "Design", "Architecture", "Writing", "Art"]) {
+    assert.ok(readerSource.includes(`"${topic}"`));
+  }
+  for (const copy of [">Direction<", "Previously learned preferences", "Save changes", "Unsaved changes", "your declared knowledge"]) assert.ok(editorSource.includes(copy));
+  assert.doesNotMatch(editorSource, /What’s shaping this loop|demand-saved-instructions|Edison default/);
+  assert.doesNotMatch(readerSource, /includes\(\s*["']medicine|includes\(\s*["']DNA/i);
+});
+
+test("explicit reader destinations cancel restoration and Retry retains its initiating generation", () => {
+  for (const name of ["openIdea", "openLoop", "returnFromReading", "openWorkspaceView", "openCreate"]) {
+    const start = readerSource.indexOf(`function ${name}(`);
+    const next = readerSource.indexOf("\n  function ", start + 1);
+    assert.ok(readerSource.slice(start, next < 0 ? undefined : next).includes("beginNavigation();"), `${name} must cancel old restoration`);
+  }
+  const navigation = readerSource.slice(readerSource.indexOf("function beginNavigation()"), readerSource.indexOf("function retryContinuityRestoration()"));
+  assert.match(navigation, /navigationIntentRef\.current\+\+/);
+  assert.match(navigation, /setRecoveringContinuity\(false\)/);
+  assert.match(navigation, /setContinuityFailure\(""\)/);
+  assert.match(readerSource, /setContinuityIntent\(\+\+navigationIntentRef\.current\)/);
+  assert.match(readerSource, /navigationIntentRef\.current === continuityIntent/);
+  assert.match(readerSource, /restoreCurrentDemandContinuity\(/);
+});
+
+test("Retry bootstrap failure uses the same recoverable surface as exact metadata failure", () => {
+  const failureHandler = readerSource.slice(readerSource.indexOf("const failRestoration ="), readerSource.indexOf("const restore = async"));
+  assert.match(failureHandler, /setContinuityFailure\(readableError\(error\)\)/);
+  assert.match(failureHandler, /setRecoveringContinuity\(false\)/);
+  assert.match(readerSource, /onFailure: failRestoration/);
+  assert.match(readerSource, /if \(!isCurrentIntent\(\)\) return;\s*if \(continuityIntent > 0\) failRestoration\(error\)/);
+});
+
+test("the browser client uses the same-origin proxy and keeps session credentials out of browser storage", () => {
+  for (const route of [
+    "session", "workspace", "loops", "/ideas", "/article", "/feedback",
+    "/questions", "/events", "/retry",
+  ]) {
+    assert.ok(clientSource.includes(route), `missing client route: ${route}`);
+  }
+  assert.match(clientSource, /fetch\(`?\/api\/demand\//);
+  assert.match(clientSource, /credentials:\s*"same-origin"/);
+  assert.match(clientSource, /cache:\s*"no-store"/);
+  assert.match(clientSource, /let sessionPromise:/);
+  assert.match(clientSource, /getSession\(\)/);
+  assert.doesNotMatch(clientSource, /document\.cookie|(?:localStorage|sessionStorage)\.setItem/);
+  assert.match(clientSource, /saveDemandAccountContinuation\(\{\s*intent, id: crypto.randomUUID\(\), storage: window.localStorage/);
+  assert.doesNotMatch(clientSource, /(?:access_token|authorization)[^\n]*(?:localStorage|sessionStorage)|(?:localStorage|sessionStorage)[^\n]*(?:access_token|authorization)/i);
+});
+
+test("guest access requires a successful no-session read and auth failures fail closed", async () => {
+  let calls = 0;
+  const skipped = await resolveDemandAccessToken({
+    configured: false,
+    getSession: async () => {
+      calls += 1;
+      return { data: { session: null }, error: null };
+    },
+  });
+  assert.equal(skipped, null);
+  assert.equal(calls, 0);
+
+  assert.equal(await resolveDemandAccessToken({
+    configured: true,
+    getSession: async () => ({ data: { session: null }, error: null }),
+  }), null);
+  assert.equal(await resolveDemandAccessToken({
+    configured: true,
+    getSession: async () => ({
+      data: { session: { access_token: "access-token-for-test" } },
+      error: null,
+    }),
+  }), "access-token-for-test");
+
+  for (const getSession of [
+    async () => ({ data: { session: null }, error: new Error("secret provider detail") }),
+    async () => {
+      throw new Error("secret thrown detail");
+    },
+  ]) {
+    await assert.rejects(
+      resolveDemandAccessToken({ configured: true, getSession }),
+      (error: unknown) => {
+        assert.ok(error instanceof DemandClientError);
+        assert.equal(error.code, "session_unavailable");
+        assert.equal(error.status, 503);
+        assert.equal(error.message, "Edison could not verify your sign-in. Please try again.");
+        assert.doesNotMatch(error.message, /secret|provider|thrown/);
+        return true;
+      },
+    );
+  }
+});
+
+test("concurrent first-session calls share one request without caching an old workspace forever", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  globalThis.fetch = (async (input, init) => {
+    calls.push({ url: String(input), init });
+    return Response.json({ workspace });
+  }) as typeof fetch;
+
+  try {
+    const [first, second] = await Promise.all([
+      startDemandSession(),
+      startDemandSession(),
+    ]);
+    assert.deepEqual(first, workspace);
+    assert.deepEqual(second, workspace);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0]?.url, "/api/demand/session");
+    assert.equal(calls[0]?.init?.method, "POST");
+    assert.equal(calls[0]?.init?.credentials, "same-origin");
+    assert.equal(calls[0]?.init?.cache, "no-store");
+
+    await startDemandSession();
+    assert.equal(calls.length, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("the route is server-gated and fails closed unless on-demand reading is explicitly enabled", () => {
+  assert.match(pageSource, /process\.env\.EDISON_ON_DEMAND_ENABLED\s*!==\s*"true"/);
+  assert.match(pageSource, /notFound\(\)/);
+  assert.match(pageSource, /dynamic\s*=\s*"force-dynamic"/);
+  assert.match(pageSource, /<DemandReader\s*\/>/);
+});
+
+test("the approved dialogs remain bounded, responsive, touch-sized and reduced-motion safe", () => {
+  assert.match(styles, /\.demand-dialog\s*\{[\s\S]*?max-width:\s*480px/);
+  assert.match(styles, /\.demand-dialog\s*\{[\s\S]*?padding:\s*28px/);
+  assert.match(styles, /\.demand-dialog \[data-slot="dialog-title"\]\s*\{[\s\S]*?font-size:\s*27px/);
+  assert.match(styles, /\.demand-dialog textarea\s*\{[\s\S]*?font-size:\s*16px/);
+  assert.match(styles, /\.demand-suggestions button\s*\{[\s\S]*?min-height:\s*44px/);
+  assert.match(styles, /@media \(max-width:\s*600px\)[\s\S]*?padding:\s*24px 22px/);
+  assert.match(styles, /@media \(max-width:\s*600px\)[\s\S]*?font-size:\s*25px/);
+  assert.match(styles, /@media \(prefers-reduced-motion:\s*reduce\)/);
+});
+
+test("pending work is recovered from the server workspace and next-reading copy does not claim unwritten content is ready", () => {
+  assert.match(readerSource, /workspace\?\.requests\.some/);
+  assert.match(readerSource, /client\.getDemandWorkspace\(\)/);
+  assert.match(readerSource, /client\.getDemandResult\(selectedRequestId\)/);
+  assert.match(readerSource, /setSelectedRequestId\(idea\.articleRequestId\)/);
+  assert.match(readerSource, /!nextIdea\.articleRequestId \|\| nextRequest\?\.status === "succeeded"/);
+  assert.match(readerSource, /nextRequest\?\.status === "succeeded" \? "Next article" : "View next article"/);
+  assert.match(readerSource, /maxLength=\{500\}/);
+  assert.match(editorSource, /maxLength=\{500\}/);
+  assert.match(readerSource, /Your loop is saved\./);
+  assert.match(readerSource, /Nothing was published\./);
+});
+
+test("article completion cannot steal navigation and reading progress starts at the article top", () => {
+  assert.match(readerSource, /view !== "request"/);
+  assert.match(readerSource, /selectedRequestIdeaId !== selectedIdeaId/);
+  assert.match(readerSource, /setSelectedRequestId\(idea\.articleRequestId\)/);
+  assert.match(readerSource, /window\.scrollTo\(0, 0\)/);
+  assert.match(readerSource, /window\.scrollTo\(0, origin.scrollY\)/);
+  assert.match(readerSource, /\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(readerSource, /showEditLoop=\{view === "loop" && Boolean\(activeLoop && !activeLoop.archivedAt\)\}/);
+});
+
+test("mutations are synchronously locked, scoped, replayable, and truthful about retryability", () => {
+  assert.match(readerSource, /if \(previous\?\.inFlight\) return null/);
+  assert.match(readerSource, /beginScopedAttempt\(feedbackAttemptRefs, activeLoop\.id/);
+  assert.match(conversationSource, /if \(sendLock.current/);
+  assert.match(readerSource, /idempotencyKey: attempt\.idempotencyKey/g);
+  assert.match(readerSource, /writeStoredAttempt\("feedback", activeLoop\.id, attempt\)/);
+  assert.match(conversationSource, /saveScopedDraft\(storageKey/);
+  assert.match(readerSource, /readStoredAttempt\("feedback", activeLoop\.id\)/);
+  assert.match(conversationSource, /readScopedDraft\(storageKey/);
+  assert.match(readerSource, /failure\?\.retryable \? "Try again" : "Back to your loops"/);
+  assert.match(readerSource, /canRetryIdeas \? "Try again" : "Refresh articles"/);
+  const freshPolicy = readerSource.slice(
+    readerSource.indexOf("function canRequestFreshIdeasAfter"),
+    readerSource.indexOf("function latestRequest"),
+  );
+  assert.doesNotMatch(freshPolicy, /provider_uncertain|budget_exhausted/);
+  assert.match(readerSource, /Load article again/);
+  assert.match(conversationSource, /Load conversation again/);
+});
+
+test("nonsecret drafts and pending work are rebound to their loop or idea", () => {
+  assert.match(readerSource, /edison:demand:\$\{kind\}:\$\{ownerId\}/);
+  assert.match(readerSource, /readDraft\("feedback", loop\.id, 500\)/);
+  assert.match(conversationSource, /edison:demand:conversation:\$\{workspaceId\}:\$\{article.id\}/);
+  assert.match(readerSource, /feedbackRequest\.loopId !== curateLoopId/);
+  assert.match(conversationSource, /result.workspaceId !== workspaceId \|\| result.articleId !== article.id/);
+  assert.match(readerSource, /latestRequest\(workspace, loop\.id, "feedback"\)/);
+  assert.doesNotMatch(readerSource, /localStorage[^\n]*(?:token|authorization|cookie)/i);
+});
+
+test("card actions follow persisted backend state without suggesting a pending article is ready", () => {
+  const idea = workspace.ideas[1]!;
+  const request = workspace.requests[0]!;
+  assert.equal(demandIdeaAction(workspace.ideas[0]!, undefined), "Read article");
+  assert.equal(demandIdeaAction(idea, { ...request, stage: "writing" }), "Preparing…");
+  assert.equal(demandIdeaAction(idea, { ...request, stage: "repairing" }), "Checking explanation…");
+  assert.equal(demandIdeaAction(idea, { ...request, stage: "researching" }), "Researching…");
+  assert.equal(demandIdeaAction(idea, { ...request, status: "failed", stage: "failed" }), "View status");
+  assert.equal(demandIdeaAction(idea, { ...request, status: "succeeded", stage: "ready" }), "Read article");
+});
+
+test("new answers display their own inline citations and source links even when article IDs collide", () => {
+  const source = { id: loopId, title: "The answer’s newly consulted source", publisher: "Answer publisher",
+    url: "https://example.com/answer-source", publishedAt: null, accessedAt: now };
+  const answer = demandAnswerSchema.parse({ version: 2, basis: "mixed", researchedAt: now,
+    body: [
+      { type: "paragraph", text: "A direct explanation with familiar background.", citations: [] },
+      { type: "paragraph", text: "A current detail needs this new source.", citations: [{ sourceId: source.id, label: "1" }] },
+    ], sources: [source] });
+  const html = renderToStaticMarkup(createElement(DemandAnswerContent, { answer,
+    articleSources: [{ ...source, title: "Article-only source", url: "https://example.com/article-source" }] }));
+  assert.match(html, /A direct explanation with familiar background/);
+  assert.match(html, /class="demand-citations"/);
+  assert.match(html, /aria-label="Source: The answer’s newly consulted source"/);
+  assert.equal((html.match(/href="https:\/\/example.com\/answer-source"/g) ?? []).length, 2);
+  assert.doesNotMatch(html, /Article-only source|article-source/);
+});
+
+test("unresearched reading and answers render no empty Sources or false research metadata", () => {
+  const answer = demandAnswerSchema.parse({ version: 2, basis: "general_knowledge", researchedAt: null,
+    body: [{ type: "paragraph", text: "Here is the explanation.", citations: [] }], sources: [] });
+  const html = renderToStaticMarkup(createElement(DemandAnswerContent, { answer, articleSources: [] }));
+  assert.match(html, /Here is the explanation/);
+  assert.doesNotMatch(html, /Sources|demand-citations|researched|checked/);
+  assert.equal(renderToStaticMarkup(createElement(DemandSourceList, { sources: [] })), "");
+  assert.equal(renderToStaticMarkup(createElement(DemandReadingMetadata, { article: { readingMinutes: 1, sources: [] } })), "<small>1 min</small>");
+  assert.doesNotMatch(readerSource, /Sources are checked before|will research distinct|Checking sources…|Checking the article and its sources/);
+});
+
+test("historical answers retain aggregate article references and disclose missing saved sources", () => {
+  const source = { id: loopId, title: "The saved article source", publisher: "Saved publisher",
+    url: "https://example.com/old-source", publishedAt: null, accessedAt: now };
+  const html = renderToStaticMarkup(createElement(DemandAnswerContent, {
+    answer: { text: "A historical answer.", sourceIds: [source.id, "missing-old-id"] }, articleSources: [source], pending: true,
+  }));
+  assert.match(html, /Previous answer/);
+  assert.match(html, /A historical answer/);
+  assert.match(html, /href="https:\/\/example.com\/old-source"/);
+  assert.match(html, /Some saved source references are unavailable/);
+  assert.doesNotMatch(html, /demand-citations/);
+  const unavailable = renderToStaticMarkup(createElement(DemandAnswerContent, {
+    answer: { text: "A historical answer.", sourceIds: ["missing-old-id"] }, articleSources: [],
+  }));
+  assert.doesNotMatch(unavailable, /<h2>Sources<\/h2>/);
+  assert.match(unavailable, /Some saved source references are unavailable/);
+});
+
+test("dialog close restores a connected opener or a connected enabled reading surface without scrolling", () => {
+  const focused: string[] = [];
+  function element(name: string, connected = true, disabled = false) {
+    return { isConnected: connected, hasAttribute: (attribute: string) => attribute === "disabled" && disabled,
+      getAttribute: () => null, focus: (options: FocusOptions) => { assert.deepEqual(options, { preventScroll: true }); focused.push(name); } } as unknown as HTMLElement;
+  }
+  const fallback = element("reading surface");
+  assert.equal(restoreDemandDialogFocus(element("opener"), fallback), true);
+  assert.equal(restoreDemandDialogFocus(element("removed opener", false), fallback), true);
+  assert.equal(restoreDemandDialogFocus(element("disabled opener", true, true), fallback), true);
+  assert.equal(restoreDemandDialogFocus(null, element("removed surface", false)), false);
+  assert.deepEqual(focused, ["opener", "reading surface", "reading surface"]);
+});
+
+test("Ask uses compact nonmodal entry and durable full conversation; For You has no ambiguous editor", () => {
+  assert.match(readerSource, /aria-haspopup="dialog" aria-expanded=\{askOpen\} onClick=\{openAsk\}/);
+  assert.match(readerSource, /<ArticleConversation/);
+  assert.match(conversationSource, /aria-modal="false"/);
+  assert.match(conversationSource, /Continue conversation/);
+  assert.match(conversationSource, /Back to article/);
+  assert.match(readerSource, /feedIdeas.map\(\(idea\) => <IdeaCard/);
+  assert.doesNotMatch(readerSource, /activeLoop \?\? workspace\?\.loops\[0\]/);
+  assert.match(readerSource, /<ReaderAccount/);
+  assert.doesNotMatch(readerSource, /href="\/\?view=profile">Account reading preferences/);
+  assert.match(readerSource, /showEditLoop=\{view === "loop"/);
+});
+
+test("opening existing reading uses the validated position map and end-of-article Back remains available after Next", () => {
+  assert.match(readerSource, /articlePositionRef\.current = demandReadingPositionForIdea/);
+  assert.match(readerSource, /rememberCurrentReadingPosition\(\);\s*const target: DemandOrigin = returnTarget/);
+  assert.match(readerSource, /edison:demand:reading-positions:v1/);
+  const endNavigation = readerSource.slice(readerSource.indexOf('<nav className="demand-next"'), readerSource.indexOf("</nav>", readerSource.indexOf('<nav className="demand-next"')));
+  assert.match(endNavigation, /nextIdea \?/);
+  assert.match(endNavigation, /: null\}\s*<button type="button" className="demand-end-back" onClick=\{returnFromReading\}/);
+  assert.match(styles, /\.demand-next > \.demand-end-back \{[^}]*min-height: 44px[^}]*font-size: 13px/);
+});
+
+test("older history is a separate paged surface and all exact-recovery errors retain non-commissioning retries", () => {
+  assert.match(readerSource, /client\.getDemandHistory\(/);
+  assert.match(readerSource, /client\.getDemandIdea\(ideaId\)/);
+  assert.match(readerSource, /loadHistoryPage\(\{ scope: "saved" \}, null\)/);
+  assert.match(readerSource, /Browse reading history/);
+  assert.match(readerSource, /Older reading/);
+  assert.match(readerSource, /Try loading again/);
+  assert.match(readerSource, /Try restoring again/);
+  assert.match(readerSource, /Reload saved status/);
+  assert.match(readerSource, /await recoverIdea\(idea\.id, true\)/);
+  assert.match(readerSource, /historyReader\.finishMutation\(idea\.id\)/);
+  assert.match(readerSource, /historyReader\.seed\(\{ workspaceId: response\.workspace\.workspaceId, idea: \{ \.\.\.idea, articleRequestId: response\.requestId \}/);
+  assert.match(readerSource, /pendingHistoryReturn\.current = origin/);
+  assert.match(readerSource, /const \{ cursor, \.\.\.query \} = origin.history;\s*void loadHistoryPage\(query, cursor\)/);
+  assert.match(readerSource, /visibleHistory\.cursor !== target\.history\.cursor/);
+  assert.doesNotMatch(readerSource, /const saved = combinedIdeas\.filter/);
+});
+
+test("server current-batch identity controls replacement while provider rank and origin sets stay stable", () => {
+  assert.match(readerSource, /currentReadingArticles\(projection.loops, projection.ideas, projection.requests\)/);
+  assert.match(feedStateSource, /a.rank - b.rank/);
+  assert.match(feedStateSource, /currentBatchRequestId/);
+  assert.match(readerSource, /Latest articles/);
+  assert.match(readerSource, /storeReadingSet\(snapshot\)/);
+  assert.match(readerSource, /previousRequestId/);
+  assert.doesNotMatch(readerSource, /Earlier ideas/);
+});

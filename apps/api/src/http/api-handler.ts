@@ -1,5 +1,7 @@
 import { HttpError, toHttpError } from "./errors";
 import { verifyAccessToken, type EdisonClaims } from "../auth/verify-access-token";
+import { safeCaughtErrorMetadata } from "../observability/safe-error";
+import { withActiveMember } from "../services/members";
 
 type ApiContext = {
   claims: EdisonClaims;
@@ -54,8 +56,86 @@ function withHeaders(response: Response, headers: Headers) {
   });
 }
 
+export function sanitizedServerErrorLog(
+  requestId: string,
+  error: unknown,
+  normalized: HttpError,
+) {
+  const errorCode = /^[a-z0-9_:-]{1,80}$/.test(normalized.code)
+    ? normalized.code
+    : "internal_error";
+
+  return {
+    requestId,
+    status: normalized.status,
+    errorCode,
+    ...safeCaughtErrorMetadata(error),
+  };
+}
+
+function logServerError(requestId: string, error: unknown, normalized: HttpError) {
+  console.error(
+    "Edison API request failed",
+    sanitizedServerErrorLog(requestId, error, normalized),
+  );
+}
+
 export function json(data: unknown, init: ResponseInit = {}) {
   return Response.json(data, init);
+}
+
+export async function readJsonBody(request: Request, maxBytes: number) {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1) {
+    throw new TypeError("maxBytes must be a positive safe integer");
+  }
+
+  const contentLength = request.headers.get("content-length");
+  if (contentLength !== null) {
+    if (!/^\d+$/.test(contentLength)) {
+      throw new HttpError(
+        400,
+        "invalid_content_length",
+        "The request Content-Length was not valid.",
+      );
+    }
+    if (Number(contentLength) > maxBytes) {
+      throw new HttpError(
+        413,
+        "request_too_large",
+        "The request body was too large.",
+      );
+    }
+  }
+
+  const reader = request.body?.getReader();
+  if (!reader) return JSON.parse("") as unknown;
+
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+  let body = "";
+  let byteLength = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      byteLength += value.byteLength;
+      if (byteLength > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        throw new HttpError(
+          413,
+          "request_too_large",
+          "The request body was too large.",
+        );
+      }
+      body += decoder.decode(value, { stream: true });
+    }
+    body += decoder.decode();
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
+    throw new SyntaxError("The request body was not valid UTF-8 JSON.");
+  }
+
+  return JSON.parse(body) as unknown;
 }
 
 export async function apiHandler(request: Request, handler: ApiHandler) {
@@ -76,7 +156,7 @@ export async function apiHandler(request: Request, handler: ApiHandler) {
   } catch (error) {
     const normalized = toHttpError(error);
     if (normalized.status >= 500) {
-      console.error("Edison API request failed", { requestId, error });
+      logServerError(requestId, error, normalized);
     }
 
     return withHeaders(
@@ -110,6 +190,9 @@ export async function publicApiHandler(
     return withHeaders(response, responseHeaders(requestId, origin));
   } catch (error) {
     const normalized = toHttpError(error);
+    if (normalized.status >= 500) {
+      logServerError(requestId, error, normalized);
+    }
     return withHeaders(
       Response.json(
         {
@@ -124,4 +207,14 @@ export async function publicApiHandler(
       responseHeaders(requestId, origin),
     );
   }
+}
+
+/** Shared articles remain shareable between admitted readers, never anonymous.
+ * Health and Auth resources continue using their separate public handlers. */
+export async function memberApiHandler(request: Request, handler: ApiHandler) {
+  return publicApiHandler(request, async ({ requestId }) => {
+    if (request.method === "OPTIONS") return new Response(null, { status: 204 });
+    const claims = await verifyAccessToken(request.headers.get("authorization"), { demand: true });
+    return withActiveMember(claims, async () => handler({ claims, requestId }));
+  });
 }

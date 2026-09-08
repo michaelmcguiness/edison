@@ -31,6 +31,9 @@ importers:
       '@supabase/supabase-js':
         specifier: latest
         version: 2.112.4
+      '@vercel/oidc':
+        specifier: 3.8.5
+        version: 3.8.5
       class-variance-authority:
         specifier: 0.7.1
         version: 0.7.1

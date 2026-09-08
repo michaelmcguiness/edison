@@ -625,8 +625,8 @@ WITH CHECK (
 -- Only the server may assume this non-login role. Supabase browser/mobile JWTs
 -- remain useful for Auth, but cannot query Edison core tables through PostgREST.
 GRANT USAGE ON SCHEMA public TO edison_api;
-GRANT USAGE ON SCHEMA auth TO edison_api;
-GRANT EXECUTE ON FUNCTION auth.uid() TO edison_api;
+-- Auth helper access is inherited through the bounded PG17 membership edge in
+-- the final migration; the hosted migration role cannot re-grant Auth ACLs.
 GRANT SELECT ON public.profiles TO edison_api;
 GRANT UPDATE (
   display_name,

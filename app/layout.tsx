@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
 import {
+  Inter,
   Libre_Caslon_Display,
   Libre_Caslon_Text,
   Libre_Franklin,
 } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
+import "./pulse.css";
+
+const inter = Inter({ weight: ["400", "500", "600"], subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 const newsreader = localFont({
   src: "./fonts/newsreader-roman.woff2",
@@ -48,6 +52,10 @@ export const metadata: Metadata = {
   },
 };
 
+// Strict nonce-based CSP requires request-time rendering so Next can attach the
+// per-request nonce to its framework scripts and generated style elements.
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -56,7 +64,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${newsreader.variable} ${caslonDisplay.variable} ${caslonText.variable} ${libreFranklin.variable}`}
+        className={`${newsreader.variable} ${caslonDisplay.variable} ${caslonText.variable} ${libreFranklin.variable} ${inter.variable}`}
       >
         {children}
       </body>

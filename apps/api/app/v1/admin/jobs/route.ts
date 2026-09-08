@@ -2,7 +2,7 @@ import { and, count, desc, eq, gte, isNull, sql } from "drizzle-orm";
 import { generationJobs, getDb, profiles, usageLedger } from "@edison/db";
 import { z } from "zod";
 import { apiHandler, json } from "../../../../src/http/api-handler";
-import { requireAdmin } from "../../../../src/services/admin";
+import { requireActiveAdmin } from "../../../../src/services/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +13,7 @@ const querySchema = z.object({
 
 export async function GET(request: Request) {
   return apiHandler(request, async ({ claims }) => {
-    requireAdmin(claims);
+    await requireActiveAdmin(claims);
 
     const url = new URL(request.url);
     const { limit, hours } = querySchema.parse({
@@ -83,6 +83,10 @@ export async function GET(request: Request) {
             sql<number>`coalesce(sum(${usageLedger.costMicrousd}), 0)`.mapWith(
               Number,
             ),
+          unpricedResponses:
+            sql<number>`count(*) filter (where ${usageLedger.pricingStatus} = 'unpriced')::int`.mapWith(
+              Number,
+            ),
         })
         .from(usageLedger)
         .where(gte(usageLedger.createdAt, since)),
@@ -104,6 +108,7 @@ export async function GET(request: Request) {
       outputTokens: 0,
       webSearchCalls: 0,
       costMicrousd: 0,
+      unpricedResponses: 0,
     };
 
     return json({
@@ -121,7 +126,11 @@ export async function GET(request: Request) {
         queuedWithoutWorkflowRunId: undispatchedRows[0]?.value ?? 0,
         usage: {
           ...usage,
-          estimatedCostUsd: usage.costMicrousd / 1_000_000,
+          knownCostUsd: usage.costMicrousd / 1_000_000,
+          estimatedCostUsd:
+            usage.unpricedResponses > 0
+              ? null
+              : usage.costMicrousd / 1_000_000,
         },
       },
     });

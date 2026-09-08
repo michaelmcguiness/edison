@@ -12,6 +12,7 @@ import { sql } from "drizzle-orm";
 import { apiHandler, json } from "../../../../src/http/api-handler";
 import { HttpError } from "../../../../src/http/errors";
 import { withActiveMember } from "../../../../src/services/members";
+import { getArticleCorrectionDisclosure } from "../../../../src/services/article-corrections";
 
 export const dynamic = "force-dynamic";
 
@@ -89,6 +90,7 @@ export async function GET(request: Request, context: RouteContext) {
           completed: row.completed,
           writtenFor: row.displayName || row.email.split("@")[0] || "Reader",
           shareId: row.shareId,
+          correction: await getArticleCorrectionDisclosure(transaction, articleId),
           sources: sources.map((source) => ({
             id: source.id,
             title: source.title,
