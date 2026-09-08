@@ -9,6 +9,8 @@ import { ProviderResponseValidationError } from "./provider-response-error";
 import { READER_FIRST_PROMPTS, READER_FIRST_PROMPT_VERSION, READER_FIRST_IDEAS_ART_PROMPT_VERSION,
   READER_FIRST_CHECKER_CONTRACT_VERSION, READER_FIRST_CHECKER_PROMPT, type ReaderFirstCheckerContractVersion } from "./reader-first-prompts";
 import { normalizeOnDemandIdeaArt } from "./on-demand-art";
+import { matchReaderFirstDiscoveryUrl, usesReaderFirstDiscoveryContract, READER_FIRST_DISCOVERY_CONTRACT_VERSION,
+  type ReaderFirstDiscoveryOptions, type ReaderFirstDiscoveryContractVersion } from "./reader-first-discovery";
 import {
   readerFirstSavedWriterInputSchema, readerFirstWriterOutputSchema, readerFirstWriterProviderSchema,
   readerFirstAnswerOutputSchema, readerFirstAnswerProviderSchema, readerFirstResearchOutputSchema,
@@ -18,10 +20,11 @@ import {
 } from "./reader-first-schemas";
 
 export * from "./reader-first-schemas";
+export { READER_FIRST_DISCOVERY_CONTRACT_VERSION, type ReaderFirstDiscoveryContractVersion, type ReaderFirstDiscoveryOptions } from "./reader-first-discovery";
 export { READER_FIRST_PROMPT_VERSION, READER_FIRST_PROMPTS, READER_FIRST_IDEAS_ART_PROMPT_VERSION,
   READER_FIRST_CHECKER_CONTRACT_VERSION, READER_FIRST_CHECKER_PROMPT, type ReaderFirstCheckerContractVersion } from "./reader-first-prompts";
 export type ReaderFirstCheckerOptions = { checkerContractVersion?: ReaderFirstCheckerContractVersion };
-export type ReaderFirstStageOptions = OnDemandStageOptions & ReaderFirstCheckerOptions & { researchPolicy?: NonNullable<OnDemandProviderRequest["researchPolicy"]> };
+export type ReaderFirstStageOptions = OnDemandStageOptions & ReaderFirstCheckerOptions & ReaderFirstDiscoveryOptions & { researchPolicy?: NonNullable<OnDemandProviderRequest["researchPolicy"]> };
 export type ReaderFirstSelection = { context: OnDemandContext; idea: ReaderFirstIdea; evidence: OnDemandEvidence };
 const referenceKey = z.string().min(1).max(40);
 const previousReferenceSchema = z.object({
@@ -45,7 +48,7 @@ export type ReaderFirstQuestion = {
   question: string; previousMessages: ReaderFirstPreviousMessage[];
 };
 export type ReaderFirstStageResult<T> = Omit<OnDemandProviderResponse, "output"> & {
-  output: T; stage: OnDemandProviderRequest["stage"]; promptVersion: typeof READER_FIRST_PROMPT_VERSION | typeof READER_FIRST_IDEAS_ART_PROMPT_VERSION | ReaderFirstCheckerContractVersion;
+  output: T; stage: OnDemandProviderRequest["stage"]; promptVersion: typeof READER_FIRST_PROMPT_VERSION | typeof READER_FIRST_IDEAS_ART_PROMPT_VERSION | ReaderFirstCheckerContractVersion | ReaderFirstDiscoveryContractVersion;
 };
 export type ReaderFirstValidationFinding = { location: string; reason: string };
 export class ReaderFirstDraftValidationError extends Error {
@@ -77,13 +80,16 @@ async function stage<T>(
   normalize?: (output: T, response: OnDemandProviderResponse) => void,
 ): Promise<ReaderFirstStageResult<T>> {
   const cleanPassChecker = usesCleanPassChecker(options);
+  const discoveryContract = usesReaderFirstDiscoveryContract(options);
+  if (discoveryContract && name !== "write" && name !== "repair") invalid("The discovery contract is only supported for article authoring");
   if (!options.model || !options.idempotencyKey || !options.safetyIdentifier) invalid("Explicit model and request identities are required");
   const checking = name === "check" || name === "ideas_check";
   const researchPolicy = checking ? none : options.researchPolicy ?? { mode: "auto", reason: "Selectively verify the reader's question and specific assertions", maxCalls: 8 };
   if (!Number.isInteger(researchPolicy.maxCalls) || researchPolicy.maxCalls < 0 || researchPolicy.maxCalls > 8 || !researchPolicy.reason.trim() || researchPolicy.reason.length > 500 || (researchPolicy.mode === "none" && researchPolicy.maxCalls !== 0)) invalid("Invalid bounded research policy");
   const providerStage = name === "answer_repair" ? "repair" : name;
   const promptVersion = name === "ideas" ? READER_FIRST_IDEAS_ART_PROMPT_VERSION
-    : name === "check" && cleanPassChecker ? READER_FIRST_CHECKER_CONTRACT_VERSION : READER_FIRST_PROMPT_VERSION;
+    : name === "check" && cleanPassChecker ? READER_FIRST_CHECKER_CONTRACT_VERSION
+      : discoveryContract ? READER_FIRST_DISCOVERY_CONTRACT_VERSION : READER_FIRST_PROMPT_VERSION;
   const response = await options.provider({
     stage: providerStage, promptVersion, instructions: name === "check" && cleanPassChecker ? READER_FIRST_CHECKER_PROMPT : READER_FIRST_PROMPTS[name],
     input, schema, model: options.model, idempotencyKey: options.idempotencyKey, safetyIdentifier: options.safetyIdentifier,
@@ -233,9 +239,21 @@ export async function checkReaderFirstIdeas(input: { context: OnDemandContext; r
 }
 
 async function writer(name: "write" | "repair", input: ReaderFirstSelection & Record<string, unknown>, options: ReaderFirstStageOptions): Promise<ReaderFirstStageResult<ReaderFirstWriterOutput>> {
+  const discoveryContract = usesReaderFirstDiscoveryContract(options);
   selection(input);
   const result = await stage(name, input, readerFirstWriterProviderSchema, options, (output, response) => {
     output.research = normalizedResearchHints(output.research);
+    if (discoveryContract) {
+      discoveryStructure(output.research);
+      const urls = actualDiscoveryUrls(response);
+      output.research.sources = output.research.sources.map((source) => {
+        // A retained source ID can never be relabeled to another URL, even
+        // when the proposed difference would be permitted for a new hint.
+        if (input.evidence.sources.some((prior) => prior.id === source.id)) return source;
+        const url = matchReaderFirstDiscoveryUrl(source.url, urls);
+        return url === null ? source : { ...source, url };
+      });
+    }
     discovery(output.research, response, input.evidence);
     if ((output.status === "written") !== Boolean(output.article) || (output.status === "written" ? output.reason !== null : !output.reason)) invalid("Inconsistent article availability");
     if (output.article) materialize(output.article.sourceKeys, output.article.body, output.research, input.evidence);

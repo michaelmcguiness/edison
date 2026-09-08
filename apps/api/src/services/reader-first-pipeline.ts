@@ -21,6 +21,7 @@ import { readDemandStoredDraft } from "./demand-result-compatibility";
 import { evidenceUrl, retrieveEvidencePage } from "./evidence-retrieval";
 import { demandReadableIdeaBrief } from "./demand-idea-art";
 import { demandCheckerOptions } from "./demand-checker-contract";
+import { demandDiscoveryOptions } from "./demand-discovery-contract";
 
 type Acquisition = {
   research: ReaderFirstResearch;
@@ -38,6 +39,7 @@ export type ReaderFirstPipelineState = Record<string, unknown> & {
   kind: DemandRequestRow["kind"];
   models: { article: string; utility: string };
   checkerContractVersion?: unknown;
+  discoveryContractVersion?: unknown;
   research?: ReaderFirstResearchOutput;
   evidence?: OnDemandEvidence;
   acquisition?: Acquisition;
@@ -204,6 +206,7 @@ async function retrieveGroup(state: ReaderFirstPipelineState, retrievePage: type
 }
 
 function ready(state: ReaderFirstPipelineState, request: DemandRequestRow): AdvanceResult {
+  demandDiscoveryOptions(request, state);
   const checkerOptions = demandCheckerOptions(request, state);
   if (request.kind === "ideas") {
     if (!state.ideas?.length) return fail(state, "evidence_unavailable");
@@ -229,6 +232,7 @@ export async function advanceReaderFirstPipeline(
     if (state.version !== 2 || request.snapshot.version !== 2 || state.requestId !== request.id ||
       state.requestFingerprint !== request.requestFingerprint || state.kind !== request.kind || !state.models?.article || !state.models.utility) stop("pipeline_state_invalid");
     const checkerOptions = demandCheckerOptions(request, state);
+    const discoveryOptions = demandDiscoveryOptions(request, state);
     if (state.phase === "failed") return fail(state, state.failureCode ?? "preparation_failed");
     if (state.phase === "ready") return ready(state, request);
     const context = onDemandContextSchema.parse(request.snapshot.context);
@@ -269,10 +273,11 @@ export async function advanceReaderFirstPipeline(
       const selection = readerFirstSelection(request, state.evidence);
       if (state.phase === "write" || state.phase === "repair") {
         if (state.repairAttempted) stop("pipeline_state_invalid");
-        const result = state.phase === "write" ? await writeReaderFirstArticle(selection, options)
+        const articleOptions: ReaderFirstStageOptions = { ...options, ...discoveryOptions };
+        const result = state.phase === "write" ? await writeReaderFirstArticle(selection, articleOptions)
           : await repairReaderFirstArticle({ ...selection, draft: readerFirstWriterOutputSchema.parse(state.draft),
             ...(state.deterministicFindings ? { deterministicFindings: state.deterministicFindings }
-              : { check: readerFirstCheckOutputSchema.parse(state.check) }) }, options);
+              : { check: readerFirstCheckOutputSchema.parse(state.check) }) }, articleOptions);
         state = { ...state, draft: result.output, evidence: selection.evidence,
           repairAttempted: repairing, deterministicFindings: undefined };
         if (result.output.status !== "written") return fail(state, "editorial_withheld");

@@ -12,7 +12,7 @@ import {
   assembleLoopPrincipleContext, createEmptyLoopPrincipleState, reduceLoopPrinciples,
   type LoopPrincipleState,
 } from "@edison/domain";
-import { READER_FIRST_CHECKER_CONTRACT_VERSION, type OnDemandContext } from "@edison/ai";
+import { READER_FIRST_CHECKER_CONTRACT_VERSION, READER_FIRST_DISCOVERY_CONTRACT_VERSION, type OnDemandContext } from "@edison/ai";
 import { HttpError } from "../http/errors";
 import { demandOwnerIds, demandWorkspaceId, type DemandPrincipal } from "../auth/verify-demand-principal";
 import { readDemandArtDescriptor } from "@edison/contracts";
@@ -282,6 +282,7 @@ export async function requestDemandArticle(principal: DemandPrincipal, ideaId: s
     assertDemandLoopOpen(loop);
     const request = await reserveRequest(tx, { principalId: principal.id, loopId: loop.id, ideaId, kind: "article", idempotencyKey: input.idempotencyKey,
       requestFingerprint: fingerprint, snapshot: { version: 2, checkerContractVersion: READER_FIRST_CHECKER_CONTRACT_VERSION,
+        discoveryContractVersion: READER_FIRST_DISCOVERY_CONTRACT_VERSION,
         context: await assembleDemandContext(tx, loop), principleState: loop.principles,
         selection: { idea: demandReadableIdeaBrief(idea.brief), evidence: idea.evidence } } });
     await tx.update(demandIdeas).set({ articleRequestId: request.id }).where(and(eq(demandIdeas.id, ideaId), eq(demandIdeas.principalId, principal.id)));
