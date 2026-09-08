@@ -8,7 +8,9 @@ Michael prioritizes faster loops and articles. Chief of Staff assigned concrete
 latency corrections within the approved reader and current blocking publication
 policy. This increment starts from clean `4fe134662b216200afbdd14fe382e5d5c16a0981`,
 above live API runtime `bd528f59145f0878351d665f444d945c8ebdaf31`.
-Implementation is under final verification, **not yet live**.
+Implemented, independently reviewed and **live** on both existing production
+projects from `3a526fad880bdb389b0560805ce96957898986cf`. This receipt's final
+update is documentation only; it does not identify a later runtime release.
 
 - Poll a selected known article's result immediately, receiving published body
   and request state together. Remove the separate selected-idea metadata poll
@@ -76,8 +78,7 @@ CoS separately closed source review at the exact final hashes below.
 - Reader SHA256: `8d1ada8e5f51131ac8ceaaf8ef1f28d57978611f84ff89e5332369e2303075e3`.
 - Mounted tests SHA256: `c73080642b07e5bd334813279482b5acadad67c36ed8eb5aead497352da51ae2`.
 - Full final application run: **1,078 passed, zero failures/skips** (783 web +295 API).
-- Both typechecks, lint and both production builds passed. Immutable-source CI
-  and hosted verification are the remaining release checks at this checkpoint.
+- Both typechecks, lint and both production builds passed.
 
 The first local web build failed in generated framework cache hashing; moving
 only generated output to a recoverable temporary backup and rerunning passed.
@@ -85,6 +86,41 @@ Local development also needed the existing pnpm helper directory on NODE_PATH.
 No source, dependency, lockfile, build configuration or production setting was
 changed for those local-environment issues. The browser's cleanup of its stopped
 localhost error page was URL-policy blocked; no workaround was attempted.
+
+## Exact-source CI and production verification
+
+[PR4](https://github.com/michaelmcguiness/edison/pull/4) contains the reviewed
+runtime increment above parent `4fe134662b216200afbdd14fe382e5d5c16a0981`.
+[CI34256980244](https://github.com/michaelmcguiness/edison/actions/runs/34256980244)
+passed on exact `3a526fad880bdb389b0560805ce96957898986cf`: 783 web and295 API
+tests, 320 pgTAP assertions across12 files, seven disposable service-database
+proofs, schema lint, application lint, both typechecks and production builds.
+Both jobs and all29 steps succeeded; database job completed17:29:07 UTC.
+Chief of Staff independently verified the exact source and successful CI.
+
+- API `dpl_D1uSkD5rV3Cu5snw5u6RYX1f26qV`, READY17:31:25.851 UTC;
+  host `edison-67dzuxppo-mike-michaelmcguis-projects.vercel.app`.
+- Web `dpl_5pXE8cMFCnqspuxDkB71KcgZeAoj`, READY17:33:04.250 UTC;
+  host `edison-7v5p7fnvn-mike-michaelmcguis-projects.vercel.app`.
+- Both deployment source fields match exact3a526fa, target Production and the
+  existing project IDs. Apex/www, `project-qlqve.vercel.app`, API
+  `project-fjr95.vercel.app` and existing project aliases are retained.
+- All three enabled API schedules now bind to the new API deployment/host.
+  Reconcile-feed and reconcile-generation remain every five minutes; daily-edition
+  scheduling remains minute5 hourly. `disabledAt` remains null.
+
+At17:36:54.432 UTC the public read-only smoke passed: health200 with configuration,
+database and Auth checks OK; login200 with nonce/strict-dynamic CSP and private
+no-store; apex307 to login and www308 to apex; private access/invitations/workspace
+401; apex-origin CORS204 and foreign-origin403; all three unauthenticated cron
+paths401. No authenticated cron was invoked. CoS independently verified both
+live source identities/aliases, all schedule bindings and public login/health.
+
+No production migration, Auth/template, secret, domain, tier or budget setting
+changed. Existing $10 daily/$40 monthly caps remain. No signed-in production
+article/loop timing, actual email delivery or model-speed claim is established.
+The bounded live generation allowance is unused because an existing supported
+authenticated session was unavailable; no new QA identity or mail was created.
 
 ## Prospective Fast processing follow-up — not enabled
 
