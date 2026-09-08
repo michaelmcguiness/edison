@@ -15,8 +15,14 @@ updates, verified accounts skip an unused database transaction and settlement
 reads less data. The approved **Edit loop** label is restored. This improves
 finished-result delivery; no actual model-generation speedup was measured.
 Writing/checking/models remain unchanged. No new paid generation, QA identity,
-mail, migration, Auth, secret, domain or tier change occurred. The next bounded
-Fast candidate remains off by default pending exact accounting/replay review.
+mail, migration, Auth, secret, domain or tier change occurred.
+
+The [accounted Fast candidate](operations/ACCOUNTED_FAST_CANDIDATE_2026-09-08.md) is prepared at
+`27f663ab8a3c9d468f58ff09f646ad70b82748db` in PR5. Exact-source CI34260587306
+passed1,120 application tests,320 pgTAP assertions, all seven DB proofs (including
+new actual-tier accounting/replay), types/lint/builds. Independent source review
+is closed. It is **not deployed or enabled**: the existing browser is signed out,
+so no paid timing was attempted. Keep the option off; no new QA identity/mail.
 See the [generation-latency receipt](operations/GENERATION_LATENCY_RELEASE_2026-09-08.md) for evidence and limits.
 
 ### Previous — September 8 D50 checker-format correction live

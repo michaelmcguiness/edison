@@ -8,7 +8,8 @@ Chief of Staff assigned this bounded follow-up after the generation-delivery
 release at runtime `3a526fad880bdb389b0560805ce96957898986cf`, documented in
 `7f35e17e5cb73703bfd04babe7313b9acd1be498`. Michael prioritizes substantially
 faster loop and article generation. This candidate is **implemented and locally
-verified, not deployed or enabled**. Exact-source CI remains to be attached.
+verified, not deployed or enabled**. Exact-source CI and independent source
+review are closed on `27f663ab8a3c9d468f58ff09f646ad70b82748db`.
 
 There is no reader-facing change, streaming implementation, model switch,
 prompt/schema/checker-policy change, additional review stage, or new service.
@@ -98,8 +99,8 @@ hold, automatic cheaper-tier retry or extra call is introduced.
   tests preserve usage before withholding the response.
 - The existing guarded disposable-Postgres script now covers the new policy and
   actual-tier JSON roundtrip, both costs, exact replay, unpriced accounting and
-  budget/pin denial. Its local-only safety check passes; actual execution awaits
-  the existing CI database job. No new migration or workflow step was added.
+  budget/pin denial. Its local-only safety check and actual CI execution pass.
+  No new migration or workflow step was added.
 
 The first local build hit the known generated-cache hash failure. Moving only
 generated `.next` to a recoverable temporary directory cleared it; the next run
@@ -111,10 +112,27 @@ setting activation or paid benchmark occurred. Ordinary real generation speed,
 provider availability and whether the premium improves this workload remain
 unmeasured. No Terra/Luna speed multiplier is asserted.
 
+## Exact-source hosted CI — passed, not a live rollout
+
+[PR5](https://github.com/michaelmcguiness/edison/pull/5) contains exact candidate
+`27f663ab8a3c9d468f58ff09f646ad70b82748db`, above7f35e17.
+[CI34260587306](https://github.com/michaelmcguiness/edison/actions/runs/34260587306)
+passed both jobs and all29 steps on that source. Application completed
+18:05:43 UTC; database completed18:05:32 UTC. Results:797 web +323 API tests,
+zero failures/skips;320 pgTAP assertions across12 files; all seven disposable
+database service proofs; schema lint, both types/builds and clean lint.
+
+The new Fast PostgreSQL proof specifically passed at18:03:51.854 UTC: frozen
+policy and actual-tier JSON roundtrip, priority/default costs, unchanged search
+fees, durable unpriced accounting, exact replay and pre-call pin/budget denial.
+All provider responses were local stubs; no hosted project or real AI was used.
+Production remains the already verified delivery runtime3a526fa on both projects.
+This candidate's receipt closeout is documentation only, not an activation.
+
 ## Next bounded step
 
-Close exact-source accounting/replay CI and review before enabling production use.
-Then, only with an existing supported authenticated session and budget room, use
+Exact-source accounting/replay CI and review are closed. Only with an existing
+supported authenticated session and budget room, the bounded activation step can use
 at most the still-unused one loop batch plus one article allowance, estimated
 total at most $0.50. Capture useful-card/first-readable/full-completion timing,
 actual returned tier, stage breakdown and charged cost. No new QA account, mail,
