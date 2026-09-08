@@ -124,6 +124,21 @@ test("cost estimates use integer microdollars", () => {
   );
 });
 
+test("cost estimates fail closed for an unknown or loosely matched model", () => {
+  const estimate = (model: string) =>
+    estimatedArticleCostMicrousd({
+      model,
+      inputTokens: 10,
+      cachedInputTokens: 0,
+      outputTokens: 5,
+      webSearchCalls: 0,
+    });
+
+  assert.throws(() => estimate("future-model"), /unpriced_openai_model/);
+  assert.throws(() => estimate("custom-luna-proxy"), /unpriced_openai_model/);
+  assert.doesNotThrow(() => estimate("gpt-5.6-luna-2026-09-04"));
+});
+
 test("interest signals preserve active and muted preference context", () => {
   assert.deepEqual(
     partitionInterestSignals([

@@ -1,0 +1,1926 @@
+<!doctype html>
+<html lang="en" data-visualize-standalone>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Edison — Approved Sidebar and AI Composer</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Edison — Approved Sidebar and AI Composer" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot; data-visualize-standalone&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Edison — Approved Sidebar and AI Composer&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --icon-size: 16px;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --corner-shape: round;
+  --radius: var(--border-radius-lg, 10px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: var(--visualize-paint-gutter, 0px);
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: var(--corner-shape);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+hr {
+  width: 100%;
+  height: 1px;
+  margin-block: 6px;
+  border: 0;
+  background: var(--border);
+}
+
+.nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress {
+  display: flex;
+  height: 8px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 8px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar:only-child {
+  border-radius: var(--radius-full);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.nav-link,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn,
+.nav-link {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover,
+.nav-link:not(:disabled):not([aria-disabled=&quot;true&quot;]):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.nav-pills .nav-link {
+  min-width: 0;
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.nav-justified .nav-link {
+  flex: 1 1 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.nav-pills .nav-link.active {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.btn:disabled,
+.nav-link:disabled,
+.nav-link[aria-disabled=&quot;true&quot;] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: var(--corner-shape);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed=&quot;true&quot;],
+  [aria-selected=&quot;true&quot;],
+  .is-selected
+) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible,
+.nav-link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .btn,
+  .nav-link,
+  .form-control,
+  .form-select {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Keep small-screen WebKit from zooming when a text field receives focus. */
+  .form-control,
+  .form-select {
+    font-size: max(16px, var(--font-size-normal));
+  }
+
+  .form-control[type=&quot;file&quot;]::file-selector-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .form-control-color[type=&quot;color&quot;] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .form-control:is(
+    [type=&quot;date&quot;],
+    [type=&quot;datetime-local&quot;],
+    [type=&quot;month&quot;],
+    [type=&quot;time&quot;],
+    [type=&quot;week&quot;]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
+  }
+
+  .form-check {
+    min-height: 44px;
+    padding-inline: 15px;
+  }
+
+  .form-check-input {
+    position: relative;
+  }
+
+  .form-check-input::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    content: &quot;&quot;;
+    transform: translate(-50%, -50%);
+  }
+
+  .form-check-label {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .form-range {
+    height: 44px;
+    touch-action: pan-y;
+  }
+
+  .form-range::-webkit-slider-runnable-track {
+    height: 44px;
+  }
+
+  .form-range::-moz-range-track {
+    height: 44px;
+  }
+
+  .form-range::-webkit-slider-thumb {
+    margin-top: 12px;
+  }
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id=&quot;edison-sidebar-edition&quot; lang=&quot;en&quot; aria-label=&quot;Edison sidebar design&quot;&gt;
+  &lt;style&gt;
+    @import url(&quot;https://fonts.googleapis.com/css2?family=Libre+Caslon+Display&amp;family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&amp;family=Libre+Franklin:wght@400;500;600&amp;family=Newsreader:opsz,wght@6..72,700&amp;display=swap&quot;);
+    #edison-sidebar-edition { --pp-paper:#fcfbf8; --pp-surface:#fff; --pp-ink:#0b0b0b; --pp-soft:#30302e; --pp-caption:#6d6b67; --pp-rule:#d9d7d2; --pp-red:#d12f32; font-family:&quot;Libre Franklin&quot;,Arial,sans-serif; color:var(--pp-ink); color-scheme:light; width:100%; }
+    #edison-sidebar-edition * { box-sizing:border-box; }
+    #edison-sidebar-edition [hidden] { display:none!important; }
+    #edison-sidebar-edition button,#edison-sidebar-edition input,#edison-sidebar-edition textarea,#edison-sidebar-edition select { font:inherit; }
+    #edison-sidebar-edition button { cursor:pointer; }
+    #edison-sidebar-edition .pp-reference { display:flex; flex-wrap:wrap; align-items:center; gap:8px 20px; color:var(--pp-caption); background:var(--pp-surface); padding:12px 20px; border-bottom:1px solid var(--pp-rule); font-size:11px; }
+    #edison-sidebar-edition .pp-reference label { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+    #edison-sidebar-edition .pp-reference select { max-width:100%; color:var(--pp-ink); background:var(--pp-surface); border:1px solid var(--pp-caption); border-radius:2px; min-height:44px; padding:8px; font-size:12px; }
+    #edison-sidebar-edition .pp-reference button { color:var(--pp-ink); background:transparent; border:0; text-decoration:underline; text-underline-offset:4px; min-height:44px; padding:6px 0; font-size:12px; }
+    #edison-sidebar-edition .pp-paper { background:var(--pp-paper); color-scheme:light; padding:0 clamp(24px,4vw,50px); }
+    #edison-sidebar-edition .pp-shell { max-width:1280px; margin:0 auto; }
+    #edison-sidebar-edition .pp-masthead { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:16px; min-height:96px; }
+    #edison-sidebar-edition .pp-desk { font-size:11px; letter-spacing:.11em; text-transform:uppercase; font-weight:600; }
+    #edison-sidebar-edition .pp-brand { display:inline-flex; align-items:center; gap:7px; background:transparent; border:0; color:var(--pp-ink); padding:0; min-height:44px; }
+    #edison-sidebar-edition .pp-brand img { width:31px; height:31px; }
+    #edison-sidebar-edition .pp-wordmark { font-family:&quot;Newsreader&quot;,Georgia,serif; font-weight:700; font-size:30.4px; letter-spacing:-.03em; line-height:.82; }
+    #edison-sidebar-edition .pp-profile { justify-self:end; border:0; background:transparent; color:var(--pp-ink); width:44px; height:44px; display:grid; place-items:center; border-radius:50%; }
+    #edison-sidebar-edition .pp-avatar { display:grid; place-items:center; height:34px; width:34px; border:1px solid var(--pp-caption); border-radius:50%; font-size:12px; }
+    #edison-sidebar-edition .pp-avatar svg { width:17px; height:17px; }
+    #edison-sidebar-edition .pp-promise { margin:-7px 0 26px; text-align:center; font-family:&quot;Libre Caslon Text&quot;,Georgia,serif; color:var(--pp-soft); font-size:13px; line-height:1.5; }
+    #edison-sidebar-edition .pp-folio { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px 20px; padding:18px 0; border-top:1px solid var(--pp-rule); border-bottom:1px solid var(--pp-ink); font-size:11px; }
+    #edison-sidebar-edition .pp-folio-label { letter-spacing:.08em; text-transform:uppercase; font-weight:600; }
+    #edison-sidebar-edition .pp-personal { font-family:&quot;Libre Caslon Text&quot;,Georgia,serif; font-size:13px; font-style:italic; }
+    #edison-sidebar-edition .pp-date { color:var(--pp-caption); font-variant-numeric:tabular-nums; }
+    #edison-sidebar-edition .pp-steering { padding:23px 0 27px; border-bottom:1px solid var(--pp-rule); }
+    #edison-sidebar-edition .pp-steering-top { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:8px; }
+    #edison-sidebar-edition .pp-steering label { font-size:13px; font-weight:500; }
+    #edison-sidebar-edition .pp-text-action { min-height:44px; display:inline-flex; align-items:center; gap:7px; border:0; background:transparent; color:var(--pp-ink); padding:7px 0; font-size:12px; text-align:left; }
+    #edison-sidebar-edition .pp-text-action svg { width:16px; height:16px; stroke-width:1.6; }
+    #edison-sidebar-edition .pp-direction-link { font-size:11px; color:var(--pp-caption); }
+    #edison-sidebar-edition .pp-input-row { display:flex; flex-direction:column; gap:8px; width:100%; border:1px solid var(--pp-rule); background:var(--pp-surface); border-radius:22px; padding:16px 14px 12px 18px; }
+    #edison-sidebar-edition .pp-input-row textarea { display:block; width:100%; min-width:0; min-height:52px; padding:2px 2px 0; border:0; color:var(--pp-ink); background:transparent; font-size:16px; line-height:1.5; resize:none; }
+    #edison-sidebar-edition .pp-input-row textarea::placeholder { color:var(--pp-caption); opacity:1; }
+    #edison-sidebar-edition .pp-composer-footer { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    #edison-sidebar-edition .pp-apply { display:grid; place-items:center; flex-shrink:0; width:44px; min-width:44px; height:44px; padding:0; border:0; border-radius:50%; color:var(--pp-surface); background:var(--pp-ink); }
+    #edison-sidebar-edition .pp-apply:disabled { background:var(--pp-rule); color:var(--pp-caption); cursor:default; }
+    #edison-sidebar-edition .pp-apply svg { height:20px; width:20px; stroke-width:1.75; }
+    #edison-sidebar-edition .pp-composer-below { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:0 18px; margin:8px 4px 0; }
+    #edison-sidebar-edition .pp-composer-below .pp-help { margin:0; }
+    #edison-sidebar-edition .pp-options { display:flex; align-items:center; }
+    #edison-sidebar-edition .pp-options .pp-text-action { min-height:32px; font-size:11px; color:var(--pp-caption); }
+    #edison-sidebar-edition .pp-scope { display:flex; flex-wrap:wrap; align-items:center; gap:3px; min-width:0; }
+    #edison-sidebar-edition .pp-scope label { font-size:11px; color:var(--pp-caption); font-weight:400; }
+    #edison-sidebar-edition .pp-scope select { max-width:100%; min-height:44px; font-size:11px; background:transparent; color:var(--pp-soft); border:0; border-radius:8px; padding:8px 3px; }
+    #edison-sidebar-edition .pp-help { font-size:11px; color:var(--pp-caption); line-height:1.5; }
+    #edison-sidebar-edition .pp-receipt { margin:17px 0 0; padding:15px 0 0; border-top:1px solid var(--pp-rule); }
+    #edison-sidebar-edition .pp-receipt p { margin:0; color:var(--pp-soft); font-size:12px; line-height:1.65; max-width:640px; }
+    #edison-sidebar-edition .pp-receipt-actions { display:flex; flex-wrap:wrap; gap:20px; }
+    #edison-sidebar-edition .pp-receipt-actions button { text-decoration:underline; text-underline-offset:4px; }
+    #edison-sidebar-edition .pp-error { margin:12px 0 0; color:var(--pp-ink); font-size:12px; line-height:1.5; }
+    #edison-sidebar-edition .pp-feed { padding:33px 0 0; }
+    #edison-sidebar-edition .pp-lead { display:grid; grid-template-columns:1.52fr 1fr; align-items:start; gap:38px; padding-bottom:34px; }
+    #edison-sidebar-edition .pp-kicker { margin:0 0 13px; font-size:11px; line-height:1.3; text-transform:uppercase; letter-spacing:.11em; font-weight:600; color:var(--pp-red); }
+    #edison-sidebar-edition .pp-headline { font-family:&quot;Libre Caslon Display&quot;,Georgia,serif; font-size:clamp(48px,6.2vw,76px); line-height:.98; letter-spacing:-.018em; font-weight:400; margin:0; }
+    #edison-sidebar-edition .pp-title-link { font:inherit; line-height:inherit; letter-spacing:inherit; display:block; color:var(--pp-ink); background:transparent; border:0; text-align:left; padding:0; }
+    #edison-sidebar-edition .pp-dek { margin:21px 0 0; font-family:&quot;Libre Caslon Text&quot;,Georgia,serif; font-size:19px; line-height:1.45; color:var(--pp-soft); }
+    #edison-sidebar-edition .pp-meta { margin:16px 0 0; font-size:11px; line-height:1.5; color:var(--pp-caption); }
+    #edison-sidebar-edition .pp-lead-note { border-left:1px solid var(--pp-rule); padding:4px 0 0 28px; margin-top:28px; }
+    #edison-sidebar-edition .pp-lead-note .pp-note-label { margin:0 0 18px; font-family:&quot;Libre Caslon Text&quot;,Georgia,serif; font-size:13px; font-style:italic; color:var(--pp-caption); }
+    #edison-sidebar-edition .pp-opening { font-family:&quot;Libre Caslon Text&quot;,Georgia,serif; font-size:17px; color:var(--pp-soft); line-height:1.65; margin:0 0 13px; }
+    #edison-sidebar-edition .pp-reason { font-size:11px; color:var(--pp-caption); line-height:1.5; }
+    #edison-sidebar-edition .pp-reason summary { min-height:44px; padding:12px 0; cursor:pointer; }
+    #edison-sidebar-edition .pp-reason p { margin:0 0 10px; }
+    #edison-sidebar-edition .pp-story-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px 26px; border-top:1px solid var(--pp-rule); padding:25px 0; }
+    #edison-sidebar-edition .pp-row-title { font-family:&quot;Libre Caslon Text&quot;,Georgia,serif; font-size:26px; line-height:1.1; letter-spacing:-.012em; font-weight:700; margin:0; max-width:780px; }
+    #edison-sidebar-edition .pp-row-dek { font-family:&quot;Libre Caslon Text&quot;,Georgia,serif; font-size:16px; line-height:1.5; color:var(--pp-soft); margin:12px 0 0; max-width:760px; }
+    #edison-sidebar-edition .pp-save { display:grid; place-items:center; border:0; background:transparent; color:var(--pp-ink); width:44px; height:44px; }
+    #edison-sidebar-edition .pp-save svg { height:19px; width:19px; stroke-width:1.6; }
+    #edison-sidebar-edition .pp-save[aria-pressed=&quot;true&quot;] { text-decoration:underline; font-size:11px; }
+    #edison-sidebar-edition .pp-end { border-top:1px solid var(--pp-rule); text-align:center; padding:34px 24px 22px; }
+    #edison-sidebar-edition .pp-end h2 { font-family:&quot;Libre Caslon Text&quot;,Georgia,serif; font-size:19px; line-height:1.4; font-weight:400; margin:0 0 9px; }
+    #edison-sidebar-edition .pp-end p { font-size:12px; line-height:1.5; color:var(--pp-caption); margin:0; }
+    #edison-sidebar-edition .pp-bottom { display:flex; justify-content:space-between; align-items:center; gap:24px; padding:22px 0 30px; }
+    #edison-sidebar-edition .pp-bottom small { font-size:11px; color:var(--pp-caption); line-height:1.5; }
+    #edison-sidebar-edition .pp-create { flex-shrink:0; min-width:52px; height:52px; display:grid; place-items:center; border:0; border-radius:50%; background:var(--pp-ink); color:var(--pp-paper); }
+    #edison-sidebar-edition .pp-create svg { height:22px; width:22px; stroke-width:1.5; }
+    #edison-sidebar-edition .pp-reader { max-width:40rem; margin:auto; padding:24px 0 32px; }
+    #edison-sidebar-edition .pp-reader .pp-kicker { margin-top:23px; }
+    #edison-sidebar-edition .pp-reader h1 { font-family:&quot;Libre Caslon Display&quot;,Georgia,serif; font-size:54px; line-height:.98; letter-spacing:-.018em; font-weight:400; margin:16px 0 26px; }
+    #edison-sidebar-edition .pp-reader-copy { font-family:&quot;Libre Caslon Text&quot;,Georgia,serif; font-size:19px; line-height:1.66; color:var(--pp-soft); }
+    #edison-sidebar-edition .pp-reader-copy p { margin:0 0 1em; }
+    #edison-sidebar-edition .pp-reader-sources { border-top:1px solid var(--pp-rule); padding:15px 0; font-size:12px; line-height:1.6; }
+    #edison-sidebar-edition .pp-reader-sources a { color:var(--pp-ink); text-underline-offset:4px; }
+    #edison-sidebar-edition .pp-reader-actions { display:flex; flex-wrap:wrap; gap:24px; border-top:1px solid var(--pp-rule); }
+    #edison-sidebar-edition dialog { color:var(--pp-ink); background:var(--pp-surface); border:1px solid var(--pp-rule); border-radius:2px; padding:27px; width:calc(100% - 40px); max-width:560px; }
+    #edison-sidebar-edition dialog::backdrop { background:rgba(11,11,11,.24); }
+    #edison-sidebar-edition #pp-direction-dialog { max-width:420px; }
+    #edison-sidebar-edition .pp-dialog-heading { display:flex; align-items:center; justify-content:space-between; gap:20px; }
+    #edison-sidebar-edition .pp-dialog-heading h2 { font-family:&quot;Libre Caslon Text&quot;,Georgia,serif; font-weight:400; font-size:24px; line-height:1.15; margin:0; }
+    #edison-sidebar-edition .pp-close { display:grid; place-items:center; width:44px; height:44px; background:transparent; border:0; color:var(--pp-ink); flex-shrink:0; }
+    #edison-sidebar-edition .pp-close svg { width:19px; height:19px; }
+    #edison-sidebar-edition .pp-dialog-description { font-size:12px; color:var(--pp-caption); line-height:1.6; margin:12px 0 20px; }
+    #edison-sidebar-edition .pp-dialog-label { display:block; font-size:12px; font-weight:500; margin:16px 0 8px; }
+    #edison-sidebar-edition .pp-dialog-text { width:100%; min-height:100px; resize:vertical; border:1px solid var(--pp-caption); border-radius:2px; background:var(--pp-surface); color:var(--pp-ink); padding:12px; font-size:16px; line-height:1.5; }
+    #edison-sidebar-edition .pp-primary { min-height:44px; border:0; border-radius:2px; background:var(--pp-ink); color:var(--pp-paper); padding:13px 18px; font-size:14px; font-weight:600; }
+    #edison-sidebar-edition .pp-dialog-actions { display:flex; flex-wrap:wrap; gap:12px 24px; align-items:center; margin-top:19px; }
+    #edison-sidebar-edition .pp-dialog-status { font-size:12px; line-height:1.6; color:var(--pp-caption); margin:16px 0 0; }
+    #edison-sidebar-edition .pp-brief-list { padding:0; list-style:none; font-size:13px; line-height:1.5; margin:15px 0; }
+    #edison-sidebar-edition .pp-brief-list li { padding:12px 0; border-bottom:1px solid var(--pp-rule); }
+    #edison-sidebar-edition .pp-brief-list small { display:block; font-size:11px; color:var(--pp-caption); margin-top:5px; }
+    @media(max-width:639px) {
+      #edison-sidebar-edition .pp-paper { padding:0 24px; }
+      #edison-sidebar-edition .pp-masthead { min-height:76px; }
+      #edison-sidebar-edition .pp-brand { gap:6px; }
+      #edison-sidebar-edition .pp-brand img { width:27px; height:27px; }
+      #edison-sidebar-edition .pp-wordmark { font-size:27.2px; }
+      #edison-sidebar-edition .pp-promise { font-size:12px; max-width:265px; margin:0 auto 23px; }
+      #edison-sidebar-edition .pp-folio { gap:9px; }
+      #edison-sidebar-edition .pp-personal { order:3; flex-basis:100%; font-size:12px; }
+      #edison-sidebar-edition .pp-steering { padding-top:14px; padding-bottom:21px; }
+      #edison-sidebar-edition .pp-input-row { padding:14px 12px 10px 15px; border-radius:20px; }
+      #edison-sidebar-edition .pp-input-row textarea { font-size:16px; }
+      #edison-sidebar-edition .pp-feed { padding-top:27px; }
+      #edison-sidebar-edition .pp-lead { grid-template-columns:1fr; gap:20px; padding-bottom:27px; }
+      #edison-sidebar-edition .pp-headline { font-size:46px; line-height:.99; }
+      #edison-sidebar-edition .pp-dek { font-size:18px; }
+      #edison-sidebar-edition .pp-lead-note { border:0; padding:0; margin:0; }
+      #edison-sidebar-edition .pp-lead-note .pp-note-label { display:none; }
+      #edison-sidebar-edition .pp-opening { font-size:16px; }
+      #edison-sidebar-edition .pp-row-title { font-size:26px; }
+      #edison-sidebar-edition .pp-story-row { gap:12px; }
+      #edison-sidebar-edition .pp-row-dek { font-size:16px; }
+      #edison-sidebar-edition .pp-reader h1 { font-size:44px; }
+      #edison-sidebar-edition .pp-reader-copy { font-size:18px; line-height:1.62; }
+      #edison-sidebar-edition .pp-reference { padding:10px 16px; }
+      #edison-sidebar-edition dialog { padding:20px; }
+    }
+    #edison-sidebar-edition .sb-preview { container-name:edison-sidebar; container-type:inline-size; width:100%; margin:auto; }
+    #edison-sidebar-edition[data-preview=&quot;mobile&quot;] .sb-preview { max-width:390px; }
+    #edison-sidebar-edition .sb-app { display:grid; grid-template-columns:184px minmax(0,1fr); background:var(--pp-paper); }
+    #edison-sidebar-edition .sb-rail { padding:45px 18px 28px; border-right:1px solid var(--pp-rule); }
+    #edison-sidebar-edition .sb-label { margin:0 0 24px 17px; font-size:11px; color:var(--pp-caption); }
+    #edison-sidebar-edition .sb-nav { display:flex; flex-direction:column; gap:8px; }
+    #edison-sidebar-edition .sb-nav button { position:relative; display:flex; align-items:center; gap:13px; min-height:48px; border:0; background:transparent; color:var(--pp-caption); padding:12px 16px; font-size:13px; font-weight:400; text-align:left; }
+    #edison-sidebar-edition .sb-nav button svg { width:18px; height:18px; stroke-width:1.5; flex-shrink:0; }
+    #edison-sidebar-edition .sb-nav button[aria-current=&quot;page&quot;] { color:var(--pp-ink); font-weight:600; }
+    #edison-sidebar-edition .sb-nav button[aria-current=&quot;page&quot;]::before { content:&quot;&quot;; position:absolute; width:2px; height:18px; background:var(--pp-red); left:0; top:15px; }
+    #edison-sidebar-edition[data-nav-style=&quot;type&quot;] .sb-nav svg { display:none; }
+    #edison-sidebar-edition .pp-paper { min-width:0; padding-left:32px; padding-right:32px; }
+    #edison-sidebar-edition .pp-lead { gap:28px; grid-template-columns:1.6fr 1fr; }
+    #edison-sidebar-edition .pp-headline { font-size:clamp(46px,5.4vw,72px); }
+    #edison-sidebar-edition .pp-lead-note { padding-left:22px; }
+    #edison-sidebar-edition .sb-format { padding-top:32px; padding-bottom:18px; }
+    #edison-sidebar-edition .sb-heading { margin:0 0 10px; font-family:&quot;Libre Caslon Display&quot;,Georgia,serif; font-size:46px; line-height:1; font-weight:400; letter-spacing:-.018em; }
+    #edison-sidebar-edition .sb-subtitle { color:var(--pp-caption); font-size:12px; line-height:1.5; margin:0 0 28px; }
+    #edison-sidebar-edition .sb-book-feature { display:grid; grid-template-columns:152px minmax(0,1fr); align-items:center; gap:30px; padding:2px 0 30px; }
+    #edison-sidebar-edition .sb-cover { width:100%; min-width:0; min-height:230px; aspect-ratio:2/3; padding:17px 16px; border:0; border-left:4px double rgba(11,11,11,.18); background:#ded9ca; color:var(--pp-ink); display:flex; flex-direction:column; justify-content:space-between; gap:18px; text-align:left; cursor:pointer; }
+    #edison-sidebar-edition .sb-cover small { font-family:&quot;Libre Franklin&quot;,Arial,sans-serif; text-transform:uppercase; letter-spacing:.08em; font-size:11px; }
+    #edison-sidebar-edition .sb-cover strong { font-family:&quot;Libre Caslon Display&quot;,Georgia,serif; font-size:27px; line-height:1.02; font-weight:400; letter-spacing:-.02em; hyphens:auto; overflow-wrap:break-word; }
+    #edison-sidebar-edition .sb-cover em { font-family:&quot;Libre Caslon Text&quot;,Georgia,serif; font-weight:400; font-size:11px; }
+    #edison-sidebar-edition .sb-cover-clay { background:#d7c3b5; }
+    #edison-sidebar-edition .sb-cover-grey { background:#dce0df; }
+    #edison-sidebar-edition .sb-cover-dark { background:#373a36; color:#fcfbf8; }
+    #edison-sidebar-edition .sb-feature-title { font-family:&quot;Libre Caslon Text&quot;,Georgia,serif; font-size:27px; line-height:1.12; letter-spacing:-.012em; margin:0 0 15px; font-weight:700; overflow-wrap:break-word; }
+    #edison-sidebar-edition .sb-feature-description { font-family:&quot;Libre Caslon Text&quot;,Georgia,serif; font-size:17px; line-height:1.55; color:var(--pp-soft); margin:0 0 18px; max-width:490px; }
+    #edison-sidebar-edition .sb-book-progress { height:2px; background:var(--pp-rule); width:100%; max-width:260px; margin:20px 0 10px; }
+    #edison-sidebar-edition .sb-book-progress span { display:block; width:38%; height:100%; background:var(--pp-ink); }
+    #edison-sidebar-edition .sb-section-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; border-top:1px solid var(--pp-rule); padding:23px 0; }
+    #edison-sidebar-edition .sb-section-heading h2 { font-family:&quot;Libre Caslon Text&quot;,Georgia,serif; font-size:18px; font-weight:400; margin:0; }
+    #edison-sidebar-edition .sb-section-heading span { font-size:11px; color:var(--pp-caption); }
+    #edison-sidebar-edition .sb-books-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px; }
+    #edison-sidebar-edition .sb-books-grid .sb-cover { max-width:188px; }
+    #edison-sidebar-edition .sb-book-caption { font-size:11px; color:var(--pp-caption); margin:13px 0 0; }
+    #edison-sidebar-edition .sb-show-art { display:flex; flex-direction:column; justify-content:space-between; padding:18px; aspect-ratio:1; width:152px; background:#d3c4b2; color:var(--pp-ink); }
+    #edison-sidebar-edition .sb-show-art span { font-family:&quot;Libre Caslon Display&quot;,Georgia,serif; font-size:47px; line-height:.95; letter-spacing:-.035em; }
+    #edison-sidebar-edition .sb-show-art small { font-size:11px; letter-spacing:.08em; }
+    #edison-sidebar-edition .sb-show-art.sb-cover-grey { background:#dce0df; }
+    #edison-sidebar-edition .sb-show-art.sb-cover-clay { background:#d7c3b5; }
+    #edison-sidebar-edition .sb-play-row { display:flex; align-items:center; gap:14px; }
+    #edison-sidebar-edition .sb-play { display:grid; place-items:center; min-width:44px; height:44px; border:0; border-radius:50%; color:var(--pp-paper); background:var(--pp-ink); }
+    #edison-sidebar-edition .sb-play svg { width:17px; height:17px; stroke-width:1.5; }
+    #edison-sidebar-edition .sb-episode { display:grid; grid-template-columns:68px minmax(0,1fr) 44px; align-items:center; gap:22px; padding:24px 0; border-top:1px solid var(--pp-rule); }
+    #edison-sidebar-edition .sb-episode .sb-show-art { width:68px; padding:8px; }
+    #edison-sidebar-edition .sb-episode .sb-show-art span { font-size:23px; line-height:1; }
+    #edison-sidebar-edition .sb-episode .sb-show-art.sb-cover-clay span { font-size:17px; }
+    #edison-sidebar-edition .sb-episode .sb-show-art small { display:none; }
+    #edison-sidebar-edition .sb-episode h3 { font-family:&quot;Libre Caslon Text&quot;,Georgia,serif; font-size:21px; line-height:1.15; margin:7px 0 10px; font-weight:700; }
+    #edison-sidebar-edition .sb-episode p { font-family:&quot;Libre Caslon Text&quot;,Georgia,serif; font-size:15px; line-height:1.5; color:var(--pp-soft); margin:0 0 11px; }
+    #edison-sidebar-edition .sb-episode .sb-play { color:var(--pp-ink); background:transparent; }
+    #edison-sidebar-edition .sb-audio-note { font-size:12px; line-height:1.6; margin:15px 0; color:var(--pp-caption); }
+    @container edison-sidebar (max-width: 959px) {
+      #edison-sidebar-edition .sb-app { grid-template-columns:minmax(0,1fr); }
+      #edison-sidebar-edition .sb-rail { order:2; border-right:0; border-top:1px solid var(--pp-rule); padding:8px 16px max(10px,env(safe-area-inset-bottom)); }
+      #edison-sidebar-edition .sb-label { display:none; }
+      #edison-sidebar-edition .sb-nav { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+      #edison-sidebar-edition .sb-nav button { flex-direction:column; justify-content:center; gap:6px; min-height:58px; padding:9px 5px; font-size:11px; }
+      #edison-sidebar-edition .sb-nav button[aria-current=&quot;page&quot;]::before { height:2px; width:18px; top:0; left:calc(50% - 9px); }
+    }
+    @container edison-sidebar (max-width: 639px) {
+      #edison-sidebar-edition .pp-paper { padding:0 24px; }
+      #edison-sidebar-edition .pp-masthead { min-height:76px; }
+      #edison-sidebar-edition .pp-brand img { width:27px; height:27px; }
+      #edison-sidebar-edition .pp-brand { gap:6px; }
+      #edison-sidebar-edition .pp-wordmark { font-size:27.2px; }
+      #edison-sidebar-edition .pp-promise { font-size:12px; max-width:265px; margin:0 auto 23px; }
+      #edison-sidebar-edition .pp-folio { gap:9px; }
+      #edison-sidebar-edition .pp-personal { order:3; flex-basis:100%; font-size:12px; }
+      #edison-sidebar-edition .pp-steering { padding:14px 0 21px; }
+      #edison-sidebar-edition .pp-input-row { padding:14px 12px 10px 15px; border-radius:20px; }
+      #edison-sidebar-edition .pp-options .pp-text-action { min-height:44px; }
+      #edison-sidebar-edition .pp-lead { grid-template-columns:1fr; gap:20px; padding-bottom:27px; }
+      #edison-sidebar-edition .pp-headline { font-size:46px; line-height:.99; }
+      #edison-sidebar-edition .pp-dek { font-size:18px; }
+      #edison-sidebar-edition .pp-lead-note { border:0; padding:0; margin:0; }
+      #edison-sidebar-edition .pp-lead-note .pp-note-label { display:none; }
+      #edison-sidebar-edition .pp-opening { font-size:16px; }
+      #edison-sidebar-edition .pp-reader h1 { font-size:44px; }
+      #edison-sidebar-edition .pp-reader-copy { font-size:18px; line-height:1.62; }
+      #edison-sidebar-edition .sb-heading { font-size:40px; }
+      #edison-sidebar-edition .sb-book-feature { grid-template-columns:100px minmax(0,1fr); gap:20px; }
+      #edison-sidebar-edition .sb-cover { padding:13px 10px; min-height:210px; gap:13px; }
+      #edison-sidebar-edition .sb-cover strong { font-size:20px; }
+      #edison-sidebar-edition .sb-book-feature .sb-cover { min-height:190px; }
+      #edison-sidebar-edition .sb-book-feature .sb-cover strong { font-size:18px; }
+      #edison-sidebar-edition .sb-cover small { font-size:11px; letter-spacing:0; }
+      #edison-sidebar-edition .sb-cover em { font-size:11px; }
+      #edison-sidebar-edition .sb-feature-title { font-size:23px; }
+      #edison-sidebar-edition .sb-feature-description { font-size:15px; }
+      #edison-sidebar-edition .sb-books-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px 20px; }
+      #edison-sidebar-edition .sb-show-art { width:100px; padding:12px; }
+      #edison-sidebar-edition .sb-show-art span { font-size:35px; }
+      #edison-sidebar-edition .sb-episode { grid-template-columns:54px minmax(0,1fr) 44px; gap:12px; }
+      #edison-sidebar-edition .sb-episode .sb-show-art { width:54px; padding:6px; }
+      #edison-sidebar-edition .sb-episode .sb-show-art span { font-size:18px; }
+      #edison-sidebar-edition .sb-episode .sb-show-art.sb-cover-clay span { font-size:14px; }
+      #edison-sidebar-edition .sb-episode h3 { font-size:19px; }
+      #edison-sidebar-edition .sb-episode p { display:none; }
+    }
+  &lt;/style&gt;
+  &lt;div class=&quot;pp-reference&quot; aria-label=&quot;Design reference scenarios, not product controls&quot; hidden&gt;
+    &lt;label for=&quot;pp-scenario&quot;&gt;Preview state &lt;select id=&quot;pp-scenario&quot;&gt;&lt;option value=&quot;returning&quot;&gt;Returning reader&lt;/option&gt;&lt;option value=&quot;guest&quot;&gt;First visit&lt;/option&gt;&lt;option value=&quot;applying&quot;&gt;Saving direction&lt;/option&gt;&lt;option value=&quot;ready&quot;&gt;Direction applied · writing ready&lt;/option&gt;&lt;option value=&quot;queued&quot;&gt;New writing queued&lt;/option&gt;&lt;option value=&quot;failed&quot;&gt;Direction save failed&lt;/option&gt;&lt;option value=&quot;generation-failed&quot;&gt;Direction saved · writing failed&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;
+    &lt;button type=&quot;button&quot; id=&quot;pp-try&quot;&gt;Try an editorial note&lt;/button&gt;
+    &lt;span&gt;News · desktop &amp; mobile · local sample content&lt;/span&gt;
+  &lt;/div&gt;
+  &lt;div class=&quot;sb-preview&quot;&gt;&lt;div class=&quot;sb-app&quot;&gt;
+    &lt;aside class=&quot;sb-rail&quot;&gt;&lt;p class=&quot;sb-label&quot;&gt;Your publication&lt;/p&gt;&lt;nav class=&quot;sb-nav&quot; aria-label=&quot;Publication formats&quot;&gt;&lt;button type=&quot;button&quot; data-section=&quot;news&quot; aria-current=&quot;page&quot;&gt;&lt;i data-lucide=&quot;newspaper&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;News&lt;/span&gt;&lt;/button&gt;&lt;button type=&quot;button&quot; data-section=&quot;books&quot;&gt;&lt;i data-lucide=&quot;book-open&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Books&lt;/span&gt;&lt;/button&gt;&lt;button type=&quot;button&quot; data-section=&quot;podcasts&quot;&gt;&lt;i data-lucide=&quot;headphones&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Podcasts&lt;/span&gt;&lt;/button&gt;&lt;/nav&gt;&lt;/aside&gt;
+  &lt;section class=&quot;pp-paper&quot;&gt;
+    &lt;div class=&quot;pp-shell&quot;&gt;
+      &lt;header class=&quot;pp-masthead&quot;&gt;
+        &lt;span class=&quot;pp-desk&quot; id=&quot;sb-desk&quot;&gt;News&lt;/span&gt;
+        &lt;button class=&quot;pp-brand&quot; id=&quot;pp-home&quot; type=&quot;button&quot; aria-label=&quot;Edison home&quot;&gt;&lt;img id=&quot;pp-mark&quot; alt=&quot;&quot; width=&quot;31&quot; height=&quot;31&quot; src=&quot;data:image/svg+xml,%3Csvg%20width=&#x27;192&#x27;%20height=&#x27;192&#x27;%20viewBox=&#x27;0%200%2024%2024&#x27;%20fill=&#x27;none&#x27;%20xmlns=&#x27;http://www.w3.org/2000/svg&#x27;%3E%3Cpath%20d=&#x27;M12%201.45C16.53%201.45%2020.2%205.12%2020.2%209.65C20.2%2014.9%2017.25%2017.85%2012%2017.85C6.75%2017.85%203.8%2014.9%203.8%209.65C3.8%205.12%207.47%201.45%2012%201.45Z&#x27;%20stroke=&#x27;%230B0B0B&#x27;%20stroke-width=&#x27;1.75&#x27;%20stroke-linecap=&#x27;round&#x27;%20stroke-linejoin=&#x27;round&#x27;/%3E%3Cpath%20d=&#x27;M7.85%2020.55H16.15M9.35%2022.85H14.65&#x27;%20stroke=&#x27;%230B0B0B&#x27;%20stroke-width=&#x27;1.75&#x27;%20stroke-linecap=&#x27;round&#x27;%20stroke-linejoin=&#x27;round&#x27;/%3E%3C/svg%3E&quot;&gt;&lt;span class=&quot;pp-wordmark&quot; aria-hidden=&quot;true&quot;&gt;edison&lt;/span&gt;&lt;/button&gt;
+        &lt;button class=&quot;pp-profile&quot; id=&quot;pp-profile&quot; type=&quot;button&quot; aria-label=&quot;Profile and editorial direction&quot;&gt;&lt;span class=&quot;pp-avatar&quot; id=&quot;pp-avatar&quot;&gt;M&lt;/span&gt;&lt;/button&gt;
+      &lt;/header&gt;
+      &lt;p class=&quot;pp-promise&quot;&gt;A publication written entirely for you, every day.&lt;/p&gt;
+      &lt;main id=&quot;pp-home-view&quot;&gt;
+        &lt;div class=&quot;pp-folio&quot;&gt;&lt;span class=&quot;pp-folio-label&quot; id=&quot;sb-folio-label&quot;&gt;Today’s edition&lt;/span&gt;&lt;span class=&quot;pp-personal&quot; id=&quot;pp-personal&quot;&gt;Edited for Michael&lt;/span&gt;&lt;time class=&quot;pp-date&quot; datetime=&quot;2026-09-04&quot;&gt;Friday, September 4&lt;/time&gt;&lt;span class=&quot;pp-date&quot; id=&quot;pp-count&quot;&gt;4 stories&lt;/span&gt;&lt;/div&gt;
+        &lt;section class=&quot;pp-steering&quot; id=&quot;sb-steering&quot; aria-label=&quot;Shape your News edition&quot;&gt;
+          &lt;div class=&quot;pp-steering-top&quot;&gt;&lt;label for=&quot;pp-prompt&quot;&gt;Ask Edison&lt;/label&gt;&lt;button type=&quot;button&quot; id=&quot;pp-direction-link&quot; class=&quot;pp-text-action pp-direction-link&quot;&gt;Editorial direction&lt;/button&gt;&lt;/div&gt;
+          &lt;form id=&quot;pp-steer-form&quot;&gt;
+            &lt;div class=&quot;pp-input-row&quot;&gt;
+              &lt;textarea id=&quot;pp-prompt&quot; rows=&quot;2&quot; autocomplete=&quot;off&quot; placeholder=&quot;More economic history, less startup news…&quot; aria-describedby=&quot;pp-help&quot; aria-label=&quot;Ask Edison to shape your News edition&quot;&gt;&lt;/textarea&gt;
+              &lt;div class=&quot;pp-composer-footer&quot;&gt;&lt;div class=&quot;pp-scope&quot;&gt;&lt;label for=&quot;pp-scope&quot; id=&quot;sb-scope-label&quot;&gt;News ·&lt;/label&gt;&lt;select id=&quot;pp-scope&quot; aria-label=&quot;How long should this editorial direction apply?&quot;&gt;&lt;option value=&quot;future&quot;&gt;From now on&lt;/option&gt;&lt;option value=&quot;today&quot;&gt;This edition only&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;&lt;button class=&quot;pp-apply&quot; id=&quot;pp-apply&quot; type=&quot;submit&quot; aria-label=&quot;Send News direction to Edison&quot; disabled&gt;&lt;i data-lucide=&quot;arrow-up&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/div&gt;
+            &lt;/div&gt;
+            &lt;div class=&quot;pp-composer-below&quot;&gt;&lt;p class=&quot;pp-help&quot; id=&quot;pp-help&quot;&gt;Your AI editor. Tell it what you’d like more or less of.&lt;/p&gt;&lt;div class=&quot;pp-options&quot; id=&quot;pp-options&quot; hidden&gt;&lt;button type=&quot;button&quot; class=&quot;pp-text-action&quot; id=&quot;sb-example&quot;&gt;Try an example&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;
+          &lt;/form&gt;
+          &lt;p class=&quot;pp-error&quot; id=&quot;pp-validation&quot; role=&quot;alert&quot; hidden&gt;&lt;/p&gt;
+          &lt;div class=&quot;pp-receipt&quot; id=&quot;pp-receipt&quot; hidden&gt;&lt;p id=&quot;pp-receipt-text&quot; role=&quot;status&quot;&gt;&lt;/p&gt;&lt;div class=&quot;pp-receipt-actions&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;pp-text-action&quot; id=&quot;pp-undo&quot;&gt;Undo&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;pp-text-action&quot; id=&quot;pp-today&quot;&gt;This edition only&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;pp-text-action&quot; id=&quot;pp-review&quot;&gt;Review direction&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;pp-text-action&quot; id=&quot;pp-retry&quot; hidden&gt;Retry&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;/section&gt;
+        &lt;div class=&quot;pp-feed&quot; id=&quot;pp-feed&quot;&gt;&lt;/div&gt;
+        &lt;section class=&quot;sb-format&quot; id=&quot;sb-books&quot; hidden&gt;
+          &lt;h1 class=&quot;sb-heading&quot;&gt;Books&lt;/h1&gt;&lt;p class=&quot;sb-subtitle&quot;&gt;For a little more time with an idea.&lt;/p&gt;
+          &lt;article class=&quot;sb-book-feature&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;sb-cover&quot; data-book=&quot;The Quiet Infrastructure&quot; aria-label=&quot;Preview The Quiet Infrastructure&quot;&gt;&lt;small&gt;Edison Editions&lt;/small&gt;&lt;strong&gt;The Quiet&lt;br&gt;Infrastructure&lt;/strong&gt;&lt;em&gt;The world behind the world&lt;/em&gt;&lt;/button&gt;&lt;div&gt;&lt;p class=&quot;pp-kicker&quot;&gt;Continue reading&lt;/p&gt;&lt;h2 class=&quot;sb-feature-title&quot;&gt;The Quiet Infrastructure&lt;/h2&gt;&lt;p class=&quot;sb-feature-description&quot;&gt;How standards, maintenance, and invisible systems make modern life possible.&lt;/p&gt;&lt;div class=&quot;sb-book-progress&quot; role=&quot;progressbar&quot; aria-label=&quot;Sample book progress&quot; aria-valuemin=&quot;0&quot; aria-valuemax=&quot;100&quot; aria-valuenow=&quot;38&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;/div&gt;&lt;p class=&quot;pp-meta&quot;&gt;Chapter 4 of 11 · sample progress&lt;/p&gt;&lt;button type=&quot;button&quot; class=&quot;pp-text-action&quot; data-book=&quot;The Quiet Infrastructure&quot;&gt;Open book →&lt;/button&gt;&lt;/div&gt;&lt;/article&gt;
+          &lt;div class=&quot;sb-section-heading&quot;&gt;&lt;h2&gt;Added to your library today&lt;/h2&gt;&lt;span&gt;3 books&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;sb-books-grid&quot;&gt;&lt;article&gt;&lt;button type=&quot;button&quot; class=&quot;sb-cover sb-cover-clay&quot; data-book=&quot;How Cities Remember&quot; aria-label=&quot;Preview How Cities Remember&quot;&gt;&lt;small&gt;Edison Editions&lt;/small&gt;&lt;strong&gt;How Cities&lt;br&gt;Remember&lt;/strong&gt;&lt;em&gt;Places, traces, memory&lt;/em&gt;&lt;/button&gt;&lt;p class=&quot;sb-book-caption&quot;&gt;1 hr 42 min · design sample&lt;/p&gt;&lt;/article&gt;&lt;article&gt;&lt;button type=&quot;button&quot; class=&quot;sb-cover sb-cover-grey&quot; data-book=&quot;The Architecture of Attention&quot; aria-label=&quot;Preview The Architecture of Attention&quot;&gt;&lt;small&gt;Edison Editions&lt;/small&gt;&lt;strong&gt;The Architecture&lt;br&gt;of Attention&lt;/strong&gt;&lt;em&gt;A closer kind of looking&lt;/em&gt;&lt;/button&gt;&lt;p class=&quot;sb-book-caption&quot;&gt;48 min · design sample&lt;/p&gt;&lt;/article&gt;&lt;article&gt;&lt;button type=&quot;button&quot; class=&quot;sb-cover sb-cover-dark&quot; data-book=&quot;Smaller, Stranger Models&quot; aria-label=&quot;Preview Smaller, Stranger Models&quot;&gt;&lt;small&gt;Edison Editions&lt;/small&gt;&lt;strong&gt;Smaller,&lt;br&gt;Stranger&lt;br&gt;Models&lt;/strong&gt;&lt;em&gt;On knowing one thing well&lt;/em&gt;&lt;/button&gt;&lt;p class=&quot;sb-book-caption&quot;&gt;56 min · design sample&lt;/p&gt;&lt;/article&gt;&lt;/div&gt;
+        &lt;/section&gt;
+        &lt;section class=&quot;sb-format&quot; id=&quot;sb-podcasts&quot; hidden&gt;
+          &lt;h1 class=&quot;sb-heading&quot;&gt;Podcasts&lt;/h1&gt;&lt;p class=&quot;sb-subtitle&quot;&gt;Good company for a curious mind.&lt;/p&gt;
+          &lt;article class=&quot;sb-book-feature&quot;&gt;&lt;div class=&quot;sb-show-art&quot; role=&quot;img&quot; aria-label=&quot;Field Notes podcast artwork&quot;&gt;&lt;small&gt;EDISON AUDIO&lt;/small&gt;&lt;span&gt;Field&lt;br&gt;Notes&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;p class=&quot;pp-kicker&quot;&gt;Up next · Field Notes&lt;/p&gt;&lt;h2 class=&quot;sb-feature-title&quot;&gt;The hidden archive beneath our feet&lt;/h2&gt;&lt;p class=&quot;sb-feature-description&quot;&gt;A conversation about the new science of soil memory.&lt;/p&gt;&lt;div class=&quot;sb-play-row&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;sb-play&quot; data-audio=&quot;The hidden archive beneath our feet&quot; aria-label=&quot;Preview The hidden archive beneath our feet&quot;&gt;&lt;i data-lucide=&quot;play&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;span class=&quot;pp-meta&quot;&gt;24 min · Today · sample&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;/article&gt;
+          &lt;div class=&quot;sb-section-heading&quot;&gt;&lt;h2&gt;New episodes&lt;/h2&gt;&lt;span&gt;2 episodes&lt;/span&gt;&lt;/div&gt;
+          &lt;article class=&quot;sb-episode&quot;&gt;&lt;div class=&quot;sb-show-art sb-cover-grey&quot; role=&quot;img&quot; aria-label=&quot;The Long View podcast artwork&quot;&gt;&lt;span&gt;The&lt;br&gt;Long&lt;br&gt;View&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span class=&quot;pp-meta&quot;&gt;The Long View · Today&lt;/span&gt;&lt;h3&gt;Why cities remember&lt;/h3&gt;&lt;p&gt;The old decisions still visible in streets, stoops, and transit maps.&lt;/p&gt;&lt;span class=&quot;pp-meta&quot;&gt;31 min · Unplayed · sample&lt;/span&gt;&lt;/div&gt;&lt;button type=&quot;button&quot; class=&quot;sb-play&quot; data-audio=&quot;Why cities remember&quot; aria-label=&quot;Preview Why cities remember&quot;&gt;&lt;i data-lucide=&quot;play&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/article&gt;
+          &lt;article class=&quot;sb-episode&quot;&gt;&lt;div class=&quot;sb-show-art sb-cover-clay&quot; role=&quot;img&quot; aria-label=&quot;Margin Notes podcast artwork&quot;&gt;&lt;span&gt;Margin&lt;br&gt;Notes&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span class=&quot;pp-meta&quot;&gt;Margin Notes · Today&lt;/span&gt;&lt;h3&gt;Against infinite scale&lt;/h3&gt;&lt;p&gt;Smaller models and the value of knowing one particular world.&lt;/p&gt;&lt;span class=&quot;pp-meta&quot;&gt;18 min · Unplayed · sample&lt;/span&gt;&lt;/div&gt;&lt;button type=&quot;button&quot; class=&quot;sb-play&quot; data-audio=&quot;Against infinite scale&quot; aria-label=&quot;Preview Against infinite scale&quot;&gt;&lt;i data-lucide=&quot;play&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/article&gt;
+          &lt;p class=&quot;sb-audio-note&quot; id=&quot;sb-audio-note&quot; role=&quot;status&quot; hidden&gt;&lt;/p&gt;
+        &lt;/section&gt;
+        &lt;div class=&quot;pp-end&quot;&gt;&lt;h2 id=&quot;sb-end-title&quot;&gt;That’s your edition.&lt;/h2&gt;&lt;p id=&quot;pp-end-note&quot;&gt;A fresh one tomorrow, shaped by what interests you.&lt;/p&gt;&lt;/div&gt;
+      &lt;/main&gt;
+      &lt;article class=&quot;pp-reader&quot; id=&quot;pp-reader&quot; aria-labelledby=&quot;pp-reader-title&quot; hidden&gt;&lt;button class=&quot;pp-text-action&quot; id=&quot;pp-back&quot; type=&quot;button&quot;&gt;← Back to your edition&lt;/button&gt;&lt;p class=&quot;pp-kicker&quot; id=&quot;pp-reader-kicker&quot;&gt;&lt;/p&gt;&lt;h1 id=&quot;pp-reader-title&quot;&gt;&lt;/h1&gt;&lt;div class=&quot;pp-reader-copy&quot; id=&quot;pp-reader-copy&quot;&gt;&lt;/div&gt;&lt;div class=&quot;pp-reader-sources&quot; id=&quot;pp-reader-sources&quot;&gt;&lt;/div&gt;&lt;div class=&quot;pp-reader-actions&quot;&gt;&lt;button class=&quot;pp-text-action&quot; id=&quot;pp-reader-save&quot; type=&quot;button&quot;&gt;Save this read&lt;/button&gt;&lt;button class=&quot;pp-text-action&quot; id=&quot;pp-explore&quot; type=&quot;button&quot;&gt;Explore this further →&lt;/button&gt;&lt;/div&gt;&lt;p class=&quot;pp-help&quot; id=&quot;pp-reader-notice&quot; role=&quot;status&quot;&gt;&lt;/p&gt;&lt;/article&gt;
+      &lt;footer class=&quot;pp-bottom&quot;&gt;&lt;small&gt;Design preview · no live generation or account changes.&lt;/small&gt;&lt;button class=&quot;pp-create&quot; id=&quot;pp-create&quot; type=&quot;button&quot; aria-label=&quot;Create one article&quot;&gt;&lt;i data-lucide=&quot;plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/footer&gt;
+    &lt;/div&gt;
+  &lt;/section&gt;
+  &lt;/div&gt;&lt;/div&gt;
+  &lt;dialog id=&quot;pp-direction-dialog&quot; aria-labelledby=&quot;pp-direction-title&quot;&gt;
+    &lt;div class=&quot;pp-dialog-heading&quot;&gt;&lt;h2 id=&quot;pp-direction-title&quot;&gt;Editorial direction&lt;/h2&gt;&lt;button type=&quot;button&quot; class=&quot;pp-close&quot; data-close=&quot;pp-direction-dialog&quot; aria-label=&quot;Close editorial direction&quot;&gt;&lt;i data-lucide=&quot;x&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/div&gt;
+    &lt;p class=&quot;pp-dialog-description&quot; id=&quot;sb-brief-description&quot;&gt;What shapes your News edition. Your instructions take precedence over inferred interests.&lt;/p&gt;
+    &lt;p class=&quot;pp-dialog-label&quot;&gt;Your instructions&lt;/p&gt;&lt;ul class=&quot;pp-brief-list&quot; id=&quot;pp-brief-list&quot;&gt;&lt;/ul&gt;
+    &lt;p class=&quot;pp-dialog-label&quot;&gt;Learned interests&lt;/p&gt;&lt;p class=&quot;pp-dialog-description&quot; id=&quot;pp-learned&quot;&gt;Built environment · example inference&lt;/p&gt;&lt;button type=&quot;button&quot; class=&quot;pp-text-action&quot; id=&quot;pp-clear-learned&quot;&gt;Remove this inferred interest&lt;/button&gt;
+    &lt;div class=&quot;pp-dialog-actions&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;pp-text-action&quot; id=&quot;pp-edit-brief&quot;&gt;Add or edit direction →&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;pp-text-action&quot; id=&quot;pp-clear-brief&quot;&gt;Clear News instructions&lt;/button&gt;&lt;/div&gt;
+    &lt;p class=&quot;pp-dialog-status&quot; id=&quot;pp-brief-status&quot; role=&quot;status&quot;&gt;Changes in this reference stay in this page only.&lt;/p&gt;
+  &lt;/dialog&gt;
+  &lt;dialog id=&quot;pp-create-dialog&quot; aria-labelledby=&quot;pp-create-title&quot;&gt;
+    &lt;div class=&quot;pp-dialog-heading&quot;&gt;&lt;h2 id=&quot;pp-create-title&quot;&gt;What would you like to read?&lt;/h2&gt;&lt;button type=&quot;button&quot; class=&quot;pp-close&quot; id=&quot;sb-create-close&quot; data-close=&quot;pp-create-dialog&quot; aria-label=&quot;Close new article&quot;&gt;&lt;i data-lucide=&quot;x&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/div&gt;
+    &lt;p class=&quot;pp-dialog-description&quot; id=&quot;sb-create-description&quot;&gt;One article, on any topic. This won’t change your ongoing editorial direction.&lt;/p&gt;
+    &lt;form id=&quot;pp-create-form&quot;&gt;&lt;label class=&quot;pp-dialog-label&quot; for=&quot;pp-create-prompt&quot;&gt;Your subject or question&lt;/label&gt;&lt;textarea class=&quot;pp-dialog-text&quot; id=&quot;pp-create-prompt&quot; placeholder=&quot;How did the first public libraries change cities?&quot;&gt;&lt;/textarea&gt;&lt;div class=&quot;pp-dialog-actions&quot;&gt;&lt;button class=&quot;pp-primary&quot; id=&quot;sb-create-submit&quot; type=&quot;submit&quot;&gt;Create article&lt;/button&gt;&lt;span class=&quot;pp-help&quot; id=&quot;sb-create-scope&quot;&gt;News · one article&lt;/span&gt;&lt;/div&gt;&lt;/form&gt;
+    &lt;p class=&quot;pp-dialog-status&quot; id=&quot;pp-create-status&quot; role=&quot;status&quot; hidden&gt;&lt;/p&gt;
+  &lt;/dialog&gt;
+  &lt;dialog id=&quot;sb-book-dialog&quot; aria-labelledby=&quot;sb-book-title&quot;&gt;&lt;div class=&quot;pp-dialog-heading&quot;&gt;&lt;h2 id=&quot;sb-book-title&quot;&gt;Book preview&lt;/h2&gt;&lt;button type=&quot;button&quot; class=&quot;pp-close&quot; data-close=&quot;sb-book-dialog&quot; aria-label=&quot;Close book preview&quot;&gt;&lt;i data-lucide=&quot;x&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/div&gt;&lt;p class=&quot;pp-dialog-description&quot;&gt;A book from your Edison library. This is a cover and navigation study; the full text is not included in this preview.&lt;/p&gt;&lt;/dialog&gt;
+  &lt;script&gt;
+    (() =&gt; {
+      const root = document.getElementById(&quot;edison-sidebar-edition&quot;);
+      const el = id =&gt; root.querySelector(&quot;#&quot; + id);
+      const sections = {
+        news:{label:&quot;News&quot;,noun:&quot;article&quot;,example:&quot;More economic history, less startup news. Go deeper.&quot;,brief:&quot;Environment and technology. Keep a mix of familiar subjects and new ideas.&quot;,learned:&quot;Built environment&quot;,folio:&quot;Today’s edition&quot;,count:&quot;4 stories&quot;,createTitle:&quot;What would you like to read?&quot;,placeholder:&quot;How did the first public libraries change cities?&quot;,end:&quot;That’s your edition.&quot;,ending:&quot;A fresh one tomorrow, shaped by what interests you.&quot;},
+        books:{label:&quot;Books&quot;,noun:&quot;book&quot;,example:&quot;More history and architecture. Short books I can finish in an evening.&quot;,brief:&quot;History, architecture, and the ideas behind everyday life.&quot;,learned:&quot;Cities and systems&quot;,folio:&quot;Your library&quot;,count:&quot;4 books&quot;,createTitle:&quot;A book about anything.&quot;,placeholder:&quot;A short history of cities, told through their public libraries.&quot;,end:&quot;A library that grows with you.&quot;,ending:&quot;New books chosen for you, every day.&quot;},
+        podcasts:{label:&quot;Podcasts&quot;,noun:&quot;podcast&quot;,example:&quot;More science and history. Keep episodes under 30 minutes.&quot;,brief:&quot;Science and history, in thoughtful conversations.&quot;,learned:&quot;Science in everyday life&quot;,folio:&quot;Your listening&quot;,count:&quot;3 episodes&quot;,createTitle:&quot;What would you like to listen to?&quot;,placeholder:&quot;A conversation about how public libraries changed cities.&quot;,end:&quot;Something good for your next walk.&quot;,ending:&quot;Fresh episodes chosen for you, every day.&quot;}
+      };
+      let activeSection = &quot;news&quot;;
+      let example = sections.news.example;
+      const sectionStates = new Map();
+      const standard = [&quot;heat&quot;,&quot;gps&quot;,&quot;startup&quot;,&quot;trees&quot;];
+      const directed = [&quot;canals&quot;,&quot;heat&quot;,&quot;gps&quot;,&quot;trees&quot;];
+      const saved = new Set();
+      const readIds = new Set();
+      const data = {
+        heat:{desk:&quot;The everyday world&quot;,title:&quot;Why the city stays warm after the sun goes down&quot;,dek:&quot;The afternoon doesn’t disappear at sunset. It’s still there, in the streets beneath your feet.&quot;,topic:&quot;Environment&quot;,body:[&quot;Sunset switches off the source of heat, not the heat itself. Roads and buildings absorb energy through the day and release it as the air cools.&quot;,&quot;A city also replaces much of the landscape that would otherwise help it cool. Vegetation provides shade and releases water into the air. Concentrate heat-absorbing structures and remove greenery, and the result can be a warmer urban area: a heat island.&quot;],source:&quot;EPA · Learn about heat island effects&quot;,url:&quot;https://www.epa.gov/heatislands/learn-about-heat-island-effects&quot;},
+        gps:{desk:&quot;Science &amp; technology&quot;,title:&quot;Your phone’s blue dot needs Einstein&quot;,dek:&quot;The clocks above our heads tick differently. Getting you to the right street means accounting for it.&quot;,topic:&quot;Physics&quot;,body:[&quot;The clocks on GPS satellites do not naturally keep the same time as clocks on Earth. Their speed makes them tick more slowly, while the weaker gravity at their altitude makes them tick faster. The second effect wins.&quot;,&quot;NIST puts the combined difference at about 38 microseconds per day. GPS uses precisely timed signals from satellites to determine position, so engineers must account for the relativistic difference.&quot;],source:&quot;NIST · Putting Einstein to the test&quot;,url:&quot;https://www.nist.gov/atomic-clocks/a-powerful-tool-for-science/putting-einstein-test&quot;},
+        startup:{desk:&quot;Business &amp; technology&quot;,title:&quot;Beyond the next product launch&quot;,dek:&quot;A closer look at the gap between building something new and making it part of everyday life.&quot;,topic:&quot;Startups&quot;,body:[&quot;What should count as progress: a promising demonstration, a new product, or something that people use without having to think about it?&quot;,&quot;This is an editorial-copy sample for the design. A production article would need reported examples, verified claims, and source notes before publication.&quot;],source:&quot;Editorial sample · not a researched article&quot;},
+        trees:{desk:&quot;The natural world&quot;,title:&quot;A forest doesn’t just receive the weather&quot;,dek:&quot;The small exchanges at the surface of a leaf help connect the land to the sky.&quot;,topic:&quot;Living systems&quot;,body:[&quot;Plants release water vapor through transpiration, cooling themselves and their surroundings. Across a forest, those exchanges can add moisture to the air.&quot;,&quot;That moisture can contribute to cloud formation and rainfall. Climate shapes where plants can grow, while plants help change surface temperature and atmospheric humidity. The relationship depends on the landscape and atmospheric conditions.&quot;],source:&quot;NASA Earth Observatory · Seeing leaves in a new light&quot;,url:&quot;https://science.nasa.gov/earth/earth-observatory/seeing-leaves-in-a-new-light/&quot;},
+        canals:{desk:&quot;Economic history&quot;,title:&quot;The infrastructure boom before the internet&quot;,dek:&quot;Canals, railways, and the questions an earlier era of building raises about today’s AI investment.&quot;,topic:&quot;Economic history&quot;,body:[&quot;Before asking whether a new technology will change the world, it is worth asking what else has to be built around it.&quot;,&quot;The proposed piece would examine the financing, complementary infrastructure, and uncertain demand behind an earlier infrastructure boom, then distinguish those conditions from today’s AI investment.&quot;,&quot;This is an editorial-copy sample, not a researched historical argument. In production, the deeper article would be written from verified sources before entering the edition.&quot;],source:&quot;Editorial sample · new writing preview, not live generation&quot;}
+      };
+      let state;
+      let currentRead = &quot;heat&quot;;
+      let before = null;
+      let composing = false;
+      function newState(person=&quot;returning&quot;) {
+        const config=sections[activeSection];
+        return {person,order:[...standard],brief:person===&quot;guest&quot;?&quot;&quot;:config.brief,learned:person===&quot;guest&quot;?&quot;&quot;:config.learned,today:&quot;&quot;,stage:&quot;idle&quot;,scope:&quot;future&quot;};
+      }
+      function reset(person=&quot;returning&quot;) {
+        state=newState(person);
+        before=null;
+        el(&quot;pp-prompt&quot;).value=&quot;&quot;;
+        el(&quot;pp-scope&quot;).value=&quot;future&quot;;
+        el(&quot;pp-options&quot;).hidden=true;
+        el(&quot;pp-validation&quot;).hidden=true;
+        el(&quot;pp-home-view&quot;).hidden=false;
+        el(&quot;pp-reader&quot;).hidden=true;
+        el(&quot;pp-brief-status&quot;).textContent=&quot;Changes in this reference stay in this page only.&quot;;
+        render();
+      }
+      function switchSection(next) {
+        if(!sections[next]||next===activeSection)return;
+        sectionStates.set(activeSection,{state:structuredClone(state),before:before&amp;&amp;structuredClone(before),draft:el(&quot;pp-prompt&quot;).value,scope:el(&quot;pp-scope&quot;).value,options:!el(&quot;pp-options&quot;).hidden,creation:el(&quot;pp-create-prompt&quot;).value});
+        const person=state.person;
+        activeSection=next;example=sections[next].example;
+        const existing=sectionStates.get(next);
+        state=existing?structuredClone(existing.state):newState(person);
+        before=existing?.before?structuredClone(existing.before):null;
+        el(&quot;pp-prompt&quot;).value=existing?.draft||&quot;&quot;;
+        el(&quot;pp-scope&quot;).value=existing?.scope||&quot;future&quot;;
+        el(&quot;pp-options&quot;).hidden=!existing?.options;
+        el(&quot;pp-create-prompt&quot;).value=existing?.creation||&quot;&quot;;
+        el(&quot;pp-validation&quot;).hidden=true;
+        el(&quot;pp-brief-status&quot;).textContent=&quot;Changes in this reference stay in this page only.&quot;;
+        el(&quot;pp-home-view&quot;).hidden=false;el(&quot;pp-reader&quot;).hidden=true;
+        composing=false;
+        render();
+      }
+      function renderSection() {
+        const config=sections[activeSection];
+        root.querySelectorAll(&quot;[data-section]&quot;).forEach(button=&gt;{
+          if(button.dataset.section===activeSection)button.setAttribute(&quot;aria-current&quot;,&quot;page&quot;);
+          else button.removeAttribute(&quot;aria-current&quot;);
+        });
+        el(&quot;pp-feed&quot;).hidden=activeSection!==&quot;news&quot;;
+        el(&quot;sb-books&quot;).hidden=activeSection!==&quot;books&quot;;
+        el(&quot;sb-podcasts&quot;).hidden=activeSection!==&quot;podcasts&quot;;
+        el(&quot;sb-desk&quot;).textContent=config.label;
+        el(&quot;sb-folio-label&quot;).textContent=config.folio;
+        el(&quot;sb-scope-label&quot;).textContent=config.label+&quot; ·&quot;;
+        el(&quot;sb-steering&quot;).setAttribute(&quot;aria-label&quot;,&quot;Shape your &quot;+config.label+&quot; edition&quot;);
+        el(&quot;pp-prompt&quot;).setAttribute(&quot;aria-label&quot;,&quot;Ask Edison to shape your &quot;+config.label+&quot; edition&quot;);
+        el(&quot;pp-prompt&quot;).placeholder={news:&quot;More economic history, less startup news…&quot;,books:&quot;Short books on history and architecture…&quot;,podcasts:&quot;More science. Episodes under 30 minutes…&quot;}[activeSection];
+        el(&quot;pp-apply&quot;).setAttribute(&quot;aria-label&quot;,&quot;Send &quot;+config.label+&quot; direction to Edison&quot;);
+        el(&quot;pp-help&quot;).textContent=&quot;Your AI editor. Tell it what you’d like more or less of.&quot;;
+        el(&quot;pp-count&quot;).textContent=activeSection===&quot;news&quot;?state.order.length+&quot; stories&quot;:config.count;
+        el(&quot;sb-end-title&quot;).textContent=config.end;
+        el(&quot;pp-end-note&quot;).textContent=state.person===&quot;guest&quot;?&quot;Start anywhere. Your next edition can grow from what interests you.&quot;:config.ending;
+        el(&quot;pp-create&quot;).setAttribute(&quot;aria-label&quot;,&quot;Create one &quot;+config.noun);
+        el(&quot;pp-create-title&quot;).textContent=config.createTitle;
+        el(&quot;sb-create-close&quot;).setAttribute(&quot;aria-label&quot;,&quot;Close new &quot;+config.noun);
+        el(&quot;sb-create-description&quot;).textContent=&quot;One &quot;+config.noun+&quot;, on any topic. This won’t change your ongoing editorial direction.&quot;;
+        el(&quot;sb-create-submit&quot;).textContent=&quot;Create &quot;+config.noun;
+        el(&quot;sb-create-scope&quot;).textContent=config.label+&quot; · one &quot;+config.noun;
+        el(&quot;pp-create-prompt&quot;).placeholder=config.placeholder;
+        el(&quot;sb-brief-description&quot;).textContent=&quot;What shapes your &quot;+config.label+&quot; edition. Your instructions take precedence over inferred interests.&quot;;
+        el(&quot;pp-clear-brief&quot;).textContent=&quot;Clear &quot;+config.label+&quot; instructions&quot;;
+      }
+      function escapeText(value) {return String(value).replace(/[&amp;&lt;&gt;&quot;&#x27;]/g,char=&gt;({&quot;&amp;&quot;:&quot;&amp;amp;&quot;,&quot;&lt;&quot;:&quot;&amp;lt;&quot;,&quot;&gt;&quot;:&quot;&amp;gt;&quot;,&quot;\&quot;&quot;:&quot;&amp;quot;&quot;,&quot;&#x27;&quot;:&quot;&amp;#39;&quot;}[char]));}
+      function reason(key) {
+        if(state.person===&quot;guest&quot;&amp;&amp;!state.brief&amp;&amp;!state.today) return &quot;Part of a varied starter edition. Edison has not inferred personal interests yet.&quot;;
+        if(key===&quot;canals&quot;) return &quot;You asked for more economic history and deeper explanations.&quot;;
+        if(state.person===&quot;returning&quot;&amp;&amp;key===&quot;heat&quot;) return &quot;In this returning-reader example, you follow environment and technology.&quot;;
+        return &quot;Kept in the mix to leave room for discovery.&quot;;
+      }
+      function saveButton(key) {return `&lt;button type=&quot;button&quot; class=&quot;pp-save&quot; data-save=&quot;${key}&quot; aria-label=&quot;${saved.has(key)?&quot;Unsave&quot;:&quot;Save&quot;} ${escapeText(data[key].title)}&quot; aria-pressed=&quot;${saved.has(key)}&quot;&gt;${saved.has(key)?&quot;Saved&quot;:&#x27;&lt;i data-lucide=&quot;bookmark&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&#x27;}&lt;/button&gt;`;}
+      function renderFeed() {
+        const [lead,...rest]=state.order;
+        const first=data[lead];
+        el(&quot;pp-feed&quot;).innerHTML=`&lt;article class=&quot;pp-lead&quot;&gt;&lt;div&gt;&lt;p class=&quot;pp-kicker&quot;&gt;${first.desk}&lt;/p&gt;&lt;h1 class=&quot;pp-headline&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;pp-title-link&quot; data-read=&quot;${lead}&quot;&gt;${first.title}&lt;/button&gt;&lt;/h1&gt;&lt;p class=&quot;pp-dek&quot;&gt;${first.dek}&lt;/p&gt;&lt;p class=&quot;pp-meta&quot;&gt;${first.topic} · ${lead===&quot;canals&quot;?&quot;Deeper reading · sample&quot;:&quot;Prepared read&quot;}${readIds.has(lead)?&quot; · Opened&quot;:&quot;&quot;}&lt;/p&gt;&lt;/div&gt;&lt;div class=&quot;pp-lead-note&quot;&gt;&lt;p class=&quot;pp-note-label&quot;&gt;In this edition&lt;/p&gt;&lt;p class=&quot;pp-opening&quot;&gt;${first.body[0]}&lt;/p&gt;&lt;button type=&quot;button&quot; class=&quot;pp-text-action&quot; data-read=&quot;${lead}&quot;&gt;Keep reading →&lt;/button&gt;&lt;details class=&quot;pp-reason&quot;&gt;&lt;summary&gt;Why this story&lt;/summary&gt;&lt;p&gt;${reason(lead)}&lt;/p&gt;&lt;/details&gt;&lt;/div&gt;&lt;/article&gt;`+rest.map(key=&gt;{const item=data[key];return `&lt;article class=&quot;pp-story-row&quot;&gt;&lt;div&gt;&lt;p class=&quot;pp-kicker&quot;&gt;${item.desk}&lt;/p&gt;&lt;h2 class=&quot;pp-row-title&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;pp-title-link&quot; data-read=&quot;${key}&quot;&gt;${item.title}&lt;/button&gt;&lt;/h2&gt;&lt;p class=&quot;pp-row-dek&quot;&gt;${item.dek}&lt;/p&gt;&lt;p class=&quot;pp-meta&quot;&gt;${item.topic} · ${key===&quot;startup&quot;?&quot;Editorial sample&quot;:&quot;Prepared read&quot;}${readIds.has(key)?&quot; · Opened&quot;:&quot;&quot;}&lt;/p&gt;&lt;/div&gt;${saveButton(key)}&lt;/article&gt;`;}).join(&quot;&quot;);
+        if(globalThis.lucide) lucide.createIcons({attrs:{width:18,height:18}});
+      }
+      function renderReceipt() {
+        const status=state.stage;
+        el(&quot;pp-receipt&quot;).hidden=status===&quot;idle&quot;;
+        el(&quot;pp-undo&quot;).hidden=!before||[&quot;failed&quot;,&quot;applying&quot;].includes(status);
+        el(&quot;pp-today&quot;).hidden=![&quot;ready&quot;,&quot;queued&quot;,&quot;generation-failed&quot;].includes(status)||state.scope===&quot;today&quot;||!before;
+        el(&quot;pp-retry&quot;).hidden=![&quot;failed&quot;,&quot;generation-failed&quot;].includes(status);
+        el(&quot;pp-retry&quot;).textContent=status===&quot;generation-failed&quot;?&quot;Retry writing&quot;:&quot;Retry saving&quot;;
+        updateSend();
+        const scope=state.scope===&quot;today&quot;?&quot;This edition only.&quot;:&quot;For &quot;+sections[activeSection].label+&quot;, from now on.&quot;;
+        const changed=before?state.order.filter((key,index)=&gt;before.order[index]!==key).length:0;
+        const readyChange=changed?changed+&quot; unread positions updated in this preview.&quot;:&quot;No ready stories changed; your kept reads remain in place.&quot;;
+        const lines={applying:&quot;Saving your News direction. Your current edition is still available.&quot;,ready:&quot;More economic history, fewer startup stories, deeper explanations. &quot;+scope+&quot; &quot;+readyChange,queued:&quot;Direction saved. &quot;+scope+&quot; A new economic-history piece is queued; your current edition is still available.&quot;,failed:&quot;We couldn’t save your direction. Your editorial brief and edition haven’t changed.&quot;,&quot;generation-failed&quot;:&quot;Your direction is saved. &quot;+scope+&quot; The new economic-history piece couldn’t be written. Your current edition is still available.&quot;,cleared:(state.brief||state.today?&quot;Selected News instruction removed.&quot;:&quot;News instructions cleared.&quot;)+&quot; Existing reads remain available.&quot;,undone:&quot;Change undone. Your previous direction is restored. Any newly opened or saved reads remain available.&quot;};
+        el(&quot;pp-receipt-text&quot;).textContent=lines[status]||&quot;&quot;;
+        if(activeSection!==&quot;news&quot;){
+          const unchanged=&quot;Your sample &quot;+(activeSection===&quot;books&quot;?&quot;library&quot;:&quot;episode queue&quot;)+&quot; is unchanged; no new content has been generated.&quot;;
+          const formatLines={ready:&quot;Direction updated in this preview. &quot;+scope+&quot; &quot;+unchanged,cleared:&quot;Selected &quot;+sections[activeSection].label+&quot; instructions cleared in this preview. &quot;+unchanged,undone:&quot;Change undone. Your previous &quot;+sections[activeSection].label+&quot; direction is restored.&quot;};
+          el(&quot;pp-receipt-text&quot;).textContent=formatLines[status]||lines[status]||&quot;&quot;;
+        }
+      }
+      function renderBrief() {
+        const items=[];
+        if(state.brief)items.push(`&lt;li&gt;${escapeText(state.brief)}&lt;small&gt;${sections[activeSection].label} · from now on&lt;/small&gt;&lt;button type=&quot;button&quot; class=&quot;pp-text-action&quot; data-edit-rule=&quot;future&quot;&gt;Edit&lt;/button&gt; · &lt;button type=&quot;button&quot; class=&quot;pp-text-action&quot; data-remove-rule=&quot;future&quot;&gt;Remove instruction&lt;/button&gt;&lt;/li&gt;`);
+        if(state.today)items.push(`&lt;li&gt;${escapeText(state.today)}&lt;small&gt;${sections[activeSection].label} · September 4 edition only&lt;/small&gt;&lt;button type=&quot;button&quot; class=&quot;pp-text-action&quot; data-edit-rule=&quot;today&quot;&gt;Edit&lt;/button&gt; · &lt;button type=&quot;button&quot; class=&quot;pp-text-action&quot; data-remove-rule=&quot;today&quot;&gt;Remove instruction&lt;/button&gt;&lt;/li&gt;`);
+        el(&quot;pp-brief-list&quot;).innerHTML=items.join(&quot;&quot;)||&quot;&lt;li&gt;No editorial instructions yet.&lt;small&gt;Your first edition starts with a varied selection.&lt;/small&gt;&lt;/li&gt;&quot;;
+        el(&quot;pp-learned&quot;).textContent=state.learned?state.learned+&quot; · example inference&quot;:&quot;No inferred interests in this preview.&quot;;
+        el(&quot;pp-clear-learned&quot;).hidden=!state.learned;
+        el(&quot;pp-clear-brief&quot;).hidden=!state.brief&amp;&amp;!state.today;
+      }
+      function render() {
+        el(&quot;pp-personal&quot;).textContent=state.person===&quot;guest&quot;?(state.brief||state.today?&quot;Shaped by your direction&quot;:&quot;A place to begin&quot;):&quot;Edited for Michael&quot;;
+        el(&quot;pp-avatar&quot;).textContent=state.person===&quot;guest&quot;?&quot;•&quot;:&quot;M&quot;;
+        el(&quot;pp-end-note&quot;).textContent=state.person===&quot;guest&quot;?&quot;Start anywhere. Your next edition can grow from what interests you.&quot;:&quot;A fresh one tomorrow, shaped by what interests you.&quot;;
+        el(&quot;pp-count&quot;).textContent=state.order.length+&quot; stories&quot;;
+        renderFeed();renderReceipt();renderBrief();renderSection();fitPrompt();
+      }
+      function updateSend(){el(&quot;pp-apply&quot;).disabled=composing||state.stage===&quot;applying&quot;||!el(&quot;pp-prompt&quot;).value.trim();}
+      function fitPrompt(){const field=el(&quot;pp-prompt&quot;);field.style.height=&quot;auto&quot;;field.style.height=Math.max(52,field.scrollHeight||52)+&quot;px&quot;;updateSend();}
+      function updateOrder() {
+        const protectedIds=state.order.filter(key=&gt;readIds.has(key)||saved.has(key));
+        const next=directed.filter(key=&gt;!protectedIds.includes(key));
+        state.order=state.order.map(key=&gt;protectedIds.includes(key)?key:next.shift()).filter(Boolean);
+      }
+      function applyDirection(stage=&quot;ready&quot;) {
+        before=structuredClone(state);
+        state.scope=el(&quot;pp-scope&quot;).value;
+        state.stage=stage;
+        if(![&quot;failed&quot;,&quot;applying&quot;].includes(stage)) {
+          if(state.scope===&quot;today&quot;) state.today=example; else state.brief=example;
+          if(stage===&quot;ready&quot;&amp;&amp;activeSection===&quot;news&quot;) updateOrder();
+        }
+        el(&quot;pp-options&quot;).hidden=true;
+        el(&quot;pp-validation&quot;).hidden=true;
+        render();
+      }
+      function home(restoreFocus=false) {el(&quot;pp-home-view&quot;).hidden=false;el(&quot;pp-reader&quot;).hidden=true;render();if(restoreFocus){const trigger=root.querySelector(`[data-read=&quot;${currentRead}&quot;]`);if(trigger)trigger.focus();}}
+      function openRead(key) {
+        currentRead=key;readIds.add(key);
+        const article=data[key];
+        el(&quot;pp-reader-kicker&quot;).textContent=article.desk;
+        el(&quot;pp-reader-title&quot;).textContent=article.title;
+        el(&quot;pp-reader-copy&quot;).innerHTML=article.body.map(p=&gt;`&lt;p&gt;${p}&lt;/p&gt;`).join(&quot;&quot;);
+        el(&quot;pp-reader-sources&quot;).innerHTML=article.url?`&lt;a href=&quot;${article.url}&quot; target=&quot;_blank&quot; rel=&quot;noopener noreferrer&quot;&gt;${article.source}&lt;/a&gt;`:escapeText(article.source);
+        el(&quot;pp-reader-save&quot;).textContent=saved.has(key)?&quot;Remove saved read&quot;:&quot;Save this read&quot;;
+        el(&quot;pp-reader-notice&quot;).textContent=&quot;Prepared design sample. No live research or personalization service is connected.&quot;;
+        el(&quot;pp-home-view&quot;).hidden=true;el(&quot;pp-reader&quot;).hidden=false;
+        el(&quot;pp-back&quot;).focus();
+      }
+      function openCreate(value) {if(value!==undefined)el(&quot;pp-create-prompt&quot;).value=value;el(&quot;pp-create-status&quot;).hidden=true;el(&quot;pp-create-dialog&quot;).showModal();}
+      root.addEventListener(&quot;click&quot;,event=&gt;{
+        const section=event.target.closest(&quot;[data-section]&quot;);if(section){switchSection(section.dataset.section);return;}
+        const book=event.target.closest(&quot;[data-book]&quot;);if(book){el(&quot;sb-book-title&quot;).textContent=book.dataset.book;el(&quot;sb-book-dialog&quot;).showModal();return;}
+        const audio=event.target.closest(&quot;[data-audio]&quot;);if(audio){el(&quot;sb-audio-note&quot;).textContent=&quot;“&quot;+audio.dataset.audio+&quot;” is a design sample. No recording is attached to this preview.&quot;;el(&quot;sb-audio-note&quot;).hidden=false;return;}
+        const read=event.target.closest(&quot;[data-read]&quot;);if(read){openRead(read.dataset.read);return;}
+        const save=event.target.closest(&quot;[data-save]&quot;);if(save){const key=save.dataset.save;if(saved.has(key))saved.delete(key);else saved.add(key);save.setAttribute(&quot;aria-pressed&quot;,String(saved.has(key)));save.setAttribute(&quot;aria-label&quot;,(saved.has(key)?&quot;Unsave &quot;:&quot;Save &quot;)+data[key].title);save.innerHTML=saved.has(key)?&quot;Saved&quot;:&#x27;&lt;i data-lucide=&quot;bookmark&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&#x27;;if(globalThis.lucide)lucide.createIcons({attrs:{width:18,height:18}});return;}
+        const edit=event.target.closest(&quot;[data-edit-rule]&quot;);if(edit){el(&quot;pp-direction-dialog&quot;).close();home();el(&quot;pp-prompt&quot;).value=edit.dataset.editRule===&quot;today&quot;?state.today:state.brief;el(&quot;pp-scope&quot;).value=edit.dataset.editRule;el(&quot;pp-options&quot;).hidden=false;el(&quot;pp-prompt&quot;).focus();return;}
+        const remove=event.target.closest(&quot;[data-remove-rule]&quot;);if(remove){before=structuredClone(state);if(remove.dataset.removeRule===&quot;today&quot;)state.today=&quot;&quot;;else state.brief=&quot;&quot;;state.stage=&quot;cleared&quot;;render();el(&quot;pp-brief-status&quot;).textContent=&quot;The selected &quot;+sections[activeSection].label+&quot; instruction was removed in this preview. Other guidance and saved reads are unchanged.&quot;;el(&quot;pp-edit-brief&quot;).focus();return;}
+        const close=event.target.closest(&quot;[data-close]&quot;);if(close)el(close.dataset.close).close();
+      });
+      el(&quot;pp-home&quot;).addEventListener(&quot;click&quot;,()=&gt;home());el(&quot;pp-back&quot;).addEventListener(&quot;click&quot;,()=&gt;home(true));
+      el(&quot;pp-prompt&quot;).addEventListener(&quot;compositionstart&quot;,()=&gt;{composing=true;updateSend();});el(&quot;pp-prompt&quot;).addEventListener(&quot;compositionend&quot;,()=&gt;{composing=false;updateSend();});
+      el(&quot;pp-prompt&quot;).addEventListener(&quot;keydown&quot;,event=&gt;{if(event.key===&quot;Enter&quot;&amp;&amp;!event.shiftKey&amp;&amp;!event.isComposing&amp;&amp;!composing){event.preventDefault();el(&quot;pp-steer-form&quot;).requestSubmit();}});
+      el(&quot;pp-prompt&quot;).addEventListener(&quot;focus&quot;,()=&gt;{el(&quot;pp-options&quot;).hidden=false;fitPrompt();});
+      el(&quot;pp-prompt&quot;).addEventListener(&quot;input&quot;,()=&gt;{el(&quot;pp-options&quot;).hidden=false;el(&quot;pp-validation&quot;).hidden=true;fitPrompt();});
+      el(&quot;pp-steer-form&quot;).addEventListener(&quot;submit&quot;,event=&gt;{
+        event.preventDefault();if(composing||state.stage===&quot;applying&quot;)return;const value=el(&quot;pp-prompt&quot;).value.trim();
+        if(/^(write|create|generate) (me )?(an? |one )?(article|story|piece|book|podcast)/i.test(value)){openCreate(value);return;}
+        if(value.toLowerCase()!==example.toLowerCase()){el(&quot;pp-validation&quot;).textContent=value?&quot;This reference supports the example editorial note only. Choose ‘Try an example’; your text has not been sent or saved.&quot;:&quot;Add a direction, or keep reading your edition.&quot;;el(&quot;pp-validation&quot;).hidden=false;el(&quot;pp-options&quot;).hidden=false;return;}
+        applyDirection(&quot;ready&quot;);
+      });
+      function tryExample(){home();el(&quot;pp-prompt&quot;).value=example;el(&quot;pp-options&quot;).hidden=false;fitPrompt();el(&quot;pp-prompt&quot;).focus();}
+      el(&quot;pp-try&quot;).addEventListener(&quot;click&quot;,tryExample);
+      el(&quot;sb-example&quot;).addEventListener(&quot;click&quot;,tryExample);
+      el(&quot;pp-scenario&quot;).addEventListener(&quot;change&quot;,()=&gt;{
+        switchSection(&quot;news&quot;);
+        saved.clear();readIds.clear();const value=el(&quot;pp-scenario&quot;).value;
+        reset(value===&quot;guest&quot;?&quot;guest&quot;:&quot;returning&quot;);
+        if([&quot;applying&quot;,&quot;ready&quot;,&quot;queued&quot;,&quot;failed&quot;,&quot;generation-failed&quot;].includes(value)){el(&quot;pp-prompt&quot;).value=example;applyDirection(value);}
+      });
+      el(&quot;pp-undo&quot;).addEventListener(&quot;click&quot;,()=&gt;{
+        if(!before)return;
+        const protectedNow=state.order.filter(key=&gt;readIds.has(key)||saved.has(key));
+        const oldOrder=[...before.order];
+        const learnedNow=state.learned;
+        state=structuredClone(before);state.learned=learnedNow;
+        protectedNow.forEach(key=&gt;{if(!oldOrder.includes(key))oldOrder.push(key);});
+        state.order=oldOrder;state.stage=&quot;undone&quot;;before=null;render();el(&quot;pp-review&quot;).focus();
+      });
+      el(&quot;pp-today&quot;).addEventListener(&quot;click&quot;,()=&gt;{if(!before||![&quot;ready&quot;,&quot;queued&quot;,&quot;generation-failed&quot;].includes(state.stage))return;state.brief=before.brief;state.today=example;state.scope=&quot;today&quot;;el(&quot;pp-scope&quot;).value=&quot;today&quot;;render();el(&quot;pp-review&quot;).focus();});
+      el(&quot;pp-retry&quot;).addEventListener(&quot;click&quot;,()=&gt;{if(state.stage===&quot;generation-failed&quot;){state.stage=&quot;ready&quot;;if(activeSection===&quot;news&quot;)updateOrder();render();}else applyDirection(&quot;ready&quot;);el(&quot;pp-review&quot;).focus();});
+      function openBrief(){renderBrief();el(&quot;pp-direction-dialog&quot;).showModal();}
+      el(&quot;pp-profile&quot;).addEventListener(&quot;click&quot;,openBrief);el(&quot;pp-direction-link&quot;).addEventListener(&quot;click&quot;,openBrief);el(&quot;pp-review&quot;).addEventListener(&quot;click&quot;,openBrief);
+      el(&quot;pp-edit-brief&quot;).addEventListener(&quot;click&quot;,()=&gt;{el(&quot;pp-direction-dialog&quot;).close();home();el(&quot;pp-prompt&quot;).value=state.today||state.brief;el(&quot;pp-scope&quot;).value=state.today?&quot;today&quot;:&quot;future&quot;;el(&quot;pp-options&quot;).hidden=false;el(&quot;pp-prompt&quot;).focus();});
+      el(&quot;pp-clear-brief&quot;).addEventListener(&quot;click&quot;,()=&gt;{before=structuredClone(state);state.brief=&quot;&quot;;state.today=&quot;&quot;;state.stage=&quot;cleared&quot;;el(&quot;pp-brief-status&quot;).textContent=&quot;Direction cleared in this preview. Existing stories are unchanged; Undo is available on the edition.&quot;;render();el(&quot;pp-edit-brief&quot;).focus();});
+      el(&quot;pp-clear-learned&quot;).addEventListener(&quot;click&quot;,()=&gt;{state.learned=&quot;&quot;;renderBrief();el(&quot;pp-brief-status&quot;).textContent=&quot;Inferred interest removed in this preview. Your instructions and saved reads are unchanged.&quot;;el(&quot;pp-edit-brief&quot;).focus();});
+      el(&quot;pp-create&quot;).addEventListener(&quot;click&quot;,()=&gt;openCreate());
+      el(&quot;pp-explore&quot;).addEventListener(&quot;click&quot;,()=&gt;openCreate(&quot;Explore further: &quot;+data[currentRead].title));
+      el(&quot;pp-create-form&quot;).addEventListener(&quot;submit&quot;,event=&gt;{event.preventDefault();el(&quot;pp-create-status&quot;).textContent=el(&quot;pp-create-prompt&quot;).value.trim()?&quot;This is the one-off creation state. No generation service is connected; nothing has been submitted and your editorial direction is unchanged.&quot;:&quot;Add a subject or question first.&quot;;el(&quot;pp-create-status&quot;).hidden=false;});
+      el(&quot;pp-reader-save&quot;).addEventListener(&quot;click&quot;,()=&gt;{if(saved.has(currentRead))saved.delete(currentRead);else saved.add(currentRead);el(&quot;pp-reader-save&quot;).textContent=saved.has(currentRead)?&quot;Remove saved read&quot;:&quot;Save this read&quot;;el(&quot;pp-reader-notice&quot;).textContent=saved.has(currentRead)?&quot;Saved in this preview. No account required; this reference resets on reload.&quot;:&quot;Removed from the preview’s saved reads.&quot;;});
+      reset();
+      const design={viewport:&quot;desktop&quot;,navigation:&quot;icons&quot;};
+      function renderDesign(){root.dataset.preview=design.viewport;root.dataset.navStyle=design.navigation;}
+      renderDesign();
+      if(globalThis.Tweak){
+        const tweak=new Tweak({container:root,onChange:renderDesign});
+        tweak.addSelect(design,&quot;viewport&quot;,{label:&quot;Viewport&quot;,options:[{label:&quot;Desktop&quot;,value:&quot;desktop&quot;},{label:&quot;Mobile&quot;,value:&quot;mobile&quot;}]});
+        tweak.addSelect(design,&quot;navigation&quot;,{label:&quot;Navigation&quot;,options:[{label:&quot;Icons and labels&quot;,value:&quot;icons&quot;},{label:&quot;Text only&quot;,value:&quot;type&quot;}]});
+      }
+    })();
+  &lt;/script&gt;
+&lt;/div&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+  let lastPointerWasTouch = false;
+  let pinnedByTouch = false;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    pinnedByTouch = false;
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handlePointer = (event) =&gt; {
+    lastPointerWasTouch =
+      event.type === &quot;pointerdown&quot; &amp;&amp; event.pointerType === &quot;touch&quot;;
+  };
+  const handleTouchClick = (event) =&gt; {
+    const isTouch = event.pointerType === &quot;touch&quot; || lastPointerWasTouch;
+    lastPointerWasTouch = false;
+    if (!isTouch || event.detail === 0) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (
+      trigger == null ||
+      !trigger.isConnected ||
+      getContent(trigger).length === 0 ||
+      (pinnedByTouch &amp;&amp; activeTrigger === trigger)
+    ) {
+      if (pinnedByTouch) {
+        closeTooltip();
+      }
+      return;
+    }
+    openTooltip(trigger);
+    pinnedByTouch = activeTrigger === trigger;
+    window.setTimeout(() =&gt; {
+      if (activeTrigger === trigger &amp;&amp; !trigger.isConnected) {
+        closeTooltip(false);
+      }
+    }, 0);
+  };
+  const handleLeave = (event) =&gt; {
+    if (pinnedByTouch) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    lastPointerWasTouch = false;
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    lastPointerWasTouch = false;
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerdown&quot;, handlePointer);
+    document.removeEventListener(&quot;pointercancel&quot;, handlePointer);
+    document.removeEventListener(&quot;click&quot;, handleTouchClick);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerdown&quot;, handlePointer);
+  document.addEventListener(&quot;pointercancel&quot;, handlePointer);
+  document.addEventListener(&quot;click&quot;, handleTouchClick);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-tabs&quot;&gt;
+(() =&gt; {
+  const selector = &#x27;.nav[role=&quot;tablist&quot;] [role=&quot;tab&quot;]&#x27;;
+  const disabled = &#x27;:disabled,[aria-disabled=&quot;true&quot;]&#x27;;
+  const selectTab = (selected) =&gt; {
+    const panelId = selected.getAttribute(&quot;aria-controls&quot;);
+    for (const tab of selected.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;)) {
+      const active = tab === selected;
+      tab.classList.toggle(&quot;active&quot;, active);
+      tab.setAttribute(&quot;aria-selected&quot;, String(active));
+      const id = tab.getAttribute(&quot;aria-controls&quot;);
+      const panel = id &amp;&amp; document.getElementById(id);
+      if (panel != null) {
+        panel.hidden = id !== panelId;
+        if (!panel.hidden &amp;&amp; selected.id) {
+          panel.setAttribute(&quot;aria-labelledby&quot;, selected.id);
+        }
+      }
+    }
+  };
+  const interact = (event) =&gt; {
+    const tab = event.target?.closest?.(selector);
+    if (event.defaultPrevented || tab == null || tab.matches(disabled)) {
+      return;
+    }
+    if (event.type === &quot;click&quot;) {
+      selectTab(tab);
+      return;
+    }
+    const tabs = Array.from(
+      tab.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;),
+    ).filter((candidate) =&gt; !candidate.matches(disabled));
+    const current = tabs.indexOf(tab);
+    let next;
+    if (event.key === &quot;ArrowRight&quot; || event.key === &quot;ArrowDown&quot;) {
+      next = (current + 1) % tabs.length;
+    } else if (event.key === &quot;ArrowLeft&quot; || event.key === &quot;ArrowUp&quot;) {
+      next = (current + tabs.length - 1) % tabs.length;
+    } else if (event.key === &quot;Home&quot;) {
+      next = 0;
+    } else if (event.key === &quot;End&quot;) {
+      next = tabs.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    tabs[next].focus();
+    selectTab(tabs[next]);
+  };
+
+  for (const list of document.querySelectorAll(&#x27;.nav[role=&quot;tablist&quot;]&#x27;)) {
+    const selected =
+      list.querySelector(&#x27;[role=&quot;tab&quot;][aria-selected=&quot;true&quot;]&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;].active&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;]&#x27;);
+    if (selected != null) {
+      selectTab(selected);
+    }
+  }
+  document.addEventListener(&quot;click&quot;, interact);
+  document.addEventListener(&quot;keydown&quot;, interact);
+  window.addEventListener(&quot;pagehide&quot;, () =&gt; {
+    document.removeEventListener(&quot;click&quot;, interact);
+    document.removeEventListener(&quot;keydown&quot;, interact);
+  }, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>

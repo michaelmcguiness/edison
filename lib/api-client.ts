@@ -81,3 +81,40 @@ export async function edisonApi<T>(
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
+
+/**
+ * The public reader has one deliberately narrow unauthenticated API surface.
+ * Keep the prefix guard here so a future caller cannot accidentally turn this
+ * helper into an unauthenticated client for private reader data.
+ */
+export async function edisonPublicApi<T>(path: string): Promise<T> {
+  if (!path.startsWith("/public/") || path.includes("..")) {
+    throw new EdisonApiError({
+      code: "invalid_public_path",
+      message: "That public Edison resource is not available.",
+      status: 400,
+    });
+  }
+
+  const response = await fetch(`${apiBaseUrl()}${path}`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const parsed = apiErrorSchema.safeParse(
+      await response.json().catch(() => null),
+    );
+    throw new EdisonApiError({
+      code: parsed.success ? parsed.data.error.code : "request_failed",
+      message: parsed.success
+        ? parsed.data.error.message
+        : "Edison could not open the public edition.",
+      requestId: parsed.success ? parsed.data.error.requestId : undefined,
+      status: response.status,
+    });
+  }
+
+  return (await response.json()) as T;
+}

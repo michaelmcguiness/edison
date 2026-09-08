@@ -11,6 +11,21 @@ export const explicitInterestStatusSchema = z.enum(["active", "muted"]);
 
 export const interestTopicSchema = z.string().trim().min(1).max(200);
 
+export const maxRetainedExplicitInterests = 50;
+export const maxKnowledgeStateItems = 80;
+
+export const knowledgeStateEntrySchema = z
+  .object({
+    topic: interestTopicSchema,
+    level: z.enum(["new", "beginner", "intermediate", "advanced"]),
+    note: z.string().max(500).nullable(),
+  })
+  .strict();
+
+export const knowledgeStateSchema = z
+  .array(knowledgeStateEntrySchema)
+  .max(maxKnowledgeStateItems);
+
 export const explicitInterestSchema = z.object({
   id: uuidSchema,
   topic: interestTopicSchema,
@@ -87,13 +102,7 @@ export const preferencesSchema = z.object({
   categories: categorySettingsSchema,
   explicitInterests: z.array(explicitInterestSchema),
   inferredPreferences: z.array(z.string()),
-  knowledgeState: z.array(
-    z.object({
-      topic: z.string(),
-      level: z.enum(["new", "beginner", "intermediate", "advanced"]),
-      note: z.string().nullable(),
-    }),
-  ),
+  knowledgeState: knowledgeStateSchema,
 });
 
 export const profileSchema = z.object({
@@ -117,10 +126,17 @@ export const onboardingRequestSchema = z.object({
 export const updatePreferencesRequestSchema = preferencesSchema
   .pick({ articleLength: true, depth: true, novelty: true, categories: true })
   .partial()
+  .extend({ timezone: timeZoneSchema.optional() })
   .strict()
   .refine((input) => Object.keys(input).length > 0, {
     message: "At least one supported preference must be provided.",
   });
+
+export const removeInferredPreferenceRequestSchema = z
+  .object({
+    preference: z.string().trim().min(1).max(500),
+  })
+  .strict();
 
 export type Profile = z.infer<typeof profileSchema>;
 export type Preferences = z.infer<typeof preferencesSchema>;
@@ -130,6 +146,7 @@ export type ExplicitInterest = z.infer<typeof explicitInterestSchema>;
 export type ExplicitInterestStatus = z.infer<
   typeof explicitInterestStatusSchema
 >;
+export type KnowledgeStateEntry = z.infer<typeof knowledgeStateEntrySchema>;
 export type ExplicitInterestsResponse = z.infer<
   typeof explicitInterestsResponseSchema
 >;

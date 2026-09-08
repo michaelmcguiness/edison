@@ -36,6 +36,48 @@
       "when": 1788396900291,
       "tag": "20260903005500_nosy_sunspot",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788546346040,
+      "tag": "20260904182546_editorial_directions_and_public_starter",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788547223528,
+      "tag": "20260904184023_ai_request_cost_controls",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788547300366,
+      "tag": "20260904184140_news_edition_lifecycle",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788548113630,
+      "tag": "20260904185513_ai_request_snapshots",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788548746191,
+      "tag": "20260904190546_explicit_usage_pricing_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788549704497,
+      "tag": "20260904192144_preference_bounds",
+      "breakpoints": true
     }
   ]
 }

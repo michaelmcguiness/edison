@@ -1,32 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
+// D44 admission requires a reserved invitation and explicit recipient acceptance.
+// The historical Auth-only operator cannot establish either. Fail before loading
+// credentials or contacting Auth instead of sending an unusable membership email.
+throw new Error("Direct Auth invitations are retired. Use Account → Invite friends in Edison so the invitation has an accountable member slot and acceptance record.");
 
-const email = process.argv[2]?.trim().toLowerCase();
-if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-  throw new Error("Usage: pnpm invite reader@example.com");
-}
-
-const supabaseUrl = process.env.SUPABASE_URL;
-const secretKey =
-  process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
-const webUrl = process.env.WEB_APP_URL;
-
-if (!supabaseUrl || !secretKey || !webUrl) {
-  throw new Error(
-    "SUPABASE_URL, SUPABASE_SECRET_KEY, and WEB_APP_URL must be configured.",
-  );
-}
-
-const supabase = createClient(supabaseUrl, secretKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-    detectSessionInUrl: false,
-  },
-});
-
-const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
-  redirectTo: new URL("/auth/confirm", webUrl).toString(),
-});
-
-if (error) throw error;
-console.log(`Invited ${data.user.email ?? email}.`);
+export {};

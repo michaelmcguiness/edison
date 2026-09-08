@@ -2,6 +2,7 @@ import { and, asc, eq, isNull, lte, or } from "drizzle-orm";
 import { feedCommands, getDb } from "@edison/db";
 import { start } from "workflow/api";
 import { applyFeedCommandWorkflow } from "../../workflows/apply-feed-command";
+import { safeCaughtErrorMetadata } from "../observability/safe-error";
 
 const DISPATCH_LEASE_MS = 5 * 60 * 1000;
 const DISPATCH_RETRY_MS = 60 * 1000;
@@ -78,7 +79,7 @@ export async function dispatchFeedCommand(
     } catch (releaseError) {
       console.error("Failed to release feed-command dispatch lease", {
         commandId,
-        error: releaseError,
+        ...safeCaughtErrorMetadata(releaseError),
       });
     }
     throw error;
@@ -160,7 +161,7 @@ export async function reconcileQueuedFeedCommands(
       failed += 1;
       console.error("Feed-command reconciliation dispatch failed", {
         commandId: candidate.id,
-        error,
+        ...safeCaughtErrorMetadata(error),
       });
     }
   }

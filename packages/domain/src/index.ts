@@ -150,13 +150,7 @@ export function estimatedArticleCostMicrousd(input: {
   outputTokens: number;
   webSearchCalls: number;
 }) {
-  const prices = input.model.includes("luna")
-    ? { input: 0.2, cached: 0.02, output: 1.2 }
-    : input.model.includes("terra")
-      ? { input: 2, cached: 0.2, output: 12 }
-      : null;
-
-  if (!prices) return 0;
+  const prices = openAiModelTokenPrices(input.model);
 
   const uncachedTokens = Math.max(0, input.inputTokens - input.cachedInputTokens);
   const tokenDollars =
@@ -168,6 +162,36 @@ export function estimatedArticleCostMicrousd(input: {
   // Keep tool pricing separately configurable in the usage pipeline. Returning
   // only the token subtotal is safer than silently baking in a stale search fee.
   return Math.round(tokenDollars * 1_000_000);
+}
+
+const pricedOpenAiModels = [
+  {
+    pattern: /^gpt-5\.6-luna(?:-\d{4}-\d{2}-\d{2})?$/,
+    prices: { input: 0.2, cached: 0.02, output: 1.2 },
+  },
+  {
+    pattern: /^gpt-5\.6-terra(?:-\d{4}-\d{2}-\d{2})?$/,
+    prices: { input: 2, cached: 0.2, output: 12 },
+  },
+] as const;
+
+export function isPricedOpenAiModel(model: string) {
+  return pricedOpenAiModels.some(({ pattern }) => pattern.test(model));
+}
+
+export class UnpricedOpenAiModelError extends RangeError {
+  constructor(readonly model: string) {
+    super(`unpriced_openai_model:${model}`);
+    this.name = "UnpricedOpenAiModelError";
+  }
+}
+
+function openAiModelTokenPrices(model: string) {
+  const priced = pricedOpenAiModels.find(({ pattern }) => pattern.test(model));
+  if (!priced) {
+    throw new UnpricedOpenAiModelError(model);
+  }
+  return priced.prices;
 }
 
 export type InterestSignal = {
@@ -220,3 +244,5 @@ export function resolveActiveInterestRemoval(
 
   return { ids: [...ids], topics: [...topics.values()] };
 }
+
+export * from "./loop-principles";

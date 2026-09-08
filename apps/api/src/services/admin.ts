@@ -1,5 +1,6 @@
 import type { EdisonClaims } from "../auth/verify-access-token";
 import { HttpError } from "../http/errors";
+import { withActiveMember } from "./members";
 
 function configuredAdminEmails() {
   return new Set(
@@ -23,4 +24,14 @@ export function requireAdmin(claims: EdisonClaims) {
       "Administrator access is required.",
     );
   }
+}
+
+/**
+ * Elevated routes require both the fail-closed operator allowlist and a live
+ * membership row. Revoking the membership therefore disables admin access
+ * without waiting for an already-issued access token to expire.
+ */
+export async function requireActiveAdmin(claims: EdisonClaims) {
+  requireAdmin(claims);
+  await withActiveMember(claims, async () => undefined);
 }

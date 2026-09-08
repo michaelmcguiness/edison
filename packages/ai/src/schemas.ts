@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { articleCategorySchema, preferenceChangeSchema } from "@edison/contracts";
+import {
+  articleCategorySchema,
+  preferenceChangeSchema,
+  sourceUrlSchema,
+} from "@edison/contracts";
 
 const generatedCitationSchema = z.object({
   sourceKey: z.string().min(1).max(40),
@@ -10,7 +14,9 @@ const generatedBlockSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("paragraph"),
     text: z.string().min(1),
-    citations: z.array(generatedCitationSchema),
+    // Generated prose is only publishable when it is grounded. Headings are
+    // the sole body block that may omit citations.
+    citations: z.array(generatedCitationSchema).min(1),
   }),
   z.object({
     type: z.literal("heading"),
@@ -21,36 +27,53 @@ const generatedBlockSchema = z.discriminatedUnion("type", [
     type: z.literal("quote"),
     text: z.string().min(1),
     attribution: z.string().max(240).nullable(),
-    citations: z.array(generatedCitationSchema),
+    citations: z.array(generatedCitationSchema).min(1),
   }),
 ]);
 
-export const generatedArticleFormatSchema = z.object({
-    category: articleCategorySchema,
-    kicker: z.string().min(1).max(100),
-    topic: z.string().min(1).max(200),
-    title: z.string().min(1).max(180),
-    deck: z.string().min(1).max(500),
-    summary: z.array(z.string().min(1).max(280)).length(3),
-    whyWritten: z.string().min(1).max(600),
-    readingMinutes: z.number().int().min(3).max(20),
-    body: z.array(generatedBlockSchema).min(6).max(40),
-    sources: z
-      .array(
-        z.object({
-          key: z.string().min(1).max(40),
-          title: z.string().min(1).max(300),
-          publisher: z.string().min(1).max(160),
-          url: z.string().url(),
-          publishedAt: z.string().datetime().nullable(),
-        }),
-      )
-      .min(2)
-      .max(20),
-  });
+const generatedSourceShape = {
+  key: z.string().min(1).max(40),
+  title: z.string().min(1).max(300),
+  publisher: z.string().min(1).max(160),
+  publishedAt: z.string().datetime().nullable(),
+};
 
-export const generatedArticleSchema = generatedArticleFormatSchema.superRefine(
-  (article, context) => {
+const generatedSourceFormatSchema = z.object({
+  ...generatedSourceShape,
+  // OpenAI Structured Outputs does not support the `uri` string format that
+  // Zod's `.url()` emits. Keep the provider-facing schema to supported JSON
+  // Schema keywords, then apply the canonical URL contract before publication.
+  url: z.string().regex(/^https?:\/\//).max(2048),
+});
+
+const generatedSourceSchema = z.object({
+  ...generatedSourceShape,
+  url: sourceUrlSchema,
+});
+
+const generatedArticleShape = {
+  category: articleCategorySchema,
+  kicker: z.string().min(1).max(100),
+  topic: z.string().min(1).max(200),
+  title: z.string().min(1).max(180),
+  deck: z.string().min(1).max(500),
+  summary: z.array(z.string().min(1).max(280)).length(3),
+  whyWritten: z.string().min(1).max(600),
+  readingMinutes: z.number().int().min(3).max(20),
+  body: z.array(generatedBlockSchema).min(6).max(40),
+};
+
+export const generatedArticleFormatSchema = z.object({
+  ...generatedArticleShape,
+  sources: z.array(generatedSourceFormatSchema).min(2).max(20),
+});
+
+const generatedArticlePublicationSchema = z.object({
+  ...generatedArticleShape,
+  sources: z.array(generatedSourceSchema).min(2).max(20),
+});
+
+function validateArticleReferences(article: z.infer<typeof generatedArticlePublicationSchema>, context: z.RefinementCtx) {
     const keys = new Set<string>();
     const urls = new Set<string>();
 
@@ -72,8 +95,32 @@ export const generatedArticleSchema = generatedArticleFormatSchema.superRefine(
       keys.add(source.key);
       urls.add(source.url);
     });
-  },
-);
+
+    article.body.forEach((block, blockIndex) => {
+      if (block.type === "heading") return;
+
+      block.citations.forEach((citation, citationIndex) => {
+        if (keys.has(citation.sourceKey)) return;
+        context.addIssue({
+          code: "custom",
+          path: ["body", blockIndex, "citations", citationIndex, "sourceKey"],
+          message: "Every citation must reference an included source.",
+        });
+      });
+    });
+}
+
+export const generatedArticleSchema = generatedArticlePublicationSchema.superRefine(validateArticleReferences);
+
+// On-demand evidence sufficiency is claim/payoff based. One inspected primary
+// source may suffice; never pad this list with duplicates to meet a legacy count.
+// The legacy generation contract above deliberately remains at two sources.
+export const onDemandArticleFormatSchema = generatedArticleFormatSchema.extend({
+  sources: z.array(generatedSourceFormatSchema).min(1).max(20),
+});
+export const onDemandArticleSchema = generatedArticlePublicationSchema.extend({
+  sources: z.array(generatedSourceSchema).min(1).max(20),
+}).superRefine(validateArticleReferences);
 
 export const parsedPreferenceCommandSchema = z.object({
   changes: z.array(preferenceChangeSchema).max(8),

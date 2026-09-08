@@ -76,5 +76,9 @@ export const articleConversationResponseSchema = z.object({
 
 export type GenerationJob = z.infer<typeof generationJobSchema>;
 export type CreateGenerationJob = z.infer<typeof createGenerationJobSchema>;
+export type ConversationResponse = z.infer<typeof conversationResponseSchema>;
 export type ConversationMessage = z.infer<typeof conversationMessageSchema>;
 export type ArticleConversation = z.infer<typeof articleConversationSchema>;
+export type ArticleConversationResponse = z.infer<
+  typeof articleConversationResponseSchema
+>;

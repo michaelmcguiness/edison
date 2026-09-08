@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, inArray, lt, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import {
   articleCategories,
   articleCardSchema,
@@ -7,12 +7,12 @@ import {
 } from "@edison/contracts";
 import {
   articles,
+  editorialDirectionStates,
   feedPreferences,
   feedItems,
   readingEvents,
   savedArticles,
 } from "@edison/db";
-import { decodeFeedCursor, encodeFeedCursor } from "@edison/domain";
 import { apiHandler, json } from "../../../src/http/api-handler";
 import { HttpError } from "../../../src/http/errors";
 import { withActiveMember } from "../../../src/services/members";
@@ -22,24 +22,60 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   return apiHandler(request, async ({ claims }) => {
     const url = new URL(request.url);
+    if (url.searchParams.has("cursor")) {
+      throw new HttpError(
+        400,
+        "finite_edition_has_no_cursor",
+        "Today's News edition is finite and does not use pagination cursors.",
+      );
+    }
     const query = feedQuerySchema.parse({
       category: url.searchParams.get("category") ?? undefined,
-      cursor: url.searchParams.get("cursor") ?? undefined,
       limit: url.searchParams.get("limit") ?? undefined,
     });
 
-    let cursor: ReturnType<typeof decodeFeedCursor> | undefined;
-    if (query.cursor) {
-      try {
-        cursor = decodeFeedCursor(query.cursor);
-      } catch {
-        throw new HttpError(400, "invalid_cursor", "The feed cursor is not valid.");
-      }
-    }
-
     return withActiveMember(claims, async ({ transaction }) => {
+      // Hold a short shared lock through the item query so a concurrent daily
+      // rotation cannot pair a new edition identity with the prior day's rows.
+      const [edition] = await transaction
+        .select({
+          currentEditionId: editorialDirectionStates.currentEditionId,
+          currentEditionDate: editorialDirectionStates.currentEditionDate,
+        })
+        .from(editorialDirectionStates)
+        .where(
+          and(
+            eq(editorialDirectionStates.userId, claims.sub),
+            eq(editorialDirectionStates.section, "news"),
+          ),
+        )
+        .for("share")
+        .limit(1);
+      if (!edition) {
+        throw new HttpError(
+          500,
+          "news_edition_state_missing",
+          "The reader's News edition state is incomplete.",
+        );
+      }
+      if (!edition.currentEditionDate) {
+        return json(
+          feedResponseSchema.parse({
+            editionId: null,
+            editionDate: null,
+            items: [],
+            itemCount: 0,
+            nextCursor: null,
+            activeCategory: query.category,
+            generatedThrough: null,
+          }),
+        );
+      }
+
       const filters = [
         eq(feedItems.userId, claims.sub),
+        eq(feedItems.editionId, edition.currentEditionId),
+        eq(feedItems.editionDate, edition.currentEditionDate),
         eq(articles.status, "published"),
       ];
 
@@ -63,7 +99,10 @@ export async function GET(request: Request) {
         if (!visibleCategories.length) {
           return json(
             feedResponseSchema.parse({
+              editionId: edition.currentEditionId,
+              editionDate: edition.currentEditionDate,
               items: [],
+              itemCount: 0,
               nextCursor: null,
               activeCategory: query.category,
               generatedThrough: null,
@@ -75,28 +114,8 @@ export async function GET(request: Request) {
         filters.push(eq(feedItems.category, query.category));
       }
 
-      if (cursor) {
-        filters.push(
-          or(
-            lt(feedItems.editionDate, cursor.editionDate),
-            and(
-              eq(feedItems.editionDate, cursor.editionDate),
-              gt(feedItems.rank, cursor.rank),
-            ),
-            and(
-              eq(feedItems.editionDate, cursor.editionDate),
-              eq(feedItems.rank, cursor.rank),
-              gt(feedItems.id, cursor.id),
-            ),
-          )!,
-        );
-      }
-
       const rows = await transaction
         .select({
-          feedItemId: feedItems.id,
-          editionDate: feedItems.editionDate,
-          rank: feedItems.rank,
           reason: feedItems.reason,
           id: articles.id,
           slug: articles.slug,
@@ -123,17 +142,10 @@ export async function GET(request: Request) {
         .from(feedItems)
         .innerJoin(articles, eq(articles.id, feedItems.articleId))
         .where(and(...filters))
-        .orderBy(
-          desc(feedItems.editionDate),
-          asc(feedItems.rank),
-          asc(feedItems.id),
-        )
-        .limit(query.limit + 1);
+        .orderBy(asc(feedItems.rank), asc(feedItems.id))
+        .limit(query.limit);
 
-      const page = rows.slice(0, query.limit);
-      const last = page.at(-1);
-      const hasMore = rows.length > query.limit;
-      const items = page.map((row) =>
+      const items = rows.map((row) =>
         articleCardSchema.parse({
           id: row.id,
           slug: row.slug,
@@ -153,19 +165,15 @@ export async function GET(request: Request) {
 
       return json(
         feedResponseSchema.parse({
+          editionId: edition.currentEditionId,
+          editionDate: edition.currentEditionDate,
           items,
-          nextCursor:
-            hasMore && last
-              ? encodeFeedCursor({
-                  editionDate: last.editionDate,
-                  rank: last.rank,
-                  id: last.feedItemId,
-                })
-              : null,
+          itemCount: items.length,
+          nextCursor: null,
           activeCategory: query.category,
           generatedThrough: items.length
             ? new Date(
-                Math.max(...page.map((row) => row.researchedAt.getTime())),
+                Math.max(...rows.map((row) => row.researchedAt.getTime())),
               ).toISOString()
             : null,
         }),

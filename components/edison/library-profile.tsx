@@ -9,10 +9,12 @@ import type {
 } from "@edison/contracts";
 import {
   AlertCircle,
+  CheckCircle2,
   ChevronLeft,
   Flame,
   Library,
   LoaderCircle,
+  MessageCircle,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -59,29 +61,43 @@ export function LibraryView({
   error,
   back,
   open,
+  openArticle,
+  deviceSaved = false,
+  loops,
+  openLoop,
 }: {
-  dataMode: "prototype" | "live";
+  dataMode: "prototype" | "guest" | "live";
   library: LibraryResponse | null;
   fallbackSaved: ArticleCard[];
   loading: boolean;
   error: string;
   back: () => void;
   open: (story: ArticleCard) => Promise<void>;
+  openArticle: (articleId: string) => void;
+  deviceSaved?: boolean;
+  loops?: { id: string; title: string; direction: string }[];
+  openLoop?: (loopId: string) => void;
 }) {
   const saved = dataMode === "prototype" ? fallbackSaved : library?.saved ?? [];
+  const completed = library?.completed ?? [];
   const threads = library?.learningThreads ?? [];
+  const conversations = library?.conversations ?? [];
 
   return (
     <main className="subpage">
       <button className="back" onClick={back}>
-        <ChevronLeft />Today
+        <ChevronLeft />Back to edition
       </button>
       <header>
         <span className="eyebrow">Your reading life</span>
         <h1>Library</h1>
         <p>{dataMode === "prototype"
-          ? "Demo saves work while this page is open and reset on reload. Learning threads below are examples."
-          : "Saved stories and the questions you’re following over time."}</p>
+          ? "Demo saves work while this page is open and reset on reload."
+            : dataMode === "guest" && deviceSaved
+              ? "Public stories saved on this device. These saves do not sync to an account."
+            : dataMode === "guest"
+              ? "Sign in when you want to keep stories and reading progress. Public reading remains open."
+            : "Saved and completed stories, plus the article conversations you’re following."}</p>
       </header>
 
       {loading ? (
@@ -92,8 +108,8 @@ export function LibraryView({
         <DataStatus icon={<AlertCircle />} tone="error">{error}</DataStatus>
       ) : (
         <>
-          <section>
-            <h2>{dataMode === "prototype" ? "Sample learning threads" : "Learning threads"}</h2>
+          {loops ? <section><h2>Your loops</h2>{loops.map((loop) => <button className="library-story" type="button" key={loop.id} onClick={() => openLoop?.(loop.id)}><Library aria-hidden="true" /><span><b>{loop.title}</b><small>{loop.direction || "No standing direction set"}</small></span></button>)}{!loops.length && <p className="quiet-empty">Add a subject from the feed when you want to keep exploring it.</p>}</section> : <section>
+            <h2>Learning threads</h2>
             <div className="thread-grid">
               {threads.map((thread) => (
                 <div key={thread.id}>
@@ -102,29 +118,19 @@ export function LibraryView({
                   <small>{thread.summary}</small>
                 </div>
               ))}
-              {dataMode === "prototype" && (
-                <>
-                  <div>
-                    <span>Planetary systems</span>
-                    <b>6 stories</b>
-                    <small>Last explored today</small>
-                  </div>
-                  <div>
-                    <span>How cities work</span>
-                    <b>4 stories</b>
-                    <small>Last explored yesterday</small>
-                  </div>
-                </>
-              )}
-              {dataMode === "live" && !threads.length && (
+              {!threads.length && (
                 <p className="quiet-empty">
-                  Learning threads will emerge as you read and ask questions.
+                  {dataMode === "live"
+                    ? "Learning threads will emerge as you read and ask questions."
+                    : "No account learning threads are connected here."}
                 </p>
               )}
             </div>
-          </section>
+          </section>}
 
-          <section>
+          {deviceSaved && <section><h2>Saved on this device</h2><p className="quiet-empty">Public collection articles are saved here separately from your private account library.</p>{fallbackSaved.map((story) => <button type="button" className="library-story" key={story.id} onClick={() => void open(story)}><Library aria-hidden="true" /><span><b>{story.title}</b><small>{story.kicker} · {story.readingMinutes} min</small></span></button>)}{!fallbackSaved.length && <p className="quiet-empty">No public stories saved on this device yet.</p>}</section>}
+
+          {dataMode !== "guest" && <section>
             <h2>Saved stories</h2>
             {saved.map((story) => (
               <button
@@ -142,7 +148,51 @@ export function LibraryView({
             {!saved.length && (
               <p className="quiet-empty">Stories you save will live here.</p>
             )}
-          </section>
+          </section>}
+
+          {dataMode === "live" && (
+            <section>
+              <h2>Article conversations</h2>
+              {conversations.map((conversation) => (
+                <button
+                  className="library-story"
+                  key={conversation.id}
+                  onClick={() => openArticle(conversation.articleId)}
+                >
+                  <MessageCircle />
+                  <span>
+                    <b>{conversation.title || conversation.articleTitle}</b>
+                    <small>Continue with {conversation.articleTitle}</small>
+                  </span>
+                </button>
+              ))}
+              {!conversations.length && (
+                <p className="quiet-empty">Questions you ask about an article will appear here.</p>
+              )}
+            </section>
+          )}
+
+          {dataMode === "live" && (
+            <section>
+              <h2>Completed stories</h2>
+              {completed.map((story) => (
+                <button
+                  className="library-story"
+                  key={story.id}
+                  onClick={() => void open(story)}
+                >
+                  <CheckCircle2 />
+                  <span>
+                    <b>{story.title}</b>
+                    <small>{story.kicker} · {story.readingMinutes} min</small>
+                  </span>
+                </button>
+              ))}
+              {!completed.length && (
+                <p className="quiet-empty">Stories you mark as read will appear here.</p>
+              )}
+            </section>
+          )}
         </>
       )}
     </main>
@@ -153,6 +203,8 @@ export function ProfileView({
   dataMode,
   reader,
   profile,
+  loading,
+  error,
   streak,
   back,
   preferenceSaving,
@@ -161,10 +213,15 @@ export function ProfileView({
   addInterest,
   updateInterestStatus,
   deleteInterest,
+  manageCategories,
+  reviewDirection,
+  deviceSettings,
 }: {
-  dataMode: "prototype" | "live";
+  dataMode: "prototype" | "guest" | "live";
   reader: { name: string; email: string };
   profile: ReaderProfile | null;
+  loading: boolean;
+  error: string;
   streak: number;
   back: () => void;
   preferenceSaving: boolean;
@@ -176,13 +233,12 @@ export function ProfileView({
     status: ExplicitInterestStatus,
   ) => Promise<void>;
   deleteInterest: (interestId: string) => Promise<void>;
+  manageCategories: () => void;
+  reviewDirection: () => void;
+  deviceSettings?: React.ReactNode;
 }) {
   const [newInterest, setNewInterest] = useState("");
-  const inferred = profile?.preferences.inferredPreferences ?? [
-    "You value explanations that connect current events to longer historical patterns.",
-    "You tend to finish science stories with concrete examples.",
-    "You prefer fewer startup funding stories.",
-  ];
+  const inferred = profile?.preferences.inferredPreferences ?? [];
   const explicitInterests = profile?.preferences.explicitInterests ?? [];
   const liveControlsDisabled =
     dataMode !== "live" || !profile || preferenceSaving;
@@ -190,36 +246,45 @@ export function ProfileView({
   return (
     <main className="subpage">
       <button className="back" onClick={back}>
-        <ChevronLeft />Today
+        <ChevronLeft />Back to edition
       </button>
       <header>
         <span className="eyebrow">Your Edison</span>
-        <h1>{reader.name}</h1>
-        <p>{dataMode === "prototype" ? "Sample profile · no account is connected" : reader.email}</p>
+        <h1>{reader.name || "Your publication"}</h1>
+        <p>{dataMode === "prototype"
+          ? "Sample reading · no account or AI service is connected"
+          : dataMode === "guest"
+            ? "Reading is open. Sign in only when you want account-synced history and preferences."
+            : reader.email}</p>
       </header>
 
-      <div className="streak-card">
+      {loading ? (
+        <DataStatus icon={<LoaderCircle className="spin" />}>
+          Opening your profile…
+        </DataStatus>
+      ) : error ? (
+        <DataStatus icon={<AlertCircle />} tone="error">{error}</DataStatus>
+      ) : null}
+
+      {dataMode === "live" && <div className="streak-card">
         <Flame fill="currentColor" />
         <div>
-          <b>{streak} day streak</b>
-          <span>{dataMode === "prototype" ? "Sample reading activity" : "Built one worthwhile story at a time"}</span>
+          <b>{streak}-day streak</b>
+          <span>Built one worthwhile story at a time</span>
         </div>
-        <div className="week">
-          {"SMTWTFS".split("").map((day, index) => (
-            <span
-              key={`${day}-${index}`}
-              className={index < Math.min(streak, 7) ? "read" : ""}
-            >
-              {day}
-            </span>
-          ))}
-        </div>
-      </div>
+      </div>}
+
+      <section>
+        <h2>Editorial direction</h2>
+        <p className="section-intro">Review the instructions you gave Edison separately from interests learned through reading.</p>
+        <button className="signout" type="button" onClick={reviewDirection}>Review editorial direction</button>
+        {dataMode === "live" && <button className="signout" type="button" onClick={manageCategories}>Manage News categories</button>}
+      </section>
 
       <section className="settings">
         <h2>Reading preferences</h2>
-        {dataMode === "prototype" && (
-          <p className="section-intro">These are example settings. Preference changes and personalization are disabled in this demo.</p>
+        {dataMode !== "live" && (
+          <p className="section-intro">Account reading preferences are available after sign-in. Device-local editorial notes remain separate.</p>
         )}
         <label>
           <span>
@@ -375,27 +440,30 @@ export function ProfileView({
           <p className="quiet-empty" aria-live="polite">
             {dataMode === "live"
               ? "Add a topic to make it an explicit part of your edition."
-              : "Interest controls are disabled in this demo."}
+              : "Account interest controls are unavailable without a connected account."}
           </p>
         )}
       </section>
 
       <section>
-        <h2>{dataMode === "prototype" ? "Example learned preferences" : "What your feed has learned"}</h2>
+        <h2>What your feed has learned</h2>
         <div className="learned">
           {inferred.length ? (
             inferred.map((item) => <p key={item}>{item}</p>)
           ) : (
-            <p>Edison will explain the preferences it learns here.</p>
+            <p>{dataMode === "live" ? "Edison will explain the preferences it learns here." : "No learned account interests are available."}</p>
           )}
         </div>
       </section>
+
+      {deviceSettings}
 
       {dataMode === "live" && (
         <form action="/auth/signout" method="post">
           <button className="signout" type="submit">Sign out</button>
         </form>
       )}
+      {dataMode === "guest" && <a className="signout" href="/login">Sign in</a>}
     </main>
   );
 }
