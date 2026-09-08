@@ -1,6 +1,28 @@
 # Edison deployment
 
-## Current v11.1 / D45 activation — September 8
+### September 8 — article connection recovery live
+
+Both existing production projects run `c71af50de829eef6f236991972332a8b7be81066`:
+API `dpl_4FnWzhobqu6WwE94csCJ6xyMt9Z1`, Ready 15:44:52.521 UTC;
+web `dpl_HsSPfWLbJeZrtJWPe7yPYNcSFrBC`, Ready 15:47:06.755 UTC.
+The source fixes two nested-transaction stalls, bounded same-article recovery,
+explicit retry after confirmed absent admission, and sanitized proxy diagnostics.
+Michael's rejected advice to leave and return while waiting is removed.
+
+Exact-source CI34245705648 passed 1,026 application tests, 320 pgTAP assertions,
+seven disposable database proofs, lint/types/builds and schema lint. Live checks
+at 15:47:43.874 UTC passed health/access/CORS, safe login returns, nonce CSP and
+all three cron bindings and unchanged cadences. Existing apex/www/web/API addresses
+are retained. No Auth/template, migration, secret, domain or budget changes.
+
+The separate checker-output failure remains unresolved; CTO owns its bounded
+correction and the subsequent single real first-session acceptance journey.
+Signed-out browser verification is not fresh article/Ask or mail-delivery proof.
+D49 invitations remains queued. D48 strict-six-digit sign-in remains blocked and
+excluded: canonical HEAD contains a prepared patch and is NOT the live release.
+Use the [article-recovery receipt](operations/ARTICLE_RECOVERY_RELEASE_2026-09-08.md) for exact scope, source and limits.
+
+## Previous v11.1 / D45 activation — September 8
 
 The exact reviewed source`785861a3a25a8b7bdbe5ee1d0fafb60f91ffc7ee` is live:
 API`dpl_Fxu7wuq3jEMr85PxLFa5pj5fMp5N`, Ready12:31:32.348 UTC;

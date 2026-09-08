@@ -75,6 +75,74 @@ migration, provider setting, or budget change was used for diagnosis.
 - The final no-job retry logic and copy passed independent review and 19 focused
   hook-level regressions. Browser review also caught adjacent recovery actions;
   the final presentation adds a wrapping 20px gap, retaining 44px targets.
-- Exact final revision, complete checks, final review, and hosted verification
-  will be appended when the candidate is frozen. This file alone does not claim
-  a production release or resolution of the later provider-validation failure.
+- The final action-spacing change was verified in source and its regression,
+  not by another browser rendering. The second retry journey was not verified
+  at phone width; the first lost-response journey was observed at 390×844.
+
+## Final candidate and release
+
+Application source: `c71af50de829eef6f236991972332a8b7be81066`, one commit above
+the previous live web `f3cde89bdf7ae57a691b70a183fc3432559acdd3`. The production
+increment is 11 files, 814 additions and 37 deletions. [PR 2](https://github.com/michaelmcguiness/edison/pull/2)
+targets an older main, so its full comparison also contains earlier already-live
+ancestry; it must not be described as the incident-only delta. The branch name
+`codex/v13-invitations` does not mean D49 invitation redesign is included.
+
+The first publishing review rejected suspected blocked Auth/invitation ancestry.
+Permitted read-only checks established the exact hosted/public live base, one
+incident commit, no D48 ancestry and unchanged Auth/migration/invitation-service
+paths. Normal review accepted resubmission of the same push/PR action, then the
+two exact-source deployments. No alternate credential or execution path was used.
+
+[Exact-source CI 34245705648](https://github.com/michaelmcguiness/edison/actions/runs/34245705648)
+passed every step of both jobs: 757 web tests plus 269 API tests (1,026 total),
+320 pgTAP assertions across 12 files, seven disposable-database service proofs,
+lint, types, both production builds and schema lint. Both jobs completed by
+15:39:15 UTC. Independent review found no remaining P1/P2 issue. The same full
+local application checks passed; the web build needed a network-approved retry
+for the existing Google Fonts fetch, without source or dependency changes.
+
+| Target | Production deployment | Ready September 8, UTC |
+| --- | --- | --- |
+| API | `dpl_4FnWzhobqu6WwE94csCJ6xyMt9Z1` | 15:44:52.521 |
+| Web | `dpl_HsSPfWLbJeZrtJWPe7yPYNcSFrBC` | 15:47:06.755 |
+
+Both deployment readbacks match the exact application source above and READY /
+Production. Web retains edisonreader.com, www.edisonreader.com and
+project-qlqve.vercel.app; API retains project-fjr95.vercel.app. All three enabled
+API schedules now bind to `edison-1e2dju2a3-mike-michaelmcguis-projects.vercel.app`:
+both reconciliation paths remain every five minutes, daily-edition scheduling
+remains minute 5 each hour. No project, alias, schedule-cadence, environment,
+secret, Auth/template, migration, allowance, provider or budget edit accompanied
+this release. Existing dollar limits are unchanged; encrypted setting metadata
+alone is not a new value-level verification.
+
+Credential-free live checks started at 15:47:43.874 UTC, all passing:
+
+- API health 200 with configuration/database/Auth OK (1.095s for this sample).
+- Login 200, nonce/strict-dynamic CSP and private/no-store; apex/private article/
+  demand-share/legacy-share routes safely redirect to login, preserving exact
+  safe return paths where applicable. www still redirects 308 to apex.
+- API access/invitations and web invitation boundaries return 401 missing_token;
+  web workspace returns 401 invitation_required. These establish anonymous
+  access protection and the web/API connection, not successful member service work.
+- Exact-apex CORS preflight 204; disallowed-origin preflight 403 without an
+  allow-origin header. All three unauthenticated cron reads return 401
+  invalid_cron_secret and do not invoke work.
+- The existing browser tab was refreshed after rollout: normal sign-in renders
+  with its prior article-return path intact. No email or code request was sent.
+
+## Remaining limits and next owner
+
+CTO owns the separate checker-output correction and compatibility verification,
+then the single real first-session acceptance journey agreed with Chief of Staff.
+The later failed article is unchanged. No hosted signed-in recovery, fresh
+article/Ask acceptance, provider-quality improvement or email delivery is claimed
+by these release checks; the available browser is signed out. No paid generation,
+quota reset, invitation or reader-content mutation was used for this release.
+D49 remains queued. D48 strict-six-digit source and hosted OTP-length changes
+remain blocked and excluded; current compatible email-code behavior is retained.
+
+Release work remains isolated from the canonical checkout containing the prepared
+D48 patch. Do not deploy that checkout or treat its HEAD as the live revision.
+This document's later receipt-only commit is not a new deployed application build.
