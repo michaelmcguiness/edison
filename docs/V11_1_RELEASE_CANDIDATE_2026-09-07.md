@@ -1,6 +1,9 @@
 # v11.1 release candidate — September 7, 2026
 
-Owner: CTO. Status: implementation checkpoint, **not released or accepted**.
+Owner: CTO. Status: **source, CI/database and bounded integrated Design gates
+closed; hosted rollout pending**. Final application candidate:
+`785861a3a25a8b7bdbe5ee1d0fafb60f91ffc7ee`.
+Updated September 8, 2026 at 02:02 UTC (September 7 in New York).
 
 ## Selected scope
 
@@ -77,11 +80,31 @@ Edison home; device-local reading memory is not transferable by assumption.
 
 ## Verification and outstanding gates
 
-Locally executed: 632 web tests, 269 API tests, lint, typechecks and
-both optimized production builds. Focused tests include actual compiled route
-and UI modules with injected dependencies. PostgreSQL scripts have only passed
-their safety guards locally; actual migration/RLS/concurrency checks require CI.
-The CI workflow now executes both new disposable-database checks.
+The exact final candidate passed [CI 34178380633](https://github.com/michaelmcguiness/edison/actions/runs/34178380633):
+680 web + 269 API tests (949 total), both typechecks, full lint, both production
+builds, 12 pgTAP files / 320 assertions, all disposable database integrations and
+strict schema lint. Both application/database jobs succeeded; no required step
+was skipped. Chief of Staff independently confirmed this exact run.
+
+At 02:01:00 UTC the allowance integration passed final1–6,500/501,partial0–6,
+replay, reserve/reset/settlement contention, old-revision retry, UTC rollover,
+guest/account continuity, isolation and unchanged nonzero spend. At02:01:05 UTC
+the invitation integration passed five lifetime slots, explicit confirmed
+email-bound acceptance, pending/failed/unknown/replay/expiry, immutable receipts,
+separate-backend create/accept/revoke races, reset and nonzero spend preservation.
+All recipients were synthetic, with zero external HTTP/email/provider calls.
+
+Earlier CI failures were corrected, not waived: historical fixture timestamp
+ordering, approved-model/frozen-context sentinel setup, raw SQL Date encoding,
+and a real production permission mismatch. The last was fixed by removing an
+unused row lock on immutable invitation grants; the shared admission advisory
+lock remains, and no UPDATE privilege was added. The complete corrected suite
+first passed at45d2f1f and passed again at the final UI successor above.
+
+Local full checks at a28720e passed938 tests and both builds; subsequent focused
+checks covered the final11 new overlay-history tests. Local generated duplicate
+Next type-cache files cleared through the normal build; no source workaround was
+used. Final full-suite evidence is the exact CI run, not an inferred local rerun.
 
 Rendered local QA uses the actual Next app with an explicitly opt-in synthetic
 Auth/API service (`EDISON_V11_MEMBER_FIXTURE=1`). The real installed SDK writes
@@ -89,18 +112,103 @@ normal cookies; there are no real recipients, credentials, provider calls or
 database calls. `authProof:false` is intentional: the fixture does not establish
 hosted Auth security, SMTP delivery or durable accounting.
 
-Open at this source checkpoint:
+Rendered blockers are closed. Clean login/acceptance pages use same-origin
+referrers; token-bearing GET remains no-referrer and strict POST Origin remains.
+The isolated Next request-cookie failure was a duplicated dependency-resolution
+context, resolved only in the disposable render environment by a byte-identical
+physical copy of installed Next and correct dependency lookup; no production
+framework/security bypass was added. Uninstrumented native confirmation passed.
 
-- Local rendered confirmation found native form `Origin:null` under no-referrer
-  metadata. Clean login/acceptance pages now use same-origin referrers (no external
-  referrer); token-bearing GET retains no-referrer and strict POST Origin checks
-  remain. An additional Next route request-cookie context failure is under
-  investigation and blocks rendered acceptance; page cookie access works.
-- Complete current reader/invitation narrow-width and responsive browser checks,
-  exact-build Design review, and actual PostgreSQL CI. No final acceptance claim.
-- Review the exact successful candidate and configuration/template/migration
-  bundle before hosted mutation. No real email or paid generation is authorized
-  merely for QA; existing production remains on its previously verified release.
+Actual browser journeys included:
 
-This checkpoint may be pushed to the existing release PR for CI. It must not be
-promoted as a production-ready release while the above gates remain unresolved.
+- Scanner-safe GET, explicit acceptance, expired Auth link with still-valid
+  invitation, one SDK OTP→confirmation-resend fallback, then renewed explicit
+  acceptance of the same invitation. No activation occurred on GET/renewal alone.
+- Explicit account-only recovery after a one-use synthetic startup error;
+  same workspace, eight loops, two retained articles,125-turn conversation and
+ 494 allowance returned. Cookie non-transfer/non-deletion rules have separate
+  proxy/unit coverage; the constructed error is not proof of hosted Auth security.
+- Invite send/failure/unknown/replay, accepted-versus-revoke UI, normalized
+  same-recipient Check status (including Enter), expired lease→Delivery
+  unconfirmed→same-ID resend with four remaining, actual expiry display.
+- Final-four refresh retained six old choices while pending, accepted two
+  charged two, and Next/reload kept the original sequence. Return retained the
+  old set until explicit Latest articles selected the replacement.
+- Zero allowance remained dismissible; wrong password was rejected; a lost reset
+  response recovered the same operation, with500 remaining, prior period usage
+  intact and no generation. Final reset completion immediately closed the wall
+  and focused Refresh. Repeated Curate Enter/Escape and explicit close focused
+  Curate. Modal teardown and delayed-history reconciliation regressions passed.
+
+Design closed V1–V4/E1 at785861a with no material remaining finding or new design
+approval hold. [Native screenshot manifest](evidence/v11.1/manifest.json) records
+pixels, MIME, hashes and capture phases; selected native JPEGs are retained
+without pixel changes. Earlier malformed/scaled/gray-overlay frames are not
+accepted as final width/header evidence. Clean320 entry and1024 final feed were
+captured. At02:02 UTC all182 tracked web/app/component/client/contract/public
+files in the isolated renderer matched the final candidate byte-for-byte.
+Earlier progression frames are not retroactively attributed to the final build.
+
+Limits: no physical iOS/Android device/software keyboard,200% browser zoom or OS
+reduced-motion execution; relevant CSS/source checks are separate. No hosted
+Auth-version, real mail delivery, editorial/model-quality or restore rehearsal
+claim is made from this local evidence. No broad repeat audit is needed.
+
+## Exact existing-target rollout bundle
+
+Source/Design/CI gates are closed. The following hosted actions are **prepared,
+not performed**; Chief of Staff reviews this concrete bundle under existing
+authorization, without asking Michael for a repeated generic approval.
+
+1. Record current deployment IDs and exact migration list; verify a recent
+   backup/checkpoint. Review linked migration dry-run showing only004 then005.
+   Never use the Vercel runtime database secret as the migration credential.
+2. Apply only004→005 in the existing Supabase project. Preserve all earlier
+   migrations, current active/revoked memberships, histories and ledgers.
+3. Deploy this exact API source initially with invitation sending disabled
+   (`EDISON_MEMBER_INVITATIONS_ENABLED=false` or absent) and its new Auth secret
+   absent. Add the selected reset value only as sensitive API Production config.
+   Preserve demand enablement, strict TLS, current DB/cron, exact CORS and
+   unchanged $10 rollingdaily/$40 monthly provider limits and model/check policy.
+4. Deploy the same source to the existing web project/apex. Verify scanner-safe
+   confirmation/acceptance routes before enabling delivery. Web receives only
+   its existing public Auth/API configuration, never either new server secret.
+5. Apply the reviewed Invite, Magic Link and Confirm Signup templates. Preserve
+   `.RedirectTo`, exact token hash including any`pkce_` prefix, invitation/next
+   context; Invite type=invite, other two type=email. No tracking, wildcard,
+   domain or localhost redirect changes. Keep global signup/anonymous disabled.
+6. Enable invitation flag and current-format`sb_secret_` key on API Production
+   only, run credential-safe preflight, redeploy the same source. Do not use a
+   legacy service-role/direct Resend key or enter secrets in chat/source/logs.
+7. Verify actual source/aliases, health, apex CORS, negative membership checks,
+   an existing authorized read, migration/RLS/immutable-grant protections and
+   all three cron hosts/cadences after the last API deployment. Do not create
+   invites, reset allowance or generate articles merely for release QA.
+
+Targets: Supabase`bcxxnntastmnormcmxbq`; API`prj_BDlcI2KFhFawilRiMDvloXcOLnsd`
+(`edison-api`, root`apps/api`); web`prj_TLrYocZ2r6okKwPr59ht2XQo8bmp`
+(`edison-app`, repository root). Existing apex, www redirect, API and retained
+web alias stay; no new environment, service or paid plan.
+
+Read-only Vercel metadata at this closeout confirms API production remains
+`dpl_GesKd8nJZi9d21ne4qrA7QLDxUmP`, with all three enabled cron definitions on
+`edison-jxsjvit8r-mike-michaelmcguis-projects.vercel.app`. API Production has no
+`SUPABASE_SECRET_KEY`, invitation flag or reset-password variable yet. Only
+variable names/types/targets were read, not secret values. Existing deployment
+session is authenticated. These are preparation facts, not connectivity proof.
+
+Reviewed immutable artifact SHA256:
+
+| Artifact | SHA256 |
+| --- | --- |
+|004 weekly allowance|1489fc0ae5dbb21b646b67544cdaa3446468943c4181c01442587770fe15135d|
+|005 invitation membership|700144bc2c1ff6324d3c2e0147f2b5c684ff7335acb88ef68462a0880a1200a1|
+|Invite template|5a9eb056f5337098195c0fc18318c3332317627f85aee2dc59759a5ed3d457e9|
+|Magic Link / Confirm Signup (each)|b8305bea32a346115789c74e046066c3d4bd1f32f2c44b09cfe49543884a63e8|
+
+Rollback:005 changes admission/function semantics despite additive tables; an
+old v10 application rollback is not automatically compatible. Prefer disabling
+new sends and forward-fixing while preserving grants, receipts and history.
+Vercel rollback does not establish restored cron bindings: inspect schedules
+after any API deployment/rollback. Do not create an aliasless production canary
+as a supposedly harmless preview. Restore readiness remains explicitly unproven.

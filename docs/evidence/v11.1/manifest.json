@@ -1,0 +1,204 @@
+{
+  "candidate": "785861a3a25a8b7bdbe5ee1d0fafb60f91ffc7ee",
+  "verifiedAt": "2026-09-08T02:02:18Z",
+  "environment": "Actual Next dev app at localhost:4310; explicitly opt-in synthetic Auth/API at 127.0.0.1:4311; real installed SDK; no hosted/provider/email/database calls",
+  "sourceComparison": {
+    "trackedWebFiles": 182,
+    "differingFiles": 0
+  },
+  "limits": [
+    "Dev-mode rendered evidence, not hosted production, real-email transport or editorial quality proof.",
+    "No physical iOS/Android device, software keyboard, 200% browser zoom or OS reduced-motion execution was performed; CSS/source/unit coverage is separate.",
+    "Earlier progression captures are not retroactively exact-final-build evidence. Source phase for each capture is recorded.",
+    "Original malformed/scaled/gray-overlay captures were preserved in the temporary evidence directory but excluded here except local status frames where the header overlay does not affect the reviewed state."
+  ],
+  "captures": [
+    {
+      "name": "entry-320-corrected.jpg",
+      "bytes": 17187,
+      "sha256": "966a81672cbb28451d174943823c23ee3e95ac005bfc6b9714b4475e72a37b34",
+      "width": 320,
+      "height": 900,
+      "mime": "image/jpeg",
+      "originalPath": "/private/tmp/edison-v11-browser-evidence.YbJ1M4/entry-320-corrected.jpg",
+      "file": "entry-320-corrected.jpg",
+      "phase": "45d2f1f plus approved wording; entry/Auth files byte-identical to 785861a"
+    },
+    {
+      "name": "feed-1024-final.jpg",
+      "bytes": 88251,
+      "sha256": "b75d6e488190efcf0b6356f04ffbcbb98f5ced06518be63f1687bf6b94e58c33",
+      "width": 1024,
+      "height": 1000,
+      "mime": "image/jpeg",
+      "originalPath": "/private/tmp/edison-v11-browser-evidence.YbJ1M4/feed-1024-final.jpg",
+      "file": "feed-1024-final.jpg",
+      "phase": "Final 785861a source"
+    },
+    {
+      "name": "feed-760-supporting-corrected.png",
+      "bytes": 81700,
+      "sha256": "094aba5af8d662205f73e9b0823a90dd7699861f802f0bc622818eebea6021ce",
+      "width": 760,
+      "height": 1000,
+      "mime": "image/jpeg",
+      "originalPath": "/private/tmp/edison-v11-browser-evidence.YbJ1M4/feed-760-supporting-corrected.png",
+      "file": "feed-760-supporting-corrected.jpg",
+      "phase": "6b5056f plus reviewed paper-surface CSS; relevant CSS unchanged in final candidate"
+    },
+    {
+      "name": "feed-1440-corrected.png",
+      "bytes": 101981,
+      "sha256": "489d8c10258bd72b95fb3e7f183e225358a96bfff81d896f6880b3aac4d310c9",
+      "width": 1440,
+      "height": 1000,
+      "mime": "image/jpeg",
+      "originalPath": "/private/tmp/edison-v11-browser-evidence.YbJ1M4/feed-1440-corrected.png",
+      "file": "feed-1440-corrected.jpg",
+      "phase": "6b5056f plus reviewed paper-surface CSS; relevant CSS unchanged in final candidate"
+    },
+    {
+      "name": "invites-unknown-320-corrected.jpg",
+      "bytes": 30190,
+      "sha256": "fbf0c8a2bbe55cf437f4d38431ea8880c023dbdfe34f1a08cff3cdd091344d89",
+      "width": 320,
+      "height": 900,
+      "mime": "image/jpeg",
+      "originalPath": "/private/tmp/edison-v11-browser-evidence.YbJ1M4/invites-unknown-320-corrected.jpg",
+      "file": "invites-unknown-320-corrected.jpg",
+      "phase": "a28720e web source; relevant card/reading/invitation files unchanged in final candidate"
+    },
+    {
+      "name": "invites-lease-ended-320.jpg",
+      "bytes": 31570,
+      "sha256": "a9f5251790f3a109cf485d6211d84c5cde90ecb6b379d15bf8525ffe776ff3f1",
+      "width": 320,
+      "height": 900,
+      "mime": "image/jpeg",
+      "originalPath": "/private/tmp/edison-v11-browser-evidence.YbJ1M4/invites-lease-ended-320.jpg",
+      "file": "invites-lease-ended-320.jpg",
+      "phase": "45d2f1f plus approved Delivery unconfirmed wording; invitation files byte-identical to 785861a"
+    },
+    {
+      "name": "invites-resend-same-slot-320.jpg",
+      "bytes": 31293,
+      "sha256": "465201174ce90fb272eaaf0e0efd21d5174d8215d02c33b656d00284fb28574d",
+      "width": 320,
+      "height": 900,
+      "mime": "image/jpeg",
+      "originalPath": "/private/tmp/edison-v11-browser-evidence.YbJ1M4/invites-resend-same-slot-320.jpg",
+      "file": "invites-resend-same-slot-320.jpg",
+      "phase": "45d2f1f plus approved Delivery unconfirmed wording; invitation files byte-identical to 785861a"
+    },
+    {
+      "name": "reader-320.jpg",
+      "bytes": 56015,
+      "sha256": "987c7684214de5b9db81b0f7a7777e8665fae0229ace72574b9ac90fd2be4498",
+      "width": 320,
+      "height": 900,
+      "mime": "image/jpeg",
+      "originalPath": "/private/tmp/edison-v11-browser-evidence.YbJ1M4/reader-320.jpg",
+      "file": "reader-320.jpg",
+      "phase": "a28720e web source; relevant card/reading/invitation files unchanged in final candidate"
+    },
+    {
+      "name": "ask-retained-draft-320-corrected.jpg",
+      "bytes": 50560,
+      "sha256": "20031da6dcbeee0237c850b7e7791713e849c3c080332ddaa52def972d243022",
+      "width": 320,
+      "height": 900,
+      "mime": "image/jpeg",
+      "originalPath": "/private/tmp/edison-v11-browser-evidence.YbJ1M4/ask-retained-draft-320-corrected.jpg",
+      "file": "ask-retained-draft-320-corrected.jpg",
+      "phase": "a28720e web source; relevant card/reading/invitation files unchanged in final candidate"
+    },
+    {
+      "name": "refresh-pending-keeps-set-320.jpg",
+      "bytes": 35210,
+      "sha256": "02e7d7767dd353103c7543889f2233569279c48d4ef7070bf6c197ff549254de",
+      "width": 320,
+      "height": 900,
+      "mime": "image/jpeg",
+      "originalPath": "/private/tmp/edison-v11-browser-evidence.YbJ1M4/refresh-pending-keeps-set-320.jpg",
+      "file": "refresh-pending-keeps-set-320.jpg",
+      "phase": "a28720e web source; relevant card/reading/invitation files unchanged in final candidate"
+    },
+    {
+      "name": "retained-origin-after-refresh-320.jpg",
+      "bytes": 41109,
+      "sha256": "1e0e237906b4dd71dbbec7155711cecf936c9609bf72beacf318bfbfc36cf0fe",
+      "width": 320,
+      "height": 900,
+      "mime": "image/jpeg",
+      "originalPath": "/private/tmp/edison-v11-browser-evidence.YbJ1M4/retained-origin-after-refresh-320.jpg",
+      "file": "retained-origin-after-refresh-320.jpg",
+      "phase": "a28720e web source; relevant card/reading/invitation files unchanged in final candidate"
+    },
+    {
+      "name": "accepted-partial-set-320.jpg",
+      "bytes": 37678,
+      "sha256": "b5c98b0e14083f9bb3726ecbf8fa17219a5c98de3d40185a5aaa5703eb383c61",
+      "width": 320,
+      "height": 900,
+      "mime": "image/jpeg",
+      "originalPath": "/private/tmp/edison-v11-browser-evidence.YbJ1M4/accepted-partial-set-320.jpg",
+      "file": "accepted-partial-set-320.jpg",
+      "phase": "a28720e web source; relevant card/reading/invitation files unchanged in final candidate"
+    },
+    {
+      "name": "expired-auth-valid-invitation-320.jpg",
+      "bytes": 19902,
+      "sha256": "a3eb9aa7f11ae455d383e330d0c9d88e46216c1d10a998ee8682fca7fef80a26",
+      "width": 320,
+      "height": 900,
+      "mime": "image/jpeg",
+      "originalPath": "/private/tmp/edison-v11-browser-evidence.YbJ1M4/expired-auth-valid-invitation-320.jpg",
+      "file": "expired-auth-valid-invitation-320.jpg",
+      "phase": "45d2f1f plus approved wording; entry/Auth files byte-identical to 785861a"
+    },
+    {
+      "name": "account-recovery-offer-320.jpg",
+      "bytes": 20690,
+      "sha256": "895f82831596a0c8d1a19dcac706e6d18f5174ab1510838a8c2256c85adaa3d8",
+      "width": 320,
+      "height": 900,
+      "mime": "image/jpeg",
+      "originalPath": "/private/tmp/edison-v11-browser-evidence.YbJ1M4/account-recovery-offer-320.jpg",
+      "file": "account-recovery-offer-320.jpg",
+      "phase": "Final 785861a source"
+    },
+    {
+      "name": "account-recovery-complete-320.jpg",
+      "bytes": 37871,
+      "sha256": "ba1eca2ccf9c2295673c66c1efc3dc396377bf1198c085b68f8d80ed3fe75b26",
+      "width": 320,
+      "height": 900,
+      "mime": "image/jpeg",
+      "originalPath": "/private/tmp/edison-v11-browser-evidence.YbJ1M4/account-recovery-complete-320.jpg",
+      "file": "account-recovery-complete-320.jpg",
+      "phase": "Final 785861a source"
+    },
+    {
+      "name": "allowance-unknown-320.jpg",
+      "bytes": 41107,
+      "sha256": "b28d3cb6fb3ea123c5dfff838b00e2a14b1c1587634d960fdee9f826a81c10a8",
+      "width": 320,
+      "height": 900,
+      "mime": "image/jpeg",
+      "originalPath": "/private/tmp/edison-v11-browser-evidence.YbJ1M4/allowance-unknown-320.jpg",
+      "file": "allowance-unknown-320.jpg",
+      "phase": "Final 785861a source"
+    },
+    {
+      "name": "allowance-reset-complete-320.jpg",
+      "bytes": 41510,
+      "sha256": "638a45a105958a88f985db86de915f432268dbc5bc47c48f46a30556b5621379",
+      "width": 320,
+      "height": 900,
+      "mime": "image/jpeg",
+      "originalPath": "/private/tmp/edison-v11-browser-evidence.YbJ1M4/allowance-reset-complete-320.jpg",
+      "file": "allowance-reset-complete-320.jpg",
+      "phase": "Final 785861a source"
+    }
+  ]
+}
