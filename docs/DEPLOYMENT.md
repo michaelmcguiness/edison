@@ -1,5 +1,22 @@
 # Edison deployment
 
+## Current v11.1 / D45 activation — September 8
+
+The exact reviewed source`785861a3a25a8b7bdbe5ee1d0fafb60f91ffc7ee` is live:
+API`dpl_Fxu7wuq3jEMr85PxLFa5pj5fMp5N`, Ready12:31:32.348 UTC;
+web remains`dpl_FBkgbqz8NBLTnSVGBH9TmTYAhz5n` on edisonreader.com.
+The fresh API deployment enables invitations with the explicitly approved
+server-only sensitive Production key. Migrations004/005 and reviewed email
+templates were applied in the preceding rollout. No web/domain/budget change,
+test invitation or paid generation accompanied this activation. Historical
+approval-context rejections were resolved through accepted normal review with
+Michael's direct D45 approval, not an alternate credential path.
+
+Use the [current receipt](V11_1_RELEASE_CANDIDATE_2026-09-07.md) for exact aliases,
+configuration/schedules, readiness evidence and rollback constraints. Sender
+configuration and public Auth health do not establish actual email delivery;
+fresh authorized reading remains unverified without an existing sign-in session.
+
 ## Live D34/D35 release — September 7
 
 Both production apps use `27c9944eb268b2ecc8a1735ac79322089effa294`:

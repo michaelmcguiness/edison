@@ -15,6 +15,26 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
+### September 8 — v11.1 and D45 invitation configuration live
+
+The current application source is`785861a3a25a8b7bdbe5ee1d0fafb60f91ffc7ee`.
+Web remains`dpl_FBkgbqz8NBLTnSVGBH9TmTYAhz5n` on edisonreader.com; API is now
+`dpl_Fxu7wuq3jEMr85PxLFa5pj5fMp5N`, Ready12:31:32.348 UTC. Migrations004/005
+and the reviewed email templates are applied. D42–D44 select mobile-first reading,
+trusted SVG art,500 offered articles per UTC week and invite-only membership.
+D45 explicitly authorizes the existing Supabase server key in sensitive API-only
+Vercel Production configuration. The exact transfer passed normal review in
+Chief of Staff with Michael's direct approval; the earlier relay-context
+rejections are historical, not a pending approval. Invitation sending is enabled.
+
+Exact-source CI passed949 application tests,320 pgTAP assertions, integrations,
+types/lint/builds and schema lint. Design review is closed. Existing spending
+limits and web deployment are unchanged. Health is not proof of privileged
+sender or SMTP delivery, and no test email or paid generation was used. Fresh
+authorized reading remains pending an available sign-in session. Use the
+[v11.1 live receipt and its verification limits](docs/V11_1_RELEASE_CANDIDATE_2026-09-07.md)
+and current PROJECT_STATUS before any older release history below.
+
 ### September 7 — D34/D35 v10 live on edisonreader.com
 
 Both API and web now run `27c9944eb268b2ecc8a1735ac79322089effa294`.

@@ -6,7 +6,19 @@ launching; they can change without a code release.
 
 ## Decision and current status
 
-**Current — D34/D35 v10 live:** both production apps run
+**Current — v11.1 / D45 invitation configuration live:** source
+`785861a3a25a8b7bdbe5ee1d0fafb60f91ffc7ee`; API
+`dpl_Fxu7wuq3jEMr85PxLFa5pj5fMp5N`, Ready12:31:32.348 UTC September8;
+web remains`dpl_FBkgbqz8NBLTnSVGBH9TmTYAhz5n` on the existing apex.
+Migrations004/005 and reviewed Auth templates are applied. The explicitly approved
+server-key transfer passed normal review with direct user authorization; API
+Production invitation sending is enabled, with no web/Preview secret copy.
+No approval remains pending. See the [single current release receipt](V11_1_RELEASE_CANDIDATE_2026-09-07.md)
+for exact deployment/configuration checks, rollback constraints and the separate
+unverified actual-mail and fresh signed-in journey limits. No QA email or paid
+generation was commissioned, and D32 spending limits remain unchanged.
+
+**Previous — D34/D35 v10 live:** both production apps ran
 `27c9944eb268b2ecc8a1735ac79322089effa294`, with exact-source
 [CI34128662833](https://github.com/michaelmcguiness/edison/actions/runs/34128662833)
 passed (772 app tests/builds/types/lint,279 pgTAP assertions and DB integrations).

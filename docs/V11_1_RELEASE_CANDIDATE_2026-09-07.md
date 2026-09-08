@@ -1,10 +1,11 @@
 # v11.1 release candidate — September 7, 2026
 
 Owner: CTO. Status: **source, CI/database and bounded integrated Design gates
-closed; web/API and migrations live; invitation-sender activation blocked by
-the normal credential-transfer approval review**. Final application candidate:
+closed; web/API and migrations live; invitation sending configured and enabled
+under D45. Actual email delivery and fresh authorized reading remain unverified**.
+Final application candidate:
 `785861a3a25a8b7bdbe5ee1d0fafb60f91ffc7ee`.
-Updated September 8, 2026 at 12:25 UTC (September 8 in New York).
+Updated September 8, 2026 at 12:36 UTC (September 8 in New York).
 
 ## Selected scope
 
@@ -45,8 +46,9 @@ Current invitation addendum SHA256:
 
 Required configuration is listed below. Migrations, web/API deployment,
 API-only sensitive reset configuration, and the three email templates are now
-applied. **Invitation sending remains disabled and the new Auth secret absent**;
-see the hosted checkpoint below for the exact remaining approval.
+applied. **The invitation flag and API-only sensitive Auth secret are now enabled
+in the freshly deployed API**. See the September 8 activation receipt below;
+earlier disabled-sender checkpoints and rejected reviews are historical.
 
 1. Migrations `20260907000400_demand_weekly_allowance.sql` and
    `20260907000500_demand_invitation_membership.sql`, after actual disposable
@@ -162,8 +164,10 @@ claim is made from this local evidence. No broad repeat audit is needed.
 
 Source/Design/CI gates and Chief of Staff's concrete bundle review are closed.
 The reviewed order below is retained as the execution plan. Steps1–5 have been
-performed; step6 was rejected before execution by the normal approval review.
-Only unaffected read-only checks from step7 followed that rejection.
+performed. Step6 was initially rejected before execution, then accepted through
+normal review in the task containing Michael's direct D45 approval; the fresh
+API deployment is live. Step7 read-only verification and its limits are recorded
+below. No test invitation or paid generation was used.
 
 1. Record current deployment IDs and exact migration list; verify a recent
    backup/checkpoint. Review linked migration dry-run showing only004 then005.
@@ -203,7 +207,7 @@ confirmed API production was
 variable names/types/targets were read, not secret values. Existing deployment
 session was authenticated. These were preparation facts, not connectivity proof.
 
-## Hosted checkpoint — invitation activation pending
+## September 7 hosted checkpoint — invitation activation pending (historical)
 
 The latest completed physical daily backup was1601031663, created
 2026-09-07T04:40:27.146Z. PITR is disabled; no backup restore was rehearsed.
@@ -281,7 +285,7 @@ Read-only hosted verification:
   No sign-in email, test invitation, redemption, allowance reset or new article
   generation was requested merely for release QA.
 
-### Exact approval blocker and next owner
+### Initial approval blocker and next owner
 
 Normal review rejected the command before it ran: read the existing current-format
 Supabase server key, keep it in memory, and store it as sensitive API Production
@@ -291,8 +295,8 @@ destination. **No secret lookup or transfer executed.** No alternate task, tool,
 credential or indirect route may bypass that rejection.
 
 The key is privileged server access, so its destination must be explicitly
-approved. Chief of Staff owns the single specific approval question to Michael;
-CTO must not duplicate it. If approved, resubmit this exact transfer through
+approved. Chief of Staff owned the single specific approval question to Michael;
+that approval was subsequently received as recorded below. Resubmit the exact transfer through
 normal review, then update the existing flag to true and create another fresh
 Production deployment of785861a with current configuration. Reverify readiness,
 aliases and all three cron bindings after that API deployment. Never use a
@@ -310,11 +314,15 @@ that exact approval. This was not an alternate credential or execution route.
 At12:25 UTC normal review again rejected the command before execution. The stated
 reason was that the approval appeared only in untrusted tool output rather than
 trusted direct user content authorizing that credential and destination. **No key
-lookup, transfer, flag update or deployment ran.** No route around this rejection
-is authorized. Chief of Staff received the exact reason and owns the one user
-coordination step: the review requires Michael's specific approval directly in
-the executing CTO task, rather than another relay. CTO does not duplicate the
-question or execute the transfer from a different task/tool.
+lookup, transfer, flag update or deployment ran.** No route around normal review
+is authorized. Chief of Staff received the exact reason and confirmed that
+Michael's direct approval exists in the original Chief of Staff conversation.
+CTO supplied only the exact previously submitted command text, without secret
+values, for normal review there against that direct user authorization. This
+preparation is not itself permission to execute; a further rejection must be
+respected. No different credential or transfer mechanism was proposed. CTO stayed
+stopped on credential, flag and deployment mutation until the review outcome was
+reported. Michael was not asked to repeat his approval.
 
 The pre-submit metadata check still showed only the disabled invitation flag
 and sensitive Production-only reset configuration, with no Auth secret entry.
@@ -322,6 +330,68 @@ The existing deployed API/web IDs and application source recorded above remain
 unchanged by this attempt. An independent source review also confirms that the
 health endpoint uses the publishable Auth key: health OK must not be described
 as a successful privileged sender call or proof of actual email delivery.
+
+### September 8 — D45 accepted and invitation configuration live
+
+Chief of Staff submitted the exact same transfer through **normal** approval
+review in the conversation containing Michael's direct “yes”. That review
+accepted the action and the command completed exit0. The historical approval
+hold is resolved; no new approval question remains. No alternate credential or
+transfer mechanism was used.
+
+The sanitized transfer receipt identified API Production variable
+`SUPABASE_SECRET_KEY`, type`sensitive`, id`TUGGjJ7DqS8r1aZc`, sourced from the
+existing current-format project key. Its value stayed in process memory and
+CLI stdin, not tool output, chat, source or local files. CTO independently read
+only metadata at12:29:34–12:29:35 UTC: key and reset setting are Production-only,
+and the web project has none of the three server-only configuration names.
+There was no second credential retrieval or transfer by CTO.
+
+CTO changed the existing invitation flag to`true`, preserving its name, plain
+type and Production target, then created a fresh Git-source API deployment with
+the current configuration and exact reviewed SHA:
+
+- API`dpl_Fxu7wuq3jEMr85PxLFa5pj5fMp5N`, created12:30:14.780 UTC,
+  **READY / PROMOTED at12:31:32.348 UTC**.
+- Exact source`785861a3a25a8b7bdbe5ee1d0fafb60f91ffc7ee`, existing project
+ `prj_BDlcI2KFhFawilRiMDvloXcOLnsd`, target Production, root`apps/api`.
+- Actual API host`edison-h0swtz5uw-mike-michaelmcguis-projects.vercel.app`;
+  public alias remains`project-fjr95.vercel.app`.
+- Web remains`dpl_FBkgbqz8NBLTnSVGBH9TmTYAhz5n` at the same785861a source,
+  with its existing apex/retained aliases. No web rebuild or domain change.
+
+Chief of Staff independently verified the exact Production deployment identity,
+both source-SHA fields, promotion, retained alias and all three enabled cron
+bindings at12:32:40.546 UTC. Feed-command and generation-job reconciliation each
+remain`*/5 * * * *`, and daily-edition scheduling remains`5 * * * *`, all on the
+new`edison-h0swtz5uw` API host. Key/reset settings remain sensitive and
+Production-only; the invitation flag was true before this deployment was created.
+
+Independent bounded checks at12:33 UTC passed production-alias health200,
+exact-apex CORS, unapproved-origin403 with no CORS grant, anonymous invitation
+list/access401, and an unused invitation preview returning unavailable with
+no-store/no-referrer/noindex. The unique deployment host redirected302 and was
+not followed or bypassed; public readiness evidence is from the production alias.
+Targeted nonsecret reads at12:33:53–12:33:56 UTC confirmed invitation flag true,
+demand true, daily10000000 microUSD and no monthly override, retaining the
+40000000 microUSD source default. Web has neither server secret. At12:35:40 UTC,
+CTO confirmed all three cron routes still reject unauthenticated requests401.
+The tracked application/configuration diff against785861a is empty; this
+activation changes configuration and documentation, not the reviewed application.
+
+CTO observed post-promotion readiness200 with configuration, database and Auth
+all OK. This health endpoint uses the **publishable** Auth key; it validates
+configuration shape, database protections and public Auth connectivity, not
+the privileged invitation sender or SMTP delivery. The sender's first
+credential-bearing operation would send an invitation, so it was not invoked
+for QA. No user list, test recipient, invitation, grant, redemption, reset,
+session bootstrap or paid content request was created to test activation.
+
+The existing browser still displays login with the original article destination
+preserved. No usable existing signed-in session was available, and no sign-in
+email was requested. The accurate closeout is **invitation sending configured
+and enabled in production**, with actual mail delivery and a fresh authorized
+reading journey separately unverified.
 
 Reviewed immutable artifact SHA256:
 
