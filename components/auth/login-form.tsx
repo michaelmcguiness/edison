@@ -33,6 +33,8 @@ export function LoginForm({ returnPath = "/", authOrigin, invitationId, initialM
   const codeStep = state.phase !== "email" && (state.phase !== "sending" || resending);
   const working = ["sending", "verifying", "committing", "signed_in"].includes(state.phase);
   const reconciling = state.issue === "verification_unknown";
+  const normalizedCode = code.replace(/\s/g, "");
+  const codeReady = /^\d{4,10}$/.test(normalizedCode);
   const message = validation || (state.issue ? issueCopy[state.issue] : notice);
   const neutral = !validation && (!state.issue || ["delivery_unknown", "verification_unknown"].includes(state.issue));
 
@@ -85,12 +87,11 @@ export function LoginForm({ returnPath = "/", authOrigin, invitationId, initialM
       else if (result === "unknown") setCheckedSignIn(true);
       return;
     }
-    const token = code.replace(/\s/g, "");
-    if (!/^\d{4,10}$/.test(token)) {
+    if (!codeReady) {
       setValidation("Enter the code from your email."); codeInput.current?.focus({ preventScroll: true }); return;
     }
     setCheckedSignIn(false);
-    if (await controller.current.verify(token) === "signed_in") continueReading();
+    if (await controller.current.verify(normalizedCode) === "signed_in") continueReading();
   }
 
   function changeEmail() {
@@ -121,7 +122,7 @@ export function LoginForm({ returnPath = "/", authOrigin, invitationId, initialM
           value={email} onChange={(event) => { if (state.phase === "sending") controller.current?.changeEmail(); setEmail(event.target.value); setValidation(""); setNotice(""); }}
           placeholder="you@example.com" required maxLength={320} aria-invalid={Boolean(validation) || state.issue === "invalid_email"} aria-describedby={message ? "sign-in-message" : undefined} />}
       {message ? <p id="sign-in-message" className={`email-code-message${neutral ? " email-code-message--neutral" : ""}`} role={neutral ? "status" : "alert"}>{message}</p> : null}
-      <button type="submit" className="email-code-primary" disabled={working || (state.issue === "rate_limited" && remaining > 0) || (!codeStep && !hasCode && remaining > 0)}>
+      <button type="submit" className="email-code-primary" disabled={working || (codeStep && !reconciling && !codeReady) || (state.issue === "rate_limited" && remaining > 0) || (!codeStep && !hasCode && remaining > 0)}>
         {working ? <><LoaderCircle className="spin" aria-hidden="true" />{state.phase === "sending" ? "Sending code…" : "Checking…"}</> : reconciling ? "Check sign-in status" : codeStep || hasCode ? "Continue" : "Send code"}
       </button>
     </form>

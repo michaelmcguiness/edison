@@ -191,13 +191,47 @@ test("existing-code entry never sends, and pasted leading zeros verify only afte
 
 test("invalid code is an inline focused error and cannot trigger verification", async (t) => {
   const http = transport(); const form = formHarness({ hasCode: true }, http.service); t.after(form.dispose);
-  form.change("email", reader); await form.submit();
-  for (const code of ["", "123", "abcd12"]) {
-    form.change("sign-in-code", code); await form.submit();
+  form.change("email", reader);
+  assert.equal(form.primary().props.disabled, false, "the empty code does not block the email-entry step");
+  await form.submit();
+  assert.equal(form.primary().props.disabled, true, "the code step starts with Continue disabled");
+  for (const code of ["", " \n\t ", "123", "abcd12", "12345678901"]) {
+    form.change("sign-in-code", code);
+    assert.equal(form.primary().props.disabled, true, `invalid code ${JSON.stringify(code)} cannot enable Continue`);
+    // Invoke the form handler directly too: Enter/programmatic submission must
+    // not bypass the same validation used by the disabled submit button.
+    await form.submit();
     assert.match(form.copy(), /Enter the code from your email\./);
     assert.equal(form.message().props.role, "alert");
     assert.equal(form.focused.at(-1), "sign-in-code");
   }
+  assert.equal(http.calls.verifies.length, 0);
+});
+
+test("Continue preserves four-to-ten-digit compatibility, whitespace normalization, and leading zeros without auto-submit", async (t) => {
+  for (const code of ["0012", "001204", "00120408", "0012040810", " \t00 12 04 08\n"]) {
+    const http = transport(); const form = formHarness({ hasCode: true }, http.service); t.after(form.dispose);
+    form.change("email", reader); await form.submit();
+    form.change("sign-in-code", code);
+    assert.equal(form.primary().props.disabled, false, `compatible code ${JSON.stringify(code)} enables Continue`);
+    assert.equal(form.input("sign-in-code").props.value, code, "the input does not truncate pasted or autofilled content");
+    assert.equal(form.input("sign-in-code").props.maxLength, undefined);
+    assert.equal(http.calls.verifies.length, 0, "editing, paste, and autofill never verify automatically");
+    await form.submit();
+    assert.deepEqual(http.calls.verifies, [{ email: reader, token: code.replace(/\s/g, "") }]);
+    assert.equal(http.calls.commits, 1);
+    assert.equal(http.calls.sends.length, 0);
+  }
+});
+
+test("clearing a valid code immediately disables Continue again", async (t) => {
+  const http = transport(); const form = formHarness({ hasCode: true }, http.service); t.after(form.dispose);
+  form.change("email", reader); await form.submit();
+  form.change("sign-in-code", "00120408");
+  assert.equal(form.primary().props.disabled, false);
+  form.change("sign-in-code", "");
+  assert.equal(form.primary().props.disabled, true);
+  await form.submit();
   assert.equal(http.calls.verifies.length, 0);
 });
 
@@ -214,6 +248,7 @@ test("resending preserves the code step and recipient, clears the prior code, an
   assert.equal(sends, 2);
   response.resolve(null); await form.settle();
   assert.match(form.copy(), /Enter your code/);
+  assert.equal(form.primary().props.disabled, true, "resend completion leaves empty-code Continue disabled");
   assert.equal(form.button("Resend in 1:00").props.disabled, true);
 });
 
@@ -243,6 +278,12 @@ test("uncertain verification offers a read-only status check instead of resendin
   assert.equal(text(form.primary()), "Check sign-in status");
   assert.equal(form.button("Resend code").props.disabled, true);
   assert.equal(form.input("sign-in-code").props.readOnly, true);
+  assert.equal(form.primary().props.disabled, false);
+  // Reconciliation is a session read, independent of any retained input value.
+  // Exercise an empty value through the shipped handler without changing the
+  // controller's unknown verification state or its read-only input contract.
+  form.change("sign-in-code", "");
+  assert.equal(form.primary().props.disabled, false, "an empty code cannot strand the read-only status check");
   await form.submit();
   assert.equal(http.calls.reads, 1); assert.equal(verifies, 1); assert.equal(http.calls.sends.length, 0);
   assert.equal(form.assigned.length, 0);
