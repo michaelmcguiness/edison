@@ -121,7 +121,7 @@ export function createEmailCodeAuthController(options: EmailCodeAuthOptions) {
       if (snapshot.phase !== "code") return "invalid";
       if (snapshot.issue === "rate_limited" && snapshot.retryAt > now()) return "cooldown";
       const token = code.replace(/\s/g, "");
-      if (!/^\d{4,10}$/.test(token)) { update({ issue: "invalid" }); return "invalid"; }
+      if (!/^\d{6}$/.test(token)) { update({ issue: "invalid" }); return "invalid"; }
       const ticket = generation;
       const email = snapshot.email;
       update({ phase: "verifying", issue: null });

@@ -386,6 +386,26 @@ test("invalid and ambiguous-expiry codes are generic; no verification or resend 
   assert.equal(sends, 0);
 });
 
+test("only exactly six code digits dispatch; whitespace normalizes and leading zeros survive unchanged", async () => {
+  const tokens: string[] = []; let commits = 0;
+  const controller = createEmailCodeAuthController({ contextUrl, transport: mockedTransport({
+    verify: async (email, token) => { tokens.push(token); return { session: session(email), error: null }; },
+    commit: async (value) => { commits++; return value; },
+  }) });
+  controller.beginCode("new@example.test");
+  for (const code of ["", "1234", "12345", "1234567", "12345678", "1234567890", "1".repeat(1000), "letters".repeat(100), "a12345", "123456a", "00 123", "00 12345"]) {
+    assert.equal(await controller.verify(code), "invalid", `invalid length/content: ${code.length}`);
+    assert.equal(controller.snapshot().phase, "code");
+    assert.equal(controller.snapshot().issue, "invalid");
+    assert.equal(tokens.length, 0);
+    assert.equal(commits, 0);
+  }
+  assert.equal(await controller.verify(" \t00 12\n34\r "), "signed_in");
+  assert.deepEqual(tokens, ["001234"]);
+  assert.equal(commits, 1);
+  controller.dispose();
+});
+
 test("a verified candidate with uncertain commit can be explicitly reconciled without verifying or resending the code", async () => {
   let commits = 0; let verifies = 0;
   const controller = createEmailCodeAuthController({ contextUrl, transport: mockedTransport({ verify: async (email) => { verifies++; return { session: session(email), error: null }; }, commit: async (value) => { if (++commits === 1) throw new Error("Synthetic lost commit outcome"); return value; } }) });

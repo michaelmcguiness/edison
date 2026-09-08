@@ -161,7 +161,7 @@ test("actual form serializes duplicate sends and uses the same generic code step
     const duplicate = invoke(submit, { preventDefault() {} }); form.flush();
     assert.equal(sends, 1); assert.equal(form.primary().props.disabled, true);
     response.resolve(error); await Promise.all([first, duplicate]);
-    assert.match(form.copy(), /Enter your codeCheck your email for a sign-in code\./);
+    assert.match(form.copy(), /Enter your codeCheck your email for a six-digit sign-in code\./);
     assert.match(form.copy(), new RegExp(reader));
     assert.doesNotMatch(form.copy(), /Private membership detail|sent|not found|already a member/);
     assert.equal(form.focused.at(-1), "sign-in-code");
@@ -177,6 +177,10 @@ test("existing-code entry never sends, and pasted leading zeros verify only afte
   assert.equal(http.calls.verifies.length, 0, "paste/autofill cannot submit the form");
   assert.equal(form.input("sign-in-code").props.autoComplete, "one-time-code");
   assert.equal(form.input("sign-in-code").props.type, "text");
+  assert.equal(form.input("sign-in-code").props.inputMode, "numeric");
+  assert.equal(form.input("sign-in-code").props.pattern, "[0-9]{6}");
+  assert.equal(form.input("sign-in-code").props.value, "001204");
+  assert.equal(form.input("sign-in-code").props.maxLength, undefined, "native truncation must not hide a long paste/autofill value");
   await form.submit();
   assert.deepEqual(http.calls.verifies, [{ email: reader, token: "001204" }]);
   assert.equal(http.calls.commits, 1);
@@ -192,13 +196,47 @@ test("existing-code entry never sends, and pasted leading zeros verify only afte
 test("invalid code is an inline focused error and cannot trigger verification", async (t) => {
   const http = transport(); const form = formHarness({ hasCode: true }, http.service); t.after(form.dispose);
   form.change("email", reader); await form.submit();
-  for (const code of ["", "123", "abcd12"]) {
+  for (const code of ["", "123", "1234", "12345", "abcd12"]) {
     form.change("sign-in-code", code); await form.submit();
-    assert.match(form.copy(), /Enter the code from your email\./);
+    assert.match(form.copy(), /Enter the six-digit code from your email\./);
     assert.equal(form.message().props.role, "alert");
     assert.equal(form.focused.at(-1), "sign-in-code");
   }
   assert.equal(http.calls.verifies.length, 0);
+});
+
+test("older long paste or autofill clears the whole code and offers only explicit fresh-code recovery", async (t) => {
+  const http = transport(); const form = formHarness({ hasCode: true, returnPath: next, invitationId: invitation }, http.service); t.after(form.dispose);
+  form.change("email", reader); await form.submit();
+  for (const oldCode of ["1234567", "00123456", "0012345678", "00 12 34 56"]) {
+    form.change("sign-in-code", "001204");
+    form.change("sign-in-code", oldCode);
+    assert.equal(form.input("sign-in-code").props.value, "", "neither a truncated prefix nor a previous complete code survives");
+    assert.match(form.copy(), /Codes are now six digits\. Choose Resend code below to get a new one\./);
+    await form.submit();
+    assert.match(form.copy(), /Choose Resend code below/);
+    assert.equal(http.calls.verifies.length, 0); assert.equal(http.calls.sends.length, 0);
+    assert.equal(form.assigned.length, 0);
+  }
+  form.click("Resend code"); await form.settle();
+  assert.deepEqual(http.calls.sends, [reader]);
+  assert.doesNotMatch(form.copy(), /Codes are now six digits/);
+  assert.equal(form.button("Resend in 1:00").props.disabled, true);
+  form.change("sign-in-code", "000123");
+  assert.equal(http.calls.verifies.length, 0);
+  await form.submit();
+  assert.deepEqual(http.calls.verifies, [{ email: reader, token: "000123" }]);
+  assert.equal(new URL(form.assigned[0]).searchParams.get("next"), next);
+  assert.equal(new URL(form.assigned[0]).searchParams.get("invitation"), invitation);
+});
+
+test("overlong entry cannot bypass the existing resend countdown", async (t) => {
+  const http = transport(); const form = formHarness({}, http.service); t.after(form.dispose);
+  form.change("email", reader); await form.submit();
+  form.change("sign-in-code", "12345678"); await form.submit();
+  assert.match(form.copy(), /Choose Resend code below/);
+  assert.equal(form.button("Resend in 1:00").props.disabled, true);
+  assert.equal(http.calls.sends.length, 1); assert.equal(http.calls.verifies.length, 0);
 });
 
 test("resending preserves the code step and recipient, clears the prior code, and respects the countdown", async (t) => {

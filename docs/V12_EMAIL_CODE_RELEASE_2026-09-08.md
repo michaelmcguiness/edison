@@ -5,6 +5,38 @@ Status: live on edisonreader.com. Exact-source CI, bounded Design/browser checks
 web deployment and both hosted email-body persistence checks passed. Actual email
 delivery and a fresh hosted signed-in journey remain unverified.
 
+## D48 follow-up — six digits prepared, production correction blocked
+
+Michael requested a maximum of six digits after the v12 rollout. The bounded
+source correction requires exactly six numeric digits in both form submission
+and controller verification. Whole-value input handling rejects and clears long
+paste/autofill values rather than silently truncating them or retaining a previous
+complete code. Spaces normalize without losing leading zeros. Guidance explicitly
+offers Resend code for an older long code; the existing cooldown and uncertain
+sign-in status check still apply, with no automatic send or verification.
+
+All 738 web tests, including 34 focused controller/form cases, passed locally;
+owned lint, standalone TypeScript and the web production build passed. The two
+production files are `components/auth/login-form.tsx` and `lib/email-code-auth.ts`;
+their existing focused test files carry the regressions. No API, template, schema,
+SDK cookie transport or invitation-lifecycle implementation changed.
+
+The hosted Email provider UI showed OTP length **8** and expiration **3600 seconds**;
+local `supabase/config.toml` was already 6. CTO edited only the displayed length
+to 6, but normal approval review rejected Save before execution because this
+production Auth-setting authority was relayed. The unsaved edit was canceled
+and the owned settings tab closed. A subsequent coordination message was also
+rejected as an indirect workaround; both CTO and Chief of Staff stopped that
+provider handoff. CoS confirmed it had attempted no provider change. No alternate
+API, credential, settings route or production web deployment was used.
+
+The prepared strict-six web must not deploy until the actual hosted generator
+change is explicitly approved and independently reads back 6. TTL, policies,
+SMTP, templates, sessions and resend controls must remain unchanged. Older issued
+long codes are not to be shortened in the email or browser; readers can explicitly
+request a replacement when pacing permits. Chief of Staff owns the precise next
+approval request. The v12 deployment and historical receipt below remain live.
+
 ## Selected result
 
 Normal entry is email → Send code → one paste/autofill-friendly code field →

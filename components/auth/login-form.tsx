@@ -6,6 +6,8 @@ import { createEmailCodeAuthController, type EmailCodeSnapshot } from "@/lib/ema
 import { acceptanceDestination, readAuthReturn, readSignInRetryAt, rememberAuthReturn, signInCallbackUrl, signInRetryStorageKey } from "./invitation-entry-state";
 
 const emptyState: EmailCodeSnapshot = { email: "", phase: "email", issue: null, retryAt: 0 };
+const sixDigitMessage = "Enter the six-digit code from your email.";
+const longerCodeMessage = "Codes are now six digits. Choose Resend code below to get a new one.";
 const issueCopy = {
   invalid_email: "Enter a valid email address.",
   invalid: "That code didn’t work. Check it and try again.",
@@ -86,8 +88,9 @@ export function LoginForm({ returnPath = "/", authOrigin, invitationId, initialM
       return;
     }
     const token = code.replace(/\s/g, "");
-    if (!/^\d{4,10}$/.test(token)) {
-      setValidation("Enter the code from your email."); codeInput.current?.focus({ preventScroll: true }); return;
+    if (!/^\d{6}$/.test(token)) {
+      setValidation(validation === longerCodeMessage ? longerCodeMessage : sixDigitMessage);
+      codeInput.current?.focus({ preventScroll: true }); return;
     }
     setCheckedSignIn(false);
     if (await controller.current.verify(token) === "signed_in") continueReading();
@@ -99,6 +102,18 @@ export function LoginForm({ returnPath = "/", authOrigin, invitationId, initialM
     requestAnimationFrame(() => emailInput.current?.focus({ preventScroll: true }));
   }
 
+  function changeCode(raw: string) {
+    const token = raw.replace(/\s/g, "");
+    // Inspect the whole paste/autofill value. Native maxLength or slicing can
+    // silently turn an older eight-digit code into a different six-digit code.
+    if (!/^\d{0,6}$/.test(token)) {
+      setCode("");
+      setValidation(/^\d{7,}$/.test(token) ? longerCodeMessage : sixDigitMessage);
+      return;
+    }
+    setCode(token); setValidation("");
+  }
+
   async function resend() {
     if (working || remaining > 0 || (reconciling && !checkedSignIn)) return;
     setValidation(""); setNotice(""); setCode(""); setResending(true); setCheckedSignIn(false);
@@ -108,13 +123,13 @@ export function LoginForm({ returnPath = "/", authOrigin, invitationId, initialM
 
   return <>
     <h1>{codeStep ? "Enter your code" : "Sign in"}</h1>
-    <p className="email-code-intro">{codeStep ? "Check your email for a sign-in code." : hasCode ? "Enter your email to use the code you received." : "Enter your email to get a sign-in code."}</p>
+    <p className="email-code-intro">{codeStep ? "Check your email for a six-digit sign-in code." : hasCode ? "Enter your email to use the code you received." : "Enter your email to get a six-digit sign-in code."}</p>
     {codeStep ? <div className="email-code-recipient"><span>{state.email}</span><button className="email-code-link" type="button" disabled={state.phase === "committing" || state.phase === "signed_in"} onClick={changeEmail}>Change email</button></div> : null}
     <form className="email-code-form" onSubmit={submit} noValidate aria-busy={working}>
       <label htmlFor={codeStep ? "sign-in-code" : "email"}>{codeStep ? "Sign-in code" : "Email address"}</label>
       {codeStep ? <input ref={codeInput} id="sign-in-code" className="email-code-input email-code-input--code" type="text" inputMode="numeric"
         autoComplete="one-time-code" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={code}
-        onChange={(event) => { setCode(event.target.value); setValidation(""); }} placeholder="Enter code"
+        onChange={(event) => changeCode(event.target.value)} pattern="[0-9]{6}" placeholder="6-digit code"
         readOnly={working || reconciling} aria-invalid={Boolean(validation) || state.issue === "invalid" || state.issue === "expired"}
         aria-describedby={message ? "sign-in-message" : undefined} />
         : <input ref={emailInput} id="email" className="email-code-input" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" autoCorrect="off" spellCheck={false}
