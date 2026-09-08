@@ -18,8 +18,8 @@ select ok((select relrowsecurity and relforcerowsecurity from pg_catalog.pg_clas
   where oid = 'private.demand_usage'::regclass),
   'provider usage still enables and forces RLS');
 select results_eq(
-  $$select polname::text from pg_catalog.pg_policy where polrelid = 'private.demand_usage'::regclass order by polname$$,
-  $$values ('demand_usage_worker_insert'::text), ('demand_usage_worker_select'::text)$$,
+  $$select polname::text collate "C" from pg_catalog.pg_policy where polrelid = 'private.demand_usage'::regclass order by 1$$,
+  $$values ('demand_usage_worker_insert'::text collate "C"), ('demand_usage_worker_select'::text collate "C")$$,
   'only the original worker INSERT and SELECT usage policies exist');
 select ok(has_column_privilege('edison_demand_worker', 'private.demand_usage', 'observed_usage', 'select')
   and has_column_privilege('edison_demand_worker', 'private.demand_usage', 'observed_usage', 'insert')
