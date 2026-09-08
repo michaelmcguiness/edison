@@ -6,6 +6,31 @@ launching; they can change without a code release.
 
 ## Decision and current status
 
+### September 8 — prospective source-identity correction live
+
+API runtime `82ab41239f70b1d4f7a7a29c72fc2ad58e1fa5e3` is READY Production as
+`dpl_DjMLcg4iZXLfxjQ4CJhLmwngEnYE`, 19:08:53.823 UTC. Both source fields,
+the existing API project/alias and all three enabled cron bindings/cadences were
+verified. Web remains `905793eccd9b6957e5143a734841150d01d555b8` /
+`dpl_3pKmNEBhwS4rg7ZbHnMCqx3DYmVc`.
+[CI34266586975](https://github.com/michaelmcguiness/edison/actions/runs/34266586975)
+passed 792 web + 309 API tests = 1,101, zero failures/skips; 320 pgTAP assertions
+across 12 files, all seven DB proofs, builds/types/lint and all 29 steps.
+CTO public smoke passed 19:13:12.400 UTC: health/login 200, expected redirects,
+nonce CSP/private-no-store, cron 401 and apex CORS 204.
+
+Newly admitted article write/repair hints may bind only the unique actually
+observed Nobel URL differing solely in its literal `trk` value. Legacy requests,
+raw bills, protected acquisition and existing checks remain unchanged. The failed
+Marie Curie request stays terminal; no new generation or successful real article,
+quality or speed result is claimed. No mail, Auth, migration, Fast or budget
+change occurred. The undeployed/off Fast candidate must integrate this selector
+before release; its migration approval remains separate. D53 internal-only QA
+remains selected; the daily-body alternative is under reconsideration. No new
+delivery contract shipped in this patch.
+See the [release receipt](operations/SOURCE_PROVENANCE_REBINDING_RELEASE_2026-09-08.md)
+for exact host, verification limits and pinned-worker rollback compatibility.
+
 ### September 8 — D50 checker-format correction live
 
 API source `bd528f59145f0878351d665f444d945c8ebdaf31` is live as

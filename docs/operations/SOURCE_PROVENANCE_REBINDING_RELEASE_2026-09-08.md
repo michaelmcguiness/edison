@@ -51,12 +51,13 @@ writer/repair stage version binds this behavior into durable identity without
 changing the global prompt, model, provider instructions or schema. No historical
 failed request is rescued or rerun, and no additional model stage is introduced.
 
-## Candidate and acceptance
+## Released source and verification
 
-Prepared separately from live `3a526fad880bdb389b0560805ce96957898986cf` on
+Released runtime `82ab41239f70b1d4f7a7a29c72fc2ad58e1fa5e3` was prepared separately
+from the prior live `3a526fad880bdb389b0560805ce96957898986cf` on
 `codex/source-provenance-rebinding`. Fast, its unapplied migration, the separate
-Continue-button web fix and blocked strict-six D48 are excluded. API-only release
-must preserve existing addresses, schedules, budgets and all editorial checks.
+Continue-button web fix and blocked strict-six D48 are excluded. This API-only
+release preserves existing addresses, schedules, budgets and editorial checks.
 
 The integrated local suite passes1,101 tests, zero failures/skips; both standalone
 typechecks, full lint and diff checks pass. The23 new test groups cover unique/
@@ -84,14 +85,64 @@ Runtime freeze SHA256 receipts:
 - `apps/api/src/services/reader-first-pipeline.ts`: `66a4492dbafde72621ab3e9016e8764c7b23f796078cd3b8a1294f1468c20c80`
 - `apps/api/src/services/demand-discovery-contract.ts`: `9157651b75d96745a53f869cded5e723a7fa1852493dbb38e8a303254cda9291`
 
-Current status: implemented and locally verified; exact-source CI and API rollout
-remain. No real reader request has exercised the correction.
+### Exact-source CI
 
-After this API release, the separately prepared Fast candidate must incorporate
-this correction and pass integrated checks before deployment. Deploying its
+[CI34266586975](https://github.com/michaelmcguiness/edison/actions/runs/34266586975)
+passed for exact runtime `82ab41239f70b1d4f7a7a29c72fc2ad58e1fa5e3`:
+792 web plus 309 API tests = 1,101 application tests, zero failures or skips;
+320 pgTAP assertions across 12 files; all seven disposable-Postgres proofs;
+both builds, standalone typechecks, lint and schema checks. Both jobs and all
+29 steps succeeded with none skipped. Application completed at 19:05:54 UTC;
+database completed at 19:06:15 UTC on September 8. These are the final CI receipts,
+separate from the local/synthetic evidence above.
+
+### Production deployment and bounded smoke
+
+CTO verified the API deployment READY Production at **19:08:53.823 UTC** on
+September 8 (Vercel ready epoch `1788894533823`):
+
+- Deployment: `dpl_DjMLcg4iZXLfxjQ4CJhLmwngEnYE`.
+- Host: `edison-i78oa7tkz-mike-michaelmcguis-projects.vercel.app`.
+- Existing API project: `prj_BDlcI2KFhFawilRiMDvloXcOLnsd`.
+- Both deployment source fields match exact runtime
+  `82ab41239f70b1d4f7a7a29c72fc2ad58e1fa5e3`; the retained public API alias is
+  `project-fjr95.vercel.app`.
+- All three enabled crons are bound to the new API host/deployment, with unchanged
+  paths/cadences: feed-command and generation-job reconciliation every five
+  minutes; daily-edition scheduling at minute 5 of each hour.
+- Web is unchanged at `905793eccd9b6957e5143a734841150d01d555b8`,
+  `dpl_3pKmNEBhwS4rg7ZbHnMCqx3DYmVc`, on the existing apex/www addresses.
+
+CTO's public read-only smoke at **19:13:12.400 UTC** returned API health 200 with
+all checks OK; login 200 with nonce-based CSP and private/no-store caching;
+apex 307 to login; www 308 to apex; unauthenticated requests to all three cron
+routes 401; and the apex-origin API CORS preflight 204. These deployment/smoke
+results are CTO-supplied release evidence; this docs closeout made no hosted calls.
+
+Current status: **API release live at the exact source above**. No authenticated
+post-release article or latency verification was performed for this release.
+The existing failed Marie Curie request remains terminal and was not rescued,
+rerun or edited. No new generation, mail, Auth/provider-policy change, migration
+or Fast activation accompanied this release. Existing $10/day and $40/month
+service-spend caps are unchanged; successful synthetic acceptance and public
+health do not establish real article quality, retrievability or speed.
+
+## Separate follow-up contracts and rollback
+
+The separately prepared Fast candidate at
+`712fe7611ef3de9e72a49a61bfe617207b1cdaf7` remains off and undeployed; its additive
+observed-usage migration still awaits explicit hosted approval. It must incorporate
+this now-live correction and pass integrated checks before deployment. Deploying its
 older live3a-based source would omit the new discovery selector handling. Do not
 roll back to a pre-selector worker while admitted selected work could still run;
 preserve its pinned semantics. No Fast activation is included in this release.
+
+D53's internal-only sampled editorial QA remains selected. Michael is
+reconsidering the daily-body alternative; that build is paused pending the
+architecture decision. No new delivery contract shipped in this patch. Future
+implementation must preserve old admitted contracts; this receipt does not turn
+this release's retained checker/repair behavior into a requirement for new D53
+work or claim that a future delivery model is already live.
 
 The engineering-delivery and editorial-review workflows keep this correction
 prospective and source-honest. Automated fixture acceptance is not a claim that
