@@ -2,8 +2,7 @@
 
 import { useId, type ReactNode } from "react";
 import { Bookmark, LoaderCircle, RefreshCw } from "lucide-react";
-import { isDemandArtAvailable, type DemandIdea } from "@edison/contracts";
-import { DemandArticleArt } from "./art";
+import type { DemandIdea } from "@edison/contracts";
 
 export function ArticleCard({ idea, eyebrow, action, saving, onOpen, onSave }: {
   idea: DemandIdea; eyebrow?: string; action: string; saving: boolean;
@@ -12,7 +11,6 @@ export function ArticleCard({ idea, eyebrow, action, saving, onOpen, onSave }: {
   const titleId = useId();
   return <article className="demand-idea-card demand-article-card" data-idea-id={idea.id}>
     <button type="button" className="demand-idea-open-target" aria-label={`${action}: ${idea.title}`} onClick={onOpen} />
-    {isDemandArtAvailable(idea.art) ? <div className="demand-card-art"><DemandArticleArt descriptor={idea.art} /></div> : null}
     <div className="demand-idea-copy">
       {eyebrow ? <p className="demand-card-kicker">{eyebrow}</p> : null}
       <h2 id={titleId}>{idea.title}</h2><p>{idea.deck}</p>

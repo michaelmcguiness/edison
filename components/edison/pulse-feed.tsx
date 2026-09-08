@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useId, type CSSProperties, type ReactNode } from "react";
 import type { ArticleCard } from "@edison/contracts";
 import { ArrowRight, Bookmark } from "lucide-react";
@@ -80,7 +79,7 @@ function PulseArticleCard({
 
   return (
     <article
-      className={`pulse-card${artwork ? "" : " pulse-card--without-art"}`}
+      className="pulse-card pulse-card--without-art"
       style={style}
       data-article-id={article.id}
     >
@@ -90,18 +89,6 @@ function PulseArticleCard({
         aria-labelledby={titleId}
         onClick={() => void onOpenArticle(article)}
       />
-
-      {artwork ? (
-        <div className="pulse-card-art">
-          <Image
-            src={artwork.src}
-            alt={artwork.alt}
-            width={artwork.width ?? 1254}
-            height={artwork.height ?? 1254}
-            sizes="(max-width: 600px) calc(100vw - 40px), (max-width: 1040px) calc(50vw - 55px), 465px"
-          />
-        </div>
-      ) : null}
 
       <div className="pulse-card-copy">
         <ArticleMeta article={article} />

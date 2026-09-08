@@ -83,16 +83,18 @@ test("Pulse shell keeps a long active loop visible instead of burying it in More
   assert.match(html, />More</);
 });
 
-test("Pulse feed keeps an intentional no-art fallback for unmatched identities", () => {
+test("Pulse feed keeps text cards and their actions with retained artwork metadata", () => {
   const [withoutArt] = makeDemoStories("2026-09-05T12:00:00.000Z");
   const html = renderToStaticMarkup(createElement(PulseFeed, {
     articles: [withoutArt],
     intro: "One readable story.",
+    artworkByArticleId: { [withoutArt.id]: PULSE_SLEEP_ARTWORK },
     onOpenArticle: noop,
     onToggleSave: noop,
   }));
 
   assert.equal((html.match(/pulse-card--without-art/g) ?? []).length, 1);
+  assert.doesNotMatch(html, /<img|pulse-card-art/);
   assert.match(html, /class="pulse-card-open-target"[^>]*aria-labelledby=/);
   assert.match(html, /<h2 id="[^"]+">/);
   assert.match(html, /aria-label="Save to Library:/);

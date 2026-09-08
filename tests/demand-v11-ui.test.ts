@@ -82,8 +82,9 @@ test("article card retains distinct real Save action and no fabricated art or ar
   assert.match(plain, /aria-label="Save article: Stored article 2"/);
   assert.doesNotMatch(plain, /<svg[^>]*data-editorial-art|Article idea|Checking art|readingMinutes| min/);
   const artistic = renderToStaticMarkup(createElement(ArticleCard, { idea: { ...idea(2), art: { version: 1, composition: "living-system", palette: "sage", variant: 0 } }, action: "Read article", saving: false, onOpen: noop, onSave: noop }));
-  assert.match(artistic, /data-editorial-art="living-system"/);
-  assert.match(artistic, /aria-hidden="true"/);
+  assert.doesNotMatch(artistic, /data-editorial-art|demand-card-art/);
+  assert.match(artistic, /aria-label="Read article: Stored article 2"/);
+  assert.match(artistic, /aria-label="Save article: Stored article 2"/);
 });
 
 test("refresh does not reinterpret the original article set on Next or reload", () => {
