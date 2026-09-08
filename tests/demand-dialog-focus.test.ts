@@ -138,6 +138,6 @@ test("reader restores Curate and Account allowance only through the modal lifecy
   assert.equal(dialogs.get("AllowanceWall")!.get("onClose"), "{closeActionOverlay}");
   assert.match(dialogs.get("AllowanceWall")!.get("onRestoreFocus")!, /restoreDemandDialogFocus\(allowanceOpenerRef.current, readingSurfaceRef.current\)/);
   const popstate = source.slice(source.indexOf("const onPopState = () =>"), source.indexOf("const intent = ++navigationIntentRef.current", source.indexOf("const onPopState = () =>")));
-  assert.match(popstate, /setAllowanceOpen\(false\)/);
+  assert.match(popstate, /consumeDemandActionOverlayPop\(actionOverlayRef.current, window.history, window.location.href, setAllowanceOpen\)/);
   assert.doesNotMatch(popstate, /restoreDemandDialogFocus|requestAnimationFrame/);
 });

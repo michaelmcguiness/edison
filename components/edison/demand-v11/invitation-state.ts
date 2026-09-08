@@ -9,7 +9,7 @@ export type InvitationClient = {
 
 export type InvitationAttempt = { key: string; kind: "send" | "resend" | "revoke"; email: string; invitationId: string | null };
 export function invitationStateLabel(status: DemandInvitation["status"]) {
-  return { pending: "Confirming send…", sending: "Confirming send…", sent: "Pending", failed: "Not sent", expired: "Expired", revoked: "Revoked", redeemed: "Accepted" }[status];
+  return { pending: "Delivery unconfirmed", sending: "Confirming send…", sent: "Pending", failed: "Not sent", expired: "Expired", revoked: "Revoked", redeemed: "Accepted" }[status];
 }
 export function validInvitationAttempt(value: unknown): value is InvitationAttempt {
   if (!value || typeof value !== "object") return false;

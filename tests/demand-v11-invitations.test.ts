@@ -31,7 +31,7 @@ function clientWithCalls(calls: unknown[]): InvitationClient {
 }
 
 test("invitation status labels distinguish admission, delivery, and acceptance", () => {
-  assert.deepEqual(["pending", "sending", "sent", "failed", "expired", "revoked", "redeemed"].map((status) => invitationStateLabel(status as typeof invitation.status)), ["Confirming send…", "Confirming send…", "Pending", "Not sent", "Expired", "Revoked", "Accepted"]);
+  assert.deepEqual(["pending", "sending", "sent", "failed", "expired", "revoked", "redeemed"].map((status) => invitationStateLabel(status as typeof invitation.status)), ["Delivery unconfirmed", "Confirming send…", "Pending", "Not sent", "Expired", "Revoked", "Accepted"]);
 });
 
 test("normalized invitation form action prioritizes unresolved attempts, then known active recipients", () => {
@@ -41,6 +41,7 @@ test("normalized invitation form action prioritizes unresolved attempts, then kn
     const action = invitationSubmitAction(email, [{ ...invitation, status }], null);
     assert.equal(action.kind, "resend");
     assert.equal(action.invitation?.id, invitation.id);
+    if (status === "pending") assert.equal(invitationStateLabel(status), "Delivery unconfirmed", "manual resend readiness must not imply an active delivery check");
   }
   for (const status of ["expired", "revoked", "failed", "redeemed"] as const) {
     assert.equal(invitationSubmitAction(email, [{ ...invitation, status }], null).kind, "send");

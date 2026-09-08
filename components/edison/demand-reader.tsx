@@ -38,6 +38,7 @@ import { acceptedIdeaArrival, articlePreparationLabel, type LoopEditDraft } from
 import { ArticleCard, ArticleFeedToolbar } from "@/components/edison/demand-v11/feed";
 import { ReaderAccount } from "@/components/edison/demand-v11/account";
 import { AllowanceWall } from "@/components/edison/demand-v11/allowance-wall";
+import { closeDemandActionOverlay, consumeDemandActionOverlayPop, initialDemandActionOverlay, openDemandActionOverlay } from "@/components/edison/demand-v11/action-overlay";
 import { articleBalance, currentReadingArticles, nextArticleCount } from "@/components/edison/demand-v11/state";
 import { readReadingSet, readingSetMatches, sameReadingSet, storeReadingSet, type ReadingSet } from "@/components/edison/demand-v11/reading-origin";
 import { loopProjection, mergeLoopPage, offWindowPendingLoops, recoverCreatedLoop } from "@/components/edison/demand-v11/loop-pages";
@@ -653,7 +654,7 @@ export function DemandReader({
   const [allowanceStatus, setAllowanceStatus] = useState("");
   const [hasPendingReset, setHasPendingReset] = useState(false);
   const [accountSection, setAccountSection] = useState<"profile" | "usage">("profile");
-  const actionOverlayRef = useRef<"allowance" | null>(null);
+  const actionOverlayRef = useRef(initialDemandActionOverlay());
   const allowanceOpenerRef = useRef<HTMLElement | null>(null);
   const accountReturn = useRef<{ view: DemandView; loopId: string; scrollY: number } | null>(null);
   const requestedBatches = useRef(new Map<string, { ids: Set<string>; previousRequestId: string | null; requestId?: string; previousFailureTime?: string }>());
@@ -717,6 +718,9 @@ export function DemandReader({
       setReturnTarget(null);
       setLoopPages(null);
       setReadingSet(null); readingSetRef.current = null; setRetainedFeedSet(null); setAllowanceOpen(false);
+      actionOverlayRef.current.kind = null;
+      actionOverlayRef.current.entryId = null;
+      actionOverlayRef.current.returnLocation = null;
       setFeedbackDraft("");
       setFeedbackRequestId(null);
       setCurateLoopId(null);
@@ -988,7 +992,7 @@ export function DemandReader({
   useEffect(() => {
     if (!workspace) return;
     const onPopState = () => {
-      if (actionOverlayRef.current) { actionOverlayRef.current = null; setAllowanceOpen(false); return; }
+      if (consumeDemandActionOverlayPop(actionOverlayRef.current, window.history, window.location.href, setAllowanceOpen)) return;
       const intent = ++navigationIntentRef.current;
       setAskOpen(false); setShareOpen(false); setCurateOpen(false);
       const selection = parseDemandRoute(window.location.pathname, window.location.search);
@@ -1279,13 +1283,10 @@ export function DemandReader({
   function openAccountUsage() { openWorkspaceView("profile"); setAccountSection("usage"); }
   function showActionOverlay(kind: "allowance") {
     allowanceOpenerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    if (!actionOverlayRef.current) window.history.pushState({ ...window.history.state, demandActionOverlay: true }, "", window.location.href);
-    actionOverlayRef.current = kind;
-    setAllowanceOpen(true);
+    openDemandActionOverlay(actionOverlayRef.current, kind, window.history, window.location.href, setAllowanceOpen);
   }
   function closeActionOverlay() {
-    if (actionOverlayRef.current && window.history.state?.demandActionOverlay) window.history.back();
-    else { actionOverlayRef.current = null; setAllowanceOpen(false); }
+    closeDemandActionOverlay(actionOverlayRef.current, window.history, setAllowanceOpen);
   }
 
   function gateArticleAction() {
