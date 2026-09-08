@@ -29,16 +29,26 @@ function compiled(file:URL,imports:Record<string,unknown>) {
 }
 function route(options:{active?:boolean;invalidToken?:boolean;previewState?:string}={}) {
   const calls:Call[]=[];
+  const connectionEvents:string[]=[];
+  let membershipConnectionHeld=false;
   const verifyAccessToken=async(authorization:unknown,input:unknown)=>{
     calls.push({name:"verify",args:[authorization,input]});
     assert.deepEqual(plain(input),{demand:true});
     if(authorization!==token||options.invalidToken)throw new HttpError(401,"invalid_token","Sign in with a verified account.");
     return {sub:actor,email:"member@example.test",role:"authenticated"};
   };
-  const withActiveMember=async(claims:{sub:string},callback:()=>Promise<Response>)=>{
+  const withActiveMember=async(claims:{sub:string},callback:()=>Promise<unknown>)=>{
     calls.push({name:"membership",args:[claims]});assert.equal(claims.sub,actor);
     if(options.active===false)throw new HttpError(403,"alpha_access_required","An invitation is required.");
-    return callback();
+    membershipConnectionHeld=true;connectionEvents.push("membership:begin");
+    try { return await callback(); }
+    finally { membershipConnectionHeld=false;connectionEvents.push("membership:release"); }
+  };
+  // Model postgres.js max:1 transaction ownership without waiting forever for
+  // a nested acquisition. Service transactions must begin after the gate ends.
+  const workerConnection=(operation:string)=>{
+    assert.equal(membershipConnectionHeld,false,"worker transaction cannot acquire the sole connection while membership owns it");
+    connectionEvents.push(`${operation}:begin`);
   };
   const http=compiled(new URL("../http/api-handler.ts",import.meta.url),{
     "./errors":{HttpError,toHttpError},"../auth/verify-access-token":{verifyAccessToken},"../services/members":{withActiveMember},
@@ -49,9 +59,9 @@ function route(options:{active?:boolean;invalidToken?:boolean;previewState?:stri
   const services={
     previewDemandInvitation:async(...args:unknown[])=>{calls.push({name:"preview",args});return {state:options.previewState??"available",maskedEmail:"r***@example.test"};},
     redeemDemandInvitation:async(...args:unknown[])=>{calls.push({name:"redeem",args});return {invitationId,admitted:true,replayed:false};},
-    listDemandInvitations:async(...args:unknown[])=>{calls.push({name:"list",args});return {limit:5,redeemed:0,reserved:1,remaining:4,invitations:[snapshot]};},
+    listDemandInvitations:async(...args:unknown[])=>{workerConnection("list");calls.push({name:"list",args});return {limit:5,redeemed:0,reserved:1,remaining:4,invitations:[snapshot]};},
     ...Object.fromEntries(["create","resend","revoke"].map(name=>[`${name}DemandInvitation`,async(...args:unknown[])=>{
-      calls.push({name,args});return {invitation:snapshot,replayed:false,delivery:name==="revoke"?"not_attempted":"sent"};
+      workerConnection(name);calls.push({name,args});return {invitation:snapshot,replayed:false,delivery:name==="revoke"?"not_attempted":"sent"};
     }])),
   };
   const forbidden=new Proxy({}, {get:(_target,name)=>()=>{throw new Error(`Unrelated service must not run: ${String(name)}`);}});
@@ -76,7 +86,7 @@ function route(options:{active?:boolean;invalidToken?:boolean;previewState?:stri
     const handler=(method==="OPTIONS"?app.OPTIONS:method==="POST"?app.POST:method==="PUT"?app.PUT:app.GET) as Handler;
     return handler(req,{params:Promise.resolve({path})});
   }
-  return {calls,request};
+  return {calls,connectionEvents,request};
 }
 const action={idempotencyKey:"constructed-operation"};
 const names=(calls:Call[])=>calls.map(call=>call.name);
@@ -124,13 +134,14 @@ test("redemption uses verified subject before active membership, allowing only t
   assert.deepEqual(names(anonymous.calls),["verify"]);
 });
 
-test("list/create/resend/revoke require both verified identity and active membership before the service",async()=>{
+test("single-connection list/create/resend/revoke release the verified membership gate before the worker service",async()=>{
   for(const operation of ["list","create","resend","revoke"] as const){
     const path=operation==="list"||operation==="create"?["invitations"]:["invitations",invitationId,operation];
     const input={method:operation==="list"?"GET":"POST",...(operation==="list"?{}:{body:operation==="create"?{...action,email:"  RECIPIENT@example.test  "}:action})};
     const inactive=route({active:false});assert.equal((await inactive.request(path,input)).status,403);assert.deepEqual(names(inactive.calls),["verify","membership"]);
     const anonymous=route();assert.equal((await anonymous.request(path,{...input,auth:null})).status,401);assert.deepEqual(names(anonymous.calls),["verify"]);
     const active=route();const response=await active.request(path,input);assert.equal(response.status,200);assert.deepEqual(names(active.calls),["verify","membership",operation]);
+    assert.deepEqual(active.connectionEvents,["membership:begin","membership:release",`${operation}:begin`]);
     const args=active.calls[2].args;assert.equal(args[0],actor);
     if(operation==="create")assert.deepEqual(plain(args[1]),{...action,email:"recipient@example.test"});
     else if(operation!=="list")assert.deepEqual(plain(args.slice(1)),[invitationId,action]);

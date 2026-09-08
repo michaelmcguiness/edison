@@ -10,6 +10,7 @@ async function handle(request: Request, context: { params: Promise<{ path: strin
     apiUrl: process.env.NEXT_PUBLIC_API_URL,
     enabled: process.env.EDISON_ON_DEMAND_ENABLED === "true",
     production: process.env.NODE_ENV === "production",
+    onUpstreamFailure: (failure) => { console.warn(JSON.stringify(failure)); },
     ...(process.env.EDISON_DEMAND_TRUSTED_SOURCE_ENABLED === "true" ? {
       trustedSource: {
         apiUrl: process.env.EDISON_DEMAND_PROTECTED_API_URL,

@@ -215,6 +215,9 @@ export async function memberApiHandler(request: Request, handler: ApiHandler) {
   return publicApiHandler(request, async ({ requestId }) => {
     if (request.method === "OPTIONS") return new Response(null, { status: 204 });
     const claims = await verifyAccessToken(request.headers.get("authorization"), { demand: true });
-    return withActiveMember(claims, async () => handler({ claims, requestId }));
+    // This actor-only handler does not receive the membership transaction. End
+    // the gate before a content read needs the same single-connection pool.
+    await withActiveMember(claims, async () => undefined);
+    return handler({ claims, requestId });
   });
 }

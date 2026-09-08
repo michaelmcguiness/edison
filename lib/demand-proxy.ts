@@ -17,8 +17,19 @@ function fail(status: number, code: string, message: string) {
   return Response.json({ error: { code, message } }, { status, headers: { "Cache-Control": "no-store" } });
 }
 
+export type DemandProxyFailure = {
+  event: "demand_proxy_failure";
+  method: string;
+  route: string;
+  elapsedMs: number;
+  phase: "upstream_fetch" | "session_response";
+  failure: "timeout" | "aborted" | "network" | "invalid_response" | "upstream_error" | "unknown";
+  upstreamStatus: number | null;
+};
+
 export async function proxyDemandRequest(request: Request, path: string, options: {
   apiUrl?: string; enabled: boolean; production: boolean; fetcher?: typeof fetch;
+  onUpstreamFailure?: (failure: DemandProxyFailure) => void;
   // Server-only opt-in: the separately configured exact URL must match the
   // existing fixed API target. A caller cannot choose the recipient or token.
   trustedSource?: { apiUrl?: string; getToken: () => Promise<string> };
@@ -124,13 +135,29 @@ export async function proxyDemandRequest(request: Request, path: string, options
       return fail(503, "protected_api_identity_unavailable", "The protected reading connection is unavailable. Please try again.");
     }
   }
+  const startedAt = performance.now();
+  let phase: DemandProxyFailure["phase"] = "upstream_fetch";
+  let upstreamStatus: number | null = null;
+  const reportFailure = (failure: DemandProxyFailure["failure"]) => {
+    // Vercel attaches this event to the originating request log. Do not log
+    // incoming headers, URL queries, bodies, identities, or caught error text.
+    // Even the allowlisted resource UUID is replaced with a route placeholder.
+    try {
+      options.onUpstreamFailure?.({ event: "demand_proxy_failure", method: request.method,
+        route: path.replace(new RegExp(UUID, "g"), ":id"),
+        elapsedMs: Math.max(0, Math.round(performance.now() - startedAt)), phase, failure, upstreamStatus });
+    } catch { /* Diagnostics must never change the reader's response. */ }
+  };
   try {
     const response = await (options.fetcher ?? fetch)(`${base.href.replace(/\/$/, "")}/demand/${path}${ownUrl.search}`, {
       method: request.method, headers, body, cache: "no-store", redirect: "error", signal: AbortSignal.timeout(25_000),
     });
+    upstreamStatus = response.status;
+    if (response.status >= 500) reportFailure("upstream_error");
     // Never forward upstream cookies, arbitrary headers, or a raw guest token.
     const outputHeaders = new Headers({ "Cache-Control": "no-store", "Content-Type": "application/json", "X-Content-Type-Options": "nosniff" });
     if (path === "session" && response.ok) {
+      phase = "session_response";
       const payload = await response.json() as { workspace?: unknown; newGuestToken?: unknown };
       const workspace = demandWorkspaceSchema.parse(payload.workspace);
       if (continueWithAccount && workspace.readerKind !== "account") throw new Error("invalid_session_response");
@@ -146,5 +173,10 @@ export async function proxyDemandRequest(request: Request, path: string, options
       return Response.json({ workspace }, { status: response.status, headers: outputHeaders });
     }
     return new Response(response.body, { status: response.status, headers: outputHeaders });
-  } catch { return fail(502, "reading_service_unavailable", "The reading service did not respond. Your saved reading is safe; try again."); }
+  } catch (error) {
+    const name = error instanceof Error ? error.name : "";
+    reportFailure(name === "TimeoutError" ? "timeout" : name === "AbortError" ? "aborted" :
+      phase === "session_response" ? "invalid_response" : name === "TypeError" ? "network" : "unknown");
+    return fail(502, "reading_service_unavailable", "The reading service did not respond. Your saved reading is safe; try again.");
+  }
 }

@@ -102,13 +102,14 @@ async function handleDemandRoute(request: Request, context: RouteContext) {
       // Redemption is the sole verified-but-not-yet-member mutation. The
       // transaction checks the exact recipient email and invitation itself.
       if (redeem) return json(demandInvitationRedemptionSchema.parse(await redeemDemandInvitation(claims.sub, path[1], demandInvitationActionSchema.parse(await parsedBody(request)))), { headers });
-      return withActiveMember(claims, async () => {
-        if (list) return json(demandInvitationsSchema.parse(await listDemandInvitations(claims.sub)), { headers });
-        const result = create ? await createDemandInvitation(claims.sub, createDemandInvitationSchema.parse(await parsedBody(request)))
-          : resend ? await resendDemandInvitation(claims.sub, path[1], demandInvitationActionSchema.parse(await parsedBody(request)))
-            : await revokeDemandInvitation(claims.sub, path[1], demandInvitationActionSchema.parse(await parsedBody(request)));
-        return json(demandInvitationMutationSchema.parse(result), { headers });
-      });
+      // These services open their own worker transactions and recheck the active
+      // actor there. Release this gate's sole pooled connection before calling them.
+      await withActiveMember(claims, async () => undefined);
+      if (list) return json(demandInvitationsSchema.parse(await listDemandInvitations(claims.sub)), { headers });
+      const result = create ? await createDemandInvitation(claims.sub, createDemandInvitationSchema.parse(await parsedBody(request)))
+        : resend ? await resendDemandInvitation(claims.sub, path[1], demandInvitationActionSchema.parse(await parsedBody(request)))
+          : await revokeDemandInvitation(claims.sub, path[1], demandInvitationActionSchema.parse(await parsedBody(request)));
+      return json(demandInvitationMutationSchema.parse(result), { headers });
     }
     const route = matchDemandRoute(request.method, path);
     if (!route) {

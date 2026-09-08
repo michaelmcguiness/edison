@@ -224,22 +224,64 @@ test("membership and acceptance use validated API outcomes, not browser claims",
   assert.equal((await leaked.readInvitationAcceptance(id(1))).state, "unconfirmed");
 });
 
-test("previously public content handler requires verified invited membership before invoking content", async () => {
+test("single-connection content handler releases verified membership before invoking its own database read", async () => {
   for (const allowed of ["anonymous", "uninvited", "member"]) {
     const calls: string[] = [];
+    const connectionEvents: string[] = [];
+    let membershipConnectionHeld = false;
     const compiled = compile("apps/api/src/http/api-handler.ts", {
       "./errors": { HttpError, toHttpError }, "../observability/safe-error": { safeCaughtErrorMetadata: () => ({}) },
       "../auth/verify-access-token": { verifyAccessToken: async (_value: unknown, options: { demand?: boolean }) => {
         calls.push("verify"); assert.equal(options.demand, true); if (allowed === "anonymous") throw new HttpError(401, "missing_token", "Sign in"); return { sub: id(1) };
-      } }, "../services/members": { withActiveMember: async (_claims: unknown, callback: () => Promise<Response>) => {
-        calls.push("membership"); if (allowed === "uninvited") throw new HttpError(403, "alpha_access_required", "Invite required"); return callback();
+      } }, "../services/members": { withActiveMember: async (_claims: unknown, callback: () => Promise<unknown>) => {
+        calls.push("membership"); if (allowed === "uninvited") throw new HttpError(403, "alpha_access_required", "Invite required");
+        membershipConnectionHeld = true; connectionEvents.push("membership:begin");
+        try { return await callback(); }
+        finally { membershipConnectionHeld = false; connectionEvents.push("membership:release"); }
       } },
     });
     const handle = compiled.memberApiHandler as (request: Request, handler: () => Promise<Response>) => Promise<Response>;
-    const response = await handle(new Request("https://api.edison.test/v1/public/demand-shares/constructed"), async () => { calls.push("content"); return Response.json({ body: "member-only" }); });
+    const response = await handle(new Request("https://api.edison.test/v1/public/demand-shares/constructed"), async () => {
+      // Fail deterministically instead of queueing indefinitely behind the
+      // membership transaction in the production max:1 connection pool.
+      assert.equal(membershipConnectionHeld, false, "content cannot acquire the sole connection while membership owns it");
+      connectionEvents.push("content:begin"); calls.push("content"); return Response.json({ body: "member-only" });
+    });
     assert.equal(response.status, allowed === "member" ? 200 : allowed === "anonymous" ? 401 : 403);
     assert.equal(calls.includes("content"), allowed === "member");
+    assert.deepEqual(connectionEvents, allowed === "member" ? ["membership:begin", "membership:release", "content:begin"] : []);
+    const callsBeforeOptions = [...calls];
     assert.equal((await handle(new Request("https://api.edison.test/v1/public", { method: "OPTIONS" }), async () => { throw new Error("must not run"); })).status, 204);
+    assert.deepEqual(calls, callsBeforeOptions, "OPTIONS does not verify identity, check membership, or invoke content");
+  }
+});
+
+test("transaction-consuming membership callbacks retain the original transaction and denied members never enter them", async () => {
+  for (const active of [true, false]) {
+    let connectionHeld = false, entered = false;
+    const profile = { id: id(1) };
+    const transaction = {
+      select: () => transaction, from: () => transaction, innerJoin: () => transaction, where: () => transaction,
+      limit: async () => active ? [{ profile, membership: { status: "active" } }] : [],
+    };
+    const members = compile("apps/api/src/services/members.ts", {
+      "drizzle-orm": { and: (...values: unknown[]) => values, eq: (...values: unknown[]) => values },
+      "@edison/db": { profiles: { id: "profile-id" }, alphaMemberships: { userId: "member-id", status: "status" },
+        withUserDb: async (claims: { sub: string }, callback: (tx: typeof transaction) => Promise<unknown>) => {
+          assert.equal(claims.sub, id(1)); connectionHeld = true;
+          try { return await callback(transaction); }
+          finally { connectionHeld = false; }
+        } },
+      "../http/errors": { HttpError },
+    });
+    const withMember = members.withActiveMember as (claims: { sub: string }, callback: (input: { transaction: typeof transaction; profile: typeof profile }) => Promise<number>) => Promise<number>;
+    const result = withMember({ sub: id(1) }, async (input) => {
+      entered = true; assert.equal(connectionHeld, true); assert.equal(input.transaction, transaction); assert.equal(input.profile, profile);
+      return 42;
+    });
+    if (active) assert.equal(await result, 42);
+    else await assert.rejects(result, (error: unknown) => error instanceof HttpError && error.status === 403);
+    assert.equal(entered, active); assert.equal(connectionHeld, false);
   }
 });
 

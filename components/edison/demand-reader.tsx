@@ -43,6 +43,7 @@ import { articleBalance, currentReadingArticles, nextArticleCount } from "@/comp
 import { readReadingSet, readingSetMatches, sameReadingSet, storeReadingSet, type ReadingSet } from "@/components/edison/demand-v11/reading-origin";
 import { loopProjection, mergeLoopPage, offWindowPendingLoops, recoverCreatedLoop } from "@/components/edison/demand-v11/loop-pages";
 import { validResetAttempt } from "@/components/edison/demand-v11/reset-state";
+import { ambiguousArticleAdmission, reconcileArticleAdmission } from "@/components/edison/demand-v13/article-admission-reconciliation";
 import { availableDemandOrigin, demandRouteHref, navigationForSelection, parseDemandNavigation, parseDemandRoute, readDemandRouteSelection, readyRouteHistoryMode, resolveDemandOrigin,
   type DemandNavigation, type DemandOrigin, type DemandRouteSelection } from "@/components/edison/demand-v10/route-continuity";
 import { EdisonMark } from "@/components/edison/brand";
@@ -147,6 +148,7 @@ type ClientAttempt = {
   fingerprint: string;
   idempotencyKey: string;
   inFlight: boolean;
+  uncertain?: boolean;
 };
 
 function idempotencyKey(prefix: string) {
@@ -289,7 +291,10 @@ function readStoredAttempt(kind: "feedback" | "question" | "article" | "ideas" |
     if (typeof value.fingerprint !== "string" || value.fingerprint.length > 1_600 ||
         typeof value.idempotencyKey !== "string" ||
         !/^[A-Za-z0-9._:-]{8,128}$/.test(value.idempotencyKey)) return null;
-    return { fingerprint: value.fingerprint, idempotencyKey: value.idempotencyKey, inFlight: false };
+    return { fingerprint: value.fingerprint, idempotencyKey: value.idempotencyKey, inFlight: false,
+      // Older article attempts predate outcome tracking. Never interpret that
+      // absence as permission to commission again; reconcile them with reads.
+      ...(kind === "article" ? { uncertain: value.uncertain !== false } : {}) };
   } catch {
     return null;
   }
@@ -306,6 +311,7 @@ function writeStoredAttempt(
       localStorage.setItem(key, JSON.stringify({
         fingerprint: attempt.fingerprint,
         idempotencyKey: attempt.idempotencyKey,
+        ...(kind === "article" ? { uncertain: Boolean(attempt.uncertain) } : {}),
       }));
     } else {
       localStorage.removeItem(key);
@@ -679,6 +685,12 @@ export function DemandReader({
   const feedbackAttemptRefs = useRef(new Map<string, ClientAttempt>());
   const ideasAttemptRefs = useRef(new Map<string, ClientAttempt>());
   const articleAttemptRefs = useRef(new Map<string, ClientAttempt>());
+  const [admissionRecoveryNonce, setAdmissionRecoveryNonce] = useState(0);
+  const [retryableAdmission, setRetryableAdmission] = useState<{ workspaceId: string; ideaId: string; idempotencyKey: string; intent: number } | null>(null);
+  const retryableAdmissionRef = useRef<typeof retryableAdmission>(null);
+  const admissionErrorRef = useRef<{ workspaceId: string; ideaId: string; message: string } | null>(null);
+  const mountedRef = useRef(true);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
   const retryingRequestIds = useRef(new Set<string>());
   const savingIdeaIds = useRef(new Set<string>());
   const readingSurfaceRef = useRef<HTMLElement | null>(null);
@@ -731,6 +743,8 @@ export function DemandReader({
       setCreateDraft("");
       setPageError("");
       setIdeaRecoveryErrors(new Map());
+      articleAttemptRefs.current.clear(); admissionErrorRef.current = null;
+      retryableAdmissionRef.current = null; setRetryableAdmission(null);
       articlePositionRef.current = 0;
       readingPositionsRef.current = restoreDemandReadingPositions(null, next.workspaceId);
       restoringArticleRef.current = null;
@@ -1081,6 +1095,79 @@ export function DemandReader({
   const selectedRequest = readingRecords.requests.find(({ id }) => id === selectedRequestId);
   const selectedRequestStatus = selectedRequest?.status;
   const selectedRequestIdeaId = selectedRequest?.ideaId;
+  const canonicalArticleRequestId = readingRecords.ideas.find(({ id }) => id === selectedIdeaId)?.articleRequestId;
+  // A workspace poll for unrelated work can discover this admission too. Bind
+  // its canonical identity even when the initial POST never returned an ID.
+  useEffect(() => {
+    if (!workspace || !selectedIdeaId || !canonicalArticleRequestId || (view !== "request" && view !== "article")) return;
+    if (selectedRequestId !== canonicalArticleRequestId) setSelectedRequestId(canonicalArticleRequestId);
+    const attempt = articleAttemptRefs.current.get(selectedIdeaId) ?? readStoredAttempt("article", `${workspace.workspaceId}:${selectedIdeaId}`);
+    if (attempt?.uncertain && attempt.fingerprint === selectedIdeaId) {
+      if (articleAttemptRefs.current.get(selectedIdeaId) === attempt) articleAttemptRefs.current.delete(selectedIdeaId);
+      if (readStoredAttempt("article", `${workspace.workspaceId}:${selectedIdeaId}`)?.idempotencyKey === attempt.idempotencyKey) {
+        writeStoredAttempt("article", `${workspace.workspaceId}:${selectedIdeaId}`, null);
+      }
+    }
+    const owned = admissionErrorRef.current;
+    if (owned?.workspaceId === workspace.workspaceId && owned.ideaId === selectedIdeaId) {
+      setPageError((message) => message === owned.message ? "" : message); admissionErrorRef.current = null;
+    }
+  }, [admissionRecoveryNonce, canonicalArticleRequestId, selectedIdeaId, selectedRequestId, view, workspace]);
+  useEffect(() => {
+    const workspaceId = workspaceIdentityRef.current;
+    retryableAdmissionRef.current = null; setRetryableAdmission(null);
+    if (!workspaceId || !selectedIdeaId || selectedRequestId || canonicalArticleRequestId || view !== "request") return;
+    const ideaId = selectedIdeaId;
+    const owner = `${workspaceId}:${ideaId}`;
+    const attempt = articleAttemptRefs.current.get(ideaId) ?? readStoredAttempt("article", owner);
+    if (!attempt?.uncertain || attempt.fingerprint !== ideaId || attempt.inFlight) return;
+    articleAttemptRefs.current.set(ideaId, attempt);
+    const intent = navigationIntentRef.current;
+    let current = true;
+    const isCurrent = () => current && workspaceIdentityRef.current === workspaceId && selectedIdeaRef.current === ideaId && navigationIntentRef.current === intent;
+    const recovery = reconcileArticleAdmission({
+      read: async () => {
+        const ticket = historyReader.beginExact(ideaId);
+        if (!ticket) return null;
+        const result = await client.getDemandIdea(ideaId);
+        if (!isCurrent() || result.workspaceId !== workspaceId || result.idea.id !== ideaId ||
+          (result.request && (result.request.ideaId !== ideaId || result.request.loopId !== result.idea.loopId ||
+            result.request.id !== result.idea.articleRequestId || result.request.kind !== "article"))) return null;
+        return { ticket, result };
+      },
+      found: ({ result }) => Boolean(result.idea.articleRequestId),
+      accept: ({ ticket, result }) => {
+        if (!isCurrent() || !historyReader.acceptExact(ticket, result)) return false;
+        setHistory(historyReader.snapshot()); setSelectedRequestId(result.idea.articleRequestId);
+        return true;
+      },
+      exhausted: (observed) => {
+        if (!isCurrent()) return;
+        // Only an owner-validated, still-current exact read can enable an
+        // explicit same-key retry. Timeouts and wrong-owner results cannot.
+        if (observed && observed.result.idea.articleRequestId === null && observed.result.request === null && historyReader.acceptExact(observed.ticket, observed.result)) {
+          const canonical = historyReader.snapshot().exact.find(({ idea }) => idea.id === ideaId)?.idea.articleRequestId;
+          if (!canonical) {
+            const proof = { workspaceId, ideaId, idempotencyKey: attempt.idempotencyKey, intent };
+            retryableAdmissionRef.current = proof; setRetryableAdmission(proof);
+          }
+          setHistory(historyReader.snapshot());
+        }
+        const previous = admissionErrorRef.current;
+        const message = "We couldn’t confirm this article request yet. Check its status.";
+        setPageError((value) => !value || value === previous?.message ? message : value);
+        admissionErrorRef.current = { workspaceId, ideaId, message };
+      },
+      eligible: () => isCurrent() && document.visibilityState !== "hidden" && navigator.onLine !== false,
+    });
+    window.addEventListener("focus", recovery.wake); window.addEventListener("online", recovery.wake);
+    window.addEventListener("pageshow", recovery.wake); document.addEventListener("visibilitychange", recovery.wake);
+    return () => {
+      current = false; recovery.stop();
+      window.removeEventListener("focus", recovery.wake); window.removeEventListener("online", recovery.wake);
+      window.removeEventListener("pageshow", recovery.wake); document.removeEventListener("visibilitychange", recovery.wake);
+    };
+  }, [admissionRecoveryNonce, canonicalArticleRequestId, client, historyReader, selectedIdeaId, selectedRequestId, view, workspace?.workspaceId]);
   const historyPollKey = history.window ? `${demandHistoryScopeKey(history.window.query)}:${history.window.cursor ?? "latest"}` : null;
   const historicalPending = Boolean(history.window?.page?.requests.some(({ status }) => status === "queued" || status === "running"));
   useEffect(() => {
@@ -1121,7 +1208,9 @@ export function DemandReader({
     ) return;
     const resultIdeaId = selectedIdeaId;
     let current = true;
-    void client.getDemandResult(selectedRequestId)
+    let retries = 0;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    const load = () => { void client.getDemandResult(selectedRequestId)
       .then((result) => {
         if (!current || selectedIdeaRef.current !== resultIdeaId) return;
         if (result.request.ideaId !== resultIdeaId) throw new Error("Edison returned a different article request.");
@@ -1137,11 +1226,17 @@ export function DemandReader({
       })
       .catch((error) => {
         if (!current || selectedIdeaRef.current !== resultIdeaId) return;
+        if (ambiguousArticleAdmission(error) && retries < 3) {
+          retryTimer = setTimeout(load, [1_200, 2_500, 5_000][retries++]);
+          return;
+        }
         setResultLoadFailed(true);
         setPageError(readableError(error));
-      });
+      }); };
+    load();
     return () => {
       current = false;
+      if (retryTimer !== undefined) clearTimeout(retryTimer);
     };
   }, [client, publishWorkspace, resultLoadNonce, selectedIdeaId, selectedRequestIdeaId, selectedRequestStatus, selectedRequestId, view, workspaceResponses]);
 
@@ -1441,10 +1536,24 @@ export function DemandReader({
     await commissionIdeas(loop);
   }
 
-  async function openIdea(inputIdea: DemandIdea) {
+  async function openIdea(inputIdea: DemandIdea, retryAdmission: typeof retryableAdmission = null) {
     const idea = demandHistoryRecords(workspace, historyReader.snapshot()).ideas.find(({ id }) => id === inputIdea.id) ?? inputIdea;
+    if (retryAdmission) {
+      const proof = retryableAdmissionRef.current;
+      const attempt = articleAttemptRefs.current.get(idea.id);
+      if (!mountedRef.current || !workspace || workspaceIdentityRef.current !== workspace.workspaceId || selectedIdeaRef.current !== idea.id ||
+        !proof || proof !== retryAdmission || proof.workspaceId !== workspace.workspaceId || proof.ideaId !== idea.id || proof.intent !== navigationIntentRef.current ||
+        !attempt?.uncertain || attempt.inFlight || attempt.idempotencyKey !== proof.idempotencyKey) return;
+      retryableAdmissionRef.current = null; setRetryableAdmission(null); // Synchronous double-click lock.
+      // The existing canonical branch below wins if another read discovered
+      // admission since the no-request observation. Otherwise reuse this key.
+      if (!idea.articleRequestId) attempt.uncertain = false;
+    }
     rememberCurrentReadingPosition();
     beginNavigation();
+    const admissionIntent = navigationIntentRef.current;
+    const admissionIsSelected = () => mountedRef.current && workspaceIdentityRef.current === workspace?.workspaceId &&
+      selectedIdeaRef.current === idea.id && navigationIntentRef.current === admissionIntent;
     setAskOpen(false);
     setShareOpen(false);
     const fromFeed = view === "loop" || view === "library" || view === "home";
@@ -1460,7 +1569,7 @@ export function DemandReader({
     if (workspace) {
       if (fromFeed) writeRouteNavigation(navigationForSelection(workspace.workspaceId, origin, null), "replace", window.location.pathname + window.location.search);
       const selection = { kind: "idea" as const, id: idea.id };
-      writeRouteNavigation(navigationForSelection(workspace.workspaceId, origin, selection), "push", demandRouteHref(selection));
+      writeRouteNavigation(navigationForSelection(workspace.workspaceId, origin, selection), retryAdmission ? "replace" : "push", demandRouteHref(selection));
     }
     articlePositionRef.current = demandReadingPositionForIdea(readingPositionsRef.current, workspace?.workspaceId ?? "", idea);
     restoringArticleRef.current = idea.articleRequestId ? idea.id : null;
@@ -1498,8 +1607,16 @@ export function DemandReader({
       articleAttemptRefs.current.set(idea.id, attempt);
     }
     if (attempt.inFlight) return;
+    if (attempt.uncertain) {
+      articleAttemptRefs.current.set(idea.id, attempt);
+      setAdmissionRecoveryNonce((value) => value + 1);
+      return; // Reopening an unknown admission only reads; never POSTs again.
+    }
     attempt.inFlight = true;
+    attempt.uncertain = true;
     articleAttemptRefs.current.set(idea.id, attempt);
+    // If this document closes before an outcome arrives, the saved attempt is
+    // uncertain on the next mount. Its recovery must remain read-only.
     if (workspace) writeStoredAttempt("article", `${workspace.workspaceId}:${idea.id}`, attempt);
     let commissioned = false;
     const ticket = workspaceResponses.beginMutation();
@@ -1509,27 +1626,46 @@ export function DemandReader({
       const response = await client.requestDemandArticle(idea.id, {
         idempotencyKey: attempt.idempotencyKey,
       });
+      if (!mountedRef.current || workspaceIdentityRef.current !== workspace?.workspaceId) return;
       if (!publishWorkspace(workspaceResponses.acceptMutation(ticket, response.workspace))) return;
       if (!response.requestId) throw new Error("Edison did not return the article request.");
       commissioned = true;
-      if (workspace) writeStoredAttempt("article", `${workspace.workspaceId}:${idea.id}`, null);
+      if (workspace && readStoredAttempt("article", `${workspace.workspaceId}:${idea.id}`)?.idempotencyKey === attempt.idempotencyKey) {
+        writeStoredAttempt("article", `${workspace.workspaceId}:${idea.id}`, null);
+      }
       historyReader.seed({ workspaceId: response.workspace.workspaceId, idea: { ...idea, articleRequestId: response.requestId },
         request: response.workspace.requests.find(({ id }) => id === response.requestId) ?? null }, true);
       setHistory(historyReader.snapshot());
-      if (selectedIdeaRef.current === idea.id) setSelectedRequestId(response.requestId);
+      if (admissionIsSelected()) setSelectedRequestId(response.requestId);
       const exact = await recoverIdea(idea.id, true);
-      if (exact && selectedIdeaRef.current === idea.id) {
+      if (exact && admissionIsSelected()) {
         if (!exact.idea.articleRequestId) throw new Error("The article request is saved. Reload this idea to recover its status.");
         setSelectedRequestId(exact.idea.articleRequestId);
       }
     } catch (error) {
-      if (selectedIdeaRef.current === idea.id) setPageError(readableError(error));
-      if (commissioned && workspaceIdentityRef.current === workspace?.workspaceId) setIdeaRecoveryErrors((current) => new Map([...current, [idea.id, readableError(error)] as const].slice(-24)));
+      if (!commissioned && mountedRef.current && workspace && workspaceIdentityRef.current === workspace.workspaceId && ambiguousArticleAdmission(error)) {
+        if (admissionIsSelected()) {
+          admissionErrorRef.current = { workspaceId: workspace.workspaceId, ideaId: idea.id, message: readableError(error) };
+        }
+      } else if (!commissioned && mountedRef.current && workspace && workspaceIdentityRef.current === workspace.workspaceId && !ambiguousArticleAdmission(error)) {
+        attempt.uncertain = false;
+        if (readStoredAttempt("article", `${workspace.workspaceId}:${idea.id}`)?.idempotencyKey === attempt.idempotencyKey) {
+          writeStoredAttempt("article", `${workspace.workspaceId}:${idea.id}`, attempt);
+        }
+      }
+      if (admissionIsSelected()) setPageError(readableError(error));
+      if (commissioned && mountedRef.current && workspaceIdentityRef.current === workspace?.workspaceId) setIdeaRecoveryErrors((current) => new Map([...current, [idea.id, readableError(error)] as const].slice(-24)));
     } finally {
       workspaceResponses.finishMutation(ticket);
       historyReader.finishMutation(idea.id);
-      setHistory(historyReader.snapshot());
+      if (mountedRef.current) setHistory(historyReader.snapshot());
       attempt.inFlight = false;
+      // Reopening A while its original POST is in flight creates a new
+      // navigation intent. Settling that attempt wakes the current A without
+      // giving the earlier navigation ownership of its error or selection.
+      if (!commissioned && attempt.uncertain && mountedRef.current && workspaceIdentityRef.current === workspace?.workspaceId && selectedIdeaRef.current === idea.id) {
+        setAdmissionRecoveryNonce((value) => value + 1);
+      }
       if (commissioned && articleAttemptRefs.current.get(idea.id) === attempt) {
         articleAttemptRefs.current.delete(idea.id);
       }
@@ -1876,6 +2012,8 @@ export function DemandReader({
     const request = selectedRequest;
     const idea = selectedIdea;
     if (!idea) return renderLoop();
+    const attempt = articleAttemptRefs.current.get(idea.id);
+    const admissionUnknown = !idea.articleRequestId && attempt?.uncertain && !attempt.inFlight;
     return (
       <main ref={readingSurfaceRef} tabIndex={-1} className="demand-preparation">
         <button type="button" className="demand-text-action" onClick={returnFromReading}>
@@ -1886,10 +2024,9 @@ export function DemandReader({
         <section className={`demand-request-state${request?.status === "failed" ? " demand-request-failed" : ""}`} role={request?.status === "failed" ? "alert" : "status"}>
           {request?.status !== "failed" ? <EdisonMark /> : null}
           <div>
-            <h2>{request?.status === "failed" ? "We couldn’t finish this article." : articlePreparationLabel(request)}</h2>
-            <p>{request?.status === "failed"
-              ? "Nothing was published."
-              : "You can keep browsing. This article will be here when it’s ready."}</p>
+            <h2>{request?.status === "failed" ? "We couldn’t finish this article." : admissionUnknown ? "Article request unconfirmed" : articlePreparationLabel(request)}</h2>
+            {request?.status === "failed" ? <p>Nothing was published.</p>
+              : admissionUnknown ? <p>Edison hasn’t confirmed this request. Checking its status won’t request another article.</p> : null}
           </div>
           {request?.status === "failed" ? (
             <button
@@ -1908,9 +2045,15 @@ export function DemandReader({
         </section>
         {pageError ? <p className="demand-page-error" role="alert">{pageError}</p> : null}
         {renderIdeaRecoveryErrors([idea])}
-        {!idea.articleRequestId && workspace ? <button type="button" className="demand-text-action" onClick={() => {
-          void restoreArticleRoute({ kind: "idea", id: idea.id }, workspace, navigationIntentRef.current);
-        }}>Check article status</button> : null}
+        {!idea.articleRequestId && workspace ? <div className="flex flex-wrap gap-x-5">
+          <button type="button" className="demand-text-action" onClick={() => {
+            void restoreArticleRoute({ kind: "idea", id: idea.id }, workspace, navigationIntentRef.current);
+          }}>Check article status</button>
+          {admissionUnknown && retryableAdmission?.workspaceId === workspace.workspaceId && retryableAdmission.ideaId === idea.id &&
+            retryableAdmission.idempotencyKey === attempt?.idempotencyKey ? <button type="button" className="demand-text-action" onClick={() => void openIdea(idea, retryableAdmission)}>
+              Try again
+            </button> : null}
+        </div> : null}
         {request?.status !== "failed" && !resultLoadFailed ? <div className="demand-article-skeleton" aria-hidden="true">{[0, 1, 2].map((group) => <div key={group}><span /><span /><span /><span /></div>)}</div> : null}
       </main>
     );

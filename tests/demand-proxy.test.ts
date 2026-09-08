@@ -2,6 +2,54 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { isDemandProxyPath, proxyDemandRequest } from "../lib/demand-proxy";
 import { GET as routeGet } from "../app/api/demand/[...path]/route";
+import type { DemandProxyFailure } from "../lib/demand-proxy";
+
+test("relay failure diagnostics classify errors without logging credentials, content or resource IDs", async () => {
+  const ideaId = "00000000-0000-4000-8000-000000000003";
+  for (const [error, expected] of [
+    [new DOMException("PRIVATE-TIMEOUT", "TimeoutError"), "timeout"],
+    [new DOMException("PRIVATE-ABORT", "AbortError"), "aborted"],
+    [new TypeError("PRIVATE-NETWORK", { cause: "PRIVATE-CAUSE" }), "network"],
+    [new Error("PRIVATE-ERROR"), "unknown"],
+    ["PRIVATE-THROWN-STRING", "unknown"],
+  ] as const) {
+    const events: DemandProxyFailure[] = [];
+    let calls = 0;
+    const response = await proxyDemandRequest(new Request(`https://edisonreader.com/api/demand/ideas/${ideaId}/article`, {
+      method: "POST", headers: { Origin: "https://edisonreader.com", Authorization: "Bearer PRIVATE-AUTH", "X-Vercel-Id": "PRIVATE-HEADER" },
+      body: JSON.stringify({ idempotencyKey: "PRIVATE-KEY" }),
+    }), `ideas/${ideaId}/article`, { ...options, onUpstreamFailure: (event) => events.push(event),
+      fetcher: (async () => { calls++; throw error; }) as typeof fetch });
+    assert.equal(response.status, 502); assert.equal(calls, 1); assert.equal(events.length, 1);
+    assert.deepEqual({ ...events[0], elapsedMs: 0 }, { event: "demand_proxy_failure", method: "POST",
+      route: "ideas/:id/article", elapsedMs: 0, phase: "upstream_fetch", failure: expected, upstreamStatus: null });
+    assert.ok(Number.isSafeInteger(events[0].elapsedMs) && events[0].elapsedMs >= 0);
+    assert.doesNotMatch(JSON.stringify(events), /PRIVATE|00000000|Bearer/);
+  }
+});
+
+test("relay diagnostics distinguish upstream status from invalid session payload and cannot change outcomes", async () => {
+  const events: DemandProxyFailure[] = [];
+  const report = (event: DemandProxyFailure) => events.push(event);
+  const failed = await proxyDemandRequest(new Request("https://edisonreader.com/api/demand/workspace"), "workspace", {
+    ...options, onUpstreamFailure: report, fetcher: (async () => Response.json({ error: "PRIVATE-UPSTREAM" }, { status: 504 })) as typeof fetch,
+  });
+  assert.equal(failed.status, 504); assert.equal(events[0].failure, "upstream_error"); assert.equal(events[0].upstreamStatus, 504);
+  const invalid = await proxyDemandRequest(sessionRequest(), "session", { ...options, onUpstreamFailure: report,
+    fetcher: (async () => Response.json({ workspace: "PRIVATE-INVALID" })) as typeof fetch });
+  assert.equal(invalid.status, 502); assert.equal(events[1].failure, "invalid_response");
+  assert.equal(events[1].phase, "session_response"); assert.equal(events[1].upstreamStatus, 200);
+  assert.doesNotMatch(JSON.stringify(events), /PRIVATE/);
+  const response = await proxyDemandRequest(new Request("https://edisonreader.com/api/demand/workspace"), "workspace", {
+    ...options, onUpstreamFailure: () => { throw new Error("logging unavailable"); },
+    fetcher: (async () => { throw new TypeError("network unavailable"); }) as typeof fetch,
+  });
+  assert.equal(response.status, 502);
+  const ok = await proxyDemandRequest(new Request("https://edisonreader.com/api/demand/workspace"), "workspace", {
+    ...options, onUpstreamFailure: report, fetcher: (async () => Response.json({ workspace: accountWorkspace })) as typeof fetch,
+  });
+  assert.equal(ok.status, 200); assert.equal(events.length, 2);
+});
 
 const options = { apiUrl: "https://api.example.org/v1", enabled: true, production: true };
 const accountWorkspace = { workspaceId: "00000000-0000-4000-8000-000000000001", readerKind: "account", loops: [], ideas: [], requests: [] };
