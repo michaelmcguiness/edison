@@ -6,6 +6,15 @@ launching; they can change without a code release.
 
 ## Decision and current status
 
+### September 8 — D50 checker-format candidate
+
+The bounded article/Ask correction is implemented and independently reviewed on
+`codex/checker-clean-pass`, based on receipt-only `9b1f08f` above live `c71af50`.
+All 1,053 local tests, both standalone types and lint pass; clean exact-source CI
+must verify builds and disposable database checks before API-only rollout. Web,
+Auth, existing requests, budgets and historical failures are unchanged. See the
+[checker-format receipt](operations/CHECKER_FORMAT_RELEASE_2026-09-08.md) for authority, compatibility evidence and limits.
+
 ### September 8 — article connection recovery live
 
 Both existing production projects run `c71af50de829eef6f236991972332a8b7be81066`:
@@ -21,8 +30,12 @@ at 15:47:43.874 UTC passed health/access/CORS, safe login returns, nonce CSP and
 all three cron bindings and unchanged cadences. Existing apex/www/web/API addresses
 are retained. No Auth/template, migration, secret, domain or budget changes.
 
-The separate checker-output failure remains unresolved; CTO owns its bounded
-correction and the subsequent single real first-session acceptance journey.
+The separate checker-format correction is now implemented under Michael's
+explicit D50 approval for articles and follow-up answers. The earlier automatic
+review rejection was respected with no checker edits before the stop; his direct
+“yes continue” subsequently resolved it. Independent compatibility review and
+exact-source CI precede an API-only deployment. No checker rollout is yet claimed.
+CTO owns the single real first-session acceptance journey after release.
 Signed-out browser verification is not fresh article/Ask or mail-delivery proof.
 D49 invitations remains queued. D48 strict-six-digit sign-in remains blocked and
 excluded: canonical HEAD contains a prepared patch and is NOT the live release.

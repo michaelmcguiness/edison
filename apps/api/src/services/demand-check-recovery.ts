@@ -49,6 +49,10 @@ export async function qualifyDemandCheckRecovery(input: DemandCheckRecoveryInput
       request.attempts >= 1 && request.attempts < 3 && request.snapshot.version === 2);
     requireProof(request.requestFingerprint === demandFingerprint({ intent: "article", ideaId: request.ideaId, idempotencyKey: request.idempotencyKey }));
     const saved = structuredClone(request.progress) as ReaderFirstPipelineState | null;
+    // This narrowly proved historical location correction is not a rescue path
+    // for the new producer contract (including malformed or relabeled markers).
+    requireProof(!Object.hasOwn(request.snapshot, "checkerContractVersion") && saved &&
+      !Object.hasOwn(saved, "checkerContractVersion"));
     requireProof(saved && saved.version === 2 && saved.snapshotVersion === 2 && saved.phase === "failed" &&
       saved.promptVersion === READER_FIRST_PROMPT_VERSION && saved.failureCode === "provider_invalid" &&
       saved.requestId === request.id && saved.requestFingerprint === request.requestFingerprint && saved.kind === "article" &&

@@ -2,7 +2,7 @@ import {
   assertAcceptedReaderFirstAnswerCheck, assertAcceptedReaderFirstArticleCheck,
   type OnDemandEvidence, type ReaderFirstArticle, type ReaderFirstBlock,
   type ReaderFirstWriterOutput, type ReaderFirstAnswerOutput, type ReaderFirstCheckOutput,
-  type ReaderFirstQuestion, type ReaderFirstSelection,
+  type ReaderFirstQuestion, type ReaderFirstSelection, type ReaderFirstCheckerContractVersion,
 } from "@edison/ai";
 import { demandAnswerV2Schema, demandArticleSchema } from "@edison/contracts";
 import { slugifyArticleTitle } from "@edison/domain";
@@ -33,8 +33,9 @@ function presentation(requestId: string, body: ReaderFirstBlock[], sourceList: R
 
 export function publishReaderFirstArticle(input: {
   requestId: string; selection: ReaderFirstSelection; draft: ReaderFirstWriterOutput; check: ReaderFirstCheckOutput;
+  checkerContractVersion?: ReaderFirstCheckerContractVersion;
 }) {
-  try { assertAcceptedReaderFirstArticleCheck(input.selection, input.draft, input.check); }
+  try { assertAcceptedReaderFirstArticleCheck(input.selection, input.draft, input.check, { checkerContractVersion: input.checkerContractVersion }); }
   catch { throw new Error("editorial_withheld"); }
   const article = input.draft.article!;
   const published = presentation(input.requestId, article.body, article.sources, input.selection.evidence);
@@ -50,8 +51,9 @@ export function publishReaderFirstArticle(input: {
 
 export function publishReaderFirstAnswer(input: {
   requestId: string; question: ReaderFirstQuestion; answer: ReaderFirstAnswerOutput; check: ReaderFirstCheckOutput;
+  checkerContractVersion?: ReaderFirstCheckerContractVersion;
 }) {
-  try { assertAcceptedReaderFirstAnswerCheck(input.question, input.answer, input.check); }
+  try { assertAcceptedReaderFirstAnswerCheck(input.question, input.answer, input.check, { checkerContractVersion: input.checkerContractVersion }); }
   catch { throw new Error("editorial_withheld"); }
   return demandAnswerV2Schema.parse({ version: 2,
     ...presentation(input.requestId, input.answer.body, input.answer.sources, input.question.evidence) });

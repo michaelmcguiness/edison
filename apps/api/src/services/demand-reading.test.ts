@@ -78,3 +78,17 @@ test("Ask admission freezes current owned loop context after replay while retain
   assert.match(request, /draft: material\.storedDraft, evidence: conversation\.evidence/);
   assert.match(request, /previousMessages: conversation\.previousMessages/);
 });
+
+test("checker version is server-owned and pinned only after article and Ask replay decisions", () => {
+  const source = readFileSync(new URL("./demand-reading.ts", import.meta.url), "utf8");
+  for (const [start, end] of [["requestDemandArticle", "requestDemandFeedback"], ["requestDemandQuestion", "recordDemandEvent"]]) {
+    const request = source.slice(source.indexOf(`export async function ${start}`), source.indexOf(`export async function ${end}`));
+    const replay = request.indexOf("if (replay) return replay");
+    const pin = request.indexOf("checkerContractVersion: READER_FIRST_CHECKER_CONTRACT_VERSION");
+    assert.ok(replay >= 0 && pin > replay);
+    if (start === "requestDemandArticle") assert.ok(request.indexOf("return existing") < pin);
+    assert.doesNotMatch(request, /input\.checkerContractVersion/);
+  }
+  assert.equal((source.match(/checkerContractVersion: READER_FIRST_CHECKER_CONTRACT_VERSION/g) ?? []).length, 2,
+    "ideas and feedback retain their existing contract");
+});

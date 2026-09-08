@@ -20,6 +20,7 @@ import type { DemandRequestRow } from "./demand-reading";
 import { readDemandStoredDraft } from "./demand-result-compatibility";
 import { evidenceUrl, retrieveEvidencePage } from "./evidence-retrieval";
 import { demandReadableIdeaBrief } from "./demand-idea-art";
+import { demandCheckerOptions } from "./demand-checker-contract";
 
 type Acquisition = {
   research: ReaderFirstResearch;
@@ -36,6 +37,7 @@ export type ReaderFirstPipelineState = Record<string, unknown> & {
   requestFingerprint: string;
   kind: DemandRequestRow["kind"];
   models: { article: string; utility: string };
+  checkerContractVersion?: unknown;
   research?: ReaderFirstResearchOutput;
   evidence?: OnDemandEvidence;
   acquisition?: Acquisition;
@@ -202,14 +204,15 @@ async function retrieveGroup(state: ReaderFirstPipelineState, retrievePage: type
 }
 
 function ready(state: ReaderFirstPipelineState, request: DemandRequestRow): AdvanceResult {
+  const checkerOptions = demandCheckerOptions(request, state);
   if (request.kind === "ideas") {
     if (!state.ideas?.length) return fail(state, "evidence_unavailable");
   } else if (request.kind === "article") {
     if (!state.draft || !state.check) return fail(state, "editorial_withheld");
-    assertAcceptedReaderFirstArticleCheck(readerFirstSelection(request, state.evidence), state.draft, state.check);
+    assertAcceptedReaderFirstArticleCheck(readerFirstSelection(request, state.evidence), state.draft, state.check, checkerOptions);
   } else if (request.kind === "question") {
     if (!state.answer || !state.check) return fail(state, "editorial_withheld");
-    assertAcceptedReaderFirstAnswerCheck(readerFirstQuestion(request, state.evidence), state.answer, state.check);
+    assertAcceptedReaderFirstAnswerCheck(readerFirstQuestion(request, state.evidence), state.answer, state.check, checkerOptions);
   } else stop("pipeline_snapshot_invalid");
   return { state: { ...state, phase: "ready" }, outcome: request.kind };
 }
@@ -225,6 +228,7 @@ export async function advanceReaderFirstPipeline(
   try {
     if (state.version !== 2 || request.snapshot.version !== 2 || state.requestId !== request.id ||
       state.requestFingerprint !== request.requestFingerprint || state.kind !== request.kind || !state.models?.article || !state.models.utility) stop("pipeline_state_invalid");
+    const checkerOptions = demandCheckerOptions(request, state);
     if (state.phase === "failed") return fail(state, state.failureCode ?? "preparation_failed");
     if (state.phase === "ready") return ready(state, request);
     const context = onDemandContextSchema.parse(request.snapshot.context);
@@ -236,6 +240,7 @@ export async function advanceReaderFirstPipeline(
     const needsResearch = Boolean(state.check && (!state.check.verificationPassed ||
       state.check.findings.some((finding) => finding.kind === "verification_required")));
     const options: ReaderFirstStageOptions = {
+      ...checkerOptions,
       provider, model: request.kind === "article" && ["write", "repair"].includes(state.phase) ? state.models.article : state.models.utility,
       idempotencyKey: `${request.id}:${state.phase}`, safetyIdentifier: request.principalId,
       researchPolicy: { mode: generating ? repairing && needsResearch ? "required" : "auto" : "none",

@@ -128,6 +128,22 @@ test("foreign, inactive, exhausted, repaired, stale and altered selected artifac
   assert.equal(await qualifyDemandCheckRecovery(original, { ...environment, OPENAI_UTILITY_MODEL: "gpt-5.6-terra" }), null);
 });
 
+test("new or malformed checker selectors never expand legacy saved-check recovery", async () => {
+  const original = await fixture();
+  assert.ok(await qualifyDemandCheckRecovery(original, environment));
+  for (const marker of ["edison-reader-first-v2.5-check-v1", "unknown", null, undefined]) {
+    for (const target of ["snapshot", "progress", "both"]) {
+      const input = structuredClone(original);
+      if (target !== "progress") input.request.snapshot.checkerContractVersion = marker;
+      if (target !== "snapshot") input.request.progress!.checkerContractVersion = marker;
+      input.request.progress!.snapshotFingerprint = demandFingerprint(input.request.snapshot);
+      const before = structuredClone(input);
+      assert.equal(await qualifyDemandCheckRecovery(input, environment), null);
+      assert.deepEqual(input, before, "qualification preserves raw stages, ledger, history and failure");
+    }
+  }
+});
+
 for (const promptVersion of priorPromptVersions) {
   test(`saved literal ${promptVersion} progress is not a current-version cached-check recovery`, async () => {
     assert.equal(READER_FIRST_PROMPT_VERSION, "edison-reader-first-v2.5");

@@ -12,7 +12,7 @@ import {
   assembleLoopPrincipleContext, createEmptyLoopPrincipleState, reduceLoopPrinciples,
   type LoopPrincipleState,
 } from "@edison/domain";
-import { type OnDemandContext } from "@edison/ai";
+import { READER_FIRST_CHECKER_CONTRACT_VERSION, type OnDemandContext } from "@edison/ai";
 import { HttpError } from "../http/errors";
 import { demandOwnerIds, demandWorkspaceId, type DemandPrincipal } from "../auth/verify-demand-principal";
 import { readDemandArtDescriptor } from "@edison/contracts";
@@ -280,7 +280,8 @@ export async function requestDemandArticle(principal: DemandPrincipal, ideaId: s
     const loop = await loopForUpdate(tx, principal.id, idea.loopId);
     assertDemandLoopOpen(loop);
     const request = await reserveRequest(tx, { principalId: principal.id, loopId: loop.id, ideaId, kind: "article", idempotencyKey: input.idempotencyKey,
-      requestFingerprint: fingerprint, snapshot: { version: 2, context: await assembleDemandContext(tx, loop), principleState: loop.principles,
+      requestFingerprint: fingerprint, snapshot: { version: 2, checkerContractVersion: READER_FIRST_CHECKER_CONTRACT_VERSION,
+        context: await assembleDemandContext(tx, loop), principleState: loop.principles,
         selection: { idea: demandReadableIdeaBrief(idea.brief), evidence: idea.evidence } } });
     await tx.update(demandIdeas).set({ articleRequestId: request.id }).where(and(eq(demandIdeas.id, ideaId), eq(demandIdeas.principalId, principal.id)));
     return request;
@@ -341,7 +342,8 @@ export async function requestDemandQuestion(principal: DemandPrincipal, ideaId: 
       .orderBy(desc(demandRequests.createdAt)).limit(6);
     const conversation = demandQuestionHistory({ articleEvidence: material.evidence, history: history.reverse() });
     return reserveRequest(tx, { principalId: principal.id, loopId: idea.loopId, ideaId, kind: "question", idempotencyKey: input.idempotencyKey,
-      requestFingerprint: fingerprint, snapshot: { version: 2, context: material.context, question: {
+      requestFingerprint: fingerprint, snapshot: { version: 2, checkerContractVersion: READER_FIRST_CHECKER_CONTRACT_VERSION,
+        context: material.context, question: {
         question: input.question, articleVersion: material.articleVersion, draft: material.storedDraft, evidence: conversation.evidence,
         previousMessages: conversation.previousMessages,
       } } });
