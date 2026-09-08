@@ -1,9 +1,10 @@
 # v11.1 release candidate — September 7, 2026
 
 Owner: CTO. Status: **source, CI/database and bounded integrated Design gates
-closed; hosted rollout pending**. Final application candidate:
+closed; web/API and migrations live; invitation-sender activation blocked by
+the normal credential-transfer approval review**. Final application candidate:
 `785861a3a25a8b7bdbe5ee1d0fafb60f91ffc7ee`.
-Updated September 8, 2026 at 02:02 UTC (September 7 in New York).
+Updated September 8, 2026 at 02:40 UTC (September 7 in New York).
 
 ## Selected scope
 
@@ -42,7 +43,10 @@ Current invitation addendum SHA256:
 
 ## Provider path and required hosted configuration
 
-Prepared only; **none of these hosted changes has been performed**:
+Required configuration is listed below. Migrations, web/API deployment,
+API-only sensitive reset configuration, and the three email templates are now
+applied. **Invitation sending remains disabled and the new Auth secret absent**;
+see the hosted checkpoint below for the exact remaining approval.
 
 1. Migrations `20260907000400_demand_weekly_allowance.sql` and
    `20260907000500_demand_invitation_membership.sql`, after actual disposable
@@ -156,9 +160,10 @@ claim is made from this local evidence. No broad repeat audit is needed.
 
 ## Exact existing-target rollout bundle
 
-Source/Design/CI gates are closed. The following hosted actions are **prepared,
-not performed**; Chief of Staff reviews this concrete bundle under existing
-authorization, without asking Michael for a repeated generic approval.
+Source/Design/CI gates and Chief of Staff's concrete bundle review are closed.
+The reviewed order below is retained as the execution plan. Steps1–5 have been
+performed; step6 was rejected before execution by the normal approval review.
+Only unaffected read-only checks from step7 followed that rejection.
 
 1. Record current deployment IDs and exact migration list; verify a recent
    backup/checkpoint. Review linked migration dry-run showing only004 then005.
@@ -190,12 +195,109 @@ Targets: Supabase`bcxxnntastmnormcmxbq`; API`prj_BDlcI2KFhFawilRiMDvloXcOLnsd`
 (`edison-app`, repository root). Existing apex, www redirect, API and retained
 web alias stay; no new environment, service or paid plan.
 
-Read-only Vercel metadata at this closeout confirms API production remains
+Read-only Vercel metadata at the original 02:02 UTC preparation checkpoint
+confirmed API production was
 `dpl_GesKd8nJZi9d21ne4qrA7QLDxUmP`, with all three enabled cron definitions on
-`edison-jxsjvit8r-mike-michaelmcguis-projects.vercel.app`. API Production has no
-`SUPABASE_SECRET_KEY`, invitation flag or reset-password variable yet. Only
+`edison-jxsjvit8r-mike-michaelmcguis-projects.vercel.app`. API Production then had no
+`SUPABASE_SECRET_KEY`, invitation flag or reset-password variable. Only
 variable names/types/targets were read, not secret values. Existing deployment
-session is authenticated. These are preparation facts, not connectivity proof.
+session was authenticated. These were preparation facts, not connectivity proof.
+
+## Hosted checkpoint — invitation activation pending
+
+The latest completed physical daily backup was1601031663, created
+2026-09-07T04:40:27.146Z. PITR is disabled; no backup restore was rehearsed.
+Linked migration dry-run listed only004 then005. The approved apply succeeded
+for exactly those two migrations; a subsequent linked list confirmed all21
+local/remote entries match. No seeds, roles or earlier migrations were applied.
+
+Both fresh Git-source deployments pin785861a, use existing project settings and
+current Production configuration, and are **READY / PROMOTED**. The final
+sanitized provider receipt was read at02:36:34–02:36:37 UTC:
+
+| Target | Live deployment | Ready UTC |
+| --- | --- | --- |
+| API | `dpl_FvfGDUC8BGXZrAbnefrcbGYa8L85` | 02:21:57.081 |
+| Web | `dpl_FBkgbqz8NBLTnSVGBH9TmTYAhz5n` | 02:24:30.427 |
+
+API alias remains`project-fjr95.vercel.app`; actual host is
+`edison-41ad37vh5-mike-michaelmcguis-projects.vercel.app`.
+Web aliases include`edisonreader.com`,`www.edisonreader.com` and retained
+`project-qlqve.vercel.app`; actual host is
+`edison-nfhgrsihw-mike-michaelmcguis-projects.vercel.app`.
+Both resolved Git-source and GitHub metadata SHA equal the exact candidate.
+No new domain, environment, provider or paid plan was created.
+
+All three API schedules are enabled and bound to the new API deployment/host:
+feed-command and generation-job reconciliation each`*/5 * * * *`, daily-edition
+scheduling`5 * * * *`. Web has no cron definitions.
+
+API Production has sensitive`EDISON_DEMAND_ALLOWANCE_RESET_PASSWORD` and plain
+`EDISON_MEMBER_INVITATIONS_ENABLED=false`. `SUPABASE_SECRET_KEY` is absent.
+The web project has none of these server-only names, and the reset variable has
+only the Production target. Existing D32 limits were not changed by this rollout.
+Targeted nonsecret value reads at02:39:32–02:39:33 UTC independently confirmed
+daily`10000000` microUSD and demand enabled`true`. The monthly override remains
+absent, retaining the deployed source's`40000000` microUSD default. No general
+environment-value dump or secret retrieval was used for these checks.
+
+After web promotion, the reviewed local Invite, Magic Link and Confirm Signup
+bodies were entered through the existing Supabase editor and saved. Invite uses
+type=invite; the other two use type=email. The reviewed subjects were saved too.
+Editor line counts/link content and save-state confirmations were inspected;
+this is UI submission/persistence evidence, not an independent hosted byte-hash
+or actual-delivery claim. No email was sent. Site URL remains the exact apex,
+with the same four apex/retained-alias callback/confirm redirect entries. No
+wildcards or localhost redirects were added. Signup, anonymous and manual
+linking remain off; email confirmation remains on and the email provider enabled.
+Existing SMTP configuration was not changed.
+
+Read-only hosted verification:
+
+- API`/v1/health`200: configuration, database and Auth all OK. An initial probe
+  at the nonexistent unversioned`/health`returned404; the actual versioned
+  readiness endpoint above passed.
+- Exact-apex CORS preflight204 with only the intended grant; unapproved origin
+ 403 without a CORS grant. Unauthenticated demand access/loops, former public
+  article/share paths and all three cron paths returned401. No authorized cron
+  invocation or fabricated identity was used.
+- Apex redirects unauthenticated readers to login; login200. Confirmation GET
+  without a token303 to invalid-invite entry, acceptance entry200 with nonce CSP
+  and no-store. No real token was consumed.
+- Independent read-only database checks passed at02:25:14 UTC: all10 new tables
+  have forced RLS and expected worker-only permissions; immutable guards,
+  validated constraints and restrictive foreign keys are present. All nine
+  normalized function bodies match the selected migrations. New profiles default
+  pending; invitation functions are worker-only and old PostgREST share access
+  is denied.
+- Current aggregate checkpoint: one active membership; no invitation/grant/
+  operation rows and no allowance/reset/claim rows. Existing history contains
+ 9 loops,33 ideas,81 stages; requests24 succeeded/13 failed with none active.
+  Demand ledger81 rows/1,294,319 microUSD, legacy ledger4 rows/346,754 microUSD,
+  no unpriced rows. This is a current aggregate, not a before/after proof.
+- Reloading the previously open production article led to the invite-only login
+  screen because no usable sign-in session remained. The live entry was directly
+  viewed; **a fresh hosted authorized-reading check is still pending sign-in**.
+  No sign-in email, test invitation, redemption, allowance reset or new article
+  generation was requested merely for release QA.
+
+### Exact approval blocker and next owner
+
+Normal review rejected the command before it ran: read the existing current-format
+Supabase server key, keep it in memory, and store it as sensitive API Production
+`SUPABASE_SECRET_KEY` on the existing Vercel API project. The reviewer stated that
+the user had not specifically authorized exposing that credential to that
+destination. **No secret lookup or transfer executed.** No alternate task, tool,
+credential or indirect route may bypass that rejection.
+
+The key is privileged server access, so its destination must be explicitly
+approved. Chief of Staff owns the single specific approval question to Michael;
+CTO must not duplicate it. If approved, resubmit this exact transfer through
+normal review, then update the existing flag to true and create another fresh
+Production deployment of785861a with current configuration. Reverify readiness,
+aliases and all three cron bindings after that API deployment. Never use a
+legacy service-role key or put either new secret in web/Preview/browser code.
+Actual email delivery and authenticated reading remain separately unproven.
 
 Reviewed immutable artifact SHA256:
 
@@ -207,8 +309,12 @@ Reviewed immutable artifact SHA256:
 |Magic Link / Confirm Signup (each)|b8305bea32a346115789c74e046066c3d4bd1f32f2c44b09cfe49543884a63e8|
 
 Rollback:005 changes admission/function semantics despite additive tables; an
-old v10 application rollback is not automatically compatible. Prefer disabling
-new sends and forward-fixing while preserving grants, receipts and history.
+old v10 application rollback is not automatically compatible. To disable new
+sends after activation, remove`SUPABASE_SECRET_KEY` from API Production **and**
+set the invitation flag false, then redeploy the compatible785861a source;
+keeping the key with a disabled flag deliberately fails runtime validation.
+Preserve the reset password and all other configuration, grants, receipts and
+history; prefer a forward fix over an old incompatible application rollback.
 Vercel rollback does not establish restored cron bindings: inspect schedules
 after any API deployment/rollback. Do not create an aliasless production canary
 as a supposedly harmless preview. Restore readiness remains explicitly unproven.
