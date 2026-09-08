@@ -1,5 +1,19 @@
 # Edison deployment
 
+### September 8 — empty-code Continue correction live
+
+Web source `905793eccd9b6957e5143a734841150d01d555b8` is READY Production as
+`dpl_3pKmNEBhwS4rg7ZbHnMCqx3DYmVc`,18:52:17.843 UTC. Continue stays disabled
+until a compatible code is present; existing4–10-digit acceptance and read-only
+sign-in recovery remain. ExactCI34265004055 passed1,080 application tests,
+320 pgTAP assertions, all seven DB proofs and both builds/types/lint. Public
+login/redirect/health checks passed18:53:54.684 UTC; existing domains remain.
+API stays at3a526fa/dpl_D1uSkD5rV3Cu5snw5u6RYX1f26qV with unchanged schedules.
+No Auth setting, D48, migration, Fast activation, email or provider call occurred.
+This does not establish successful real article generation. See the
+[separate release receipt](operations/LOGIN_CONTINUE_GUARD_RELEASE_2026-09-08.md).
+
+
 ### September 8 — D50 checker-format correction live
 
 API source `bd528f59145f0878351d665f444d945c8ebdaf31` is live as
