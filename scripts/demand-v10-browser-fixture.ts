@@ -21,6 +21,12 @@
  * {action:'invitation-delivery',outcome:'sent'|'failed'|'unknown'},
  * {action:'invitation-state',id,status}, {action:'invitation-seed',count:0..5,status},
  * {action:'invitation-advance',seconds:0..604801}. Completion stays operator-led.
+ * Auth recovery controls (independent of Edison invitation expiry/credits):
+ * {action:'auth-user',confirmed:boolean}, {action:'auth-link',status:'expired'|'valid'},
+ * {action:'auth-fault',path:'otp'|'resend',mode:'rate-limited'|'unknown'}.
+ * Unconfirmed OTP ->422 signup_disabled; explicit signup resend ->confirmation
+ * link. GET state.latestAuthLink provides the exact synthetic replacement URL,
+ * including original invitation/next and the SDK's optional pkce_ hash prefix.
  * Operator: POST /__fixture/control, X-Edison-Fixture-Operator: local-only
  * {action:'complete',requestId,count?:0..6} | {action:'fail',requestId,retryable?:boolean}
  * {action:'stage',requestId,stage} | {action:'next-stage',stage}
@@ -44,7 +50,7 @@ import {
   DEMAND_LOOP_PAGE_SIZE, demandLoopsSchema, parseDemandLoopsQuery,
   createDemandInvitationSchema, demandInvitationActionSchema, demandInvitationSchema,
   demandInvitationsSchema, demandInvitationMutationSchema, demandInvitationRedemptionSchema,
-  demandInvitationStatusSchema, type DemandInvitation,
+  demandInvitationStatusSchema, uuidSchema, type DemandInvitation,
   type DemandArtDescriptor,
   type DemandArticle, type DemandAnswer, type DemandConversationTurn, type DemandIdea,
   type DemandLoop, type DemandRequest, type DemandWorkspace, type PublicDemandArticleShare,
@@ -59,7 +65,8 @@ export const LOCAL_MEMBER_FIXTURE = Object.freeze({
   origin: `http://${HOST}:${PORT}`, apiUrl: `http://${HOST}:${PORT}/v1`,
   publishableKey: "sb_publishable_edison_local_fixture_only",
   email: "member@example.test", userId: id(2), invitationId: id(9500),
-  tokenHash: "e".repeat(64), refreshToken: "edison-local-fixture-refresh-only",
+  tokenHash: "e".repeat(64), renewedTokenHash: "d".repeat(64), absentEmail: "absent@example.test",
+  refreshToken: "edison-local-fixture-refresh-only",
 });
 // Deliberately not a valid signed credential. Only the exact string is accepted
 // by this localhost fixture; no deployed service or real Auth can trust it.
@@ -79,7 +86,7 @@ export function localMemberConfirmationPath(invitation = false, next = "/demand"
 }
 const STAGES = ["queued", "researching", "checking-ideas", "writing", "checking", "repairing", "updating", "answering"] as const;
 type PendingStage = typeof STAGES[number];
-type Reply = { status: number; body: unknown; loseResponse?: boolean; holdResponse?: boolean };
+type Reply = { status: number; body: unknown; headers?: Record<string, string>; loseResponse?: boolean; holdResponse?: boolean };
 type Fault = { mode: "fail" | "lose-response" | "hold-response"; path?: string };
 
 export function assertFixtureEnvironment(environment: Readonly<Record<string, string | undefined>>) {
@@ -138,12 +145,16 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
   const operations = new Map<string, { fingerprint: string; reply: Reply }>();
   const allocations = new Map<string, { count: number; revision: number }>();
   const heldResponses: Array<{ reply: Reply; resolve: (reply: Reply) => void }> = [];
-  const invitations = new Map<string, DemandInvitation & { owner: "member" | "external"; updatedAt: number; leaseUntil: number | null }>();
+  const invitations = new Map<string, DemandInvitation & { owner: "member" | "external"; updatedAt: number; leaseUntil: number | null; redeemedBy: string | null }>();
   let memberStatus: "active" | "pending" | "revoked" = "active";
   let syntheticSessionActive = false;
+  let syntheticEmailConfirmed = true;
+  let originalAuthLinkExpired = false;
+  let latestAuthLink: { url: string; template: "confirmation" | "magic_link"; tokenHash: string } | null = null;
+  let authFault: { path: "otp" | "resend"; mode: "rate-limited" | "unknown" } | null = null;
   let nextDelivery: "sent" | "failed" | "unknown" = "sent";
   let invitationClock = BASE_TIME;
-  const syntheticAuthRequests = { otp: 0, verify: 0, user: 0, logout: 0, refresh: 0 };
+  const syntheticAuthRequests = { otp: 0, resend: 0, verify: 0, user: 0, logout: 0, refresh: 0 };
   let readerKind: "guest" | "account" = "guest";
   let allowanceUsed = 6;
   let periodUsed = 6;
@@ -325,11 +336,12 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
     for (const held of heldResponses.splice(0)) held.resolve(error(409, "fixture_reset", "The operator reset this local fixture."));
     readerKind = options.member ? "account" : "guest"; allowanceUsed = 6; periodUsed = 6; allowanceRevision = 0; manualResetAt = null;
     invitations.clear(); memberStatus = "active"; syntheticSessionActive = false; nextDelivery = "sent"; invitationClock = BASE_TIME;
+    syntheticEmailConfirmed = true; originalAuthLinkExpired = false; latestAuthLink = null; authFault = null;
     for (const key of Object.keys(syntheticAuthRequests) as (keyof typeof syntheticAuthRequests)[]) syntheticAuthRequests[key] = 0;
     if (options.member) invitations.set(LOCAL_MEMBER_FIXTURE.invitationId, { id: LOCAL_MEMBER_FIXTURE.invitationId,
       email: LOCAL_MEMBER_FIXTURE.email, status: "sent", createdAt: new Date(BASE_TIME).toISOString(),
       expiresAt: new Date(BASE_TIME + 7 * 86_400_000).toISOString(), sentAt: new Date(BASE_TIME).toISOString(), redeemedAt: null,
-      owner: "external", updatedAt: BASE_TIME - 60_001, leaseUntil: null });
+      owner: "external", updatedAt: BASE_TIME - 60_001, leaseUntil: null, redeemedBy: null });
     serial = 10_000; clock = 0; nextStage = "queued"; fault = null;
     for (const key of Object.keys(counters) as (keyof typeof counters)[]) counters[key] = 0;
     const names = ["Light sensors", "Architecture", "Synthetic Biology", "Artificial Intelligence", "History",
@@ -430,9 +442,10 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
         allocations: [...allocations.entries()].map(([requestId, allocation]) => ({ requestId, ...allocation })), heldResponses: heldResponses.length,
         currentBatches: [...loops.values()].map(({ id, currentBatchRequestId }) => ({ loopId: id, requestId: currentBatchRequestId })) } : {}),
       ...(options.member ? { mode: "v11-member-constructed-ui", syntheticAuthRequests: copy(syntheticAuthRequests),
-        syntheticMember: { ...LOCAL_MEMBER_FIXTURE, status: memberStatus, sessionActive: syntheticSessionActive,
+        syntheticMember: { ...LOCAL_MEMBER_FIXTURE, status: memberStatus, sessionActive: syntheticSessionActive, emailConfirmed: syntheticEmailConfirmed,
           signInPath: localMemberConfirmationPath(), invitationPath: localMemberConfirmationPath(true) },
-        invitations: invitationList(), nextDelivery, invitationClock: new Date(invitationClock).toISOString() } : {}) };
+        invitations: invitationList(), nextDelivery, invitationClock: new Date(invitationClock).toISOString(),
+        originalAuthLinkExpired, latestAuthLink: copy(latestAuthLink), authFault: copy(authFault) } : {}) };
   }
   function control(input: Record<string, unknown>): Reply {
     const stage = input.stage;
@@ -440,6 +453,16 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
     else if (options.member && input.action === "member") {
       if (!["active", "pending", "revoked"].includes(String(input.status))) throw new Error("invalid_member");
       memberStatus = input.status as typeof memberStatus;
+    } else if (options.member && input.action === "auth-user") {
+      if (typeof input.confirmed !== "boolean") throw new Error("invalid_auth_user");
+      syntheticEmailConfirmed = input.confirmed;
+      if (!input.confirmed) syntheticSessionActive = false;
+    } else if (options.member && input.action === "auth-link") {
+      if (input.status !== "expired" && input.status !== "valid") throw new Error("invalid_auth_link");
+      originalAuthLinkExpired = input.status === "expired";
+    } else if (options.member && input.action === "auth-fault") {
+      if (!["otp", "resend"].includes(String(input.path)) || !["rate-limited", "unknown"].includes(String(input.mode))) throw new Error("invalid_auth_fault");
+      authFault = { path: input.path as "otp" | "resend", mode: input.mode as "rate-limited" | "unknown" };
     } else if (options.member && input.action === "invitation-delivery") {
       if (!["sent", "failed", "unknown"].includes(String(input.outcome))) throw new Error("invalid_delivery");
       nextDelivery = input.outcome as typeof nextDelivery;
@@ -447,6 +470,7 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
       const invitation = required(invitations.get(String(input.id)));
       invitation.status = demandInvitationStatusSchema.parse(input.status);
       invitation.redeemedAt = invitation.status === "redeemed" ? new Date(invitationClock).toISOString() : null;
+      invitation.redeemedBy = invitation.status === "redeemed" ? invitation.email === LOCAL_MEMBER_FIXTURE.email ? LOCAL_MEMBER_FIXTURE.userId : id(4) : null;
       invitation.leaseUntil = invitation.status === "sending" ? invitationClock + 120_000 : null;
       invitation.updatedAt = invitationClock - 60_001;
       invitation.expiresAt = new Date(invitationClock + (invitation.status === "expired" ? -1 : 7 * 86_400_000)).toISOString();
@@ -459,6 +483,7 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
         invitation.status = status; invitation.updatedAt = invitationClock - 60_001;
         invitation.sentAt = status === "sent" ? new Date(invitationClock).toISOString() : null;
         invitation.redeemedAt = status === "redeemed" ? new Date(invitationClock).toISOString() : null;
+        invitation.redeemedBy = status === "redeemed" ? id(4) : null;
         if (status === "expired") invitation.expiresAt = new Date(invitationClock - 1).toISOString();
       }
     } else if (options.member && input.action === "invitation-advance") {
@@ -518,7 +543,7 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
     const time = new Date(invitationClock).toISOString();
     const invitation = { id: newId(), email, status: "sending" as DemandInvitation["status"], createdAt: time,
       expiresAt: new Date(invitationClock + 7 * 86_400_000).toISOString(), sentAt: null as string | null,
-      redeemedAt: null as string | null, owner, updatedAt: invitationClock, leaseUntil: invitationClock + 120_000 as number | null };
+      redeemedAt: null as string | null, redeemedBy: null as string | null, owner, updatedAt: invitationClock, leaseUntil: invitationClock + 120_000 as number | null };
     invitations.set(invitation.id, invitation); return invitation;
   }
   function invitationList() {
@@ -542,7 +567,8 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
   }
   function syntheticUser() {
     return { id: LOCAL_MEMBER_FIXTURE.userId, aud: "authenticated", role: "authenticated", email: LOCAL_MEMBER_FIXTURE.email,
-      email_confirmed_at: new Date(BASE_TIME).toISOString(), confirmed_at: new Date(BASE_TIME).toISOString(),
+      email_confirmed_at: syntheticEmailConfirmed ? new Date(BASE_TIME).toISOString() : null,
+      confirmed_at: syntheticEmailConfirmed ? new Date(BASE_TIME).toISOString() : null,
       created_at: new Date(BASE_TIME).toISOString(), updated_at: new Date(BASE_TIME).toISOString(),
       app_metadata: { provider: "email", providers: ["email"] }, user_metadata: {}, identities: [], is_anonymous: false };
   }
@@ -557,21 +583,45 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
     if (authorization !== `Bearer ${LOCAL_MEMBER_FIXTURE.publishableKey}` && authorization !== `Bearer ${LOCAL_MEMBER_FIXTURE_ACCESS_TOKEN}`) return denied();
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return denied();
     const body = raw as Record<string, unknown>;
-    if (url.pathname === "/auth/v1/otp" && method === "POST") {
-      if (body.email !== LOCAL_MEMBER_FIXTURE.email || body.create_user !== false) return { status: 400, body: { code: "validation_failed", msg: "Use the documented synthetic member email with signup disabled." } };
-      const redirect = url.searchParams.get("redirect_to");
-      if (redirect) {
-        const target = new URL(redirect);
-        if (!localOrigin(target.origin) || target.pathname !== "/auth/confirm" || target.username || target.password) return denied();
+    if (["/auth/v1/otp", "/auth/v1/resend"].includes(url.pathname) && method === "POST") {
+      const resend = url.pathname === "/auth/v1/resend";
+      if ((body.email !== LOCAL_MEMBER_FIXTURE.email && body.email !== LOCAL_MEMBER_FIXTURE.absentEmail) ||
+        (resend ? body.type !== "signup" : body.create_user !== false)) return { status: 400, body: { code: "validation_failed", msg: "Use only the documented synthetic account and closed-signup flow." } };
+      const target = new URL(url.searchParams.get("redirect_to") ?? `${LOCAL_MEMBER_FIXTURE.origin}/auth/confirm?next=%2Fdemand`);
+      if (!localOrigin(target.origin) || target.pathname !== "/auth/confirm" || target.username || target.password || target.hash ||
+        [...target.searchParams.keys()].some((key) => !["next", "invitation"].includes(key)) ||
+        [...new Set(target.searchParams.keys())].some((key) => target.searchParams.getAll(key).length !== 1)) return denied();
+      if (target.searchParams.has("invitation") && !uuidSchema.safeParse(target.searchParams.get("invitation")).success) return denied();
+      const next = target.searchParams.get("next");
+      if (next && (!next.startsWith("/") || next.startsWith("//") || /[\\\r\n]/.test(next))) return denied();
+      const operation = resend ? "resend" : "otp";
+      syntheticAuthRequests[operation]++;
+      if (authFault?.path === operation) {
+        const mode = authFault.mode; authFault = null;
+        return mode === "rate-limited" ? { status: 429, body: { code: "over_email_send_rate_limit", msg: "Please wait before requesting another synthetic link." } }
+          : { status: 500, body: { code: "unexpected_failure", msg: "Synthetic send outcome is unknown." } };
       }
-      syntheticAuthRequests.otp++; return { status: 200, body: {} };
+      // Match the reviewed GoTrue branches without creating users or sending:
+      // absent OTP =>otp_disabled; unconfirmed OTP =>Signup's signup_disabled;
+      // resend signup silently does nothing for absent/already-confirmed users.
+      if (body.email === LOCAL_MEMBER_FIXTURE.absentEmail) return resend ? { status: 200, body: {} }
+        : { status: 422, body: { code: "otp_disabled", msg: "Signups not allowed for otp" } };
+      if (!resend && !syntheticEmailConfirmed) return { status: 422, body: { code: "signup_disabled", msg: "Signups not allowed for this instance" } };
+      if (resend && syntheticEmailConfirmed) return { status: 200, body: {} };
+      const hash = `${typeof body.code_challenge === "string" && body.code_challenge ? "pkce_" : ""}${LOCAL_MEMBER_FIXTURE.renewedTokenHash}`;
+      target.searchParams.set("token_hash", hash); target.searchParams.set("type", "email");
+      latestAuthLink = { url: target.href, template: resend ? "confirmation" : "magic_link", tokenHash: hash };
+      return { status: 200, body: {} };
     }
     if (url.pathname === "/auth/v1/verify" && method === "POST") {
-      if (body.token_hash !== LOCAL_MEMBER_FIXTURE.tokenHash || !["email", "invite"].includes(String(body.type))) return { status: 403, body: { code: "otp_expired", msg: "That synthetic verification link is not available." } };
-      syntheticAuthRequests.verify++; syntheticSessionActive = true;
+      syntheticAuthRequests.verify++;
+      const original = !originalAuthLinkExpired && body.token_hash === LOCAL_MEMBER_FIXTURE.tokenHash;
+      const renewed = latestAuthLink !== null && body.token_hash === latestAuthLink.tokenHash && body.type === "email";
+      if ((!original && !renewed) || !["email", "invite"].includes(String(body.type))) return { status: 403, body: { code: "otp_expired", msg: "That synthetic verification link is not available." } };
+      syntheticEmailConfirmed = true; syntheticSessionActive = true;
       return { status: 200, body: syntheticSession() };
     }
-    const valid = syntheticSessionActive && authorization === `Bearer ${LOCAL_MEMBER_FIXTURE_ACCESS_TOKEN}`;
+    const valid = syntheticEmailConfirmed && syntheticSessionActive && authorization === `Bearer ${LOCAL_MEMBER_FIXTURE_ACCESS_TOKEN}`;
     if (url.pathname === "/auth/v1/user" && method === "GET") {
       if (!valid) return denied(); syntheticAuthRequests.user++;
       return { status: 200, body: syntheticUser() };
@@ -581,7 +631,7 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
       return { status: 200, body: {} };
     }
     if (url.pathname === "/auth/v1/token" && method === "POST" && url.searchParams.get("grant_type") === "refresh_token") {
-      if (!syntheticSessionActive || body.refresh_token !== LOCAL_MEMBER_FIXTURE.refreshToken) return denied();
+      if (!syntheticEmailConfirmed || !syntheticSessionActive || body.refresh_token !== LOCAL_MEMBER_FIXTURE.refreshToken) return denied();
       syntheticAuthRequests.refresh++; return { status: 200, body: syntheticSession() };
     }
     return error(404, "not_found", "No synthetic Auth protocol exists here.");
@@ -603,7 +653,9 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
       if (memberStatus === "revoked" || invitation.email !== LOCAL_MEMBER_FIXTURE.email) return error(403, "invitation_recipient_mismatch", "Use the email this invitation was sent to.");
       return mutation(path, input, () => {
         if (!["pending", "sending", "sent", "redeemed"].includes(invitationDto(invitation).status)) throw error(404, "invitation_unavailable", "That invitation is no longer available.");
-        invitation.status = "redeemed"; invitation.redeemedAt ??= new Date(invitationClock).toISOString(); memberStatus = "active";
+        if (invitation.redeemedBy && invitation.redeemedBy !== LOCAL_MEMBER_FIXTURE.userId) throw error(404, "invitation_unavailable", "That invitation is no longer available.");
+        invitation.status = "redeemed"; invitation.redeemedAt ??= new Date(invitationClock).toISOString();
+        invitation.redeemedBy = LOCAL_MEMBER_FIXTURE.userId; memberStatus = "active";
         return { status: 200, body: demandInvitationRedemptionSchema.parse({ invitationId: invitation.id, admitted: true, replayed: false }) };
       });
     }
@@ -634,7 +686,8 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
       if (options.member && url.origin !== LOCAL_MEMBER_FIXTURE.origin) return error(403, "local_only", "Only the fixed local fixture destination is accepted.");
       if (options.member && ((headers.authorization && ![`Bearer ${LOCAL_MEMBER_FIXTURE_ACCESS_TOKEN}`, `Bearer ${LOCAL_MEMBER_FIXTURE.publishableKey}`].includes(headers.authorization)) ||
         (headers.apikey && headers.apikey !== LOCAL_MEMBER_FIXTURE.publishableKey))) return error(401, "fixture_synthetic_only", "This fixture refuses external credentials.");
-      if (options.member && path.startsWith("/auth/v1/")) return syntheticAuth(method, url, body, headers);
+      if (options.member && path.startsWith("/auth/v1/")) return { ...syntheticAuth(method, url, body, headers),
+        headers: { "X-Supabase-Api-Version": "2024-01-01" } };
       if (path === "/health" && method === "GET") return { status: 200, body: { ok: true, fixture: true, providerCalls: 0, databaseCalls: 0 } };
       if (path === "/__fixture/state" && method === "GET") return { status: 200, body: state() };
       if (path === "/__fixture/control" && method === "POST") {
@@ -644,14 +697,21 @@ export function createV10Fixture(rawOptions: { v11?: boolean; member?: boolean }
       }
       const parts = path.split("/").filter(Boolean);
       if (options.member) {
+        const verifiedViewer = syntheticEmailConfirmed && syntheticSessionActive && headers.authorization === `Bearer ${LOCAL_MEMBER_FIXTURE_ACCESS_TOKEN}`;
         if (method === "GET" && parts.slice(0, 3).join("/") === "v1/demand/invitations" && parts.length === 5 && parts[4] === "preview" && !url.search) {
+          if (headers.authorization && !verifiedViewer) return error(401, "reading_session_required", "That synthetic credential cannot identify a verified recipient.");
           const invitation = invitations.get(parts[3]);
-          if (!invitation || ["revoked", "failed", "redeemed"].includes(invitation.status)) return { status: 200, body: { state: "unavailable" } };
+          if (!invitation || ["revoked", "failed"].includes(invitation.status)) return { status: 200, body: { state: "unavailable" } };
+          if (invitation.status === "redeemed") return { status: 200, body: { state: verifiedViewer &&
+            invitation.redeemedBy === LOCAL_MEMBER_FIXTURE.userId && memberStatus === "active" ? "accepted" : "unavailable" } };
           if (invitationDto(invitation).status === "expired") return { status: 200, body: { state: "expired" } };
+          if (verifiedViewer && invitation.email !== LOCAL_MEMBER_FIXTURE.email) return { status: 200, body: { state: "wrong_account" } };
           const [local, domain] = invitation.email.split("@");
           return { status: 200, body: { state: "available", maskedEmail: `${local[0]}***@${domain}`, expiresAt: invitation.expiresAt } };
         }
-        if (!syntheticSessionActive || headers.authorization !== `Bearer ${LOCAL_MEMBER_FIXTURE_ACCESS_TOKEN}` || headers["x-edison-demand-token"]) return error(401, "reading_session_required", "Sign in through the synthetic local Auth flow first.");
+        // Model a pre-D44 browser's old guest cookie during the normal verified
+        // account handoff. It never grants access alone or accepts other tokens.
+        if (!verifiedViewer || (headers["x-edison-demand-token"] && headers["x-edison-demand-token"] !== TOKEN)) return error(401, "reading_session_required", "Sign in through the synthetic local Auth flow first.");
         const redeem = method === "POST" && parts.slice(0, 3).join("/") === "v1/demand/invitations" && parts.length === 5 && parts[4] === "redeem";
         if (!redeem && memberStatus !== "active") return error(403, "membership_required", "An invitation is needed.");
         if (path === "/v1/demand/access" && method === "GET" && !url.search) return { status: 200, body: { member: true } };
@@ -1088,7 +1148,8 @@ async function main() {
     if (remote !== HOST || ![`${HOST}:${PORT}`, `localhost:${PORT}`].includes(request.headers.host ?? "") || !localOrigin(origin)) {
       response.writeHead(403); response.end(JSON.stringify({ error: { code: "local_only", message: "This fixture is localhost-only." } })); return;
     }
-    if (origin) { response.setHeader("Access-Control-Allow-Origin", origin); response.setHeader("Vary", "Origin"); }
+    if (origin) { response.setHeader("Access-Control-Allow-Origin", origin); response.setHeader("Vary", "Origin");
+      if (member) response.setHeader("Access-Control-Expose-Headers", "X-Supabase-Api-Version"); }
     if (request.method === "OPTIONS") {
       response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS");
       response.setHeader("Access-Control-Allow-Headers", member ? "Content-Type, X-Edison-Demand-Token, Authorization, Apikey, X-Client-Info, X-Supabase-Api-Version" : "Content-Type, X-Edison-Demand-Token"); response.writeHead(204); response.end(); return;
@@ -1103,6 +1164,7 @@ async function main() {
       });
     } catch { reply = error(400, "invalid_request", "That local request was not valid or exceeded 8192 bytes."); }
     if (reply.loseResponse) { response.destroy(); return; }
+    for (const [key, value] of Object.entries(reply.headers ?? {})) response.setHeader(key, value);
     response.writeHead(reply.status); response.end(JSON.stringify(reply.body));
   });
   server.listen(PORT, HOST, () => process.stdout.write(`${JSON.stringify({ fixture: true, url: `http://${HOST}:${PORT}`, state: fixture.state() })}\n`));

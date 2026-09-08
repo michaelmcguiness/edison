@@ -144,7 +144,9 @@ async function integration() {
     await r.database.insert(r.demandRequests).values({id:sentinelId,principalId:sentinel.id,loopId:sentinelLoop.id,kind:"question",status:"running",stage:"answering",
       idempotencyKey:`${prefix}spend-sentinel`,requestFingerprint:"d".repeat(64),snapshot:{version:2},reservedMicrousd:250000,leaseExpiresAt:new Date(Date.now()+300000)});
     const {durableDemandProvider}=await import("../apps/api/src/services/demand-provider-stages");let stubCalls=0;
-    const provider=durableDemandProvider(sentinelId,sentinel.id,{environment:{OPENAI_WEB_SEARCH_COST_MICROUSD:"10000"},provider:async()=>{
+    // Match the approved models in the existing durable-provider DB fixture;
+    // declaring a search price alone does not authorize the synthetic model.
+    const provider=durableDemandProvider(sentinelId,sentinel.id,{environment:{OPENAI_ARTICLE_MODEL:"gpt-5.6-terra",OPENAI_UTILITY_MODEL:"gpt-5.6-luna",OPENAI_WEB_SEARCH_COST_MICROUSD:"10000"},provider:async()=>{
       stubCalls++;return {output:{text:"Constructed local ledger sentinel."},usage:{providerResponseId:`local-sentinel-${sentinelId}`,model:"gpt-5.6-luna",
         inputTokens:100,cachedInputTokens:10,outputTokens:100,webSearchCalls:0,webSearchToolCalls:0,webSearchPricingStatus:"priced"}};
     }});
