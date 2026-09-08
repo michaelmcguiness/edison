@@ -235,6 +235,7 @@ async function integrationChecks() {
       assert.deepEqual(saved.stages[0].output, response);
       assert.equal(saved.stages[0].costMicrousd, expectedCost);
       assert.equal(saved.usage[0].costMicrousd, expectedCost); assert.equal(saved.usage[0].searchCalls, 1);
+      assert.deepEqual(saved.usage[0].observedUsage, response.usage);
       const before = providerCalls;
       assert.deepEqual(await read(request), response);
       const unpinned = { ...request }; delete unpinned.providerPolicy;
@@ -256,6 +257,7 @@ async function integrationChecks() {
       const saved = await records(item); const before = providerCalls;
       assert.equal(saved.usage.length, 1); assert.equal(saved.usage[0].pricingStatus, "unpriced");
       assert.equal(saved.usage[0].costMicrousd, null); assert.equal(saved.usage[0].searchCalls, 1);
+      assert.deepEqual(saved.usage[0].observedUsage, response.usage);
       assert.equal(saved.stages[0].status, "failed"); assert.equal(saved.stages[0].output, null);
       assert.deepEqual(saved.stages[0].usage, response.usage);
       await assert.rejects(read(stage(item, "answer")), code("provider_invalid"));
@@ -275,6 +277,67 @@ async function integrationChecks() {
       }
     }
     console.log("Disposable database: Fast policy/actual-tier JSON roundtrip, priority/default pricing, unchanged search fees, unpriced settlement, exact cached replay and pre-call pin/budget denial passed with local provider stubs.");
+
+    // The actual terminal-stage trigger must remain intact. Simulate a lease
+    // becoming uncertain while the constructed transport is outstanding, then
+    // retain only whitelisted accounting evidence in the append-only bill.
+    const lateCases = [
+      { tier: "priority" }, { tier: "default" }, { tier: "unknown-tier" }, { tier: null }, { tier: undefined },
+      { tier: "priority", refusal: true },
+      { tier: "priority", duplicate: "legacy" }, { tier: "priority", duplicate: "observed" },
+    ] as const;
+    for (const scenario of lateCases) {
+      const item = await fixture(firstPrincipal, { providerPolicy: fastPolicy });
+      const response = observed(2, 1, "priced", scenario.tier);
+      const cleanUsage = structuredClone(response.usage);
+      Object.assign(response.usage, { prompt: "forbidden", article: "forbidden", rawResponse: { text: "forbidden" } });
+      let terminal: typeof demandStages.$inferSelect | undefined;
+      const duplicate = "duplicate" in scenario ? scenario.duplicate : undefined;
+      const refusal = "refusal" in scenario && scenario.refusal;
+      const read = provider(item, async () => {
+        const reserved = (await records(item)).stages;
+        assert.equal(reserved.length, 1); assert.equal(reserved[0].status, "reserved");
+        assert.ok(reserved[0].leaseExpiresAt);
+        const changed = await database.update(demandStages).set({ status: "uncertain" }).where(and(
+          eq(demandStages.id, reserved[0].id), eq(demandStages.principalId, item.principalId),
+          eq(demandStages.requestId, item.requestId), eq(demandStages.status, "reserved"),
+          eq(demandStages.requestFingerprint, reserved[0].requestFingerprint),
+          eq(demandStages.leaseExpiresAt, reserved[0].leaseExpiresAt),
+        )).returning();
+        assert.equal(changed.length, 1); terminal = changed[0];
+        if (duplicate) await database.insert(demandUsage).values({ principalId: item.principalId, requestId: item.requestId,
+          stageId: terminal.id, responseId: cleanUsage.providerResponseId, model: cleanUsage.model,
+          inputTokens: 100, cachedInputTokens: 10, outputTokens: 100, searchCalls: 1,
+          costMicrousd: 123, pricingStatus: "priced",
+          ...(duplicate === "observed" ? { observedUsage: { ...cleanUsage, serviceTier: "default" } } : {}) });
+        if (refusal) throw new ProviderResponseValidationError("Constructed late refusal", response.usage);
+        return response;
+      });
+      const priced = scenario.tier === "priority" || scenario.tier === "default";
+      await assert.rejects(read(stage(item, "answer")), refusal ? ProviderResponseValidationError
+        : code(priced ? "provider_invalid" : "provider_model_unpriced"));
+      const saved = await records(item); const callsBefore = providerCalls;
+      assert.ok(terminal); assert.equal(saved.stages.length, 1); assert.equal(saved.usage.length, 1);
+      assert.deepEqual(saved.stages[0], terminal, "late settlement must not update any terminal-stage field");
+      assert.equal(terminal.providerResponseId, null); assert.equal(terminal.usage, null); assert.equal(terminal.output, null);
+      assert.equal(saved.usage[0].costMicrousd, duplicate ? 123 : scenario.tier === "priority" ? 10276 : scenario.tier === "default" ? 10138 : null);
+      assert.equal(saved.usage[0].pricingStatus, priced ? "priced" : "unpriced");
+      assert.deepEqual(saved.usage[0].observedUsage, duplicate === "legacy" ? null : duplicate === "observed"
+        ? { ...cleanUsage, serviceTier: "default" } : cleanUsage);
+      await assert.rejects(read(stage(item, "answer")), code("provider_uncertain"));
+      assert.equal(providerCalls, callsBefore); assert.deepEqual(await records(item), saved);
+      // Execute separately, so the intentional rejection cannot abort the
+      // settlement transaction or obscure its already-durable usage receipt.
+      await assert.rejects(database.update(demandStages).set({ usage: cleanUsage }).where(and(
+        eq(demandStages.id, terminal.id), eq(demandStages.principalId, item.principalId), eq(demandStages.requestId, item.requestId),
+      )), (error: unknown) => {
+        const cause = error instanceof Error && error.cause ? error.cause : error;
+        return typeof cause === "object" && cause !== null && "code" in cause && cause.code === "23514" &&
+          "constraint_name" in cause && cause.constraint_name === "demand_stages_terminal_immutable";
+      });
+      assert.deepEqual(await records(item), saved, "the rejected metadata update cannot remove or rewrite the bill");
+    }
+    console.log("Disposable database: late priority/default/unpriced/refused responses retain observed usage; uncertain stages and old/duplicate bills remain immutable; retry makes no provider call.");
 
     // Revocation while the stub is running withholds content but keeps its charge.
     const revoked = await fixture(secondPrincipal);

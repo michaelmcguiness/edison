@@ -59,7 +59,7 @@ async function fixture(options: { check?: (check: ReaderFirstCheckOutput) => voi
       snapshot: identity.snapshot, status: "succeeded", providerResponseId: response.usage.providerResponseId, output: { ...response },
       usage: { ...response.usage }, ...priced, leaseExpiresAt: new Date(time.getTime() + 300000), createdAt: time, updatedAt: time });
     usage.push({ id, principalId, requestId, stageId: id, responseId: response.usage.providerResponseId, model: call.model,
-      inputTokens: 100, cachedInputTokens: 0, outputTokens: 100, searchCalls: 0, ...priced, createdAt: time });
+      inputTokens: 100, cachedInputTokens: 0, outputTokens: 100, searchCalls: 0, observedUsage: null, ...priced, createdAt: time });
     return response;
   };
   const state: ReaderFirstPipelineState = { version: 2, snapshotVersion: 2, promptVersion: READER_FIRST_PROMPT_VERSION,

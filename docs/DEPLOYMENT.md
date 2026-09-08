@@ -21,7 +21,10 @@ The [accounted Fast candidate](operations/ACCOUNTED_FAST_CANDIDATE_2026-09-08.md
 `27f663ab8a3c9d468f58ff09f646ad70b82748db` in PR5. Exact-source CI34260587306
 passed1,120 application tests,320 pgTAP assertions, all seven DB proofs (including
 new actual-tier accounting/replay), types/lint/builds. Independent source review
-is closed. It is **not deployed or enabled**: the existing browser is signed out,
+closed the initial scope; later review found a late-uncertain actual-tier evidence
+gap. Activation remains blocked pending a safe append-only accounting correction;
+the existing immutable-stage rule must not be bypassed. See the candidate receipt.
+It is **not deployed or enabled**: the existing browser is signed out,
 so no paid timing was attempted. Keep the option off; no new QA identity/mail.
 See the [generation-latency receipt](operations/GENERATION_LATENCY_RELEASE_2026-09-08.md) for evidence and limits.
 

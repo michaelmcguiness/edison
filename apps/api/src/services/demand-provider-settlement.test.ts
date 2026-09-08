@@ -84,15 +84,18 @@ type HarnessOptions = {
   providerPolicy?: unknown; parentPolicy?: unknown; omitParentPolicy?: boolean; actualTier?: string | null;
   parentPolicyAfterCall?: unknown;
   reservedMicrousd?: number; spent?: number; transport?: "refusal" | "unknown";
+  stageAfterCall?: Row; existingReceipt?: "legacy" | "observed"; extraUsageFields?: boolean;
 };
 
 function harness(scenario: Scenario = "normal", options: HarnessOptions = {}) {
   const events: string[] = [];
   const selects: SelectEvent[] = [];
   const insertedUsage: Row[] = [];
+  const existingUsage: Row[] = [];
   const stageUpdates: Row[] = [];
   const response = rawResponse();
   if (Object.hasOwn(options, "actualTier")) response.usage.serviceTier = options.actualTier;
+  if (options.extraUsageFields) Object.assign(response.usage, { prompt: "not accounting", article: "not accounting", rawResponse: { text: "not accounting" } });
   const stagePolicy = Object.hasOwn(options, "providerPolicy") ? { providerPolicy: options.providerPolicy } : {};
   const parentPolicy = options.omitParentPolicy ? {} : Object.hasOwn(options, "parentPolicy") ? { providerPolicy: options.parentPolicy } : stagePolicy;
   const request = { ...providerRequest(), ...stagePolicy } as OnDemandProviderRequest;
@@ -103,6 +106,7 @@ function harness(scenario: Scenario = "normal", options: HarnessOptions = {}) {
   let connectionHeld = false;
   let providerCalls = 0;
   let currentStage: Row | undefined;
+  let stageAtResponse: Row | undefined;
   let settlementProjectionReads = 0;
   const priorStage = { id: "constructed-prior-stage", stageKey: "write:constructed-prior", status: "succeeded",
     snapshot: { version: 1, researchPolicy: { mode: "auto", maxCalls: 8 }, ...stagePolicy },
@@ -161,13 +165,13 @@ function harness(scenario: Scenario = "normal", options: HarnessOptions = {}) {
     assert.equal(table, demandUsage);
     if (!selection) {
       predicateIs(predicate, orm.eq(demandUsage.responseId, response.usage.providerResponseId));
-      assert.equal(event.limit, 1); events.push("usage:identity"); return [];
+      assert.equal(event.limit, 1); events.push("usage:identity"); return existingUsage;
     }
     predicateIs(predicate, orm.eq(demandUsage.requestId, requestId));
     if ("spent" in selection) { events.push("usage:reservation-total"); return [{ spent: options.spent ?? 0, unpriced: 0 }]; }
     assert.deepEqual(Object.keys(selection), ["totalSpent"]); events.push("usage:settlement-total");
     return [{ totalSpent: scenario === "over-budget" ? requestRow.reservedMicrousd + 1
-      : (options.spent ?? 0) + insertedUsage.reduce((sum, row) => sum + Number(row.costMicrousd ?? 0), 0) }];
+      : (options.spent ?? 0) + [...existingUsage, ...insertedUsage].reduce((sum, row) => sum + Number(row.costMicrousd ?? 0), 0) }];
   }
 
   const tx = {
@@ -193,7 +197,7 @@ function harness(scenario: Scenario = "normal", options: HarnessOptions = {}) {
         assert.equal(values.principalId, principalId); assert.equal(values.requestId, requestId);
         if (table === demandStages) {
           assert.equal(transaction, 1); events.push("stage:reserve");
-          currentStage = { ...values, id: stageId, usage: null, output: null };
+          currentStage = { ...values, id: stageId, providerResponseId: null, usage: null, output: null };
           return { returning: async () => [currentStage] };
         }
         assert.equal(table, demandUsage); assert.equal(transaction, 2);
@@ -241,11 +245,17 @@ function harness(scenario: Scenario = "normal", options: HarnessOptions = {}) {
       if (Object.hasOwn(options, "parentPolicyAfterCall")) {
         (requestRow.snapshot as Record<string, unknown>).providerPolicy = options.parentPolicyAfterCall;
       }
+      if (options.stageAfterCall) currentStage = { ...currentStage, ...options.stageAfterCall };
+      stageAtResponse = structuredClone(currentStage!);
+      if (options.existingReceipt) existingUsage.push({ stageId, responseId: response.usage.providerResponseId,
+        costMicrousd: 123, pricingStatus: "priced", observedUsage: options.existingReceipt === "legacy" ? null
+          : { ...response.usage, serviceTier: "default" } });
       if (options.transport) throw providerFailure;
       return response;
     },
   });
-  return { run: (input = request) => provider(input), events, selects, insertedUsage, stageUpdates, response, request, requestRow, providerFailure,
+  return { run: (input = request) => provider(input), events, selects, insertedUsage, existingUsage, stageUpdates, response, request, requestRow, providerFailure,
+    stage: () => structuredClone(currentStage), stageAtResponse: () => structuredClone(stageAtResponse),
     providerCalls: () => providerCalls, projectionReads: () => settlementProjectionReads };
 }
 
@@ -328,6 +338,7 @@ for (const [actualTier, costMicrousd] of [["priority", 22_764], ["default", 21_3
     const original = JSON.stringify(app.response);
     assert.equal(JSON.stringify(await app.run()), original);
     assert.equal(app.insertedUsage[0].costMicrousd, costMicrousd);
+    assert.deepEqual(plain(app.insertedUsage[0].observedUsage), app.response.usage);
     assert.equal(app.insertedUsage[0].pricingStatus, "priced");
     assert.equal(app.insertedUsage[0].searchCalls, 2, "the two searches still cost 20,000 microUSD in either tier");
     assert.equal(app.stageUpdates[0].costMicrousd, costMicrousd);
@@ -351,6 +362,7 @@ for (const tier of ["unknown-tier", null, undefined] as const) {
     assert.equal(app.insertedUsage[0].costMicrousd, null); assert.equal(app.insertedUsage[0].pricingStatus, "unpriced");
     assert.equal(app.insertedUsage[0].inputTokens, 100); assert.equal(app.insertedUsage[0].outputTokens, 100);
     assert.equal(app.insertedUsage[0].searchCalls, 2);
+    assert.deepEqual(plain(app.insertedUsage[0].observedUsage), app.response.usage);
     assert.equal(app.stageUpdates[0].status, "failed"); assert.equal(app.stageUpdates[0].output, null);
     assert.deepEqual(plain(app.stageUpdates[0].usage), app.response.usage);
     const before = JSON.stringify({ ledger: app.insertedUsage, settlements: app.stageUpdates });
@@ -410,4 +422,75 @@ test("Fast unknown transport stays uncertain with its existing reservation and c
   assert.equal(app.stageUpdates.length, 1); assert.equal(app.stageUpdates[0].status, "uncertain");
   assert.equal(JSON.stringify(app.requestRow), before);
   assert.equal(app.projectionReads(), 0, "no invented response usage can settle the unresolved provider call");
+});
+
+for (const tier of ["priority", "default", "unknown-tier", null, undefined] as const) {
+  test(`late ${String(tier)} response appends observed usage without changing the uncertain stage or retrying`, async () => {
+    const app = harness("normal", { providerPolicy: fastPolicy, ...(tier === undefined ? {} : { actualTier: tier }),
+      stageAfterCall: { status: "uncertain" } });
+    const priced = tier === "priority" || tier === "default";
+    await assert.rejects(app.run(), error => error instanceof HttpError &&
+      error.code === (priced ? "provider_invalid" : "provider_model_unpriced"));
+    assert.equal(app.providerCalls(), 1); assert.equal(app.insertedUsage.length, 1);
+    assert.equal(app.insertedUsage[0].costMicrousd, tier === "priority" ? 22_764 : tier === "default" ? 21_382 : null);
+    assert.equal(app.insertedUsage[0].pricingStatus, priced ? "priced" : "unpriced");
+    assert.deepEqual(plain(app.insertedUsage[0].observedUsage), app.response.usage);
+    assert.deepEqual(app.stage(), app.stageAtResponse(), "the complete uncertain row, including lease and null metadata, is immutable");
+    assert.equal(app.stage()!.usage, null); assert.equal(app.stage()!.output, null);
+    assert.equal(app.stage()!.providerResponseId, null); assert.equal(app.stageUpdates.length, 0);
+    const before = JSON.stringify({ stage: app.stage(), usage: app.insertedUsage, request: app.requestRow });
+    await assert.rejects(app.run(), error => error instanceof HttpError && error.code === "provider_uncertain");
+    assert.equal(app.providerCalls(), 1);
+    assert.equal(JSON.stringify({ stage: app.stage(), usage: app.insertedUsage, request: app.requestRow }), before);
+  });
+}
+
+test("late refusal appends its actual charge and observed tier while retaining the immutable uncertain stage", async () => {
+  const app = harness("normal", { providerPolicy: fastPolicy, actualTier: "priority", transport: "refusal",
+    stageAfterCall: { status: "uncertain" }, extraUsageFields: true });
+  await assert.rejects(app.run(), error => error === app.providerFailure);
+  assert.equal(app.insertedUsage.length, 1); assert.equal(app.insertedUsage[0].costMicrousd, 22_764);
+  assert.deepEqual(plain(app.insertedUsage[0].observedUsage), { ...observedUsage(2), serviceTier: "priority" },
+    "the receipt whitelists accounting fields rather than persisting prompt, output or arbitrary provider metadata");
+  assert.deepEqual(app.stage(), app.stageAtResponse()); assert.equal(app.stageUpdates.length, 0);
+  await assert.rejects(app.run(), error => error instanceof HttpError && error.code === "provider_uncertain");
+  assert.equal(app.providerCalls(), 1); assert.equal(app.insertedUsage.length, 1);
+});
+
+test("late settlement cannot overwrite terminal or foreign-lease stage metadata", async () => {
+  for (const stageAfterCall of [
+    { status: "uncertain", providerResponseId: "previous-response", usage: { serviceTier: "default" }, output: { retained: true } },
+    { status: "succeeded", providerResponseId: "previous-response", usage: { serviceTier: "default" }, output: { retained: true } },
+    { leaseExpiresAt: new Date(now.getTime() + 999_000) },
+  ]) {
+    const app = harness("normal", { providerPolicy: fastPolicy, actualTier: "priority", stageAfterCall });
+    await assert.rejects(app.run(), error => error instanceof HttpError && error.code === "provider_invalid");
+    assert.deepEqual(app.stage(), app.stageAtResponse()); assert.equal(app.stageUpdates.length, 0);
+    assert.equal(app.insertedUsage[0].costMicrousd, 22_764);
+    assert.deepEqual(plain(app.insertedUsage[0].observedUsage), app.response.usage);
+  }
+});
+
+test("foreign fingerprint prevents attributing a late response to the wrong stage", async () => {
+  const app = harness("normal", { providerPolicy: fastPolicy, actualTier: "priority",
+    stageAfterCall: { status: "uncertain", requestFingerprint: "another-fingerprint" } });
+  await assert.rejects(app.run(), error => error instanceof Error && error.name === "DemandUsagePersistenceError");
+  assert.equal(app.providerCalls(), 1); assert.equal(app.insertedUsage.length, 0);
+  assert.equal(app.stageUpdates.length, 0); assert.deepEqual(app.stage(), app.stageAtResponse());
+});
+
+test("duplicate late response never backfills or reprices an existing legacy or observed receipt", async () => {
+  for (const existingReceipt of ["legacy", "observed"] as const) {
+    const app = harness("normal", { providerPolicy: fastPolicy, actualTier: "priority", existingReceipt,
+      stageAfterCall: { status: "uncertain" } });
+    await assert.rejects(app.run(), error => error instanceof HttpError && error.code === "provider_invalid");
+    assert.equal(app.insertedUsage.length, 0); assert.equal(app.existingUsage.length, 1);
+    assert.equal(app.existingUsage[0].costMicrousd, 123);
+    assert.deepEqual(plain(app.existingUsage[0].observedUsage), existingReceipt === "legacy" ? null
+      : { ...app.response.usage, serviceTier: "default" });
+    assert.deepEqual(app.stage(), app.stageAtResponse()); assert.equal(app.stageUpdates.length, 0);
+    const before = JSON.stringify(app.existingUsage);
+    await assert.rejects(app.run(), error => error instanceof HttpError && error.code === "provider_uncertain");
+    assert.equal(app.providerCalls(), 1); assert.equal(JSON.stringify(app.existingUsage), before);
+  }
 });

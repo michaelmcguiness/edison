@@ -264,6 +264,10 @@ const databaseStore: DemandStageStore = {
     });
   },
   async record(result, now) {
+    // Whitelist metering metadata only; never store provider article/prompt text
+    // in the bill. The insert survives immutable/uncertain stage state because
+    // no stage enrichment or separate transaction is needed.
+    const observedUsage = usageSchema.parse(result.usage);
     const pricing = demandStagePricing(result.usage, result.identity.snapshot.searchPriceMicrousd, result.identity.snapshot.providerPolicy);
     return withDemandWorkerDb(async (tx) => {
       // Match reserve's lock order. Taking a stage lock before its parent can
@@ -274,7 +278,7 @@ const databaseStore: DemandStageStore = {
       if (!stage || stage.requestFingerprint !== result.identity.requestFingerprint) stop("provider_usage_persistence_failed");
       const [priorUsage] = await tx.select().from(demandUsage).where(eq(demandUsage.responseId, result.usage.providerResponseId)).limit(1);
       if (priorUsage && priorUsage.stageId !== stage.id) return { usable: false, code: "provider_response_identity_conflict" };
-      if (!priorUsage) await tx.insert(demandUsage).values({ principalId: result.identity.principalId, requestId: result.identity.requestId, stageId: stage.id, responseId: result.usage.providerResponseId, model: result.usage.model, inputTokens: result.usage.inputTokens, cachedInputTokens: result.usage.cachedInputTokens, outputTokens: result.usage.outputTokens, searchCalls: result.usage.webSearchCalls ?? 0, costMicrousd: pricing.costMicrousd, pricingStatus: pricing.pricingStatus });
+      if (!priorUsage) await tx.insert(demandUsage).values({ principalId: result.identity.principalId, requestId: result.identity.requestId, stageId: stage.id, responseId: result.usage.providerResponseId, model: result.usage.model, inputTokens: result.usage.inputTokens, cachedInputTokens: result.usage.cachedInputTokens, outputTokens: result.usage.outputTokens, searchCalls: result.usage.webSearchCalls ?? 0, observedUsage, costMicrousd: pricing.costMicrousd, pricingStatus: pricing.pricingStatus });
       // Recheck live membership AFTER retaining any incurred spend. Revocation
       // denies releasing the response; it must not erase its usage record.
       const [access] = await tx.execute<{ active: boolean }>(sql`select private.demand_principal_is_active(${result.identity.principalId}::uuid) as active`);
