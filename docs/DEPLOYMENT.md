@@ -1,8 +1,33 @@
 # Edison deployment
 
-## Current v11.1 / D45 activation — September 8
+## Current v12 email-code rollout — September 8
 
-The exact reviewed source`785861a3a25a8b7bdbe5ee1d0fafb60f91ffc7ee` is live:
+Web source `f3cde89bdf7ae57a691b70a183fc3432559acdd3` is live as
+`dpl_8kzhBZuCnfYvdpJnjywZGD6D7sTc`, Ready at 14:00:54.245 UTC; the existing
+edisonreader.com, www and project-qlqve alias assignments completed at
+14:00:54.492 UTC. API source `785861a3a25a8b7bdbe5ee1d0fafb60f91ffc7ee`,
+deployment `dpl_Fxu7wuq3jEMr85PxLFa5pj5fMp5N` and its three schedules remain
+unchanged. There was no API, migration, domain, secret or budget change.
+
+Only the reviewed Magic Link and Confirmation bodies were saved after the web
+was Ready. Reloaded editor readbacks matched both 1,771-character candidate bodies
+by 14:04:13 UTC, with both “Continue to Edison” subjects unchanged. The initial
+Invite body was also unchanged on readback and was not edited; its subject was
+not verified as matching the historical summary.
+
+[CI 34233984377](https://github.com/michaelmcguiness/edison/actions/runs/34233984377)
+passed every job and step at the exact source: 1,004 application tests, 320 pgTAP
+assertions, seven disposable-database service proofs, types/lint/builds and schema
+lint. Design and local invitation/recovery browser checks are closed. Read-only
+production phone UI matches; CoS verified anonymous app/article/share redirects
+to login with no-store responses. No actual mail or paid generation was used;
+fresh hosted signed-in reading and physical-phone autofill remain unverified.
+Use the [v12 live receipt](V12_EMAIL_CODE_RELEASE_2026-09-08.md) for detailed
+evidence and the coordinated template/web rollback caveat for already-sent codes.
+
+## Previous v11.1 / D45 activation — September 8
+
+The exact reviewed source`785861a3a25a8b7bdbe5ee1d0fafb60f91ffc7ee` was live at this checkpoint:
 API`dpl_Fxu7wuq3jEMr85PxLFa5pj5fMp5N`, Ready12:31:32.348 UTC;
 web remains`dpl_FBkgbqz8NBLTnSVGBH9TmTYAhz5n` on edisonreader.com.
 The fresh API deployment enables invitations with the explicitly approved
@@ -12,7 +37,7 @@ test invitation or paid generation accompanied this activation. Historical
 approval-context rejections were resolved through accepted normal review with
 Michael's direct D45 approval, not an alternate credential path.
 
-Use the [current receipt](V11_1_RELEASE_CANDIDATE_2026-09-07.md) for exact aliases,
+Use the [v11.1 receipt](V11_1_RELEASE_CANDIDATE_2026-09-07.md) for exact aliases,
 configuration/schedules, readiness evidence and rollback constraints. Sender
 configuration and public Auth health do not establish actual email delivery;
 fresh authorized reading remains unverified without an existing sign-in session.

@@ -15,9 +15,34 @@ This project is independent and is not affiliated with Perch.
 
 ## Latest owner decision
 
-### September 8 — v11.1 and D45 invitation configuration live
+### September 8 — v12 email-code sign-in live
 
-The current application source is`785861a3a25a8b7bdbe5ee1d0fafb60f91ffc7ee`.
+Web source `f3cde89bdf7ae57a691b70a183fc3432559acdd3` is live as
+`dpl_8kzhBZuCnfYvdpJnjywZGD6D7sTc`, Ready at 14:00:54.245 UTC. Existing
+edisonreader.com, www and project-qlqve alias assignments completed at
+14:00:54.492 UTC. API remains `785861a3a25a8b7bdbe5ee1d0fafb60f91ffc7ee`
+on `dpl_Fxu7wuq3jEMr85PxLFa5pj5fMp5N`; its three schedules are unchanged.
+
+After the compatible web was Ready, only the Magic Link and Confirmation email
+bodies were saved. Reloaded editor readbacks matched both exact 1,771-character
+candidate bodies by 14:04:13 UTC; both subjects remain “Continue to Edison.”
+The initial Invite body was unchanged on readback and was not edited. Its subject
+was not established as matching the older summary; no subject change is claimed.
+
+[Exact-source CI 34233984377](https://github.com/michaelmcguiness/edison/actions/runs/34233984377)
+passed every job and step, including 1,004 application tests, 320 pgTAP assertions,
+seven disposable-database service proofs, types, lint, builds and schema lint.
+Design is closed. CTO's local invitation/recovery journeys passed; read-only
+production phone UI and CoS's anonymous app/article/share redirects with no-store
+responses passed. These checks establish neither real email delivery nor a fresh
+hosted signed-in reading journey; no test email or paid generation was used.
+Membership, invitation slots, allowance, spending limits and Auth settings remain
+unchanged. Use the [v12 live receipt](docs/V12_EMAIL_CODE_RELEASE_2026-09-08.md)
+for exact evidence, template identities and compatible rollback limits.
+
+### Previous — September 8 v11.1 and D45 invitation configuration live
+
+At this earlier checkpoint, application source was`785861a3a25a8b7bdbe5ee1d0fafb60f91ffc7ee`.
 Web remains`dpl_FBkgbqz8NBLTnSVGBH9TmTYAhz5n` on edisonreader.com; API is now
 `dpl_Fxu7wuq3jEMr85PxLFa5pj5fMp5N`, Ready12:31:32.348 UTC. Migrations004/005
 and the reviewed email templates are applied. D42–D44 select mobile-first reading,

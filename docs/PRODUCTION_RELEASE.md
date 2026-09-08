@@ -6,14 +6,37 @@ launching; they can change without a code release.
 
 ## Decision and current status
 
-**Current — v11.1 / D45 invitation configuration live:** source
+**Current — v12 email-code sign-in live:** web source
+`f3cde89bdf7ae57a691b70a183fc3432559acdd3`, deployment
+`dpl_8kzhBZuCnfYvdpJnjywZGD6D7sTc`, was Ready at September 8 14:00:54.245 UTC;
+existing apex, www and project-qlqve alias assignments completed at 14:00:54.492 UTC.
+API remains source `785861a3a25a8b7bdbe5ee1d0fafb60f91ffc7ee` on
+`dpl_Fxu7wuq3jEMr85PxLFa5pj5fMp5N`, with all three schedules unchanged.
+Only the Magic Link and Confirmation bodies were saved after the compatible web
+was Ready. Reloaded readbacks matched both 1,771-character candidate bodies by
+14:04:13 UTC; both subjects remain “Continue to Edison.” Initial Invite body
+readback was unchanged and no Invite edit occurred. Its subject was not verified
+against the older summary, so no matching-subject claim is made.
+
+[Exact-source CI 34233984377](https://github.com/michaelmcguiness/edison/actions/runs/34233984377)
+passed every job and step: 1,004 application tests, 320 pgTAP assertions, seven
+disposable-database service proofs, types/lint/builds and schema lint. Design and
+local invitation/recovery browser checks are closed. Production phone UI was
+checked read-only; CoS verified anonymous app/article/share login redirects and
+no-store responses. No test email, paid generation, API release, migration,
+secret, Auth-policy or budget change was made. Real delivery and a fresh hosted
+signed-in journey remain separate, unverified evidence. See the
+[current v12 receipt](V12_EMAIL_CODE_RELEASE_2026-09-08.md) for exact checks and
+rollback limits, including code emails already sent before a rollback.
+
+**Previous — v11.1 / D45 invitation configuration live:** source
 `785861a3a25a8b7bdbe5ee1d0fafb60f91ffc7ee`; API
 `dpl_Fxu7wuq3jEMr85PxLFa5pj5fMp5N`, Ready12:31:32.348 UTC September8;
 web remains`dpl_FBkgbqz8NBLTnSVGBH9TmTYAhz5n` on the existing apex.
 Migrations004/005 and reviewed Auth templates are applied. The explicitly approved
 server-key transfer passed normal review with direct user authorization; API
 Production invitation sending is enabled, with no web/Preview secret copy.
-No approval remains pending. See the [single current release receipt](V11_1_RELEASE_CANDIDATE_2026-09-07.md)
+No approval remains pending. See the [v11.1 release receipt](V11_1_RELEASE_CANDIDATE_2026-09-07.md)
 for exact deployment/configuration checks, rollback constraints and the separate
 unverified actual-mail and fresh signed-in journey limits. No QA email or paid
 generation was commissioned, and D32 spending limits remain unchanged.
